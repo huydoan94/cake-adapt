@@ -1,0 +1,10 @@
+{
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/src"
+    ],
+    "files.associations": {
+        "*.h": "c"
+    }
+}
+

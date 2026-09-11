@@ -1,0 +1,43 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build sqm-mon (host)",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "src"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "Clean sqm-mon (host)",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "-C",
+                "src",
+                "clean"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build sqm-mon (OpenWrt SDK)",
+            "type": "shell",
+            "command": "make",
+            "args": [
+                "package/sqm-mon/compile",
+                "V=s"
+            ],
+            "options": {
+                "cwd": "${env:OPENWRT_SDK}"
+            },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}
