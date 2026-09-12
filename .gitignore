@@ -1,5 +1,9 @@
 src/*.o
+src/*.d
 src/sqm-mon
+tests/*.o
+tests/*.d
+tests/test_*
+!tests/test_*.c
 compile_commands.json
 src/compile_commands.json
-

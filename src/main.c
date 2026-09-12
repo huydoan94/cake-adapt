@@ -2,9 +2,11 @@
 
 #include "config.h"
 #include "log.h"
+#include "traffic.h"
 
 #include <errno.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -15,6 +17,8 @@
 #include <unistd.h>
 
 #define SQM_MON_CONFIG_ERROR_SIZE 256U
+#define SQM_MON_TRAFFIC_ERROR_SIZE 256U
+#define SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS 1000
 
 static void print_usage(const char *program_name)
 {
@@ -25,20 +29,121 @@ static void print_usage(const char *program_name)
     );
 }
 
-static int wait_for_shutdown(int signal_file_descriptor)
+static void observe_traffic(
+    struct sqm_mon_traffic_monitor *monitor,
+    const char *interface,
+    bool *read_failed
+)
+{
+    struct traffic_sample sample;
+    struct traffic_rates rates;
+    char error[SQM_MON_TRAFFIC_ERROR_SIZE] = "";
+    enum traffic_update_result update_result;
+
+    if (traffic_read(
+            interface,
+            &sample,
+            error,
+            sizeof(error)
+        ) != 0) {
+        if (!*read_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "traffic observation degraded: interface=%s: %s",
+                interface,
+                error
+            );
+            traffic_monitor_init(monitor);
+        }
+
+        *read_failed = true;
+        return;
+    }
+
+    if (*read_failed) {
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "traffic observation recovered: interface=%s",
+            interface
+        );
+        *read_failed = false;
+    }
+
+    update_result = traffic_monitor_update(
+        monitor,
+        &sample,
+        &rates
+    );
+
+    switch (update_result) {
+    case TRAFFIC_UPDATE_BASELINE:
+        log_message(
+            LOG_LEVEL_INFO,
+            "traffic observation initialized: interface=%s",
+            interface
+        );
+        break;
+    case TRAFFIC_UPDATE_RATES:
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "traffic: interface=%s rx_bytes=%" PRIu64
+            " tx_bytes=%" PRIu64
+            " rx_rate=%" PRIu64 " bit/s"
+            " tx_rate=%" PRIu64 " bit/s",
+            interface,
+            sample.rx_bytes,
+            sample.tx_bytes,
+            rates.rx_bits_per_second,
+            rates.tx_bits_per_second
+        );
+        break;
+    case TRAFFIC_UPDATE_COUNTER_RESET:
+        log_message(
+            LOG_LEVEL_WARNING,
+            "traffic counters reset: interface=%s",
+            interface
+        );
+        break;
+    case TRAFFIC_UPDATE_INVALID_INTERVAL:
+        log_message(
+            LOG_LEVEL_WARNING,
+            "traffic sample interval was invalid: interface=%s",
+            interface
+        );
+        break;
+    }
+}
+
+static int run_event_loop(
+    int signal_file_descriptor,
+    const char *interface
+)
 {
     struct pollfd descriptor = {
         .fd = signal_file_descriptor,
         .events = POLLIN,
         .revents = 0
     };
+    struct sqm_mon_traffic_monitor traffic_monitor;
+    bool traffic_read_failed = false;
+
+    traffic_monitor_init(&traffic_monitor);
+    observe_traffic(
+        &traffic_monitor,
+        interface,
+        &traffic_read_failed
+    );
 
     for (;;) {
         struct signalfd_siginfo signal_information;
         ssize_t bytes_read;
         int poll_result;
 
-        poll_result = poll(&descriptor, 1U, -1);
+        poll_result = poll(
+            &descriptor,
+            1U,
+            SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS
+        );
         if (poll_result < 0) {
             if (errno == EINTR) {
                 continue;
@@ -50,6 +155,15 @@ static int wait_for_shutdown(int signal_file_descriptor)
                 strerror(errno)
             );
             return -1;
+        }
+
+        if (poll_result == 0) {
+            observe_traffic(
+                &traffic_monitor,
+                interface,
+                &traffic_read_failed
+            );
+            continue;
         }
 
         if ((descriptor.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
@@ -218,7 +332,10 @@ int main(int argc, char **argv)
     }
 
     log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
-    result = wait_for_shutdown(signal_file_descriptor);
+    result = run_event_loop(
+        signal_file_descriptor,
+        config.interface
+    );
 
     if (close(signal_file_descriptor) != 0) {
         log_message(

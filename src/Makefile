@@ -15,7 +15,7 @@ WARNINGS := \
 	-Werror
 
 TARGET := sqm-mon
-OBJECTS := main.o config.o log.o
+OBJECTS := main.o config.o log.o traffic.o
 
 .PHONY: all clean
 
@@ -31,4 +31,3 @@ clean:
 	$(RM) $(TARGET) $(OBJECTS) $(OBJECTS:.o=.d)
 
 -include $(OBJECTS:.o=.d)
-
