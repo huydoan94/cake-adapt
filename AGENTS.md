@@ -599,6 +599,37 @@ If a proposed implementation conflicts with this file, call out the conflict bef
 
 ---
 
+## Cost-aware delegation
+
+When testing or deployment is part of the user's request, delegate routine
+verification and deployment to one subagent using `gpt-5.6-luna` with low
+reasoning effort.
+
+The delegated work may include:
+
+* running the x86 and Filogic SDK tasks from `.vscode/tasks.json` concurrently
+* locating and copying the x86 APK
+* deploying it to an authorized OpenWrt test VM
+* running the prescribed smoke or stress tests
+* collecting logs, exit codes and relevant runtime state
+
+Give the subagent only the context needed for these operations. Use a
+minimal-context fork, preferably `fork_turns: "none"`, rather than copying the
+entire conversation.
+
+Keep these responsibilities on the primary model:
+
+* architecture and production-code changes
+* diagnosing unexpected or ambiguous failures
+* destructive or otherwise unapproved operations
+* interpreting results and making the final acceptance decision
+
+Use one combined verification subagent where practical. Do not create multiple
+agents merely for individual shell commands. Do not store credentials in this
+file.
+
+---
+
 ## Initial development milestone
 
 The first runnable `sqm-mon` should **not modify CAKE**.
