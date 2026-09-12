@@ -21,8 +21,8 @@ define Package/sqm-mon/description
 endef
 
 define Build/Prepare
-	$(call Build/Prepare/Default)
-	$(CP) ./src/* $(PKG_BUILD_DIR)/
+	$(INSTALL_DIR) $(PKG_BUILD_DIR)
+	$(CP) ./src/Makefile ./src/*.c ./src/*.h $(PKG_BUILD_DIR)/
 endef
 
 define Build/Compile
