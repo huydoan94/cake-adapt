@@ -7,12 +7,15 @@
 #include <netinet/in.h>
 
 #define SQM_MON_LOG_LEVEL_SIZE 16U
+#define SQM_MON_LOG_FILE_SIZE 256U
 #define SQM_MON_LATENCY_TARGET_SIZE INET_ADDRSTRLEN
 
 struct sqm_mon_config {
     bool enabled;
     char interface[IF_NAMESIZE];
+    char ingress_interface[IF_NAMESIZE];
     char latency_target[SQM_MON_LATENCY_TARGET_SIZE];
+    char log_file[SQM_MON_LOG_FILE_SIZE];
     char log_level[SQM_MON_LOG_LEVEL_SIZE];
 };
 

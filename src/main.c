@@ -2,6 +2,7 @@
 
 #include "cake.h"
 #include "config.h"
+#include "controller.h"
 #include "latency.h"
 #include "log.h"
 #include "netlink.h"
@@ -42,16 +43,18 @@ static void print_usage(const char *program_name)
     );
 }
 
-static void observe_traffic(
+static bool observe_traffic(
     struct sqm_mon_traffic_monitor *monitor,
     const char *interface,
-    bool *read_failed
+    bool *read_failed,
+    struct traffic_rates *rates
 )
 {
     struct traffic_sample sample;
-    struct traffic_rates rates;
     char error[SQM_MON_TRAFFIC_ERROR_SIZE] = "";
     enum traffic_update_result update_result;
+
+    memset(rates, 0, sizeof(*rates));
 
     if (traffic_read(
             interface,
@@ -70,7 +73,7 @@ static void observe_traffic(
         }
 
         *read_failed = true;
-        return;
+        return false;
     }
 
     if (*read_failed) {
@@ -85,7 +88,7 @@ static void observe_traffic(
     update_result = traffic_monitor_update(
         monitor,
         &sample,
-        &rates
+        rates
     );
 
     switch (update_result) {
@@ -106,10 +109,10 @@ static void observe_traffic(
             interface,
             sample.rx_bytes,
             sample.tx_bytes,
-            rates.rx_bits_per_second,
-            rates.tx_bits_per_second
+            rates->rx_bits_per_second,
+            rates->tx_bits_per_second
         );
-        break;
+        return true;
     case TRAFFIC_UPDATE_COUNTER_RESET:
         log_message(
             LOG_LEVEL_WARNING,
@@ -125,6 +128,8 @@ static void observe_traffic(
         );
         break;
     }
+
+    return false;
 }
 
 static void observe_latency(
@@ -285,20 +290,20 @@ static void log_cake_sample(
     );
 }
 
-static void observe_cake(
+static bool observe_cake(
     struct sqm_mon_netlink *netlink,
     const char *interface,
-    enum cake_observation_state *state
+    enum cake_observation_state *state,
+    struct cake_observation *observation
 )
 {
-    struct cake_observation observation;
     char error[SQM_MON_CAKE_ERROR_SIZE] = "";
     enum cake_read_result read_result;
 
     read_result = cake_read(
         netlink,
         interface,
-        &observation,
+        observation,
         error,
         sizeof(error)
     );
@@ -308,13 +313,13 @@ static void observe_cake(
         if (*state != CAKE_OBSERVATION_AVAILABLE) {
             log_cake_discovery(
                 interface,
-                &observation,
+                observation,
                 *state != CAKE_OBSERVATION_UNKNOWN
             );
         }
         *state = CAKE_OBSERVATION_AVAILABLE;
-        log_cake_sample(interface, &observation);
-        break;
+        log_cake_sample(interface, observation);
+        return true;
     case CAKE_READ_NOT_FOUND:
         if (*state != CAKE_OBSERVATION_NOT_FOUND) {
             log_message(
@@ -341,6 +346,155 @@ static void observe_cake(
         *state = CAKE_OBSERVATION_FAILED;
         break;
     }
+
+    return false;
+}
+
+struct observation_context {
+    struct sqm_mon_controller controller;
+    struct sqm_mon_latency latency;
+    struct sqm_mon_netlink netlink;
+    struct sqm_mon_traffic_monitor traffic_monitor;
+    enum cake_observation_state ingress_cake_state;
+    enum cake_observation_state upload_cake_state;
+    bool latency_observation_failed;
+    bool traffic_read_failed;
+};
+
+static const char *line_state_name(enum controller_line_state state)
+{
+    switch (state) {
+    case CONTROLLER_LINE_UNKNOWN:
+        return "unknown";
+    case CONTROLLER_LINE_BELOW_CAPACITY:
+        return "below-capacity";
+    case CONTROLLER_LINE_SATURATED:
+        return "saturated";
+    }
+
+    return "invalid";
+}
+
+static void log_line_state(
+    const char *direction,
+    enum controller_line_state state,
+    const struct controller_direction_input *input
+)
+{
+    if (state == CONTROLLER_LINE_UNKNOWN) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "line load unavailable: direction=%s",
+            direction
+        );
+        return;
+    }
+
+    log_message(
+        state == CONTROLLER_LINE_SATURATED
+            ? LOG_LEVEL_NOTICE
+            : LOG_LEVEL_INFO,
+        "line load changed: direction=%s state=%s"
+        " traffic_rate=%" PRIu64 " bit/s"
+        " cake_rate=%" PRIu64 " bit/s",
+        direction,
+        line_state_name(state),
+        input->traffic_rate_bits_per_second,
+        input->cake_rate_bits_per_second
+    );
+}
+
+static void update_controller(
+    struct sqm_mon_controller *controller,
+    const struct traffic_rates *rates,
+    bool traffic_valid,
+    const struct cake_observation *ingress_cake,
+    bool ingress_cake_valid,
+    const struct cake_observation *upload_cake,
+    bool upload_cake_valid
+)
+{
+    struct controller_input input = {
+        .download = {
+            .valid = traffic_valid &&
+                ingress_cake_valid &&
+                ingress_cake->has_bandwidth &&
+                ingress_cake->bandwidth_bits_per_second > 0U,
+            .traffic_rate_bits_per_second = rates->rx_bits_per_second,
+            .cake_rate_bits_per_second = ingress_cake_valid
+                ? ingress_cake->bandwidth_bits_per_second
+                : 0U
+        },
+        .upload = {
+            .valid = traffic_valid &&
+                upload_cake_valid &&
+                upload_cake->has_bandwidth &&
+                upload_cake->bandwidth_bits_per_second > 0U,
+            .traffic_rate_bits_per_second = rates->tx_bits_per_second,
+            .cake_rate_bits_per_second = upload_cake_valid
+                ? upload_cake->bandwidth_bits_per_second
+                : 0U
+        }
+    };
+    struct controller_output output;
+
+    controller_update(controller, &input, &output);
+    if (output.download_state_changed) {
+        log_line_state("download", output.download_state, &input.download);
+    }
+    if (output.upload_state_changed) {
+        log_line_state("upload", output.upload_state, &input.upload);
+    }
+}
+
+static void observe_cycle(
+    struct observation_context *context,
+    const struct sqm_mon_config *config
+)
+{
+    struct cake_observation ingress_cake;
+    struct cake_observation upload_cake;
+    struct traffic_rates rates;
+    bool ingress_cake_valid = false;
+    bool traffic_valid;
+    bool upload_cake_valid;
+
+    traffic_valid = observe_traffic(
+        &context->traffic_monitor,
+        config->interface,
+        &context->traffic_read_failed,
+        &rates
+    );
+    if (config->latency_target[0] != '\0') {
+        observe_latency(
+            &context->latency,
+            config,
+            &context->latency_observation_failed
+        );
+    }
+    upload_cake_valid = observe_cake(
+        &context->netlink,
+        config->interface,
+        &context->upload_cake_state,
+        &upload_cake
+    );
+    if (config->ingress_interface[0] != '\0') {
+        ingress_cake_valid = observe_cake(
+            &context->netlink,
+            config->ingress_interface,
+            &context->ingress_cake_state,
+            &ingress_cake
+        );
+    }
+    update_controller(
+        &context->controller,
+        &rates,
+        traffic_valid,
+        &ingress_cake,
+        ingress_cake_valid,
+        &upload_cake,
+        upload_cake_valid
+    );
 }
 
 static int run_event_loop(
@@ -353,40 +507,32 @@ static int run_event_loop(
         .events = POLLIN,
         .revents = 0
     };
-    struct sqm_mon_latency latency;
-    struct sqm_mon_netlink netlink;
-    struct sqm_mon_traffic_monitor traffic_monitor;
-    enum cake_observation_state cake_state = CAKE_OBSERVATION_UNKNOWN;
-    bool latency_observation_failed = false;
-    bool traffic_read_failed = false;
+    struct observation_context context = {
+        .ingress_cake_state = CAKE_OBSERVATION_UNKNOWN,
+        .upload_cake_state = CAKE_OBSERVATION_UNKNOWN,
+        .latency_observation_failed = false,
+        .traffic_read_failed = false
+    };
     int result = -1;
 
-    latency_init(&latency);
-    netlink_init(&netlink);
-    traffic_monitor_init(&traffic_monitor);
-    observe_traffic(
-        &traffic_monitor,
-        config->interface,
-        &traffic_read_failed
-    );
+    controller_init(&context.controller);
+    latency_init(&context.latency);
+    netlink_init(&context.netlink);
+    traffic_monitor_init(&context.traffic_monitor);
 
     if (config->latency_target[0] == '\0') {
         log_message(
             LOG_LEVEL_INFO,
             "latency observation disabled: no target configured"
         );
-    } else {
-        observe_latency(
-            &latency,
-            config,
-            &latency_observation_failed
+    }
+    if (config->ingress_interface[0] == '\0') {
+        log_message(
+            LOG_LEVEL_INFO,
+            "download line detection disabled: no ingress interface configured"
         );
     }
-    observe_cake(
-        &netlink,
-        config->interface,
-        &cake_state
-    );
+    observe_cycle(&context, config);
 
     for (;;) {
         struct signalfd_siginfo signal_information;
@@ -412,23 +558,7 @@ static int run_event_loop(
         }
 
         if (poll_result == 0) {
-            observe_traffic(
-                &traffic_monitor,
-                config->interface,
-                &traffic_read_failed
-            );
-            if (config->latency_target[0] != '\0') {
-                observe_latency(
-                    &latency,
-                    config,
-                    &latency_observation_failed
-                );
-            }
-            observe_cake(
-                &netlink,
-                config->interface,
-                &cake_state
-            );
+            observe_cycle(&context, config);
             continue;
         }
 
@@ -480,8 +610,8 @@ static int run_event_loop(
     }
 
 done:
-    netlink_close(&netlink);
-    latency_close(&latency);
+    netlink_close(&context.netlink);
+    latency_close(&context.latency);
     return result;
 }
 
@@ -590,14 +720,31 @@ int main(int argc, char **argv)
         return 0;
     }
 
+    if (config.log_file[0] != '\0' &&
+        log_set_file(config.log_file) != 0) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not open log file '%s': %s",
+            config.log_file,
+            strerror(errno)
+        );
+        log_close();
+        return 1;
+    }
+
     log_message(
         LOG_LEVEL_INFO,
-        "configuration loaded: interface=%s latency_target=%s log_level=%s",
+        "configuration loaded: interface=%s ingress_interface=%s"
+        " latency_target=%s log_level=%s log_file=%s",
         config.interface,
+        config.ingress_interface[0] == '\0'
+            ? "disabled"
+            : config.ingress_interface,
         config.latency_target[0] == '\0'
             ? "disabled"
             : config.latency_target,
-        config.log_level
+        config.log_level,
+        config.log_file[0] == '\0' ? "disabled" : config.log_file
     );
 
     signal_file_descriptor = create_signal_descriptor(&previous_mask);

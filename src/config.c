@@ -125,8 +125,10 @@ static int load_section(
 )
 {
     const char *enabled;
+    const char *ingress_interface;
     const char *interface;
     const char *latency_target;
+    const char *log_file;
     const char *log_level;
 
     enabled = uci_lookup_option_string(context, section, "enabled");
@@ -148,6 +150,23 @@ static int load_section(
         return -1;
     }
 
+    ingress_interface = uci_lookup_option_string(
+        context,
+        section,
+        "ingress_interface"
+    );
+    if (ingress_interface != NULL &&
+        copy_option(
+            config->ingress_interface,
+            sizeof(config->ingress_interface),
+            ingress_interface,
+            "ingress_interface",
+            error,
+            error_size
+        ) != 0) {
+        return -1;
+    }
+
     latency_target = uci_lookup_option_string(
         context,
         section,
@@ -159,6 +178,19 @@ static int load_section(
             sizeof(config->latency_target),
             latency_target,
             "latency_target",
+            error,
+            error_size
+        ) != 0) {
+        return -1;
+    }
+
+    log_file = uci_lookup_option_string(context, section, "log_file");
+    if (log_file != NULL &&
+        copy_option(
+            config->log_file,
+            sizeof(config->log_file),
+            log_file,
+            "log_file",
             error,
             error_size
         ) != 0) {
@@ -216,7 +248,9 @@ int config_load(
     *config = (struct sqm_mon_config) {
         .enabled = false,
         .interface = "",
+        .ingress_interface = "",
         .latency_target = "",
+        .log_file = "",
         .log_level = "info"
     };
 

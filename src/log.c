@@ -1,5 +1,6 @@
 #include "log.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <strings.h>
@@ -9,6 +10,7 @@
 
 static bool log_to_stderr;
 static bool log_to_syslog;
+static FILE *log_file;
 static enum log_level minimum_log_level = LOG_LEVEL_INFO;
 
 static int syslog_priority(enum log_level level)
@@ -62,9 +64,42 @@ void log_init(
 
 void log_close(void)
 {
+    if (log_file != NULL) {
+        (void)fclose(log_file);
+        log_file = NULL;
+    }
+
     if (log_to_syslog) {
         closelog();
+        log_to_syslog = false;
     }
+}
+
+int log_set_file(const char *path)
+{
+    FILE *file;
+
+    if (path == NULL || path[0] == '\0') {
+        errno = EINVAL;
+        return -1;
+    }
+
+    file = fopen(path, "a");
+    if (file == NULL) {
+        return -1;
+    }
+
+    if (log_file != NULL) {
+        (void)fclose(log_file);
+    }
+    log_file = file;
+
+    if (log_to_syslog) {
+        closelog();
+        log_to_syslog = false;
+    }
+
+    return 0;
 }
 
 int log_set_level(const char *level)
@@ -110,5 +145,10 @@ void log_message(
     if (log_to_stderr) {
         (void)fprintf(stderr, "%s: %s\n", level_name(level), message);
         (void)fflush(stderr);
+    }
+
+    if (log_file != NULL) {
+        (void)fprintf(log_file, "%s: %s\n", level_name(level), message);
+        (void)fflush(log_file);
     }
 }

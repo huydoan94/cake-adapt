@@ -18,6 +18,8 @@ void log_init(
 
 void log_close(void);
 
+int log_set_file(const char *path);
+
 int log_set_level(const char *level);
 
 void log_message(
