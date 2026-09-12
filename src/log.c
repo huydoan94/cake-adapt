@@ -8,6 +8,7 @@
 #define SQM_MON_LOG_MESSAGE_SIZE 512U
 
 static bool log_to_stderr;
+static bool log_to_syslog;
 static enum log_level minimum_log_level = LOG_LEVEL_INFO;
 
 static int syslog_priority(enum log_level level)
@@ -52,12 +53,18 @@ void log_init(
 )
 {
     log_to_stderr = foreground;
-    openlog(identifier, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+    log_to_syslog = !foreground;
+
+    if (log_to_syslog) {
+        openlog(identifier, LOG_PID | LOG_NDELAY, LOG_DAEMON);
+    }
 }
 
 void log_close(void)
 {
-    closelog();
+    if (log_to_syslog) {
+        closelog();
+    }
 }
 
 int log_set_level(const char *level)
@@ -96,9 +103,12 @@ void log_message(
     (void)vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
 
-    syslog(syslog_priority(level), "%s", message);
+    if (log_to_syslog) {
+        syslog(syslog_priority(level), "%s", message);
+    }
 
     if (log_to_stderr) {
         (void)fprintf(stderr, "%s: %s\n", level_name(level), message);
+        (void)fflush(stderr);
     }
 }

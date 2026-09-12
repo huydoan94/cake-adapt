@@ -15,7 +15,7 @@ WARNINGS := \
 	-Werror
 
 TARGET := sqm-mon
-OBJECTS := main.o config.o log.o traffic.o
+OBJECTS := main.o config.o latency.o log.o traffic.o
 
 .PHONY: all clean
 

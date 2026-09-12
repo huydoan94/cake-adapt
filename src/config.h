@@ -4,12 +4,15 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <net/if.h>
+#include <netinet/in.h>
 
 #define SQM_MON_LOG_LEVEL_SIZE 16U
+#define SQM_MON_LATENCY_TARGET_SIZE INET_ADDRSTRLEN
 
 struct sqm_mon_config {
     bool enabled;
     char interface[IF_NAMESIZE];
+    char latency_target[SQM_MON_LATENCY_TARGET_SIZE];
     char log_level[SQM_MON_LOG_LEVEL_SIZE];
 };
 

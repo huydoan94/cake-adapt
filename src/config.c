@@ -126,6 +126,7 @@ static int load_section(
 {
     const char *enabled;
     const char *interface;
+    const char *latency_target;
     const char *log_level;
 
     enabled = uci_lookup_option_string(context, section, "enabled");
@@ -141,6 +142,23 @@ static int load_section(
             sizeof(config->interface),
             interface,
             "interface",
+            error,
+            error_size
+        ) != 0) {
+        return -1;
+    }
+
+    latency_target = uci_lookup_option_string(
+        context,
+        section,
+        "latency_target"
+    );
+    if (latency_target != NULL &&
+        copy_option(
+            config->latency_target,
+            sizeof(config->latency_target),
+            latency_target,
+            "latency_target",
             error,
             error_size
         ) != 0) {
@@ -198,6 +216,7 @@ int config_load(
     *config = (struct sqm_mon_config) {
         .enabled = false,
         .interface = "",
+        .latency_target = "",
         .log_level = "info"
     };
 

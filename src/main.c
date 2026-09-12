@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "config.h"
+#include "latency.h"
 #include "log.h"
 #include "traffic.h"
 
@@ -17,6 +18,8 @@
 #include <unistd.h>
 
 #define SQM_MON_CONFIG_ERROR_SIZE 256U
+#define SQM_MON_LATENCY_ERROR_SIZE 256U
+#define SQM_MON_LATENCY_TIMEOUT_MILLISECONDS 500
 #define SQM_MON_TRAFFIC_ERROR_SIZE 256U
 #define SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS 1000
 
@@ -114,9 +117,102 @@ static void observe_traffic(
     }
 }
 
+static void observe_latency(
+    struct sqm_mon_latency *latency,
+    const struct sqm_mon_config *config,
+    bool *observation_failed
+)
+{
+    struct latency_sample sample;
+    char error[SQM_MON_LATENCY_ERROR_SIZE] = "";
+    enum latency_probe_result probe_result;
+
+    if (latency->socket_descriptor < 0) {
+        if (latency_open(
+                latency,
+                config->interface,
+                config->latency_target,
+                error,
+                sizeof(error)
+            ) != 0) {
+            if (!*observation_failed) {
+                log_message(
+                    LOG_LEVEL_WARNING,
+                    "latency observation degraded: target=%s: %s",
+                    config->latency_target,
+                    error
+                );
+            }
+
+            *observation_failed = true;
+            return;
+        }
+
+        log_message(
+            *observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
+            *observation_failed
+                ? "latency observation recovered: target=%s interface=%s"
+                : "latency observation initialized: target=%s interface=%s",
+            config->latency_target,
+            config->interface
+        );
+        *observation_failed = false;
+    }
+
+    probe_result = latency_probe(
+        latency,
+        SQM_MON_LATENCY_TIMEOUT_MILLISECONDS,
+        &sample,
+        error,
+        sizeof(error)
+    );
+
+    switch (probe_result) {
+    case LATENCY_PROBE_SUCCESS:
+        if (*observation_failed) {
+            log_message(
+                LOG_LEVEL_NOTICE,
+                "latency observation recovered: target=%s",
+                config->latency_target
+            );
+            *observation_failed = false;
+        }
+
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "latency: target=%s rtt=%" PRIu32 " us",
+            config->latency_target,
+            sample.round_trip_microseconds
+        );
+        break;
+    case LATENCY_PROBE_TIMEOUT:
+        if (!*observation_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "latency observation degraded: target=%s: probe timed out",
+                config->latency_target
+            );
+        }
+        *observation_failed = true;
+        break;
+    case LATENCY_PROBE_ERROR:
+        if (!*observation_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "latency observation degraded: target=%s: %s",
+                config->latency_target,
+                error
+            );
+        }
+        *observation_failed = true;
+        latency_close(latency);
+        break;
+    }
+}
+
 static int run_event_loop(
     int signal_file_descriptor,
-    const char *interface
+    const struct sqm_mon_config *config
 )
 {
     struct pollfd descriptor = {
@@ -124,15 +220,32 @@ static int run_event_loop(
         .events = POLLIN,
         .revents = 0
     };
+    struct sqm_mon_latency latency;
     struct sqm_mon_traffic_monitor traffic_monitor;
+    bool latency_observation_failed = false;
     bool traffic_read_failed = false;
+    int result = -1;
 
+    latency_init(&latency);
     traffic_monitor_init(&traffic_monitor);
     observe_traffic(
         &traffic_monitor,
-        interface,
+        config->interface,
         &traffic_read_failed
     );
+
+    if (config->latency_target[0] == '\0') {
+        log_message(
+            LOG_LEVEL_INFO,
+            "latency observation disabled: no target configured"
+        );
+    } else {
+        observe_latency(
+            &latency,
+            config,
+            &latency_observation_failed
+        );
+    }
 
     for (;;) {
         struct signalfd_siginfo signal_information;
@@ -154,15 +267,22 @@ static int run_event_loop(
                 "poll failed while waiting for shutdown: %s",
                 strerror(errno)
             );
-            return -1;
+            goto done;
         }
 
         if (poll_result == 0) {
             observe_traffic(
                 &traffic_monitor,
-                interface,
+                config->interface,
                 &traffic_read_failed
             );
+            if (config->latency_target[0] != '\0') {
+                observe_latency(
+                    &latency,
+                    config,
+                    &latency_observation_failed
+                );
+            }
             continue;
         }
 
@@ -172,7 +292,7 @@ static int run_event_loop(
                 "signal descriptor reported an error (revents=0x%x)",
                 (unsigned int)descriptor.revents
             );
-            return -1;
+            goto done;
         }
 
         bytes_read = read(
@@ -190,7 +310,7 @@ static int run_event_loop(
                 "could not read shutdown signal: %s",
                 strerror(errno)
             );
-            return -1;
+            goto done;
         }
 
         if ((size_t)bytes_read != sizeof(signal_information)) {
@@ -198,7 +318,7 @@ static int run_event_loop(
                 LOG_LEVEL_ERROR,
                 "received an incomplete shutdown signal"
             );
-            return -1;
+            goto done;
         }
 
         if (signal_information.ssi_signo == (uint32_t)SIGINT ||
@@ -208,9 +328,14 @@ static int run_event_loop(
                 "received signal %u; shutting down",
                 signal_information.ssi_signo
             );
-            return 0;
+            result = 0;
+            goto done;
         }
     }
+
+done:
+    latency_close(&latency);
+    return result;
 }
 
 static int create_signal_descriptor(sigset_t *previous_mask)
@@ -320,8 +445,11 @@ int main(int argc, char **argv)
 
     log_message(
         LOG_LEVEL_INFO,
-        "configuration loaded: interface=%s log_level=%s",
+        "configuration loaded: interface=%s latency_target=%s log_level=%s",
         config.interface,
+        config.latency_target[0] == '\0'
+            ? "disabled"
+            : config.latency_target,
         config.log_level
     );
 
@@ -334,7 +462,7 @@ int main(int argc, char **argv)
     log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
     result = run_event_loop(
         signal_file_descriptor,
-        config.interface
+        &config
     );
 
     if (close(signal_file_descriptor) != 0) {
