@@ -352,6 +352,43 @@ void latency_close(struct sqm_mon_latency *latency)
     }
 }
 
+void latency_tracker_init(struct latency_tracker *tracker)
+{
+    tracker->next_sample = 0U;
+    tracker->sample_count = 0U;
+}
+
+void latency_tracker_update(
+    struct latency_tracker *tracker,
+    const struct latency_sample *sample,
+    struct latency_observation *observation
+)
+{
+    uint32_t baseline;
+    size_t index;
+
+    tracker->samples[tracker->next_sample] =
+        sample->round_trip_microseconds;
+    tracker->next_sample =
+        (tracker->next_sample + 1U) % LATENCY_BASELINE_WINDOW_SAMPLES;
+    if (tracker->sample_count < LATENCY_BASELINE_WINDOW_SAMPLES) {
+        tracker->sample_count++;
+    }
+
+    baseline = tracker->samples[0];
+    for (index = 1U; index < tracker->sample_count; index++) {
+        if (tracker->samples[index] < baseline) {
+            baseline = tracker->samples[index];
+        }
+    }
+
+    observation->round_trip_microseconds =
+        sample->round_trip_microseconds;
+    observation->baseline_microseconds = baseline;
+    observation->delta_microseconds =
+        sample->round_trip_microseconds - baseline;
+}
+
 enum latency_probe_result latency_probe(
     struct sqm_mon_latency *latency,
     int timeout_milliseconds,

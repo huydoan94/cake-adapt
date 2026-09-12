@@ -132,10 +132,12 @@ static bool observe_traffic(
     return false;
 }
 
-static void observe_latency(
+static bool observe_latency(
     struct sqm_mon_latency *latency,
+    struct latency_tracker *tracker,
     const struct sqm_mon_config *config,
-    bool *observation_failed
+    bool *observation_failed,
+    struct latency_observation *observation
 )
 {
     struct latency_sample sample;
@@ -160,7 +162,7 @@ static void observe_latency(
             }
 
             *observation_failed = true;
-            return;
+            return false;
         }
 
         log_message(
@@ -193,13 +195,21 @@ static void observe_latency(
             *observation_failed = false;
         }
 
+        latency_tracker_update(
+            tracker,
+            &sample,
+            observation
+        );
         log_message(
             LOG_LEVEL_DEBUG,
-            "latency: target=%s rtt=%" PRIu32 " us",
+            "latency: target=%s rtt=%" PRIu32 " us"
+            " baseline=%" PRIu32 " us delta=%" PRIu32 " us",
             config->latency_target,
-            sample.round_trip_microseconds
+            observation->round_trip_microseconds,
+            observation->baseline_microseconds,
+            observation->delta_microseconds
         );
-        break;
+        return true;
     case LATENCY_PROBE_TIMEOUT:
         if (!*observation_failed) {
             log_message(
@@ -209,7 +219,7 @@ static void observe_latency(
             );
         }
         *observation_failed = true;
-        break;
+        return false;
     case LATENCY_PROBE_ERROR:
         if (!*observation_failed) {
             log_message(
@@ -221,8 +231,10 @@ static void observe_latency(
         }
         *observation_failed = true;
         latency_close(latency);
-        break;
+        return false;
     }
+
+    return false;
 }
 
 static void log_cake_discovery(
@@ -353,6 +365,7 @@ static bool observe_cake(
 struct observation_context {
     struct sqm_mon_controller controller;
     struct sqm_mon_latency latency;
+    struct latency_tracker latency_tracker;
     struct sqm_mon_netlink netlink;
     struct sqm_mon_traffic_monitor traffic_monitor;
     enum cake_observation_state ingress_cake_state;
@@ -404,6 +417,59 @@ static void log_line_state(
     );
 }
 
+static const char *congestion_state_name(
+    enum controller_congestion_state state
+)
+{
+    switch (state) {
+    case CONTROLLER_CONGESTION_UNKNOWN:
+        return "unknown";
+    case CONTROLLER_CONGESTION_CLEAR:
+        return "clear";
+    case CONTROLLER_CONGESTION_DETECTED:
+        return "detected";
+    }
+
+    return "invalid";
+}
+
+static void log_congestion_state(
+    const char *direction,
+    enum controller_congestion_state state,
+    const struct controller_latency_input *latency
+)
+{
+    uint32_t delay;
+
+    if (state == CONTROLLER_CONGESTION_UNKNOWN) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "congestion observation unavailable: direction=%s",
+            direction
+        );
+        return;
+    }
+
+    delay = latency->current_rtt_microseconds >=
+            latency->baseline_rtt_microseconds
+        ? latency->current_rtt_microseconds -
+            latency->baseline_rtt_microseconds
+        : 0U;
+    log_message(
+        state == CONTROLLER_CONGESTION_DETECTED
+            ? LOG_LEVEL_NOTICE
+            : LOG_LEVEL_INFO,
+        "congestion changed: direction=%s state=%s"
+        " rtt=%" PRIu32 " us baseline=%" PRIu32 " us"
+        " delta=%" PRIu32 " us",
+        direction,
+        congestion_state_name(state),
+        latency->current_rtt_microseconds,
+        latency->baseline_rtt_microseconds,
+        delay
+    );
+}
+
 static void update_controller(
     struct sqm_mon_controller *controller,
     const struct traffic_rates *rates,
@@ -411,7 +477,9 @@ static void update_controller(
     const struct cake_observation *ingress_cake,
     bool ingress_cake_valid,
     const struct cake_observation *upload_cake,
-    bool upload_cake_valid
+    bool upload_cake_valid,
+    const struct latency_observation *latency,
+    bool latency_valid
 )
 {
     struct controller_input input = {
@@ -434,6 +502,15 @@ static void update_controller(
             .cake_rate_bits_per_second = upload_cake_valid
                 ? upload_cake->bandwidth_bits_per_second
                 : 0U
+        },
+        .latency = {
+            .valid = latency_valid,
+            .current_rtt_microseconds = latency_valid
+                ? latency->round_trip_microseconds
+                : 0U,
+            .baseline_rtt_microseconds = latency_valid
+                ? latency->baseline_microseconds
+                : 0U
         }
     };
     struct controller_output output;
@@ -445,6 +522,20 @@ static void update_controller(
     if (output.upload_state_changed) {
         log_line_state("upload", output.upload_state, &input.upload);
     }
+    if (output.download_congestion_changed) {
+        log_congestion_state(
+            "download",
+            output.download_congestion,
+            &input.latency
+        );
+    }
+    if (output.upload_congestion_changed) {
+        log_congestion_state(
+            "upload",
+            output.upload_congestion,
+            &input.latency
+        );
+    }
 }
 
 static void observe_cycle(
@@ -454,8 +545,10 @@ static void observe_cycle(
 {
     struct cake_observation ingress_cake;
     struct cake_observation upload_cake;
+    struct latency_observation latency = { 0U, 0U, 0U };
     struct traffic_rates rates;
     bool ingress_cake_valid = false;
+    bool latency_valid = false;
     bool traffic_valid;
     bool upload_cake_valid;
 
@@ -466,10 +559,12 @@ static void observe_cycle(
         &rates
     );
     if (config->latency_target[0] != '\0') {
-        observe_latency(
+        latency_valid = observe_latency(
             &context->latency,
+            &context->latency_tracker,
             config,
-            &context->latency_observation_failed
+            &context->latency_observation_failed,
+            &latency
         );
     }
     upload_cake_valid = observe_cake(
@@ -493,7 +588,9 @@ static void observe_cycle(
         &ingress_cake,
         ingress_cake_valid,
         &upload_cake,
-        upload_cake_valid
+        upload_cake_valid,
+        &latency,
+        latency_valid
     );
 }
 
@@ -517,6 +614,7 @@ static int run_event_loop(
 
     controller_init(&context.controller);
     latency_init(&context.latency);
+    latency_tracker_init(&context.latency_tracker);
     netlink_init(&context.netlink);
     traffic_monitor_init(&context.traffic_monitor);
 

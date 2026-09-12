@@ -6,6 +6,8 @@
 #define SATURATION_EXIT_PERCENT 80U
 #define SATURATION_CONFIRMATION_SAMPLES 3U
 #define RECOVERY_CONFIRMATION_SAMPLES 3U
+#define CONGESTION_ENTER_DELAY_MICROSECONDS 15000U
+#define CONGESTION_EXIT_DELAY_MICROSECONDS 10000U
 
 static uint64_t percentage_of(
     uint64_t value,
@@ -22,8 +24,44 @@ static uint64_t percentage_of(
 static void reset_direction(struct controller_direction *direction)
 {
     direction->state = CONTROLLER_LINE_UNKNOWN;
+    direction->congestion = CONTROLLER_CONGESTION_UNKNOWN;
     direction->saturation_samples = 0U;
     direction->recovery_samples = 0U;
+}
+
+static enum controller_congestion_state update_congestion(
+    struct controller_direction *direction,
+    const struct controller_latency_input *latency
+)
+{
+    uint32_t delay;
+
+    if (direction->state == CONTROLLER_LINE_UNKNOWN || !latency->valid) {
+        direction->congestion = CONTROLLER_CONGESTION_UNKNOWN;
+        return direction->congestion;
+    }
+
+    if (direction->state == CONTROLLER_LINE_BELOW_CAPACITY) {
+        direction->congestion = CONTROLLER_CONGESTION_CLEAR;
+        return direction->congestion;
+    }
+
+    delay = latency->current_rtt_microseconds >=
+            latency->baseline_rtt_microseconds
+        ? latency->current_rtt_microseconds -
+            latency->baseline_rtt_microseconds
+        : 0U;
+    if (direction->congestion == CONTROLLER_CONGESTION_DETECTED) {
+        direction->congestion = delay <= CONGESTION_EXIT_DELAY_MICROSECONDS
+            ? CONTROLLER_CONGESTION_CLEAR
+            : CONTROLLER_CONGESTION_DETECTED;
+    } else {
+        direction->congestion =
+            delay >= CONGESTION_ENTER_DELAY_MICROSECONDS
+                ? CONTROLLER_CONGESTION_DETECTED
+                : CONTROLLER_CONGESTION_CLEAR;
+    }
+    return direction->congestion;
 }
 
 void controller_init(struct sqm_mon_controller *controller)
@@ -93,6 +131,10 @@ void controller_update(
 {
     enum controller_line_state previous_download = controller->download.state;
     enum controller_line_state previous_upload = controller->upload.state;
+    enum controller_congestion_state previous_download_congestion =
+        controller->download.congestion;
+    enum controller_congestion_state previous_upload_congestion =
+        controller->upload.congestion;
 
     output->download_state = update_direction(
         &controller->download,
@@ -102,7 +144,19 @@ void controller_update(
         &controller->upload,
         &input->upload
     );
+    output->download_congestion = update_congestion(
+        &controller->download,
+        &input->latency
+    );
+    output->upload_congestion = update_congestion(
+        &controller->upload,
+        &input->latency
+    );
     output->download_state_changed =
         output->download_state != previous_download;
     output->upload_state_changed = output->upload_state != previous_upload;
+    output->download_congestion_changed =
+        output->download_congestion != previous_download_congestion;
+    output->upload_congestion_changed =
+        output->upload_congestion != previous_upload_congestion;
 }

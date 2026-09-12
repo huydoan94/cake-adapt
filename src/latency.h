@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define LATENCY_BASELINE_WINDOW_SAMPLES 300U
+
 struct sqm_mon_latency {
     int socket_descriptor;
     struct sockaddr_in target_address;
@@ -22,6 +24,18 @@ struct latency_sample {
     uint32_t round_trip_microseconds;
 };
 
+struct latency_observation {
+    uint32_t round_trip_microseconds;
+    uint32_t baseline_microseconds;
+    uint32_t delta_microseconds;
+};
+
+struct latency_tracker {
+    uint32_t samples[LATENCY_BASELINE_WINDOW_SAMPLES];
+    size_t next_sample;
+    size_t sample_count;
+};
+
 void latency_init(struct sqm_mon_latency *latency);
 
 int latency_open(
@@ -33,6 +47,14 @@ int latency_open(
 );
 
 void latency_close(struct sqm_mon_latency *latency);
+
+void latency_tracker_init(struct latency_tracker *tracker);
+
+void latency_tracker_update(
+    struct latency_tracker *tracker,
+    const struct latency_sample *sample,
+    struct latency_observation *observation
+);
 
 enum latency_probe_result latency_probe(
     struct sqm_mon_latency *latency,

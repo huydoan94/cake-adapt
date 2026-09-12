@@ -21,6 +21,11 @@ static struct controller_input input_with_rates(
             .valid = true,
             .traffic_rate_bits_per_second = upload_rate,
             .cake_rate_bits_per_second = upload_limit
+        },
+        .latency = {
+            .valid = true,
+            .current_rtt_microseconds = 30000U,
+            .baseline_rtt_microseconds = 30000U
         }
     };
 }
@@ -47,6 +52,8 @@ static void test_initial_state_is_unknown(void)
 
     assert(controller.download.state == CONTROLLER_LINE_UNKNOWN);
     assert(controller.upload.state == CONTROLLER_LINE_UNKNOWN);
+    assert(controller.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
+    assert(controller.upload.congestion == CONTROLLER_CONGESTION_UNKNOWN);
 }
 
 static void test_low_load_is_below_capacity(void)
@@ -67,6 +74,8 @@ static void test_low_load_is_below_capacity(void)
     assert(output.upload_state == CONTROLLER_LINE_BELOW_CAPACITY);
     assert(output.download_state_changed);
     assert(output.upload_state_changed);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.upload_congestion == CONTROLLER_CONGESTION_CLEAR);
 }
 
 static void test_sustained_download_is_saturated(void)
@@ -90,6 +99,7 @@ static void test_sustained_download_is_saturated(void)
     assert(output.download_state == CONTROLLER_LINE_SATURATED);
     assert(output.download_state_changed);
     assert(output.upload_state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
 }
 
 static void test_brief_burst_does_not_saturate(void)
@@ -226,6 +236,135 @@ static void test_large_rates_do_not_overflow_threshold(void)
     assert(output.download_state == CONTROLLER_LINE_SATURATED);
 }
 
+static void test_saturated_line_with_delay_detects_congestion(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_input input = input_with_rates(
+        8000000U,
+        8000000U,
+        100000U,
+        8000000U
+    );
+    struct controller_output output;
+
+    input.latency.current_rtt_microseconds = 45000U;
+    controller_init(&controller);
+    update_repeatedly(&controller, &input, &output, 3U);
+
+    assert(output.download_state == CONTROLLER_LINE_SATURATED);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download_congestion_changed);
+    assert(output.upload_congestion == CONTROLLER_CONGESTION_CLEAR);
+}
+
+static void test_delay_without_saturation_is_clear(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_input input = input_with_rates(
+        1000000U,
+        8000000U,
+        100000U,
+        8000000U
+    );
+    struct controller_output output;
+
+    input.latency.current_rtt_microseconds = 60000U;
+    controller_init(&controller);
+    controller_update(&controller, &input, &output);
+
+    assert(output.download_state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+}
+
+static void test_missing_probe_makes_congestion_unknown(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_input input = input_with_rates(
+        8000000U,
+        8000000U,
+        100000U,
+        8000000U
+    );
+    struct controller_output output;
+
+    controller_init(&controller);
+    update_repeatedly(&controller, &input, &output, 3U);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+
+    input.latency.valid = false;
+    controller_update(&controller, &input, &output);
+
+    assert(output.download_state == CONTROLLER_LINE_SATURATED);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_UNKNOWN);
+    assert(output.download_congestion_changed);
+}
+
+static void test_congestion_recovers_with_clean_latency(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_input input = input_with_rates(
+        8000000U,
+        8000000U,
+        100000U,
+        8000000U
+    );
+    struct controller_output output;
+
+    input.latency.current_rtt_microseconds = 50000U;
+    controller_init(&controller);
+    update_repeatedly(&controller, &input, &output, 3U);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+
+    input.latency.current_rtt_microseconds = 35000U;
+    controller_update(&controller, &input, &output);
+
+    assert(output.download_state == CONTROLLER_LINE_SATURATED);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.download_congestion_changed);
+}
+
+static void test_congestion_hysteresis_prevents_flapping(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_input input = input_with_rates(
+        8000000U,
+        8000000U,
+        100000U,
+        8000000U
+    );
+    struct controller_output output;
+
+    input.latency.current_rtt_microseconds = 50000U;
+    controller_init(&controller);
+    update_repeatedly(&controller, &input, &output, 3U);
+    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+
+    input.latency.current_rtt_microseconds = 42000U;
+    controller_update(&controller, &input, &output);
+
+    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(!output.download_congestion_changed);
+}
+
+static void test_simultaneous_saturation_reports_both_directions(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_input input = input_with_rates(
+        8000000U,
+        8000000U,
+        8000000U,
+        8000000U
+    );
+    struct controller_output output;
+
+    input.latency.current_rtt_microseconds = 50000U;
+    controller_init(&controller);
+    update_repeatedly(&controller, &input, &output, 3U);
+
+    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.upload_congestion == CONTROLLER_CONGESTION_DETECTED);
+}
+
 int main(void)
 {
     test_initial_state_is_unknown();
@@ -237,6 +376,12 @@ int main(void)
     test_recovery_requires_confirmation();
     test_invalid_input_returns_to_unknown();
     test_large_rates_do_not_overflow_threshold();
+    test_saturated_line_with_delay_detects_congestion();
+    test_delay_without_saturation_is_clear();
+    test_missing_probe_makes_congestion_unknown();
+    test_congestion_recovers_with_clean_latency();
+    test_congestion_hysteresis_prevents_flapping();
+    test_simultaneous_saturation_reports_both_directions();
     (void)printf("controller tests passed\n");
     return 0;
 }
