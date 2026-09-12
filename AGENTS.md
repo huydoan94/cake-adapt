@@ -628,6 +628,26 @@ Use one combined verification subagent where practical. Do not create multiple
 agents merely for individual shell commands. Do not store credentials in this
 file.
 
+### OpenWrt VM test log
+
+Use only this file for deployed runtime test logging:
+
+```text
+/tmp/sqm-mon-test.log
+```
+
+At the start of each test, stop the process that writes the log, then truncate
+the existing file in place:
+
+```sh
+: > /tmp/sqm-mon-test.log
+```
+
+Do not delete, move or replace this file. Preserving the same file allows the
+user's existing `tail -f /tmp/sqm-mon-test.log` process to remain attached.
+Do not start or terminate that `tail` process. Configure `sqm-mon` to write
+directly to this file; do not use a second log file or `tee`.
+
 ---
 
 ## Initial development milestone
