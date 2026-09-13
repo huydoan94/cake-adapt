@@ -12,13 +12,6 @@ struct traffic_sample {
     struct timespec timestamp;
 };
 
-struct traffic_rates {
-    uint64_t download_bits_per_second;
-    uint64_t upload_bits_per_second;
-    bool download_valid;
-    bool upload_valid;
-};
-
 struct sqm_mon_traffic_monitor {
     bool has_previous_sample;
     struct traffic_sample previous_sample;
