@@ -369,6 +369,81 @@ static int validate_rate_range(
     return 0;
 }
 
+static int validate_latency_config(
+    const struct sqm_mon_config *config,
+    char *error,
+    size_t error_size
+)
+{
+    uint64_t index;
+    uint64_t comparison;
+
+    if (!config->enabled && !config->adjust_download &&
+        !config->adjust_upload) {
+        return 0;
+    }
+    if (strcmp(config->pinger_method, "fping") != 0) {
+        error_set(
+            error,
+            error_size,
+            "option 'pinger_method' must be 'fping' until other methods"
+            " are implemented"
+        );
+        return -1;
+    }
+    if (config->reflector_count == 0U) {
+        error_set(error, error_size, "at least one reflector is required");
+        return -1;
+    }
+    if (config->no_pingers == 0U ||
+        config->no_pingers > config->reflector_count) {
+        error_set(
+            error,
+            error_size,
+            "option 'no_pingers' must be between 1 and the reflector count"
+        );
+        return -1;
+    }
+    if (config->reflector_ping_interval_microseconds /
+            config->no_pingers < 1000U) {
+        error_set(
+            error,
+            error_size,
+            "option 'reflector_ping_interval_s' must provide at least"
+            " 1 ms per active reflector"
+        );
+        return -1;
+    }
+    if (config->monitor_achieved_rates_interval_microseconds == 0U) {
+        error_set(
+            error,
+            error_size,
+            "option 'monitor_achieved_rates_interval_ms' must be positive"
+        );
+        return -1;
+    }
+
+    for (index = 0U; index < config->reflector_count; index++) {
+        for (comparison = index + 1U;
+             comparison < config->reflector_count;
+             comparison++) {
+            if (strcmp(
+                    config->reflectors[index],
+                    config->reflectors[comparison]
+                ) == 0) {
+                error_set(
+                    error,
+                    error_size,
+                    "duplicate reflector '%s'",
+                    config->reflectors[index]
+                );
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 static struct uci_section *find_main_section(struct uci_package *package)
 {
     struct uci_element *element;
@@ -485,6 +560,16 @@ static int load_section(
     size_t error_size
 )
 {
+    bool reflectors_configured = uci_lookup_option(
+        context,
+        section,
+        "reflectors"
+    ) != NULL;
+    bool no_pingers_configured = uci_lookup_option(
+        context,
+        section,
+        "no_pingers"
+    ) != NULL;
     const struct boolean_option_binding boolean_options[] = {
         { "enabled", &config->enabled },
         { "adjust_dl_shaper_rate", &config->adjust_download },
@@ -855,7 +940,20 @@ static int load_section(
     }
     derive_ingress_interface(config);
 
-    if (config->latency_target[0] == '\0' &&
+    if (!reflectors_configured && config->latency_target[0] != '\0') {
+        config->reflector_count = 0U;
+        if (copy_reflector(
+                config,
+                config->latency_target,
+                error,
+                error_size
+            ) != 0) {
+            return -1;
+        }
+        if (!no_pingers_configured) {
+            config->no_pingers = 1U;
+        }
+    } else if (config->latency_target[0] == '\0' &&
         config->reflector_count > 0U &&
         copy_option(
             config->latency_target,
@@ -899,13 +997,7 @@ static int load_section(
         ) != 0) {
         return -1;
     }
-    if ((config->adjust_download || config->adjust_upload) &&
-        config->latency_target[0] == '\0') {
-        error_set(
-            error,
-            error_size,
-            "option 'latency_target' is required for rate adjustment"
-        );
+    if (validate_latency_config(config, error, error_size) != 0) {
         return -1;
     }
 

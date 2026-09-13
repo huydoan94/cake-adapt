@@ -3,11 +3,10 @@
 #include "latency.h"
 #include "error.h"
 
-#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <math.h>
-#include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -19,8 +18,6 @@
 #include <unistd.h>
 
 #define FPING_PATH "/usr/bin/fping"
-#define FPING_PERIOD_MILLISECONDS "1000"
-#define FPING_RESPONSE_INTERVAL_MILLISECONDS "10"
 #define FPING_TIMEOUT_MILLISECONDS "10000"
 #define CHILD_STOP_ATTEMPTS 50U
 #define CHILD_STOP_INTERVAL_NANOSECONDS 10000000L
@@ -28,58 +25,6 @@
 #define BASELINE_INCREASE_WEIGHT 1U
 #define BASELINE_DECREASE_WEIGHT 900U
 #define DELTA_EWMA_WEIGHT 95U
-
-static bool elapsed_microseconds(
-    const struct timespec *start,
-    const struct timespec *end,
-    uint64_t *elapsed
-)
-{
-    time_t seconds;
-    long nanoseconds;
-
-    seconds = end->tv_sec - start->tv_sec;
-    nanoseconds = end->tv_nsec - start->tv_nsec;
-
-    if (nanoseconds < 0L) {
-        --seconds;
-        nanoseconds += 1000000000L;
-    }
-
-    if (seconds < 0 ||
-        (uint64_t)seconds > UINT64_MAX / 1000000U) {
-        return false;
-    }
-
-    *elapsed = (uint64_t)seconds * 1000000U +
-        (uint64_t)nanoseconds / 1000U;
-    return true;
-}
-
-static int remaining_timeout(
-    const struct timespec *start,
-    int timeout_milliseconds
-)
-{
-    struct timespec current;
-    uint64_t elapsed;
-    uint64_t timeout_microseconds;
-    uint64_t remaining_microseconds;
-
-    if (clock_gettime(CLOCK_MONOTONIC, &current) != 0 ||
-        !elapsed_microseconds(start, &current, &elapsed)) {
-        return 0;
-    }
-
-    timeout_microseconds = (uint64_t)timeout_milliseconds * 1000U;
-    if (elapsed >= timeout_microseconds) {
-        return 0;
-    }
-
-    remaining_microseconds = timeout_microseconds - elapsed;
-    /* poll() accepts milliseconds, so round up to preserve the deadline. */
-    return (int)((remaining_microseconds + 999U) / 1000U);
-}
 
 static bool parse_unsigned(
     const char *start,
@@ -172,12 +117,12 @@ static bool parse_timestamp(
 }
 
 enum latency_fping_line_result latency_parse_fping_line(
-    const char *target,
     const char *line,
     struct latency_sample *sample
 )
 {
     const char *cursor;
+    const char *separator;
     const char *sequence_end;
     const char *target_end;
     char *rtt_end;
@@ -187,27 +132,36 @@ enum latency_fping_line_result latency_parse_fping_line(
     double round_trip_microseconds;
     size_t target_length;
 
-    if (target == NULL || line == NULL || sample == NULL ||
+    if (line == NULL || sample == NULL ||
         !parse_timestamp(line, &cursor, &timestamp_microseconds)) {
         return LATENCY_FPING_LINE_INVALID;
     }
 
-    target_end = strstr(cursor, " : [");
-    if (target_end == NULL) {
+    separator = strstr(cursor, " : [");
+    if (separator == NULL) {
         return LATENCY_FPING_LINE_INVALID;
+    }
+    target_end = separator;
+    while (target_end > cursor &&
+           (target_end[-1] == ' ' || target_end[-1] == '\t')) {
+        target_end--;
     }
     target_length = (size_t)(target_end - cursor);
-    if (strlen(target) != target_length ||
-        memcmp(cursor, target, target_length) != 0) {
+    if (target_length == 0U || target_length >= sizeof(sample->target)) {
         return LATENCY_FPING_LINE_INVALID;
     }
+    memcpy(sample->target, cursor, target_length);
+    sample->target[target_length] = '\0';
 
-    cursor = target_end + strlen(" : [");
+    cursor = separator + strlen(" : [");
     sequence_end = strchr(cursor, ']');
     if (sequence_end == NULL ||
         !parse_unsigned(cursor, sequence_end, &sequence)) {
         return LATENCY_FPING_LINE_INVALID;
     }
+    sample->round_trip_microseconds = 0U;
+    sample->timestamp_microseconds = timestamp_microseconds;
+    sample->sequence = sequence;
     cursor = sequence_end + 1;
     if (strncmp(cursor, ", timed out", strlen(", timed out")) == 0) {
         return LATENCY_FPING_LINE_TIMEOUT;
@@ -242,8 +196,6 @@ enum latency_fping_line_result latency_parse_fping_line(
         sample->round_trip_microseconds =
             (uint32_t)(round_trip_microseconds + 0.5);
     }
-    sample->timestamp_microseconds = timestamp_microseconds;
-    sample->sequence = sequence;
     return LATENCY_FPING_LINE_SAMPLE;
 }
 
@@ -342,18 +294,83 @@ static int read_exec_result(
 static int start_fping(
     struct sqm_mon_latency *latency,
     const char *interface,
-    const char *target,
+    const char *const *targets,
+    size_t target_count,
+    uint64_t reflector_ping_interval_microseconds,
     char *error,
     size_t error_size
 )
 {
+    char period_milliseconds[32];
+    char response_interval_milliseconds[32];
+    char **arguments;
     int output_pipe[2] = { -1, -1 };
     int diagnostic_pipe[2] = { -1, -1 };
     int exec_pipe[2] = { -1, -1 };
     sigset_t child_signal_mask;
     pid_t process_identifier;
+    uint64_t period;
+    uint64_t response_interval;
     int exec_error = 0;
     int exec_result;
+    size_t index;
+
+    if (target_count == 0U) {
+        error_set(error, error_size, "fping requires at least one target");
+        return -1;
+    }
+    period = reflector_ping_interval_microseconds / 1000U;
+    if (reflector_ping_interval_microseconds % 1000U >= 500U) {
+        period++;
+    }
+    response_interval =
+        reflector_ping_interval_microseconds / target_count / 1000U;
+    if (period == 0U || response_interval == 0U ||
+        snprintf(
+            period_milliseconds,
+            sizeof(period_milliseconds),
+            "%" PRIu64,
+            period
+        ) < 0 ||
+        snprintf(
+            response_interval_milliseconds,
+            sizeof(response_interval_milliseconds),
+            "%" PRIu64,
+            response_interval
+        ) < 0) {
+        error_set(error, error_size, "fping interval is too short");
+        return -1;
+    }
+
+    if (target_count > SIZE_MAX - 13U) {
+        error_set(error, error_size, "too many fping targets");
+        return -1;
+    }
+    arguments = calloc(target_count + 13U, sizeof(*arguments));
+    if (arguments == NULL) {
+        error_set(
+            error,
+            error_size,
+            "could not allocate fping arguments: %s",
+            strerror(errno)
+        );
+        return -1;
+    }
+    arguments[0] = (char *)FPING_PATH;
+    arguments[1] = (char *)"-4";
+    arguments[2] = (char *)"-I";
+    arguments[3] = (char *)interface;
+    arguments[4] = (char *)"--timestamp";
+    arguments[5] = (char *)"--loop";
+    arguments[6] = (char *)"--period";
+    arguments[7] = period_milliseconds;
+    arguments[8] = (char *)"--interval";
+    arguments[9] = response_interval_milliseconds;
+    arguments[10] = (char *)"--timeout";
+    arguments[11] = (char *)FPING_TIMEOUT_MILLISECONDS;
+    for (index = 0U; index < target_count; index++) {
+        arguments[12U + index] = (char *)targets[index];
+    }
 
     if (sigemptyset(&child_signal_mask) != 0) {
         error_set(
@@ -362,6 +379,7 @@ static int start_fping(
             "could not prepare fping signal mask: %s",
             strerror(errno)
         );
+        free(arguments);
         return -1;
     }
     if (pipe2(output_pipe, O_CLOEXEC) != 0 ||
@@ -376,6 +394,7 @@ static int start_fping(
         close_pipe(output_pipe);
         close_pipe(diagnostic_pipe);
         close_pipe(exec_pipe);
+        free(arguments);
         return -1;
     }
 
@@ -390,26 +409,11 @@ static int start_fping(
         close_pipe(output_pipe);
         close_pipe(diagnostic_pipe);
         close_pipe(exec_pipe);
+        free(arguments);
         return -1;
     }
 
     if (process_identifier == 0) {
-        char *const arguments[] = {
-            (char *)FPING_PATH,
-            (char *)"-4",
-            (char *)"-I",
-            (char *)interface,
-            (char *)"--timestamp",
-            (char *)"--loop",
-            (char *)"--period",
-            (char *)FPING_PERIOD_MILLISECONDS,
-            (char *)"--interval",
-            (char *)FPING_RESPONSE_INTERVAL_MILLISECONDS,
-            (char *)"--timeout",
-            (char *)FPING_TIMEOUT_MILLISECONDS,
-            (char *)target,
-            NULL
-        };
         int child_error = 0;
 
         (void)close(output_pipe[0]);
@@ -440,6 +444,7 @@ static int start_fping(
 
     exec_result = read_exec_result(exec_pipe[0], &exec_error);
     close_pipe(exec_pipe);
+    free(arguments);
     if (exec_result != 0) {
         error_set(
             error,
@@ -549,10 +554,37 @@ void latency_init(struct sqm_mon_latency *latency)
         .output_descriptor = -1,
         .diagnostic_descriptor = -1,
         .process_identifier = -1,
-        .target = "",
         .output_buffer = "",
         .output_length = 0U
     };
+}
+
+static bool target_is_valid(const char *target)
+{
+    const char *character;
+    size_t length;
+
+    if (target == NULL || target[0] == '\0') {
+        return false;
+    }
+    length = strlen(target);
+    if (length >= LATENCY_TARGET_SIZE ||
+        !((target[0] >= '0' && target[0] <= '9') ||
+            (target[0] >= 'A' && target[0] <= 'Z') ||
+            (target[0] >= 'a' && target[0] <= 'z'))) {
+        return false;
+    }
+
+    for (character = target + 1; *character != '\0'; character++) {
+        if (!((*character >= '0' && *character <= '9') ||
+                (*character >= 'A' && *character <= 'Z') ||
+                (*character >= 'a' && *character <= 'z') ||
+                *character == '.' || *character == '-' ||
+                *character == '_')) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool latency_is_open(const struct sqm_mon_latency *latency)
@@ -565,34 +597,51 @@ bool latency_is_open(const struct sqm_mon_latency *latency)
 int latency_open(
     struct sqm_mon_latency *latency,
     const char *interface,
-    const char *target,
+    const char *const *targets,
+    size_t target_count,
+    uint64_t reflector_ping_interval_microseconds,
     char *error,
     size_t error_size
 )
 {
-    struct in_addr target_address;
+    size_t index;
 
-    if (inet_pton(AF_INET, target, &target_address) != 1) {
+    if (interface == NULL || interface[0] == '\0') {
+        error_set(error, error_size, "fping interface is empty");
+        return -1;
+    }
+    if (targets == NULL || target_count == 0U) {
+        error_set(error, error_size, "fping requires at least one target");
+        return -1;
+    }
+    if (reflector_ping_interval_microseconds / target_count < 1000U) {
         error_set(
             error,
             error_size,
-            "latency target '%s' is not an IPv4 address",
-            target
+            "reflector ping interval must provide at least 1 ms per target"
         );
         return -1;
     }
-    if (snprintf(latency->target, sizeof(latency->target), "%s", target) < 0) {
-        error_set(error, error_size, "could not store latency target");
-        return -1;
+    for (index = 0U; index < target_count; index++) {
+        if (!target_is_valid(targets[index])) {
+            error_set(
+                error,
+                error_size,
+                "latency target '%s' is not a valid IPv4 address or hostname",
+                targets[index] == NULL ? "(null)" : targets[index]
+            );
+            return -1;
+        }
     }
     if (start_fping(
             latency,
             interface,
-            target,
+            targets,
+            target_count,
+            reflector_ping_interval_microseconds,
             error,
             error_size
         ) != 0) {
-        latency->target[0] = '\0';
         return -1;
     }
     return 0;
@@ -611,7 +660,6 @@ void latency_close(struct sqm_mon_latency *latency)
     latency->output_descriptor = -1;
     latency->diagnostic_descriptor = -1;
     latency->process_identifier = -1;
-    latency->target[0] = '\0';
     latency->output_length = 0U;
     stop_child(process_identifier);
 }
@@ -685,54 +733,21 @@ void latency_tracker_update_delta_ewma(
         tracker->delta_ewma_microseconds;
 }
 
-enum latency_probe_result latency_probe(
+enum latency_probe_result latency_receive(
     struct sqm_mon_latency *latency,
-    int timeout_milliseconds,
     struct latency_sample *sample,
     char *error,
     size_t error_size
 )
 {
-    struct pollfd descriptors[2] = {
-        {
-            .fd = latency->output_descriptor,
-            .events = POLLIN,
-            .revents = 0
-        },
-        {
-            .fd = latency->diagnostic_descriptor,
-            .events = POLLIN,
-            .revents = 0
-        }
-    };
-    struct timespec started_at;
-    bool output_closed = false;
-    bool result_available = false;
-    enum latency_probe_result latest_result = LATENCY_PROBE_TIMEOUT;
-    struct latency_sample latest_sample = { 0U, 0U, 0U };
-
-    if (timeout_milliseconds <= 0) {
-        error_set(error, error_size, "latency timeout must be positive");
-        return LATENCY_PROBE_ERROR;
-    }
     if (!latency_is_open(latency)) {
         error_set(error, error_size, "fping is not running");
         return LATENCY_PROBE_ERROR;
     }
-    if (clock_gettime(CLOCK_MONOTONIC, &started_at) != 0) {
-        error_set(
-            error,
-            error_size,
-            "could not read monotonic clock: %s",
-            strerror(errno)
-        );
-        return LATENCY_PROBE_ERROR;
-    }
 
     for (;;) {
-        for (;;) {
+        {
             char line[LATENCY_OUTPUT_SIZE];
-            struct latency_sample parsed_sample;
             int line_result = take_output_line(
                 latency,
                 line,
@@ -743,16 +758,11 @@ enum latency_probe_result latency_probe(
                 error_set(error, error_size, "fping output line is too long");
                 return LATENCY_PROBE_ERROR;
             }
-            if (line_result == 0) {
-                break;
-            }
-
-            {
+            if (line_result > 0) {
                 enum latency_fping_line_result parse_result =
                     latency_parse_fping_line(
-                        latency->target,
                         line,
-                        &parsed_sample
+                        sample
                     );
 
                 if (parse_result == LATENCY_FPING_LINE_INVALID) {
@@ -764,13 +774,9 @@ enum latency_probe_result latency_probe(
                     );
                     return LATENCY_PROBE_ERROR;
                 }
-                result_available = true;
-                if (parse_result == LATENCY_FPING_LINE_SAMPLE) {
-                    latest_result = LATENCY_PROBE_SUCCESS;
-                    latest_sample = parsed_sample;
-                } else {
-                    latest_result = LATENCY_PROBE_TIMEOUT;
-                }
+                return parse_result == LATENCY_FPING_LINE_SAMPLE
+                    ? LATENCY_PROBE_SUCCESS
+                    : LATENCY_PROBE_TIMEOUT;
             }
         }
 
@@ -804,7 +810,14 @@ enum latency_probe_result latency_probe(
                 );
                 return LATENCY_PROBE_ERROR;
             }
-            if (received < 0 && errno != EAGAIN && errno != EINTR) {
+            if (received == 0) {
+                set_child_exit_error(latency, error, error_size);
+                return LATENCY_PROBE_ERROR;
+            }
+            if (received < 0 && errno == EINTR) {
+                continue;
+            }
+            if (received < 0 && errno != EAGAIN) {
                 error_set(
                     error,
                     error_size,
@@ -815,7 +828,7 @@ enum latency_probe_result latency_probe(
             }
         }
 
-        if (!output_closed) {
+        {
             ssize_t received = read(
                 latency->output_descriptor,
                 latency->output_buffer + latency->output_length,
@@ -827,8 +840,13 @@ enum latency_probe_result latency_probe(
                 continue;
             }
             if (received == 0) {
-                output_closed = true;
-            } else if (errno != EAGAIN && errno != EINTR) {
+                set_child_exit_error(latency, error, error_size);
+                return LATENCY_PROBE_ERROR;
+            }
+            if (errno == EINTR) {
+                continue;
+            }
+            if (errno != EAGAIN) {
                 error_set(
                     error,
                     error_size,
@@ -838,58 +856,6 @@ enum latency_probe_result latency_probe(
                 return LATENCY_PROBE_ERROR;
             }
         }
-
-        if (result_available) {
-            if (latest_result == LATENCY_PROBE_SUCCESS) {
-                *sample = latest_sample;
-            }
-            return latest_result;
-        }
-        if (output_closed) {
-            set_child_exit_error(latency, error, error_size);
-            return LATENCY_PROBE_ERROR;
-        }
-
-        descriptors[0].revents = 0;
-        descriptors[1].revents = 0;
-        {
-            int timeout = remaining_timeout(&started_at, timeout_milliseconds);
-            int poll_result;
-
-            if (timeout == 0) {
-                return LATENCY_PROBE_TIMEOUT;
-            }
-            poll_result = poll(descriptors, 2U, timeout);
-            if (poll_result < 0) {
-                if (errno == EINTR) {
-                    continue;
-                }
-                error_set(
-                    error,
-                    error_size,
-                    "could not wait for fping output: %s",
-                    strerror(errno)
-                );
-                return LATENCY_PROBE_ERROR;
-            }
-            if (poll_result == 0) {
-                return LATENCY_PROBE_TIMEOUT;
-            }
-        }
-
-        if ((descriptors[0].revents & (POLLERR | POLLNVAL)) != 0 ||
-            (descriptors[1].revents & (POLLERR | POLLNVAL)) != 0) {
-            error_set(error, error_size, "fping pipe reported an error");
-            return LATENCY_PROBE_ERROR;
-        }
-        if ((descriptors[1].revents & POLLHUP) != 0 &&
-            (descriptors[0].revents & POLLHUP) == 0) {
-            error_set(
-                error,
-                error_size,
-                "fping diagnostic stream closed unexpectedly"
-            );
-            return LATENCY_PROBE_ERROR;
-        }
+        return LATENCY_PROBE_PENDING;
     }
 }

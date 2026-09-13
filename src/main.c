@@ -18,13 +18,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/random.h>
 #include <sys/signalfd.h>
+#include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
 
 #define ERROR_SIZE 256U
-#define LATENCY_TIMEOUT_MILLISECONDS 500
-#define TRAFFIC_INTERVAL_MILLISECONDS 1000
 #define LOAD_CONDITION_SIZE 16U
 
 enum cake_observation_state {
@@ -47,6 +47,73 @@ static void print_usage(const char *program_name)
         "Usage: %s [-f] [-C UCI_CONFIG_DIRECTORY]\n",
         program_name
     );
+}
+
+static bool read_random_values(uint32_t *values, size_t count)
+{
+    unsigned char *destination = (unsigned char *)(void *)values;
+    size_t expected = count * sizeof(*values);
+    size_t received = 0U;
+
+    while (received < expected) {
+        ssize_t result = getrandom(
+            destination + received,
+            expected - received,
+            0
+        );
+
+        if (result > 0) {
+            received += (size_t)result;
+            continue;
+        }
+        if (result < 0 && errno == EINTR) {
+            continue;
+        }
+        if (result == 0) {
+            errno = EIO;
+        }
+        return false;
+    }
+    return true;
+}
+
+static void randomize_reflector_list(struct sqm_mon_config *config)
+{
+    uint32_t random_values[CONFIG_MAX_REFLECTORS - 1U];
+    size_t count = (size_t)config->reflector_count;
+    size_t index;
+
+    log_message(LOG_LEVEL_DEBUG, "Randomizing reflectors.");
+    if (!config->randomize_reflectors || count < 2U) {
+        return;
+    }
+    if (!read_random_values(random_values, count - 1U)) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "could not randomize reflectors: %s",
+            strerror(errno)
+        );
+        return;
+    }
+
+    for (index = count - 1U; index > 0U; index--) {
+        size_t selected = (size_t)(
+            random_values[count - 1U - index] % (uint32_t)(index + 1U)
+        );
+        char temporary[CONFIG_REFLECTOR_SIZE];
+
+        memcpy(temporary, config->reflectors[index], sizeof(temporary));
+        memcpy(
+            config->reflectors[index],
+            config->reflectors[selected],
+            sizeof(config->reflectors[index])
+        );
+        memcpy(
+            config->reflectors[selected],
+            temporary,
+            sizeof(config->reflectors[selected])
+        );
+    }
 }
 
 static bool observe_traffic(
@@ -140,102 +207,6 @@ static bool observe_traffic(
             interface
         );
         break;
-    }
-
-    return false;
-}
-
-static bool observe_latency(
-    struct sqm_mon_latency *latency,
-    struct latency_tracker *tracker,
-    const struct sqm_mon_config *config,
-    bool *observation_failed,
-    struct latency_observation *observation
-)
-{
-    struct latency_sample sample;
-    char error[ERROR_SIZE] = "";
-    enum latency_probe_result probe_result;
-
-    if (!latency_is_open(latency)) {
-        if (latency_open(
-                latency,
-                config->interface,
-                config->latency_target,
-                error,
-                sizeof(error)
-            ) != 0) {
-            if (!*observation_failed) {
-                log_message(
-                    LOG_LEVEL_WARNING,
-                    "latency observation degraded: target=%s: %s",
-                    config->latency_target,
-                    error
-                );
-            }
-
-            *observation_failed = true;
-            return false;
-        }
-
-        log_message(
-            *observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
-            *observation_failed
-                ? "latency observation recovered: target=%s interface=%s"
-                : "latency observation initialized: target=%s interface=%s",
-            config->latency_target,
-            config->interface
-        );
-        *observation_failed = false;
-    }
-
-    probe_result = latency_probe(
-        latency,
-        LATENCY_TIMEOUT_MILLISECONDS,
-        &sample,
-        error,
-        sizeof(error)
-    );
-
-    switch (probe_result) {
-    case LATENCY_PROBE_SUCCESS:
-        if (*observation_failed) {
-            log_message(
-                LOG_LEVEL_NOTICE,
-                "latency observation recovered: target=%s",
-                config->latency_target
-            );
-            *observation_failed = false;
-        }
-
-        latency_tracker_update(
-            tracker,
-            &sample,
-            observation
-        );
-        return true;
-    case LATENCY_PROBE_TIMEOUT:
-        if (!*observation_failed) {
-            log_message(
-                LOG_LEVEL_WARNING,
-                "latency observation degraded: target=%s: probe timed out",
-                config->latency_target
-            );
-        }
-        *observation_failed = true;
-        return false;
-    case LATENCY_PROBE_ERROR:
-        if (!*observation_failed) {
-            log_message(
-                LOG_LEVEL_WARNING,
-                "latency observation degraded: target=%s: %s",
-                config->latency_target,
-                error
-            );
-        }
-        *observation_failed = true;
-        latency_close(latency);
-        return false;
     }
 
     return false;
@@ -369,14 +340,19 @@ static bool observe_cake(
 struct observation_context {
     struct sqm_mon_controller controller;
     struct sqm_mon_latency latency;
-    struct latency_tracker latency_tracker;
+    struct latency_tracker latency_trackers[CONFIG_MAX_REFLECTORS];
     struct sqm_mon_netlink netlink;
     struct sqm_mon_traffic_monitor download_traffic_monitor;
     struct sqm_mon_traffic_monitor upload_traffic_monitor;
+    struct cake_observation ingress_cake;
+    struct cake_observation upload_cake;
+    struct traffic_rates rates;
     enum cake_observation_state ingress_cake_state;
     enum cake_observation_state upload_cake_state;
     enum traffic_observation_state download_traffic_state;
     enum traffic_observation_state upload_traffic_state;
+    bool ingress_cake_valid;
+    bool upload_cake_valid;
     bool latency_observation_failed;
     bool traffic_clock_failed;
 };
@@ -560,17 +536,21 @@ static void load_condition(
     );
 }
 
-static void log_load_stats(const struct controller_input *input)
+static void log_load_stats(
+    const struct traffic_rates *rates,
+    const struct cake_observation *ingress_cake,
+    const struct cake_observation *upload_cake
+)
 {
     const struct log_load_record record = {
         .download_achieved_rate_kbps =
-            input->download.traffic_rate_bits_per_second / 1000U,
+            rates->download_bits_per_second / 1000U,
         .upload_achieved_rate_kbps =
-            input->upload.traffic_rate_bits_per_second / 1000U,
+            rates->upload_bits_per_second / 1000U,
         .cake_download_rate_kbps =
-            input->download.cake_rate_bits_per_second / 1000U,
+            ingress_cake->bandwidth_bits_per_second / 1000U,
         .cake_upload_rate_kbps =
-            input->upload.cake_rate_bits_per_second / 1000U
+            upload_cake->bandwidth_bits_per_second / 1000U
     };
 
     log_load(&record);
@@ -580,7 +560,8 @@ static void log_controller_stats(
     const struct sqm_mon_config *config,
     const struct controller_input *input,
     const struct controller_output *output,
-    const struct latency_observation *latency
+    const struct latency_observation *latency,
+    const char *reflector
 )
 {
     char download_condition[LOAD_CONDITION_SIZE];
@@ -630,7 +611,7 @@ static void log_controller_stats(
                 input->upload.cake_rate_bits_per_second
             ),
             .icmp_timestamp_microseconds = latency->timestamp_microseconds,
-            .reflector = config->latency_target,
+            .reflector = reflector,
             .sequence = latency->sequence,
             .download_owd_baseline_microseconds = one_way_baseline,
             .download_owd_microseconds = one_way_delay,
@@ -697,7 +678,7 @@ static void apply_bandwidth(
     struct sqm_mon_netlink *netlink,
     const char *direction,
     const char *interface,
-    const struct cake_observation *current,
+    struct cake_observation *current,
     uint64_t desired_rate,
     enum controller_rate_reason reason,
     bool output_cake_changes
@@ -757,6 +738,8 @@ static void apply_bandwidth(
         return;
     }
 
+    *current = verified;
+
 }
 
 static void update_controller(
@@ -764,12 +747,13 @@ static void update_controller(
     struct sqm_mon_netlink *netlink,
     const struct sqm_mon_config *config,
     const struct traffic_rates *rates,
-    const struct cake_observation *ingress_cake,
+    struct cake_observation *ingress_cake,
     bool ingress_cake_valid,
-    const struct cake_observation *upload_cake,
+    struct cake_observation *upload_cake,
     bool upload_cake_valid,
     const struct latency_observation *latency,
-    bool latency_valid
+    bool latency_valid,
+    const char *reflector
 )
 {
     struct timespec current_time;
@@ -815,10 +799,6 @@ static void update_controller(
             (uint64_t)current_time.tv_nsec / 1000U;
     }
 
-    if (config->output_load_stats &&
-        input.download.valid && input.upload.valid) {
-        log_load_stats(&input);
-    }
     controller_update(controller, &input, &output);
     if (output.download_state_changed) {
         log_line_state("download", output.download_state, &input.download);
@@ -863,44 +843,28 @@ static void update_controller(
         );
     }
     if (latency_valid) {
-        log_controller_stats(config, &input, &output, latency);
+        log_controller_stats(config, &input, &output, latency, reflector);
     }
 }
 
-static void observe_cycle(
+static void observe_traffic_cycle(
     struct observation_context *context,
     const struct sqm_mon_config *config
 )
 {
-    struct cake_observation ingress_cake;
-    struct cake_observation upload_cake;
-    struct latency_observation latency = { 0 };
-    struct traffic_rates rates = { 0U, 0U, false, false };
     struct timespec traffic_timestamp;
-    bool ingress_cake_valid;
-    bool latency_valid = false;
-    bool upload_cake_valid;
 
-    if (config->latency_target[0] != '\0') {
-        latency_valid = observe_latency(
-            &context->latency,
-            &context->latency_tracker,
-            config,
-            &context->latency_observation_failed,
-            &latency
-        );
-    }
-    upload_cake_valid = observe_cake(
+    context->upload_cake_valid = observe_cake(
         &context->netlink,
         config->interface,
         &context->upload_cake_state,
-        &upload_cake
+        &context->upload_cake
     );
-    ingress_cake_valid = observe_cake(
+    context->ingress_cake_valid = observe_cake(
         &context->netlink,
         config->ingress_interface,
         &context->ingress_cake_state,
-        &ingress_cake
+        &context->ingress_cake
     );
     if (clock_gettime(CLOCK_MONOTONIC, &traffic_timestamp) != 0) {
         if (!context->traffic_clock_failed) {
@@ -911,6 +875,8 @@ static void observe_cycle(
             );
         }
         context->traffic_clock_failed = true;
+        context->rates.download_valid = false;
+        context->rates.upload_valid = false;
         traffic_monitor_init(&context->download_traffic_monitor);
         traffic_monitor_init(&context->upload_traffic_monitor);
     } else {
@@ -921,61 +887,250 @@ static void observe_cycle(
             );
             context->traffic_clock_failed = false;
         }
-        rates.download_valid = observe_traffic(
+        context->rates.download_valid = observe_traffic(
             &context->download_traffic_monitor,
             &context->download_traffic_state,
             "download",
             config->ingress_interface,
-            &ingress_cake,
-            ingress_cake_valid,
+            &context->ingress_cake,
+            context->ingress_cake_valid,
             &traffic_timestamp,
-            &rates.download_bits_per_second
+            &context->rates.download_bits_per_second
         );
-        rates.upload_valid = observe_traffic(
+        context->rates.upload_valid = observe_traffic(
             &context->upload_traffic_monitor,
             &context->upload_traffic_state,
             "upload",
             config->interface,
-            &upload_cake,
-            upload_cake_valid,
+            &context->upload_cake,
+            context->upload_cake_valid,
             &traffic_timestamp,
-            &rates.upload_bits_per_second
+            &context->rates.upload_bits_per_second
         );
     }
-    if (latency_valid) {
-        bool low_load = rates.download_valid && rates.upload_valid &&
+
+    if (config->output_load_stats &&
+        context->rates.download_valid && context->rates.upload_valid &&
+        context->ingress_cake_valid && context->upload_cake_valid &&
+        context->ingress_cake.has_bandwidth &&
+        context->upload_cake.has_bandwidth) {
+        log_load_stats(
+            &context->rates,
+            &context->ingress_cake,
+            &context->upload_cake
+        );
+    }
+}
+
+static bool ensure_latency_open(
+    struct observation_context *context,
+    const struct sqm_mon_config *config
+)
+{
+    const char *targets[CONFIG_MAX_REFLECTORS];
+    char error[ERROR_SIZE] = "";
+    size_t target_count = (size_t)config->no_pingers;
+    size_t index;
+
+    if (latency_is_open(&context->latency)) {
+        return true;
+    }
+    for (index = 0U; index < target_count; index++) {
+        targets[index] = config->reflectors[index];
+    }
+    if (latency_open(
+            &context->latency,
+            config->interface,
+            targets,
+            target_count,
+            config->reflector_ping_interval_microseconds,
+            error,
+            sizeof(error)
+        ) != 0) {
+        if (!context->latency_observation_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "latency observation degraded: %s",
+                error
+            );
+        }
+        context->latency_observation_failed = true;
+        return false;
+    }
+
+    log_message(
+        context->latency_observation_failed
+            ? LOG_LEVEL_NOTICE
+            : LOG_LEVEL_INFO,
+        context->latency_observation_failed
+            ? "latency observation recovered: targets=%zu interface=%s"
+            : "latency observation initialized: targets=%zu interface=%s",
+        target_count,
+        config->interface
+    );
+    context->latency_observation_failed = false;
+    return true;
+}
+
+static size_t find_active_reflector(
+    const struct sqm_mon_config *config,
+    const char *target
+)
+{
+    size_t target_count = (size_t)config->no_pingers;
+    size_t index;
+
+    for (index = 0U; index < target_count; index++) {
+        if (strcmp(config->reflectors[index], target) == 0) {
+            return index;
+        }
+    }
+    return SIZE_MAX;
+}
+
+static void receive_latency_samples(
+    struct observation_context *context,
+    const struct sqm_mon_config *config
+)
+{
+    for (;;) {
+        struct latency_observation observation;
+        struct latency_sample sample;
+        char error[ERROR_SIZE] = "";
+        enum latency_probe_result result = latency_receive(
+            &context->latency,
+            &sample,
+            error,
+            sizeof(error)
+        );
+        size_t reflector_index;
+        bool low_load;
+
+        if (result == LATENCY_PROBE_PENDING) {
+            return;
+        }
+        if (result == LATENCY_PROBE_TIMEOUT) {
+            continue;
+        }
+        if (result == LATENCY_PROBE_ERROR) {
+            if (!context->latency_observation_failed) {
+                log_message(
+                    LOG_LEVEL_WARNING,
+                    "latency observation degraded: %s",
+                    error
+                );
+            }
+            context->latency_observation_failed = true;
+            latency_close(&context->latency);
+            return;
+        }
+
+        reflector_index = find_active_reflector(config, sample.target);
+        if (reflector_index == SIZE_MAX) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "latency observation degraded: unexpected reflector=%s",
+                sample.target
+            );
+            context->latency_observation_failed = true;
+            latency_close(&context->latency);
+            return;
+        }
+
+        latency_tracker_update(
+            &context->latency_trackers[reflector_index],
+            &sample,
+            &observation
+        );
+        low_load = context->rates.download_valid &&
+            context->rates.upload_valid &&
             load_percent(
-                rates.download_bits_per_second,
-                ingress_cake_valid
-                    ? ingress_cake.bandwidth_bits_per_second
+                context->rates.download_bits_per_second,
+                context->ingress_cake_valid
+                    ? context->ingress_cake.bandwidth_bits_per_second
                     : 0U
             ) < CONTROLLER_HIGH_LOAD_PERCENT &&
             load_percent(
-                rates.upload_bits_per_second,
-                upload_cake_valid
-                    ? upload_cake.bandwidth_bits_per_second
+                context->rates.upload_bits_per_second,
+                context->upload_cake_valid
+                    ? context->upload_cake.bandwidth_bits_per_second
                     : 0U
             ) < CONTROLLER_HIGH_LOAD_PERCENT;
 
         latency_tracker_update_delta_ewma(
-            &context->latency_tracker,
+            &context->latency_trackers[reflector_index],
             low_load,
-            &latency
+            &observation
+        );
+        update_controller(
+            &context->controller,
+            &context->netlink,
+            config,
+            &context->rates,
+            &context->ingress_cake,
+            context->ingress_cake_valid,
+            &context->upload_cake,
+            context->upload_cake_valid,
+            &observation,
+            true,
+            sample.target
         );
     }
-    update_controller(
-        &context->controller,
-        &context->netlink,
-        config,
-        &rates,
-        &ingress_cake,
-        ingress_cake_valid,
-        &upload_cake,
-        upload_cake_valid,
-        &latency,
-        latency_valid
-    );
 }
+
+static int create_traffic_timer(uint64_t interval_microseconds)
+{
+    struct itimerspec schedule = { 0 };
+    uint64_t seconds = interval_microseconds / 1000000U;
+    int descriptor;
+
+    schedule.it_interval.tv_sec = (time_t)seconds;
+    if (schedule.it_interval.tv_sec < 0 ||
+        (uint64_t)schedule.it_interval.tv_sec != seconds) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "traffic monitor interval is too large"
+        );
+        return -1;
+    }
+    schedule.it_interval.tv_nsec = (long)(
+        interval_microseconds % 1000000U * 1000U
+    );
+    schedule.it_value = schedule.it_interval;
+
+    descriptor = timerfd_create(
+        CLOCK_MONOTONIC,
+        TFD_CLOEXEC | TFD_NONBLOCK
+    );
+    if (descriptor < 0) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not create traffic monitor timer: %s",
+            strerror(errno)
+        );
+        return -1;
+    }
+    if (timerfd_settime(descriptor, 0, &schedule, NULL) != 0) {
+        int saved_errno = errno;
+
+        (void)close(descriptor);
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not schedule traffic monitor timer: %s",
+            strerror(saved_errno)
+        );
+        return -1;
+    }
+    return descriptor;
+}
+
+enum event_descriptor {
+    EVENT_SIGNAL,
+    EVENT_TRAFFIC_TIMER,
+    EVENT_LATENCY_OUTPUT,
+    EVENT_LATENCY_DIAGNOSTIC,
+    EVENT_DESCRIPTOR_COUNT
+};
 
 static int run_event_loop(
     int signal_file_descriptor,
@@ -1002,10 +1157,27 @@ static int run_event_loop(
                 config->maximum_upload_rate_bits_per_second
         }
     };
-    struct pollfd descriptor = {
-        .fd = signal_file_descriptor,
-        .events = POLLIN,
-        .revents = 0
+    struct pollfd descriptors[EVENT_DESCRIPTOR_COUNT] = {
+        [EVENT_SIGNAL] = {
+            .fd = signal_file_descriptor,
+            .events = POLLIN,
+            .revents = 0
+        },
+        [EVENT_TRAFFIC_TIMER] = {
+            .fd = -1,
+            .events = POLLIN,
+            .revents = 0
+        },
+        [EVENT_LATENCY_OUTPUT] = {
+            .fd = -1,
+            .events = POLLIN,
+            .revents = 0
+        },
+        [EVENT_LATENCY_DIAGNOSTIC] = {
+            .fd = -1,
+            .events = POLLIN,
+            .revents = 0
+        }
     };
     struct observation_context context = {
         .ingress_cake_state = CAKE_OBSERVATION_UNKNOWN,
@@ -1015,32 +1187,44 @@ static int run_event_loop(
         .latency_observation_failed = false,
         .traffic_clock_failed = false
     };
+    int traffic_timer_descriptor;
     int result = -1;
+    size_t index;
 
     controller_init(&context.controller, &controller_config);
     latency_init(&context.latency);
-    latency_tracker_init(&context.latency_tracker);
+    for (index = 0U; index < (size_t)config->no_pingers; index++) {
+        latency_tracker_init(&context.latency_trackers[index]);
+    }
     netlink_init(&context.netlink);
     traffic_monitor_init(&context.download_traffic_monitor);
     traffic_monitor_init(&context.upload_traffic_monitor);
 
-    if (config->latency_target[0] == '\0') {
-        log_message(
-            LOG_LEVEL_INFO,
-            "latency observation disabled: no target configured"
-        );
+    traffic_timer_descriptor = create_traffic_timer(
+        config->monitor_achieved_rates_interval_microseconds
+    );
+    if (traffic_timer_descriptor < 0) {
+        goto done;
     }
-    observe_cycle(&context, config);
+    descriptors[EVENT_TRAFFIC_TIMER].fd = traffic_timer_descriptor;
+    observe_traffic_cycle(&context, config);
+    (void)ensure_latency_open(&context, config);
 
     for (;;) {
         struct signalfd_siginfo signal_information;
-        ssize_t bytes_read;
         int poll_result;
 
+        descriptors[EVENT_LATENCY_OUTPUT].fd =
+            context.latency.output_descriptor;
+        descriptors[EVENT_LATENCY_DIAGNOSTIC].fd =
+            context.latency.diagnostic_descriptor;
+        for (index = 0U; index < EVENT_DESCRIPTOR_COUNT; index++) {
+            descriptors[index].revents = 0;
+        }
         poll_result = poll(
-            &descriptor,
-            1U,
-            TRAFFIC_INTERVAL_MILLISECONDS
+            descriptors,
+            EVENT_DESCRIPTOR_COUNT,
+            -1
         );
         if (poll_result < 0) {
             if (errno == EINTR) {
@@ -1055,59 +1239,96 @@ static int run_event_loop(
             goto done;
         }
 
-        if (poll_result == 0) {
-            observe_cycle(&context, config);
-            continue;
-        }
-
-        if ((descriptor.revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+        if ((descriptors[EVENT_SIGNAL].revents &
+                (POLLERR | POLLHUP | POLLNVAL)) != 0) {
             log_message(
                 LOG_LEVEL_ERROR,
                 "signal descriptor reported an error (revents=0x%x)",
-                (unsigned int)descriptor.revents
+                (unsigned int)descriptors[EVENT_SIGNAL].revents
             );
             goto done;
         }
+        if ((descriptors[EVENT_SIGNAL].revents & POLLIN) != 0) {
+            ssize_t bytes_read = read(
+                signal_file_descriptor,
+                &signal_information,
+                sizeof(signal_information)
+            );
 
-        bytes_read = read(
-            signal_file_descriptor,
-            &signal_information,
-            sizeof(signal_information)
-        );
-        if (bytes_read < 0) {
-            if (errno == EAGAIN || errno == EINTR) {
-                continue;
+            if (bytes_read < 0 && errno != EAGAIN && errno != EINTR) {
+                log_message(
+                    LOG_LEVEL_ERROR,
+                    "could not read shutdown signal: %s",
+                    strerror(errno)
+                );
+                goto done;
             }
+            if (bytes_read > 0 &&
+                (size_t)bytes_read != sizeof(signal_information)) {
+                log_message(
+                    LOG_LEVEL_ERROR,
+                    "received an incomplete shutdown signal"
+                );
+                goto done;
+            }
+            if (bytes_read == (ssize_t)sizeof(signal_information) &&
+                (signal_information.ssi_signo == (uint32_t)SIGINT ||
+                    signal_information.ssi_signo == (uint32_t)SIGTERM)) {
+                log_message(
+                    LOG_LEVEL_NOTICE,
+                    "received signal %u; shutting down",
+                    signal_information.ssi_signo
+                );
+                result = 0;
+                goto done;
+            }
+        }
 
+        if ((descriptors[EVENT_TRAFFIC_TIMER].revents &
+                (POLLERR | POLLHUP | POLLNVAL)) != 0) {
             log_message(
                 LOG_LEVEL_ERROR,
-                "could not read shutdown signal: %s",
-                strerror(errno)
+                "traffic timer reported an error (revents=0x%x)",
+                (unsigned int)descriptors[EVENT_TRAFFIC_TIMER].revents
             );
             goto done;
         }
-
-        if ((size_t)bytes_read != sizeof(signal_information)) {
-            log_message(
-                LOG_LEVEL_ERROR,
-                "received an incomplete shutdown signal"
+        if ((descriptors[EVENT_TRAFFIC_TIMER].revents & POLLIN) != 0) {
+            uint64_t expirations;
+            ssize_t bytes_read = read(
+                traffic_timer_descriptor,
+                &expirations,
+                sizeof(expirations)
             );
-            goto done;
+
+            if (bytes_read != (ssize_t)sizeof(expirations)) {
+                if (bytes_read < 0 &&
+                    (errno == EAGAIN || errno == EINTR)) {
+                    continue;
+                }
+                log_message(
+                    LOG_LEVEL_ERROR,
+                    "could not read traffic monitor timer: %s",
+                    bytes_read < 0 ? strerror(errno) : "incomplete read"
+                );
+                goto done;
+            }
+            observe_traffic_cycle(&context, config);
+            (void)ensure_latency_open(&context, config);
         }
 
-        if (signal_information.ssi_signo == (uint32_t)SIGINT ||
-            signal_information.ssi_signo == (uint32_t)SIGTERM) {
-            log_message(
-                LOG_LEVEL_NOTICE,
-                "received signal %u; shutting down",
-                signal_information.ssi_signo
-            );
-            result = 0;
-            goto done;
+        if (latency_is_open(&context.latency) &&
+            ((descriptors[EVENT_LATENCY_OUTPUT].revents |
+                descriptors[EVENT_LATENCY_DIAGNOSTIC].revents) &
+                (POLLIN | POLLERR | POLLHUP | POLLNVAL)) != 0) {
+            receive_latency_samples(&context, config);
         }
     }
 
 done:
+    if (traffic_timer_descriptor >= 0) {
+        (void)close(traffic_timer_descriptor);
+    }
     netlink_close(&context.netlink);
     latency_close(&context.latency);
     return result;
@@ -1228,16 +1449,21 @@ int main(int argc, char **argv)
         config.output_load_stats,
         config.output_summary_stats
     );
+    randomize_reflector_list(&config);
 
     log_message(
         LOG_LEVEL_INFO,
         "configuration loaded: upload_interface=%s download_interface=%s"
-        " latency_target=%s debug=%u log_file=%s",
+        " reflectors=%" PRIu64 " active_pingers=%" PRIu64
+        " reflector_ping_interval=%" PRIu64 " us"
+        " traffic_monitor_interval=%" PRIu64 " us"
+        " debug=%u log_file=%s",
         config.interface,
         config.ingress_interface,
-        config.latency_target[0] == '\0'
-            ? "disabled"
-            : config.latency_target,
+        config.reflector_count,
+        config.no_pingers,
+        config.reflector_ping_interval_microseconds,
+        config.monitor_achieved_rates_interval_microseconds,
         config.debug ? 1U : 0U,
         config.log_file[0] == '\0' ? "disabled" : config.log_file
     );
