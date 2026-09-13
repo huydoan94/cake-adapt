@@ -134,6 +134,7 @@ static uint64_t rate_to_bits_per_second(uint64_t bytes_per_second)
         return UINT64_MAX;
     }
 
+    /* CAKE's netlink ABI reports rates in bytes/s; sqm-mon uses bits/s. */
     return bytes_per_second * 8U;
 }
 
@@ -193,6 +194,7 @@ static void parse_basic_stats(
         return;
     }
 
+    /* TCA_STATS_BASIC is the kernel ABI pair: u64 bytes, then u32 packets. */
     memcpy(&observation->bytes, data, sizeof(observation->bytes));
     memcpy(
         &observation->packets,
@@ -319,6 +321,7 @@ static int handle_qdisc(
     }
 
     traffic_control = NLMSG_DATA(message);
+    /* Only control the interface's root CAKE, never a nested child qdisc. */
     if (traffic_control->tcm_ifindex != (int)context->interface_index ||
         traffic_control->tcm_parent != TC_H_ROOT ||
         context->found) {

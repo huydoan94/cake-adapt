@@ -21,6 +21,7 @@
 #define BASELINE_SCALE 1000U
 #define BASELINE_INCREASE_WEIGHT 1U
 #define BASELINE_DECREASE_WEIGHT 900U
+#define DELTA_EWMA_WEIGHT 95U
 
 static void set_error(
     char *error,
@@ -116,6 +117,7 @@ static int remaining_timeout(
     }
 
     remaining_microseconds = timeout_microseconds - elapsed;
+    /* poll() accepts milliseconds, so round up to preserve the deadline. */
     return (int)((remaining_microseconds + 999U) / 1000U);
 }
 
@@ -260,6 +262,15 @@ static enum latency_probe_result receive_response(
         } else {
             sample->round_trip_microseconds = (uint32_t)elapsed;
         }
+        sample->sequence = sequence;
+        if (clock_gettime(CLOCK_REALTIME, &received_at) == 0 &&
+            received_at.tv_sec >= 0) {
+            sample->timestamp_microseconds =
+                (uint64_t)received_at.tv_sec * 1000000U +
+                (uint64_t)received_at.tv_nsec / 1000U;
+        } else {
+            sample->timestamp_microseconds = 0U;
+        }
         return LATENCY_PROBE_SUCCESS;
     }
 }
@@ -358,6 +369,7 @@ void latency_close(struct sqm_mon_latency *latency)
 void latency_tracker_init(struct latency_tracker *tracker)
 {
     tracker->baseline_scaled = 0U;
+    tracker->delta_ewma_microseconds = 0U;
     tracker->initialized = false;
 }
 
@@ -375,6 +387,11 @@ void latency_tracker_update(
         tracker->baseline_scaled = sample_scaled;
         tracker->initialized = true;
     } else {
+        /*
+         * Keep three decimal places for the integer EWMA. Lower RTT samples
+         * get 90% weight while higher samples get 0.1%, so the baseline falls
+         * quickly but does not absorb transient queueing delay.
+         */
         sample_weight = sample_scaled < tracker->baseline_scaled
             ? BASELINE_DECREASE_WEIGHT
             : BASELINE_INCREASE_WEIGHT;
@@ -395,6 +412,29 @@ void latency_tracker_update(
         ? sample->round_trip_microseconds -
             observation->baseline_microseconds
         : 0U;
+    observation->delta_ewma_microseconds = tracker->delta_ewma_microseconds;
+    observation->timestamp_microseconds = sample->timestamp_microseconds;
+    observation->sequence = sample->sequence;
+}
+
+void latency_tracker_update_delta_ewma(
+    struct latency_tracker *tracker,
+    bool low_load,
+    struct latency_observation *observation
+)
+{
+    /* cake-autorate freezes reflector delay EWMA while either link is busy. */
+    if (low_load) {
+        tracker->delta_ewma_microseconds = (uint32_t)(
+            ((uint64_t)DELTA_EWMA_WEIGHT *
+                    observation->delta_microseconds / 2U +
+                (1000U - DELTA_EWMA_WEIGHT) *
+                    tracker->delta_ewma_microseconds) /
+            1000U
+        );
+    }
+    observation->delta_ewma_microseconds =
+        tracker->delta_ewma_microseconds;
 }
 
 enum latency_probe_result latency_probe(

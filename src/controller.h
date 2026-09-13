@@ -5,6 +5,10 @@
 #include <stdint.h>
 
 #define CONTROLLER_DELAY_WINDOW_SAMPLES 6U
+#define CONTROLLER_HIGH_LOAD_PERCENT 75U
+#define CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS 30000U
+#define CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS 10000U
+#define CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS 60000U
 
 enum controller_line_state {
     CONTROLLER_LINE_UNKNOWN,
@@ -67,6 +71,12 @@ struct controller_output {
     enum controller_rate_reason upload_rate_reason;
     uint64_t download_rate_bits_per_second;
     uint64_t upload_rate_bits_per_second;
+    uint64_t download_delay_sum_microseconds;
+    uint64_t upload_delay_sum_microseconds;
+    uint32_t download_average_delay_microseconds;
+    uint32_t upload_average_delay_microseconds;
+    unsigned int download_delayed_sample_count;
+    unsigned int upload_delayed_sample_count;
     bool download_state_changed;
     bool upload_state_changed;
     bool download_congestion_changed;

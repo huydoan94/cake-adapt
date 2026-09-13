@@ -100,6 +100,15 @@ void netlink_close(struct sqm_mon_netlink *netlink)
     }
 }
 
+static uint32_t next_sequence(struct sqm_mon_netlink *netlink)
+{
+    netlink->sequence++;
+    if (netlink->sequence == 0U) {
+        netlink->sequence++;
+    }
+    return netlink->sequence;
+}
+
 static int wait_for_response(
     int descriptor,
     char *error,
@@ -401,11 +410,7 @@ int netlink_dump_qdiscs(
         return -1;
     }
 
-    netlink->sequence++;
-    if (netlink->sequence == 0U) {
-        netlink->sequence++;
-    }
-    sequence = netlink->sequence;
+    sequence = next_sequence(netlink);
 
     if (send_qdisc_request(
             netlink,
@@ -625,11 +630,7 @@ int netlink_change_qdisc_option(
 
     memset(&request, 0, sizeof(request));
     memset(&options, 0, sizeof(options));
-    netlink->sequence++;
-    if (netlink->sequence == 0U) {
-        netlink->sequence++;
-    }
-    sequence = netlink->sequence;
+    sequence = next_sequence(netlink);
 
     request.header.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcmsg));
     request.header.nlmsg_type = RTM_NEWQDISC;

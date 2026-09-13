@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -26,6 +27,7 @@
 #define SQM_MON_LATENCY_ERROR_SIZE 256U
 #define SQM_MON_LATENCY_TIMEOUT_MILLISECONDS 500
 #define SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS 1000
+#define SQM_MON_LOAD_CONDITION_SIZE 16U
 
 enum cake_observation_state {
     CAKE_OBSERVATION_UNKNOWN,
@@ -112,15 +114,6 @@ static bool observe_traffic(
         );
         break;
     case TRAFFIC_UPDATE_RATES:
-        log_message(
-            LOG_LEVEL_DEBUG,
-            "traffic: direction=%s interface=%s source=cake"
-            " bytes=%" PRIu64 " rate=%" PRIu64 " bit/s",
-            direction,
-            interface,
-            sample.bytes,
-            *rate_bits_per_second
-        );
         return true;
     case TRAFFIC_UPDATE_COUNTER_RESET:
         log_message(
@@ -221,15 +214,6 @@ static bool observe_latency(
             tracker,
             &sample,
             observation
-        );
-        log_message(
-            LOG_LEVEL_DEBUG,
-            "latency: target=%s rtt=%" PRIu32 " us"
-            " baseline=%" PRIu32 " us delta=%" PRIu32 " us",
-            config->latency_target,
-            observation->round_trip_microseconds,
-            observation->baseline_microseconds,
-            observation->delta_microseconds
         );
         return true;
     case LATENCY_PROBE_TIMEOUT:
@@ -515,18 +499,207 @@ static const char *rate_reason_name(enum controller_rate_reason reason)
     return "invalid";
 }
 
+static unsigned int load_percent(
+    uint64_t traffic_rate,
+    uint64_t cake_rate
+)
+{
+    /* cake-autorate truncates both rates to Kbit/s before this division. */
+    uint64_t achieved_rate_kbps = traffic_rate / 1000U;
+    uint64_t shaper_rate_kbps = cake_rate / 1000U;
+    uint64_t quotient;
+    uint64_t remainder;
+    uint64_t percentage;
+
+    if (shaper_rate_kbps == 0U) {
+        return 0U;
+    }
+    quotient = achieved_rate_kbps / shaper_rate_kbps;
+    if (quotient > UINT_MAX / 100U) {
+        return UINT_MAX;
+    }
+    remainder = achieved_rate_kbps % shaper_rate_kbps;
+    percentage = quotient * 100U;
+    if (remainder > UINT64_MAX / 100U) {
+        percentage += (uint64_t)(
+            (long double)remainder * 100.0L /
+            (long double)shaper_rate_kbps
+        );
+    } else {
+        percentage += remainder * 100U / shaper_rate_kbps;
+    }
+    return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
+}
+
+static void load_condition(
+    char *condition,
+    size_t condition_size,
+    const char *direction,
+    uint64_t traffic_rate,
+    uint64_t cake_rate,
+    uint64_t connection_active_threshold,
+    enum controller_congestion_state congestion
+)
+{
+    const char *state;
+
+    if (load_percent(traffic_rate, cake_rate) >
+        CONTROLLER_HIGH_LOAD_PERCENT) {
+        state = "high";
+    } else if (traffic_rate > connection_active_threshold) {
+        state = "low";
+    } else {
+        state = "idle";
+    }
+
+    (void)snprintf(
+        condition,
+        condition_size,
+        "%s_%s%s",
+        direction,
+        state,
+        congestion == CONTROLLER_CONGESTION_DETECTED ? "_bb" : ""
+    );
+}
+
+static void log_load_stats(const struct controller_input *input)
+{
+    log_record(
+        "LOAD",
+        "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+        "; %" PRIu64,
+        log_realtime_microseconds(),
+        input->download.traffic_rate_bits_per_second / 1000U,
+        input->upload.traffic_rate_bits_per_second / 1000U,
+        input->download.cake_rate_bits_per_second / 1000U,
+        input->upload.cake_rate_bits_per_second / 1000U
+    );
+}
+
+static void log_controller_stats(
+    const struct sqm_mon_config *config,
+    const struct controller_input *input,
+    const struct controller_output *output,
+    const struct latency_observation *latency
+)
+{
+    char download_condition[SQM_MON_LOAD_CONDITION_SIZE];
+    char upload_condition[SQM_MON_LOAD_CONDITION_SIZE];
+    uint64_t download_rate = output->download_rate_bits_per_second / 1000U;
+    uint64_t upload_rate = output->upload_rate_bits_per_second / 1000U;
+    uint32_t one_way_baseline = latency->baseline_microseconds / 2U;
+    uint32_t one_way_delay = latency->round_trip_microseconds / 2U;
+    uint32_t one_way_delta = latency->delta_microseconds / 2U;
+
+    load_condition(
+        download_condition,
+        sizeof(download_condition),
+        "dl",
+        input->download.traffic_rate_bits_per_second,
+        input->download.cake_rate_bits_per_second,
+        config->connection_active_threshold_bits_per_second,
+        output->download_congestion
+    );
+    load_condition(
+        upload_condition,
+        sizeof(upload_condition),
+        "ul",
+        input->upload.traffic_rate_bits_per_second,
+        input->upload.cake_rate_bits_per_second,
+        config->connection_active_threshold_bits_per_second,
+        output->upload_congestion
+    );
+
+    if (config->output_processing_stats) {
+        log_record(
+            "DATA",
+            "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %u; %u;"
+            " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu16 ";"
+            " %" PRIu32 "; %" PRIu32 "; %" PRIu32 "; %" PRIu32
+            "; %u; %" PRIu32 "; %" PRIu32 "; %" PRIu32 ";"
+            " %" PRIu32 "; %u; %u; %" PRIu32 "; %u; %u; %u;"
+            " %" PRIu32 "; %u; %u; %s; %s; %" PRIu64 "; %" PRIu64,
+            log_realtime_microseconds(),
+            input->download.traffic_rate_bits_per_second / 1000U,
+            input->upload.traffic_rate_bits_per_second / 1000U,
+            load_percent(
+                input->download.traffic_rate_bits_per_second,
+                input->download.cake_rate_bits_per_second
+            ),
+            load_percent(
+                input->upload.traffic_rate_bits_per_second,
+                input->upload.cake_rate_bits_per_second
+            ),
+            latency->timestamp_microseconds / 1000000U,
+            latency->timestamp_microseconds % 1000000U,
+            config->latency_target,
+            latency->sequence,
+            one_way_baseline,
+            one_way_delay,
+            latency->delta_ewma_microseconds,
+            one_way_delta,
+            CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
+            one_way_baseline,
+            one_way_delay,
+            latency->delta_ewma_microseconds,
+            one_way_delta,
+            CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
+            output->download_delayed_sample_count,
+            output->download_average_delay_microseconds,
+            CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
+            CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
+            output->upload_delayed_sample_count,
+            output->upload_average_delay_microseconds,
+            CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
+            CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
+            download_condition,
+            upload_condition,
+            download_rate,
+            upload_rate
+        );
+    }
+
+    if (config->output_summary_stats) {
+        log_record(
+            "SUMMARY",
+            "%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRIu32 ";"
+            " %" PRIu32 "; %s; %s; %" PRIu64 "; %" PRIu64,
+            input->download.traffic_rate_bits_per_second / 1000U,
+            input->upload.traffic_rate_bits_per_second / 1000U,
+            output->download_delayed_sample_count,
+            output->upload_delayed_sample_count,
+            output->download_average_delay_microseconds,
+            output->upload_average_delay_microseconds,
+            download_condition,
+            upload_condition,
+            download_rate,
+            upload_rate
+        );
+    }
+}
+
 static void apply_bandwidth(
     struct sqm_mon_netlink *netlink,
     const char *direction,
     const char *interface,
     const struct cake_observation *current,
     uint64_t desired_rate,
-    enum controller_rate_reason reason
+    enum controller_rate_reason reason,
+    bool output_cake_changes
 )
 {
     struct cake_observation verified;
     char error[SQM_MON_CAKE_ERROR_SIZE] = "";
     enum cake_read_result read_result;
+
+    if (output_cake_changes) {
+        log_record(
+            "SHAPER",
+            "tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
+            interface,
+            desired_rate / 1000U
+        );
+    }
 
     if (cake_set_bandwidth(
             netlink,
@@ -574,17 +747,6 @@ static void apply_bandwidth(
         return;
     }
 
-    log_message(
-        LOG_LEVEL_NOTICE,
-        "CAKE bandwidth changed: direction=%s interface=%s"
-        " old_rate=%" PRIu64 " bit/s new_rate=%" PRIu64
-        " bit/s reason=%s",
-        direction,
-        interface,
-        current->bandwidth_bits_per_second,
-        verified.bandwidth_bits_per_second,
-        rate_reason_name(reason)
-    );
 }
 
 static void update_controller(
@@ -643,6 +805,10 @@ static void update_controller(
             (uint64_t)current_time.tv_nsec / 1000U;
     }
 
+    if (config->output_load_stats &&
+        input.download.valid && input.upload.valid) {
+        log_load_stats(&input);
+    }
     controller_update(controller, &input, &output);
     if (output.download_state_changed) {
         log_line_state("download", output.download_state, &input.download);
@@ -671,7 +837,8 @@ static void update_controller(
             config->ingress_interface,
             ingress_cake,
             output.download_rate_bits_per_second,
-            output.download_rate_reason
+            output.download_rate_reason,
+            config->output_cake_changes
         );
     }
     if (config->adjust_upload && output.upload_rate_changed) {
@@ -681,8 +848,12 @@ static void update_controller(
             config->interface,
             upload_cake,
             output.upload_rate_bits_per_second,
-            output.upload_rate_reason
+            output.upload_rate_reason,
+            config->output_cake_changes
         );
+    }
+    if (latency_valid) {
+        log_controller_stats(config, &input, &output, latency);
     }
 }
 
@@ -693,10 +864,10 @@ static void observe_cycle(
 {
     struct cake_observation ingress_cake;
     struct cake_observation upload_cake;
-    struct latency_observation latency = { 0U, 0U, 0U };
+    struct latency_observation latency = { 0 };
     struct traffic_rates rates = { 0U, 0U, false, false };
     struct timespec traffic_timestamp;
-    bool ingress_cake_valid = false;
+    bool ingress_cake_valid;
     bool latency_valid = false;
     bool upload_cake_valid;
 
@@ -715,14 +886,12 @@ static void observe_cycle(
         &context->upload_cake_state,
         &upload_cake
     );
-    if (config->ingress_interface[0] != '\0') {
-        ingress_cake_valid = observe_cake(
-            &context->netlink,
-            config->ingress_interface,
-            &context->ingress_cake_state,
-            &ingress_cake
-        );
-    }
+    ingress_cake_valid = observe_cake(
+        &context->netlink,
+        config->ingress_interface,
+        &context->ingress_cake_state,
+        &ingress_cake
+    );
     if (clock_gettime(CLOCK_MONOTONIC, &traffic_timestamp) != 0) {
         if (!context->traffic_clock_failed) {
             log_message(
@@ -742,18 +911,16 @@ static void observe_cycle(
             );
             context->traffic_clock_failed = false;
         }
-        if (config->ingress_interface[0] != '\0') {
-            rates.download_valid = observe_traffic(
-                &context->download_traffic_monitor,
-                &context->download_traffic_state,
-                "download",
-                config->ingress_interface,
-                &ingress_cake,
-                ingress_cake_valid,
-                &traffic_timestamp,
-                &rates.download_bits_per_second
-            );
-        }
+        rates.download_valid = observe_traffic(
+            &context->download_traffic_monitor,
+            &context->download_traffic_state,
+            "download",
+            config->ingress_interface,
+            &ingress_cake,
+            ingress_cake_valid,
+            &traffic_timestamp,
+            &rates.download_bits_per_second
+        );
         rates.upload_valid = observe_traffic(
             &context->upload_traffic_monitor,
             &context->upload_traffic_state,
@@ -763,6 +930,27 @@ static void observe_cycle(
             upload_cake_valid,
             &traffic_timestamp,
             &rates.upload_bits_per_second
+        );
+    }
+    if (latency_valid) {
+        bool low_load = rates.download_valid && rates.upload_valid &&
+            load_percent(
+                rates.download_bits_per_second,
+                ingress_cake_valid
+                    ? ingress_cake.bandwidth_bits_per_second
+                    : 0U
+            ) < CONTROLLER_HIGH_LOAD_PERCENT &&
+            load_percent(
+                rates.upload_bits_per_second,
+                upload_cake_valid
+                    ? upload_cake.bandwidth_bits_per_second
+                    : 0U
+            ) < CONTROLLER_HIGH_LOAD_PERCENT;
+
+        latency_tracker_update_delta_ewma(
+            &context->latency_tracker,
+            low_load,
+            &latency
         );
     }
     update_controller(
@@ -830,12 +1018,6 @@ static int run_event_loop(
         log_message(
             LOG_LEVEL_INFO,
             "latency observation disabled: no target configured"
-        );
-    }
-    if (config->ingress_interface[0] == '\0') {
-        log_message(
-            LOG_LEVEL_INFO,
-            "download line detection disabled: no ingress interface configured"
         );
     }
     observe_cycle(&context, config);
@@ -1010,15 +1192,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (log_set_level(config.log_level) != 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "configuration error: invalid log level '%s'",
-            config.log_level
-        );
-        log_close();
-        return 1;
-    }
+    (void)log_set_level(config.debug ? "debug" : "info");
+    log_set_debug_syslog(config.log_debug_messages_to_syslog);
 
     if (!config.enabled) {
         log_message(LOG_LEVEL_NOTICE, "disabled by configuration");
@@ -1038,18 +1213,22 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    log_print_headers(
+        config.output_processing_stats,
+        config.output_load_stats,
+        config.output_summary_stats
+    );
+
     log_message(
         LOG_LEVEL_INFO,
         "configuration loaded: upload_interface=%s download_interface=%s"
-        " latency_target=%s log_level=%s log_file=%s",
+        " latency_target=%s debug=%u log_file=%s",
         config.interface,
-        config.ingress_interface[0] == '\0'
-            ? "disabled"
-            : config.ingress_interface,
+        config.ingress_interface,
         config.latency_target[0] == '\0'
             ? "disabled"
             : config.latency_target,
-        config.log_level,
+        config.debug ? 1U : 0U,
         config.log_file[0] == '\0' ? "disabled" : config.log_file
     );
     if (config.adjust_download) {
@@ -1072,6 +1251,11 @@ int main(int argc, char **argv)
             config.maximum_upload_rate_bits_per_second
         );
     }
+
+    log_system_message(
+        "Starting sqm-mon with PID: %ld and config: /etc/config/sqm-mon",
+        (long)getpid()
+    );
 
     signal_file_descriptor = create_signal_descriptor(&previous_mask);
     if (signal_file_descriptor < 0) {
@@ -1110,7 +1294,10 @@ int main(int argc, char **argv)
         );
     }
 
-    log_message(LOG_LEVEL_NOTICE, "stopped");
+    log_system_message(
+        "Stopped sqm-mon with PID: %ld and config: /etc/config/sqm-mon",
+        (long)getpid()
+    );
     log_close();
     return result == 0 ? 0 : 1;
 }

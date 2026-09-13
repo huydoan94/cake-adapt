@@ -82,6 +82,7 @@ static void derive_ingress_interface(struct sqm_mon_config *config)
         return;
     }
 
+    /* SQM names its ingress IFB "ifb4<interface>", truncated to IFNAMSIZ. */
     interface_length = strlen(config->interface);
     if (interface_length > maximum_suffix_length) {
         interface_length = maximum_suffix_length;
@@ -124,6 +125,37 @@ static int parse_boolean(
     }
 
     return -1;
+}
+
+static int load_boolean_option(
+    struct uci_context *context,
+    struct uci_section *section,
+    const char *option_name,
+    bool *destination,
+    char *error,
+    size_t error_size
+)
+{
+    const char *value = uci_lookup_option_string(
+        context,
+        section,
+        option_name
+    );
+
+    if (value == NULL) {
+        return 0;
+    }
+    if (parse_boolean(value, destination) != 0) {
+        set_error(
+            error,
+            error_size,
+            "option '%s' is not a boolean",
+            option_name
+        );
+        return -1;
+    }
+
+    return 0;
 }
 
 static int parse_rate_kbps(
@@ -227,15 +259,6 @@ static int validate_rate_range(
     return 0;
 }
 
-static bool log_level_is_valid(const char *value)
-{
-    return strcasecmp(value, "debug") == 0 ||
-        strcasecmp(value, "info") == 0 ||
-        strcasecmp(value, "notice") == 0 ||
-        strcasecmp(value, "warning") == 0 ||
-        strcasecmp(value, "error") == 0;
-}
-
 static struct uci_section *find_main_section(struct uci_package *package)
 {
     struct uci_element *element;
@@ -260,47 +283,82 @@ static int load_section(
     size_t error_size
 )
 {
-    const char *adjust_download;
-    const char *adjust_upload;
-    const char *enabled;
     const char *interface;
     const char *latency_target;
     const char *log_file;
-    const char *log_level;
 
-    enabled = uci_lookup_option_string(context, section, "enabled");
-    if (enabled != NULL && parse_boolean(enabled, &config->enabled) != 0) {
-        set_error(error, error_size, "option 'enabled' is not a boolean");
-        return -1;
-    }
-
-    adjust_download = uci_lookup_option_string(
-        context,
-        section,
-        "adjust_dl_shaper_rate"
-    );
-    if (adjust_download != NULL &&
-        parse_boolean(adjust_download, &config->adjust_download) != 0) {
-        set_error(
+    if (load_boolean_option(
+            context,
+            section,
+            "enabled",
+            &config->enabled,
             error,
-            error_size,
-            "option 'adjust_dl_shaper_rate' is not a boolean"
-        );
-        return -1;
-    }
-
-    adjust_upload = uci_lookup_option_string(
-        context,
-        section,
-        "adjust_ul_shaper_rate"
-    );
-    if (adjust_upload != NULL &&
-        parse_boolean(adjust_upload, &config->adjust_upload) != 0) {
-        set_error(
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "adjust_dl_shaper_rate",
+            &config->adjust_download,
             error,
-            error_size,
-            "option 'adjust_ul_shaper_rate' is not a boolean"
-        );
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "adjust_ul_shaper_rate",
+            &config->adjust_upload,
+            error,
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "output_processing_stats",
+            &config->output_processing_stats,
+            error,
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "output_load_stats",
+            &config->output_load_stats,
+            error,
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "output_summary_stats",
+            &config->output_summary_stats,
+            error,
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "output_cake_changes",
+            &config->output_cake_changes,
+            error,
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "debug",
+            &config->debug,
+            error,
+            error_size
+        ) != 0 ||
+        load_boolean_option(
+            context,
+            section,
+            "log_DEBUG_messages_to_syslog",
+            &config->log_debug_messages_to_syslog,
+            error,
+            error_size
+        ) != 0) {
         return -1;
     }
 
@@ -349,25 +407,6 @@ static int load_section(
         return -1;
     }
 
-    log_level = uci_lookup_option_string(context, section, "log_level");
-    if (log_level != NULL) {
-        if (!log_level_is_valid(log_level)) {
-            set_error(error, error_size, "option 'log_level' is invalid");
-            return -1;
-        }
-
-        if (copy_option(
-                config->log_level,
-                sizeof(config->log_level),
-                log_level,
-                "log_level",
-                error,
-                error_size
-            ) != 0) {
-            return -1;
-        }
-    }
-
     if (load_rate_option(
             context,
             section,
@@ -413,6 +452,14 @@ static int load_section(
             section,
             "max_ul_shaper_rate_kbps",
             &config->maximum_upload_rate_bits_per_second,
+            error,
+            error_size
+        ) != 0 ||
+        load_rate_option(
+            context,
+            section,
+            "connection_active_thr_kbps",
+            &config->connection_active_threshold_bits_per_second,
             error,
             error_size
         ) != 0) {
@@ -481,20 +528,8 @@ int config_load(
     }
 
     *config = (struct sqm_mon_config) {
-        .enabled = false,
-        .adjust_download = false,
-        .adjust_upload = false,
-        .interface = "",
-        .ingress_interface = "",
-        .latency_target = "",
-        .log_file = "",
-        .log_level = "info",
-        .minimum_download_rate_bits_per_second = 0U,
-        .base_download_rate_bits_per_second = 0U,
-        .maximum_download_rate_bits_per_second = 0U,
-        .minimum_upload_rate_bits_per_second = 0U,
-        .base_upload_rate_bits_per_second = 0U,
-        .maximum_upload_rate_bits_per_second = 0U
+        .debug = true,
+        .connection_active_threshold_bits_per_second = 2000000U
     };
 
     context = uci_alloc_context();

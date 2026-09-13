@@ -1,17 +1,51 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "log.h"
 
 #include <errno.h>
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include <strings.h>
 #include <syslog.h>
+#include <time.h>
 
-#define SQM_MON_LOG_MESSAGE_SIZE 512U
+#define SQM_MON_LOG_MESSAGE_SIZE 2048U
+#define SQM_MON_LOG_DATETIME_SIZE 20U
 
-static bool log_to_stderr;
+static bool log_to_stdout;
 static bool log_to_syslog;
+static bool debug_to_syslog;
 static FILE *log_file;
 static enum log_level minimum_log_level = LOG_LEVEL_INFO;
+
+/* cake-autorate 3.3.0-PRERELEASE (ac75f493) analyzer schemas. */
+static const char data_header[] =
+    "DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
+    " DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT;"
+    " UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE;"
+    " DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US;"
+    " DL_OWD_DELTA_US; DL_ADJ_DELAY_THR; UL_OWD_BASELINE; UL_OWD_US;"
+    " UL_OWD_DELTA_EWMA_US; UL_OWD_DELTA_US; UL_ADJ_DELAY_THR;"
+    " DL_SUM_DELAYS; DL_AVG_OWD_DELTA_US;"
+    " DL_ADJ_MAX_ADJUST_UP_THR_US; DL_ADJ_MAX_ADJUST_DOWN_THR_US;"
+    " UL_SUM_DELAYS; UL_AVG_OWD_DELTA_US;"
+    " UL_ADJ_MAX_ADJUST_UP_THR_US; UL_ADJ_MAX_ADJUST_DOWN_THR_US;"
+    " DL_LOAD_CONDITION; UL_LOAD_CONDITION; CAKE_DL_RATE_KBPS;"
+    " CAKE_UL_RATE_KBPS";
+
+static const char load_header[] =
+    "LOAD_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
+    " DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS;"
+    " CAKE_DL_RATE_KBPS; CAKE_UL_RATE_KBPS";
+
+static const char summary_header[] =
+    "SUMMARY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; DL_ACHIEVED_RATE_KBPS;"
+    " UL_ACHIEVED_RATE_KBPS; DL_SUM_DELAYS; UL_SUM_DELAYS;"
+    " DL_AVG_OWD_DELTA_US; UL_AVG_OWD_DELTA_US; DL_LOAD_CONDITION;"
+    " UL_LOAD_CONDITION; CAKE_DL_RATE_KBPS; CAKE_UL_RATE_KBPS";
 
 static int syslog_priority(enum log_level level)
 {
@@ -35,18 +69,84 @@ static const char *level_name(enum log_level level)
 {
     switch (level) {
     case LOG_LEVEL_ERROR:
-        return "error";
+        return "ERROR";
     case LOG_LEVEL_WARNING:
-        return "warning";
+        return "WARNING";
     case LOG_LEVEL_NOTICE:
-        return "notice";
+        return "INFO";
     case LOG_LEVEL_INFO:
-        return "info";
+        return "INFO";
     case LOG_LEVEL_DEBUG:
-        return "debug";
+        return "DEBUG";
     }
 
-    return "unknown";
+    return "ERROR";
+}
+
+uint64_t log_realtime_microseconds(void)
+{
+    struct timespec timestamp;
+
+    if (clock_gettime(CLOCK_REALTIME, &timestamp) != 0 ||
+        timestamp.tv_sec < 0) {
+        return 0U;
+    }
+    return (uint64_t)timestamp.tv_sec * 1000000U +
+        (uint64_t)timestamp.tv_nsec / 1000U;
+}
+
+static void write_line(const char *line)
+{
+    if (log_to_stdout) {
+        (void)fprintf(stdout, "%s\n", line);
+        (void)fflush(stdout);
+    }
+    if (log_file != NULL) {
+        (void)fprintf(log_file, "%s\n", line);
+        (void)fflush(log_file);
+    }
+}
+
+static void write_record_at(
+    const char *type,
+    const char *message,
+    uint64_t timestamp_microseconds
+)
+{
+    char datetime[SQM_MON_LOG_DATETIME_SIZE];
+    char line[SQM_MON_LOG_MESSAGE_SIZE];
+    struct tm local_time;
+    time_t seconds = (time_t)(timestamp_microseconds / 1000000U);
+
+    if (localtime_r(&seconds, &local_time) == NULL ||
+        strftime(
+            datetime,
+            sizeof(datetime),
+            "%Y-%m-%d-%H:%M:%S",
+            &local_time
+        ) == 0U) {
+        (void)snprintf(datetime, sizeof(datetime), "1970-01-01-00:00:00");
+    }
+
+    (void)snprintf(
+        line,
+        sizeof(line),
+        "%s; %s; %" PRIu64 ".%06" PRIu64 "; %s",
+        type,
+        datetime,
+        timestamp_microseconds / 1000000U,
+        timestamp_microseconds % 1000000U,
+        message
+    );
+    write_line(line);
+}
+
+static void write_record(
+    const char *type,
+    const char *message
+)
+{
+    write_record_at(type, message, log_realtime_microseconds());
 }
 
 void log_init(
@@ -54,8 +154,9 @@ void log_init(
     bool foreground
 )
 {
-    log_to_stderr = foreground;
+    log_to_stdout = foreground;
     log_to_syslog = !foreground;
+    debug_to_syslog = false;
 
     if (log_to_syslog) {
         openlog(identifier, LOG_PID | LOG_NDELAY, LOG_DAEMON);
@@ -94,11 +195,6 @@ int log_set_file(const char *path)
     }
     log_file = file;
 
-    if (log_to_syslog) {
-        closelog();
-        log_to_syslog = false;
-    }
-
     return 0;
 }
 
@@ -121,6 +217,68 @@ int log_set_level(const char *level)
     return 0;
 }
 
+void log_set_debug_syslog(bool enabled)
+{
+    debug_to_syslog = enabled;
+}
+
+void log_print_headers(
+    bool output_processing_stats,
+    bool output_load_stats,
+    bool output_summary_stats
+)
+{
+    if (output_processing_stats) {
+        write_line(data_header);
+    }
+    if (output_load_stats) {
+        write_line(load_header);
+    }
+    if (output_summary_stats) {
+        write_line(summary_header);
+    }
+}
+
+void log_record(
+    const char *type,
+    const char *format,
+    ...
+)
+{
+    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    va_list arguments;
+
+    va_start(arguments, format);
+    (void)vsnprintf(message, sizeof(message), format, arguments);
+    va_end(arguments);
+    write_record(type, message);
+}
+
+void log_system_message(
+    const char *format,
+    ...
+)
+{
+    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    va_list arguments;
+    uint64_t timestamp_microseconds = log_realtime_microseconds();
+
+    va_start(arguments, format);
+    (void)vsnprintf(message, sizeof(message), format, arguments);
+    va_end(arguments);
+
+    if (log_to_syslog) {
+        syslog(
+            LOG_INFO,
+            "INFO: %" PRIu64 ".%06" PRIu64 " %s",
+            timestamp_microseconds / 1000000U,
+            timestamp_microseconds % 1000000U,
+            message
+        );
+    }
+    write_record_at("SYSLOG", message, timestamp_microseconds);
+}
+
 void log_message(
     enum log_level level,
     const char *format,
@@ -129,6 +287,7 @@ void log_message(
 {
     char message[SQM_MON_LOG_MESSAGE_SIZE];
     va_list arguments;
+    uint64_t timestamp_microseconds;
 
     if (level > minimum_log_level) {
         return;
@@ -138,17 +297,18 @@ void log_message(
     (void)vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
 
-    if (log_to_syslog) {
-        syslog(syslog_priority(level), "%s", message);
+    timestamp_microseconds = log_realtime_microseconds();
+    if (log_to_syslog &&
+        (level == LOG_LEVEL_ERROR ||
+            (level == LOG_LEVEL_DEBUG && debug_to_syslog))) {
+        syslog(
+            syslog_priority(level),
+            "%s: %" PRIu64 ".%06" PRIu64 " %s",
+            level_name(level),
+            timestamp_microseconds / 1000000U,
+            timestamp_microseconds % 1000000U,
+            message
+        );
     }
-
-    if (log_to_stderr) {
-        (void)fprintf(stderr, "%s: %s\n", level_name(level), message);
-        (void)fflush(stderr);
-    }
-
-    if (log_file != NULL) {
-        (void)fprintf(log_file, "%s: %s\n", level_name(level), message);
-        (void)fflush(log_file);
-    }
+    write_record_at(level_name(level), message, timestamp_microseconds);
 }

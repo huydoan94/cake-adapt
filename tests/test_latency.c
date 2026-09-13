@@ -58,6 +58,7 @@ static struct latency_observation track(
         &sample,
         &observation
     );
+    latency_tracker_update_delta_ewma(tracker, true, &observation);
     return observation;
 }
 
@@ -98,6 +99,7 @@ static void test_higher_sample_reports_delta(void)
 
     assert(observation.baseline_microseconds == 25015U);
     assert(observation.delta_microseconds == 14985U);
+    assert(observation.delta_ewma_microseconds == 711U);
 }
 
 static void test_baseline_increases_slowly(void)

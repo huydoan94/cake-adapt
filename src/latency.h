@@ -21,16 +21,22 @@ enum latency_probe_result {
 
 struct latency_sample {
     uint32_t round_trip_microseconds;
+    uint64_t timestamp_microseconds;
+    uint16_t sequence;
 };
 
 struct latency_observation {
     uint32_t round_trip_microseconds;
     uint32_t baseline_microseconds;
     uint32_t delta_microseconds;
+    uint32_t delta_ewma_microseconds;
+    uint64_t timestamp_microseconds;
+    uint16_t sequence;
 };
 
 struct latency_tracker {
     uint64_t baseline_scaled;
+    uint32_t delta_ewma_microseconds;
     bool initialized;
 };
 
@@ -51,6 +57,12 @@ void latency_tracker_init(struct latency_tracker *tracker);
 void latency_tracker_update(
     struct latency_tracker *tracker,
     const struct latency_sample *sample,
+    struct latency_observation *observation
+);
+
+void latency_tracker_update_delta_ewma(
+    struct latency_tracker *tracker,
+    bool low_load,
     struct latency_observation *observation
 );
 

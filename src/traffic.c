@@ -40,6 +40,7 @@ static uint64_t bits_per_second(
 {
     long double rate;
 
+    /* 8,000 converts a byte delta over milliseconds to bits per second. */
     rate = (long double)byte_delta * 8000.0L /
         (long double)elapsed_milliseconds_value;
     if (rate >= (long double)UINT64_MAX) {
@@ -51,18 +52,7 @@ static uint64_t bits_per_second(
 
 void traffic_monitor_init(struct sqm_mon_traffic_monitor *monitor)
 {
-    *monitor = (struct sqm_mon_traffic_monitor) {
-        .has_previous_sample = false,
-        .previous_sample = {
-            .bytes = 0U,
-            .qdisc_handle = 0U,
-            .qdisc_parent = 0U,
-            .timestamp = {
-                .tv_sec = 0,
-                .tv_nsec = 0L
-            }
-        }
-    };
+    *monitor = (struct sqm_mon_traffic_monitor) { 0 };
 }
 
 enum traffic_update_result traffic_monitor_update(

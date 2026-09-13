@@ -10,10 +10,6 @@
 #define RECOVERY_CONFIRMATION_SAMPLES 3U
 
 /* cake-autorate 3.3 defaults, represented as integer per-mille factors. */
-#define HIGH_LOAD_PERCENT 75U
-#define OWD_DELAY_THRESHOLD_MICROSECONDS 30000U
-#define OWD_MAXIMUM_ADJUST_UP_MICROSECONDS 10000U
-#define OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS 60000U
 #define RATE_MINIMUM_DOWN_PER_MILLE 990U
 #define RATE_MAXIMUM_DOWN_PER_MILLE 750U
 #define RATE_MINIMUM_UP_PER_MILLE 1000U
@@ -32,6 +28,7 @@ static uint64_t percentage_of(
     uint64_t quotient = value / 100U;
     uint64_t remainder = value % 100U;
 
+    /* Split before multiplying to avoid overflowing the full-width value. */
     return quotient * percentage +
         (remainder * percentage + 99U) / 100U;
 }
@@ -51,6 +48,7 @@ static uint64_t scale_rate(
 
     scaled = quotient * factor_per_mille +
         (remainder * factor_per_mille) / 1000U;
+    /* CAKE accepts whole bytes/s, so keep the bit rate divisible by eight. */
     return scaled - scaled % 8U;
 }
 
@@ -64,6 +62,24 @@ static uint64_t clamp_rate(
     }
     if (rate > config->maximum_rate_bits_per_second) {
         return config->maximum_rate_bits_per_second;
+    }
+    return rate;
+}
+
+static uint64_t rate_toward_base(
+    uint64_t rate,
+    uint64_t base_rate
+)
+{
+    uint64_t adjusted_rate;
+
+    if (rate > base_rate) {
+        adjusted_rate = scale_rate(rate, RATE_LOW_LOAD_DOWN_PER_MILLE);
+        return adjusted_rate < base_rate ? base_rate : adjusted_rate;
+    }
+    if (rate < base_rate) {
+        adjusted_rate = scale_rate(rate, RATE_LOW_LOAD_UP_PER_MILLE);
+        return adjusted_rate > base_rate ? base_rate : adjusted_rate;
     }
     return rate;
 }
@@ -111,6 +127,7 @@ static enum controller_line_state update_line_state(
         return direction->state;
     }
 
+    /* Separate enter/exit thresholds provide hysteresis around line load. */
     saturation_threshold = percentage_of(
         input->cake_rate_bits_per_second,
         SATURATION_ENTER_PERCENT
@@ -167,6 +184,7 @@ static enum controller_congestion_state update_congestion(
         return direction->congestion;
     }
 
+    /* A round-trip delta approximates twice the one-way queueing delay. */
     rtt_delta = latency->current_rtt_microseconds >=
             latency->baseline_rtt_microseconds
         ? latency->current_rtt_microseconds -
@@ -175,6 +193,7 @@ static enum controller_congestion_state update_congestion(
     owd_delta = rtt_delta / 2U;
     index = direction->delay_next_sample;
 
+    /* Maintain a fixed rolling window without rescanning every sample. */
     direction->delay_sum_microseconds -= direction->delay_samples[index];
     direction->delay_sum_microseconds += owd_delta;
     direction->delay_samples[index] = owd_delta;
@@ -183,7 +202,7 @@ static enum controller_congestion_state update_congestion(
         direction->delayed_sample_count--;
     }
     direction->delayed_samples[index] =
-        owd_delta > OWD_DELAY_THRESHOLD_MICROSECONDS;
+        owd_delta > CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS;
     if (direction->delayed_samples[index]) {
         direction->delayed_sample_count++;
     }
@@ -205,19 +224,21 @@ static unsigned int downward_factor(uint32_t average_delay_microseconds)
 {
     uint64_t scaled;
 
-    if (average_delay_microseconds <= OWD_DELAY_THRESHOLD_MICROSECONDS) {
+    if (average_delay_microseconds <=
+        CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS) {
         return RATE_MINIMUM_DOWN_PER_MILLE;
     }
     if (average_delay_microseconds >=
-        OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS) {
+        CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS) {
         return RATE_MAXIMUM_DOWN_PER_MILLE;
     }
 
+    /* Interpolate from a gentle 0.99 cut to cake-autorate's 0.75 maximum. */
     scaled = 1000U *
         (uint64_t)(average_delay_microseconds -
-            OWD_DELAY_THRESHOLD_MICROSECONDS) /
-        (OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS -
-            OWD_DELAY_THRESHOLD_MICROSECONDS);
+            CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS) /
+        (CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS -
+            CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS);
     return RATE_MINIMUM_DOWN_PER_MILLE -
         (unsigned int)(scaled *
             (RATE_MINIMUM_DOWN_PER_MILLE -
@@ -230,18 +251,20 @@ static unsigned int upward_factor(uint32_t average_delay_microseconds)
     uint64_t scaled;
 
     if (average_delay_microseconds <=
-        OWD_MAXIMUM_ADJUST_UP_MICROSECONDS) {
+        CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS) {
         return RATE_MAXIMUM_UP_PER_MILLE;
     }
-    if (average_delay_microseconds >= OWD_DELAY_THRESHOLD_MICROSECONDS) {
+    if (average_delay_microseconds >=
+        CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS) {
         return RATE_MINIMUM_UP_PER_MILLE;
     }
 
+    /* Interpolate from no increase at the delay threshold to 1.04. */
     scaled = 1000U *
-        (uint64_t)(OWD_DELAY_THRESHOLD_MICROSECONDS -
+        (uint64_t)(CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS -
             average_delay_microseconds) /
-        (OWD_DELAY_THRESHOLD_MICROSECONDS -
-            OWD_MAXIMUM_ADJUST_UP_MICROSECONDS);
+        (CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS -
+            CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS);
     return RATE_MINIMUM_UP_PER_MILLE +
         (unsigned int)(scaled *
             (RATE_MAXIMUM_UP_PER_MILLE -
@@ -255,6 +278,7 @@ static bool refractory_period_elapsed(
     uint64_t refractory_period_microseconds
 )
 {
+    /* A backwards monotonic timestamp is treated as not yet elapsed. */
     return timestamp_microseconds >= previous_timestamp_microseconds &&
         timestamp_microseconds - previous_timestamp_microseconds >=
             refractory_period_microseconds;
@@ -301,8 +325,14 @@ static enum controller_rate_reason adjust_rate(
         );
         direction->last_congestion_adjustment_microseconds =
             timestamp_microseconds;
+        /* Do not let low-load decay immediately undo a congestion cut. */
+        direction->last_decay_adjustment_microseconds =
+            timestamp_microseconds;
     } else {
-        high_load_threshold = percentage_of(previous_rate, HIGH_LOAD_PERCENT);
+        high_load_threshold = percentage_of(
+            previous_rate,
+            CONTROLLER_HIGH_LOAD_PERCENT
+        );
         if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             input->traffic_rate_bits_per_second > high_load_threshold &&
             refractory_period_elapsed(
@@ -314,42 +344,22 @@ static enum controller_rate_reason adjust_rate(
                 previous_rate,
                 upward_factor(average_delay_microseconds)
             );
-        } else if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
-            input->traffic_rate_bits_per_second <= high_load_threshold &&
-            previous_rate > direction->config.base_rate_bits_per_second &&
-            refractory_period_elapsed(
-                timestamp_microseconds,
-                direction->last_decay_adjustment_microseconds,
-                DECAY_REFRACTORY_MICROSECONDS
-            )) {
-            direction->shaper_rate_bits_per_second = scale_rate(
-                previous_rate,
-                RATE_LOW_LOAD_DOWN_PER_MILLE
-            );
-            if (direction->shaper_rate_bits_per_second <
-                direction->config.base_rate_bits_per_second) {
-                direction->shaper_rate_bits_per_second =
-                    direction->config.base_rate_bits_per_second;
-            }
+            /* Give the increased rate a full decay interval to be observed. */
             direction->last_decay_adjustment_microseconds =
                 timestamp_microseconds;
         } else if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             input->traffic_rate_bits_per_second <= high_load_threshold &&
-            previous_rate < direction->config.base_rate_bits_per_second &&
+            previous_rate != direction->config.base_rate_bits_per_second &&
             refractory_period_elapsed(
                 timestamp_microseconds,
                 direction->last_decay_adjustment_microseconds,
                 DECAY_REFRACTORY_MICROSECONDS
             )) {
-            direction->shaper_rate_bits_per_second = scale_rate(
+            /* With low load, converge by 1% steps instead of jumping to base. */
+            direction->shaper_rate_bits_per_second = rate_toward_base(
                 previous_rate,
-                RATE_LOW_LOAD_UP_PER_MILLE
+                direction->config.base_rate_bits_per_second
             );
-            if (direction->shaper_rate_bits_per_second >
-                direction->config.base_rate_bits_per_second) {
-                direction->shaper_rate_bits_per_second =
-                    direction->config.base_rate_bits_per_second;
-            }
             direction->last_decay_adjustment_microseconds =
                 timestamp_microseconds;
         }
@@ -366,7 +376,7 @@ static enum controller_rate_reason adjust_rate(
         return CONTROLLER_RATE_CONGESTION;
     }
     if (input->traffic_rate_bits_per_second >
-        percentage_of(previous_rate, HIGH_LOAD_PERCENT)) {
+        percentage_of(previous_rate, CONTROLLER_HIGH_LOAD_PERCENT)) {
         return CONTROLLER_RATE_HIGH_LOAD;
     }
     return CONTROLLER_RATE_RETURN_TO_BASE;
@@ -462,6 +472,17 @@ void controller_update(
         &output->upload_rate_changed,
         &output->upload_rate_reason
     );
+
+    output->download_delay_sum_microseconds =
+        controller->download.delay_sum_microseconds;
+    output->upload_delay_sum_microseconds =
+        controller->upload.delay_sum_microseconds;
+    output->download_average_delay_microseconds = download_average_delay;
+    output->upload_average_delay_microseconds = upload_average_delay;
+    output->download_delayed_sample_count =
+        controller->download.delayed_sample_count;
+    output->upload_delayed_sample_count =
+        controller->upload.delayed_sample_count;
 
     output->download_state_changed =
         output->download_state != previous_download;

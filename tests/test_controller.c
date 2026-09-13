@@ -243,6 +243,12 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
     assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
     assert(output.upload_congestion == CONTROLLER_CONGESTION_DETECTED);
     assert(output.download_congestion_changed);
+    assert(output.download_delayed_sample_count == 3U);
+    assert(output.upload_delayed_sample_count == 3U);
+    assert(output.download_delay_sum_microseconds == 90003U);
+    assert(output.upload_delay_sum_microseconds == 90003U);
+    assert(output.download_average_delay_microseconds == 15000U);
+    assert(output.upload_average_delay_microseconds == 15000U);
 }
 
 static void test_delay_window_clears_after_old_delays_expire(void)
@@ -530,6 +536,83 @@ static void test_low_load_waits_for_decay_refractory_period(void)
     assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
 }
 
+static void test_congestion_restarts_decay_refractory_period(void)
+{
+    struct sqm_mon_controller controller;
+    const struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        1U * MEBABIT,
+        8U * MEBABIT,
+        1U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+    uint64_t adjustment_time;
+    unsigned int sample;
+
+    input.latency.current_rtt_microseconds = 270000U;
+    controller_init(&controller, &config);
+    controller_update(&controller, &input, &output);
+    accept_rates(&input, &output);
+    input.timestamp_microseconds += 150000U;
+    controller_update(&controller, &input, &output);
+    accept_rates(&input, &output);
+    input.timestamp_microseconds += 150000U;
+    controller_update(&controller, &input, &output);
+    accept_rates(&input, &output);
+    adjustment_time = input.timestamp_microseconds;
+
+    input.latency.current_rtt_microseconds = 30000U;
+    for (sample = 0U; sample < 4U; sample++) {
+        input.timestamp_microseconds++;
+        controller_update(&controller, &input, &output);
+    }
+    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+
+    input.timestamp_microseconds = adjustment_time + 999999U;
+    controller_update(&controller, &input, &output);
+    assert(output.download_rate_bits_per_second == 6U * MEBABIT);
+    assert(!output.download_rate_changed);
+
+    input.timestamp_microseconds++;
+    controller_update(&controller, &input, &output);
+    assert(output.download_rate_bits_per_second == 6060000U);
+    assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+}
+
+static void test_high_load_restarts_decay_refractory_period(void)
+{
+    struct sqm_mon_controller controller;
+    const struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        7U * MEBABIT,
+        8U * MEBABIT,
+        1U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+    uint64_t adjustment_time;
+
+    controller_init(&controller, &config);
+    controller_update(&controller, &input, &output);
+    accept_rates(&input, &output);
+    input.timestamp_microseconds += 300000U;
+    controller_update(&controller, &input, &output);
+    accept_rates(&input, &output);
+    adjustment_time = input.timestamp_microseconds;
+
+    input.download.traffic_rate_bits_per_second = 1U * MEBABIT;
+    input.timestamp_microseconds = adjustment_time + 999999U;
+    controller_update(&controller, &input, &output);
+    assert(output.download_rate_bits_per_second == 8320000U);
+    assert(!output.download_rate_changed);
+
+    input.timestamp_microseconds++;
+    controller_update(&controller, &input, &output);
+    assert(output.download_rate_bits_per_second == 8236800U);
+    assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+}
+
 static void test_rate_limits_are_hard_bounds(void)
 {
     struct sqm_mon_controller controller;
@@ -606,6 +689,8 @@ int main(void)
     test_bufferbloat_reduction_observes_refractory_period();
     test_low_load_returns_rate_toward_baseline();
     test_low_load_waits_for_decay_refractory_period();
+    test_congestion_restarts_decay_refractory_period();
+    test_high_load_restarts_decay_refractory_period();
     test_rate_limits_are_hard_bounds();
     test_invalid_sample_does_not_adjust_rate();
 
