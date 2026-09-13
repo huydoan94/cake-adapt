@@ -26,7 +26,7 @@ struct log_data_record {
     unsigned int upload_load_percent;
     uint64_t icmp_timestamp_microseconds;
     const char *reflector;
-    uint16_t sequence;
+    uint64_t sequence;
     uint32_t download_owd_baseline_microseconds;
     uint32_t download_owd_microseconds;
     int64_t download_owd_delta_ewma_microseconds;

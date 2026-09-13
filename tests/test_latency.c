@@ -11,10 +11,13 @@ static void test_initial_state_is_closed(void)
 
     latency_init(&latency);
 
-    assert(latency.socket_descriptor == -1);
+    assert(latency.output_descriptor == -1);
+    assert(latency.diagnostic_descriptor == -1);
+    assert(latency.process_identifier == -1);
+    assert(!latency_is_open(&latency));
 }
 
-static void test_invalid_target_is_rejected_before_opening_socket(void)
+static void test_invalid_target_is_rejected_before_starting_fping(void)
 {
     struct sqm_mon_latency latency;
     char error[256] = "";
@@ -28,7 +31,8 @@ static void test_invalid_target_is_rejected_before_opening_socket(void)
         error,
         sizeof(error)
     ) != 0);
-    assert(latency.socket_descriptor == -1);
+    assert(latency.output_descriptor == -1);
+    assert(latency.process_identifier == -1);
     assert(strlen(error) > 0U);
 }
 
@@ -40,7 +44,63 @@ static void test_close_is_idempotent(void)
     latency_close(&latency);
     latency_close(&latency);
 
-    assert(latency.socket_descriptor == -1);
+    assert(latency.output_descriptor == -1);
+    assert(latency.diagnostic_descriptor == -1);
+    assert(latency.process_identifier == -1);
+}
+
+static void test_fping_reply_is_parsed(void)
+{
+    struct latency_sample sample;
+
+    assert(latency_parse_fping_line(
+        "1.1.1.1",
+        "[1789284242.09616] 1.1.1.1 : [65536], 64 bytes,"
+            " 31.9 ms (31.9 avg, 0% loss)",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.timestamp_microseconds == UINT64_C(1789284242096160));
+    assert(sample.sequence == UINT64_C(65536));
+    assert(sample.round_trip_microseconds == 31900U);
+}
+
+static void test_fping_six_digit_timestamp_is_preserved(void)
+{
+    struct latency_sample sample;
+
+    assert(latency_parse_fping_line(
+        "9.9.9.9",
+        "[1789284242.000123] 9.9.9.9 : [7], 64 bytes,"
+            " 0.125 ms (0.125 avg, 0% loss)",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.timestamp_microseconds == UINT64_C(1789284242000123));
+    assert(sample.sequence == 7U);
+    assert(sample.round_trip_microseconds == 125U);
+}
+
+static void test_fping_timeout_is_recognized(void)
+{
+    struct latency_sample sample;
+
+    assert(latency_parse_fping_line(
+        "1.1.1.1",
+        "[1789284242.09616] 1.1.1.1 : [8], timed out"
+            " (NaN avg, 100% loss)",
+        &sample
+    ) == LATENCY_FPING_LINE_TIMEOUT);
+}
+
+static void test_fping_reply_for_other_target_is_rejected(void)
+{
+    struct latency_sample sample;
+
+    assert(latency_parse_fping_line(
+        "1.1.1.1",
+        "[1789284242.09616] 9.9.9.9 : [8], 64 bytes,"
+            " 31.9 ms (31.9 avg, 0% loss)",
+        &sample
+    ) == LATENCY_FPING_LINE_INVALID);
 }
 
 static struct latency_observation track(
@@ -132,8 +192,12 @@ static void test_maximum_rtt_does_not_overflow_delta(void)
 int main(void)
 {
     test_initial_state_is_closed();
-    test_invalid_target_is_rejected_before_opening_socket();
+    test_invalid_target_is_rejected_before_starting_fping();
     test_close_is_idempotent();
+    test_fping_reply_is_parsed();
+    test_fping_six_digit_timestamp_is_preserved();
+    test_fping_timeout_is_recognized();
+    test_fping_reply_for_other_target_is_rejected();
     test_first_sample_establishes_baseline();
     test_lower_sample_reduces_baseline();
     test_higher_sample_reports_delta();

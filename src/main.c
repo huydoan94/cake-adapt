@@ -159,7 +159,7 @@ static bool observe_latency(
     char error[SQM_MON_LATENCY_ERROR_SIZE] = "";
     enum latency_probe_result probe_result;
 
-    if (latency->socket_descriptor < 0) {
+    if (!latency_is_open(latency)) {
         if (latency_open(
                 latency,
                 config->interface,
@@ -614,8 +614,8 @@ static void log_controller_stats(
 
     if (config->output_processing_stats) {
         /*
-         * ICMP echo supplies RTT rather than directional timestamps. Match
-         * cake-autorate's fping/ping path by recording the same half-RTT
+         * Standard fping supplies RTT rather than directional timestamps.
+         * Match cake-autorate's fping path by recording the same half-RTT
          * estimate in its separate download and upload OWD columns.
          */
         const struct log_data_record record = {

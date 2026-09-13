@@ -3,6 +3,7 @@
 #include "log.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -180,6 +181,7 @@ void log_close(void)
 int log_set_file(const char *path)
 {
     FILE *file;
+    int descriptor_flags;
 
     if (path == NULL || path[0] == '\0') {
         errno = EINVAL;
@@ -188,6 +190,15 @@ int log_set_file(const char *path)
 
     file = fopen(path, "a");
     if (file == NULL) {
+        return -1;
+    }
+    descriptor_flags = fcntl(fileno(file), F_GETFD);
+    if (descriptor_flags < 0 ||
+        fcntl(fileno(file), F_SETFD, descriptor_flags | FD_CLOEXEC) != 0) {
+        int saved_errno = errno;
+
+        (void)fclose(file);
+        errno = saved_errno;
         return -1;
     }
 
@@ -298,7 +309,7 @@ void log_data(const struct log_data_record *record)
     write_timed_record(
         "DATA",
         "%" PRIu64 "; %" PRIu64 "; %u; %u;"
-        " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu16 ";"
+        " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 ";"
         " %" PRIu32 "; %" PRIu32 "; %" PRId64 "; %" PRId64
         "; %" PRIu32 "; %" PRIu32 "; %" PRIu32 "; %" PRId64 ";"
         " %" PRId64 "; %" PRIu32 "; %u; %" PRId64 "; %" PRIu32

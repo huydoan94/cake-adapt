@@ -5,12 +5,17 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
+
+#define SQM_MON_LATENCY_OUTPUT_SIZE 512U
 
 struct sqm_mon_latency {
-    int socket_descriptor;
-    struct sockaddr_in target_address;
-    uint16_t identifier;
-    uint16_t next_sequence;
+    int output_descriptor;
+    int diagnostic_descriptor;
+    pid_t process_identifier;
+    char target[INET_ADDRSTRLEN];
+    char output_buffer[SQM_MON_LATENCY_OUTPUT_SIZE];
+    size_t output_length;
 };
 
 enum latency_probe_result {
@@ -22,7 +27,7 @@ enum latency_probe_result {
 struct latency_sample {
     uint32_t round_trip_microseconds;
     uint64_t timestamp_microseconds;
-    uint16_t sequence;
+    uint64_t sequence;
 };
 
 struct latency_observation {
@@ -31,7 +36,13 @@ struct latency_observation {
     int64_t delta_microseconds;
     int64_t delta_ewma_microseconds;
     uint64_t timestamp_microseconds;
-    uint16_t sequence;
+    uint64_t sequence;
+};
+
+enum latency_fping_line_result {
+    LATENCY_FPING_LINE_SAMPLE,
+    LATENCY_FPING_LINE_TIMEOUT,
+    LATENCY_FPING_LINE_INVALID
 };
 
 struct latency_tracker {
@@ -42,6 +53,8 @@ struct latency_tracker {
 
 void latency_init(struct sqm_mon_latency *latency);
 
+bool latency_is_open(const struct sqm_mon_latency *latency);
+
 int latency_open(
     struct sqm_mon_latency *latency,
     const char *interface,
@@ -51,6 +64,12 @@ int latency_open(
 );
 
 void latency_close(struct sqm_mon_latency *latency);
+
+enum latency_fping_line_result latency_parse_fping_line(
+    const char *target,
+    const char *line,
+    struct latency_sample *sample
+);
 
 void latency_tracker_init(struct latency_tracker *tracker);
 
