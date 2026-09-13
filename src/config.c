@@ -26,6 +26,7 @@
 #define SQM_MON_UCI_PACKAGE "sqm-mon"
 #define SQM_MON_UCI_SECTION "main"
 #define SQM_MON_UCI_SECTION_TYPE "sqm_mon"
+#define SQM_MON_IFB_PREFIX "ifb4"
 
 static void set_error(
     char *error,
@@ -68,6 +69,37 @@ static int copy_option(
     }
 
     return 0;
+}
+
+static void derive_ingress_interface(struct sqm_mon_config *config)
+{
+    size_t interface_length;
+    size_t maximum_suffix_length =
+        sizeof(config->ingress_interface) - sizeof(SQM_MON_IFB_PREFIX);
+
+    config->ingress_interface[0] = '\0';
+    if (config->interface[0] == '\0') {
+        return;
+    }
+
+    interface_length = strlen(config->interface);
+    if (interface_length > maximum_suffix_length) {
+        interface_length = maximum_suffix_length;
+    }
+
+    memcpy(
+        config->ingress_interface,
+        SQM_MON_IFB_PREFIX,
+        sizeof(SQM_MON_IFB_PREFIX) - 1U
+    );
+    memcpy(
+        config->ingress_interface + sizeof(SQM_MON_IFB_PREFIX) - 1U,
+        config->interface,
+        interface_length
+    );
+    config->ingress_interface[
+        sizeof(SQM_MON_IFB_PREFIX) - 1U + interface_length
+    ] = '\0';
 }
 
 static int parse_boolean(
@@ -231,7 +263,6 @@ static int load_section(
     const char *adjust_download;
     const char *adjust_upload;
     const char *enabled;
-    const char *ingress_interface;
     const char *interface;
     const char *latency_target;
     const char *log_file;
@@ -286,22 +317,7 @@ static int load_section(
         return -1;
     }
 
-    ingress_interface = uci_lookup_option_string(
-        context,
-        section,
-        "ingress_interface"
-    );
-    if (ingress_interface != NULL &&
-        copy_option(
-            config->ingress_interface,
-            sizeof(config->ingress_interface),
-            ingress_interface,
-            "ingress_interface",
-            error,
-            error_size
-        ) != 0) {
-        return -1;
-    }
+    derive_ingress_interface(config);
 
     latency_target = uci_lookup_option_string(
         context,
@@ -403,11 +419,14 @@ static int load_section(
         return -1;
     }
 
-    if (config->enabled && config->interface[0] == '\0') {
+    if ((config->enabled || config->adjust_download ||
+            config->adjust_upload) &&
+        config->interface[0] == '\0') {
         set_error(
             error,
             error_size,
             "option 'interface' is required when sqm-mon is enabled"
+            " or rate adjustment is configured"
         );
         return -1;
     }
@@ -429,14 +448,6 @@ static int load_section(
             error,
             error_size
         ) != 0) {
-        return -1;
-    }
-    if (config->adjust_download && config->ingress_interface[0] == '\0') {
-        set_error(
-            error,
-            error_size,
-            "option 'ingress_interface' is required for download adjustment"
-        );
         return -1;
     }
     if ((config->adjust_download || config->adjust_upload) &&

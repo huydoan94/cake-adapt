@@ -1040,7 +1040,7 @@ int main(int argc, char **argv)
 
     log_message(
         LOG_LEVEL_INFO,
-        "configuration loaded: interface=%s ingress_interface=%s"
+        "configuration loaded: upload_interface=%s download_interface=%s"
         " latency_target=%s log_level=%s log_file=%s",
         config.interface,
         config.ingress_interface[0] == '\0'
