@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "latency.h"
+#include "error.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -10,7 +11,6 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,24 +28,6 @@
 #define BASELINE_INCREASE_WEIGHT 1U
 #define BASELINE_DECREASE_WEIGHT 900U
 #define DELTA_EWMA_WEIGHT 95U
-
-static void set_error(
-    char *error,
-    size_t error_size,
-    const char *format,
-    ...
-)
-{
-    va_list arguments;
-
-    if (error == NULL || error_size == 0U) {
-        return;
-    }
-
-    va_start(arguments, format);
-    (void)vsnprintf(error, error_size, format, arguments);
-    va_end(arguments);
-}
 
 static bool elapsed_microseconds(
     const struct timespec *start,
@@ -274,7 +256,7 @@ static int set_nonblocking(
     int flags = fcntl(descriptor, F_GETFL);
 
     if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not make fping pipe nonblocking: %s",
@@ -374,7 +356,7 @@ static int start_fping(
     int exec_result;
 
     if (sigemptyset(&child_signal_mask) != 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not prepare fping signal mask: %s",
@@ -385,7 +367,7 @@ static int start_fping(
     if (pipe2(output_pipe, O_CLOEXEC) != 0 ||
         pipe2(diagnostic_pipe, O_CLOEXEC) != 0 ||
         pipe2(exec_pipe, O_CLOEXEC) != 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not create fping pipe: %s",
@@ -399,7 +381,7 @@ static int start_fping(
 
     process_identifier = fork();
     if (process_identifier < 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not start fping: %s",
@@ -459,7 +441,7 @@ static int start_fping(
     exec_result = read_exec_result(exec_pipe[0], &exec_error);
     close_pipe(exec_pipe);
     if (exec_result != 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             exec_result > 0
@@ -539,26 +521,26 @@ static void set_child_exit_error(
     if (result == latency->process_identifier) {
         latency->process_identifier = -1;
         if (WIFEXITED(status)) {
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "fping exited with status %d",
                 WEXITSTATUS(status)
             );
         } else if (WIFSIGNALED(status)) {
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "fping terminated by signal %d",
                 WTERMSIG(status)
             );
         } else {
-            set_error(error, error_size, "fping stopped unexpectedly");
+            error_set(error, error_size, "fping stopped unexpectedly");
         }
         return;
     }
 
-    set_error(error, error_size, "fping output closed unexpectedly");
+    error_set(error, error_size, "fping output closed unexpectedly");
 }
 
 void latency_init(struct sqm_mon_latency *latency)
@@ -591,7 +573,7 @@ int latency_open(
     struct in_addr target_address;
 
     if (inet_pton(AF_INET, target, &target_address) != 1) {
-        set_error(
+        error_set(
             error,
             error_size,
             "latency target '%s' is not an IPv4 address",
@@ -600,7 +582,7 @@ int latency_open(
         return -1;
     }
     if (snprintf(latency->target, sizeof(latency->target), "%s", target) < 0) {
-        set_error(error, error_size, "could not store latency target");
+        error_set(error, error_size, "could not store latency target");
         return -1;
     }
     if (start_fping(
@@ -730,15 +712,15 @@ enum latency_probe_result latency_probe(
     struct latency_sample latest_sample = { 0U, 0U, 0U };
 
     if (timeout_milliseconds <= 0) {
-        set_error(error, error_size, "latency timeout must be positive");
+        error_set(error, error_size, "latency timeout must be positive");
         return LATENCY_PROBE_ERROR;
     }
     if (!latency_is_open(latency)) {
-        set_error(error, error_size, "fping is not running");
+        error_set(error, error_size, "fping is not running");
         return LATENCY_PROBE_ERROR;
     }
     if (clock_gettime(CLOCK_MONOTONIC, &started_at) != 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not read monotonic clock: %s",
@@ -749,7 +731,7 @@ enum latency_probe_result latency_probe(
 
     for (;;) {
         for (;;) {
-            char line[SQM_MON_LATENCY_OUTPUT_SIZE];
+            char line[LATENCY_OUTPUT_SIZE];
             struct latency_sample parsed_sample;
             int line_result = take_output_line(
                 latency,
@@ -758,7 +740,7 @@ enum latency_probe_result latency_probe(
             );
 
             if (line_result < 0) {
-                set_error(error, error_size, "fping output line is too long");
+                error_set(error, error_size, "fping output line is too long");
                 return LATENCY_PROBE_ERROR;
             }
             if (line_result == 0) {
@@ -774,7 +756,7 @@ enum latency_probe_result latency_probe(
                     );
 
                 if (parse_result == LATENCY_FPING_LINE_INVALID) {
-                    set_error(
+                    error_set(
                         error,
                         error_size,
                         "unexpected fping output: %.160s",
@@ -793,7 +775,7 @@ enum latency_probe_result latency_probe(
         }
 
         if (latency->output_length == sizeof(latency->output_buffer)) {
-            set_error(error, error_size, "fping output line is too long");
+            error_set(error, error_size, "fping output line is too long");
             return LATENCY_PROBE_ERROR;
         }
 
@@ -814,7 +796,7 @@ enum latency_probe_result latency_probe(
                         diagnostic[length - 1U] == '\r')) {
                     diagnostic[--length] = '\0';
                 }
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "fping reported: %.180s",
@@ -823,7 +805,7 @@ enum latency_probe_result latency_probe(
                 return LATENCY_PROBE_ERROR;
             }
             if (received < 0 && errno != EAGAIN && errno != EINTR) {
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "could not read fping diagnostics: %s",
@@ -847,7 +829,7 @@ enum latency_probe_result latency_probe(
             if (received == 0) {
                 output_closed = true;
             } else if (errno != EAGAIN && errno != EINTR) {
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "could not read fping output: %s",
@@ -882,7 +864,7 @@ enum latency_probe_result latency_probe(
                 if (errno == EINTR) {
                     continue;
                 }
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "could not wait for fping output: %s",
@@ -897,12 +879,12 @@ enum latency_probe_result latency_probe(
 
         if ((descriptors[0].revents & (POLLERR | POLLNVAL)) != 0 ||
             (descriptors[1].revents & (POLLERR | POLLNVAL)) != 0) {
-            set_error(error, error_size, "fping pipe reported an error");
+            error_set(error, error_size, "fping pipe reported an error");
             return LATENCY_PROBE_ERROR;
         }
         if ((descriptors[1].revents & POLLHUP) != 0 &&
             (descriptors[0].revents & POLLHUP) == 0) {
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "fping diagnostic stream closed unexpectedly"

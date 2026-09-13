@@ -1,36 +1,17 @@
 #include "netlink.h"
+#include "error.h"
 
 #include <errno.h>
 #include <limits.h>
 #include <linux/rtnetlink.h>
 #include <poll.h>
-#include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #define NETLINK_RECEIVE_BUFFER_SIZE 32768U
 #define NETLINK_RESPONSE_TIMEOUT_MILLISECONDS 1000
-
-static void set_error(
-    char *error,
-    size_t error_size,
-    const char *format,
-    ...
-)
-{
-    va_list arguments;
-
-    if (error == NULL || error_size == 0U) {
-        return;
-    }
-
-    va_start(arguments, format);
-    (void)vsnprintf(error, error_size, format, arguments);
-    va_end(arguments);
-}
 
 void netlink_init(struct sqm_mon_netlink *netlink)
 {
@@ -62,7 +43,7 @@ int netlink_open(
         NETLINK_ROUTE
     );
     if (descriptor < 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not create rtnetlink socket: %s",
@@ -79,7 +60,7 @@ int netlink_open(
         int saved_errno = errno;
 
         (void)close(descriptor);
-        set_error(
+        error_set(
             error,
             error_size,
             "could not bind rtnetlink socket: %s",
@@ -131,7 +112,7 @@ static int wait_for_response(
     } while (poll_result < 0 && errno == EINTR);
 
     if (poll_result < 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "rtnetlink poll failed: %s",
@@ -141,12 +122,12 @@ static int wait_for_response(
     }
 
     if (poll_result == 0) {
-        set_error(error, error_size, "rtnetlink response timed out");
+        error_set(error, error_size, "rtnetlink response timed out");
         return -1;
     }
 
     if ((poll_descriptor.revents & POLLIN) == 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "rtnetlink socket reported an error (revents=0x%x)",
@@ -204,7 +185,7 @@ static int send_qdisc_request(
         sizeof(kernel_address)
     );
     if (bytes_sent < 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not request qdisc dump: %s",
@@ -214,7 +195,7 @@ static int send_qdisc_request(
     }
 
     if ((size_t)bytes_sent != request.header.nlmsg_len) {
-        set_error(error, error_size, "qdisc dump request was incomplete");
+        error_set(error, error_size, "qdisc dump request was incomplete");
         return -1;
     }
 
@@ -241,7 +222,7 @@ static int handle_response_message(
         return 0;
     case NLMSG_ERROR:
         if (message->nlmsg_len < NLMSG_LENGTH(sizeof(struct nlmsgerr))) {
-            set_error(error, error_size, "received a short rtnetlink error");
+            error_set(error, error_size, "received a short rtnetlink error");
             return -1;
         } else {
             const struct nlmsgerr *netlink_error = NLMSG_DATA(message);
@@ -250,7 +231,7 @@ static int handle_response_message(
                 return 0;
             }
 
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "qdisc dump failed: %s",
@@ -260,7 +241,7 @@ static int handle_response_message(
         }
     case RTM_NEWQDISC:
         if (handler(message, context) != 0) {
-            set_error(error, error_size, "could not parse qdisc response");
+            error_set(error, error_size, "could not parse qdisc response");
             return -1;
         }
         return 0;
@@ -315,7 +296,7 @@ static int receive_qdisc_response(
             0
         );
         if (bytes_received < 0) {
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "could not receive qdisc dump: %s",
@@ -324,12 +305,12 @@ static int receive_qdisc_response(
             return -1;
         }
         if ((receive_message.msg_flags & MSG_TRUNC) != 0) {
-            set_error(error, error_size, "rtnetlink response was truncated");
+            error_set(error, error_size, "rtnetlink response was truncated");
             return -1;
         }
 
         if (bytes_received == 0) {
-            set_error(error, error_size, "rtnetlink socket closed unexpectedly");
+            error_set(error, error_size, "rtnetlink socket closed unexpectedly");
             return -1;
         }
 
@@ -338,7 +319,7 @@ static int receive_qdisc_response(
         }
 
         if (bytes_received > INT_MAX) {
-            set_error(error, error_size, "rtnetlink response was too large");
+            error_set(error, error_size, "rtnetlink response was too large");
             return -1;
         }
 
@@ -349,7 +330,7 @@ static int receive_qdisc_response(
 
             if (message->nlmsg_len < sizeof(*message) ||
                 (size_t)message->nlmsg_len > remaining) {
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "received malformed rtnetlink data"
@@ -371,7 +352,7 @@ static int receive_qdisc_response(
 
             aligned_length = NLMSG_ALIGN((size_t)message->nlmsg_len);
             if (aligned_length > remaining) {
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "received malformed rtnetlink alignment"
@@ -386,7 +367,7 @@ static int receive_qdisc_response(
         }
 
         if (remaining != 0) {
-            set_error(error, error_size, "received malformed rtnetlink data");
+            error_set(error, error_size, "received malformed rtnetlink data");
             return -1;
         }
     }
@@ -406,7 +387,7 @@ int netlink_dump_qdiscs(
     uint32_t sequence;
 
     if (netlink->socket_descriptor < 0) {
-        set_error(error, error_size, "rtnetlink socket is not open");
+        error_set(error, error_size, "rtnetlink socket is not open");
         return -1;
     }
 
@@ -448,7 +429,7 @@ static int append_attribute(
 
     if (offset > capacity || attribute_size > capacity - offset ||
         data_size > UINT16_MAX - RTA_LENGTH(0U)) {
-        set_error(error, error_size, "rtnetlink attribute is too large");
+        error_set(error, error_size, "rtnetlink attribute is too large");
         return -1;
     }
 
@@ -503,7 +484,7 @@ static int receive_acknowledgement(
             0
         );
         if (bytes_received < 0) {
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "could not receive rtnetlink acknowledgement: %s",
@@ -512,7 +493,7 @@ static int receive_acknowledgement(
             return -1;
         }
         if (bytes_received == 0) {
-            set_error(
+            error_set(
                 error,
                 error_size,
                 "rtnetlink socket closed before acknowledgement"
@@ -520,7 +501,7 @@ static int receive_acknowledgement(
             return -1;
         }
         if ((receive_message.msg_flags & MSG_TRUNC) != 0) {
-            set_error(error, error_size, "rtnetlink acknowledgement was truncated");
+            error_set(error, error_size, "rtnetlink acknowledgement was truncated");
             return -1;
         }
         if (sender_address.nl_pid != 0U) {
@@ -534,7 +515,7 @@ static int receive_acknowledgement(
 
             if (message->nlmsg_len < sizeof(*message) ||
                 (size_t)message->nlmsg_len > remaining) {
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "received malformed rtnetlink acknowledgement"
@@ -547,7 +528,7 @@ static int receive_acknowledgement(
 
                 if (message->nlmsg_len <
                     NLMSG_LENGTH(sizeof(struct nlmsgerr))) {
-                    set_error(
+                    error_set(
                         error,
                         error_size,
                         "received a short rtnetlink acknowledgement"
@@ -558,7 +539,7 @@ static int receive_acknowledgement(
                 if (netlink_error->error == 0) {
                     return 0;
                 }
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "qdisc change failed: %s",
@@ -569,7 +550,7 @@ static int receive_acknowledgement(
 
             aligned_length = NLMSG_ALIGN((size_t)message->nlmsg_len);
             if (aligned_length > remaining) {
-                set_error(
+                error_set(
                     error,
                     error_size,
                     "received malformed rtnetlink acknowledgement alignment"
@@ -619,12 +600,12 @@ int netlink_change_qdisc_option(
     ssize_t bytes_sent;
 
     if (netlink->socket_descriptor < 0) {
-        set_error(error, error_size, "rtnetlink socket is not open");
+        error_set(error, error_size, "rtnetlink socket is not open");
         return -1;
     }
     if (option_attribute_size > sizeof(options.data) ||
         option_size > UINT16_MAX - RTA_LENGTH(0U)) {
-        set_error(error, error_size, "qdisc option is too large");
+        error_set(error, error_size, "qdisc option is too large");
         return -1;
     }
 
@@ -678,7 +659,7 @@ int netlink_change_qdisc_option(
         sizeof(kernel_address)
     );
     if (bytes_sent < 0) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not send qdisc change: %s",
@@ -687,7 +668,7 @@ int netlink_change_qdisc_option(
         return -1;
     }
     if ((size_t)bytes_sent != request.header.nlmsg_len) {
-        set_error(error, error_size, "qdisc change request was incomplete");
+        error_set(error, error_size, "qdisc change request was incomplete");
         return -1;
     }
 

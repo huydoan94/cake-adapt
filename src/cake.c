@@ -1,4 +1,5 @@
 #include "cake.h"
+#include "error.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -6,8 +7,6 @@
 #include <linux/pkt_sched.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include <string.h>
 
 struct cake_dump_context {
@@ -15,24 +14,6 @@ struct cake_dump_context {
     struct cake_observation *observation;
     bool found;
 };
-
-static void set_error(
-    char *error,
-    size_t error_size,
-    const char *format,
-    ...
-)
-{
-    va_list arguments;
-
-    if (error == NULL || error_size == 0U) {
-        return;
-    }
-
-    va_start(arguments, format);
-    (void)vsnprintf(error, error_size, format, arguments);
-    va_end(arguments);
-}
 
 static const struct rtattr *next_attribute(
     const struct rtattr *attribute,
@@ -368,7 +349,7 @@ enum cake_read_result cake_read(
     errno = 0;
     interface_index = if_nametoindex(interface);
     if (interface_index == 0U) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not find interface '%s': %s",
@@ -413,12 +394,12 @@ int cake_set_bandwidth(
     unsigned int interface_index;
 
     if (observation == NULL) {
-        set_error(error, error_size, "CAKE observation is null");
+        error_set(error, error_size, "CAKE observation is null");
         return -1;
     }
     if (bandwidth_bits_per_second < 8U ||
         bandwidth_bits_per_second % 8U != 0U) {
-        set_error(
+        error_set(
             error,
             error_size,
             "CAKE bandwidth must be a positive multiple of 8 bit/s"
@@ -429,7 +410,7 @@ int cake_set_bandwidth(
     errno = 0;
     interface_index = if_nametoindex(interface);
     if (interface_index == 0U) {
-        set_error(
+        error_set(
             error,
             error_size,
             "could not find interface '%s': %s",

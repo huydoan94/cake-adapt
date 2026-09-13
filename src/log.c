@@ -13,9 +13,9 @@
 #include <syslog.h>
 #include <time.h>
 
-#define SQM_MON_LOG_MESSAGE_SIZE 2048U
-#define SQM_MON_TIMED_PAYLOAD_SIZE 2000U
-#define SQM_MON_LOG_DATETIME_SIZE 20U
+#define LOG_MESSAGE_SIZE 2048U
+#define TIMED_PAYLOAD_SIZE 2000U
+#define LOG_DATETIME_SIZE 20U
 
 static bool log_to_stdout;
 static bool log_to_syslog;
@@ -115,8 +115,8 @@ static void write_record_at(
     uint64_t timestamp_microseconds
 )
 {
-    char datetime[SQM_MON_LOG_DATETIME_SIZE];
-    char line[SQM_MON_LOG_MESSAGE_SIZE];
+    char datetime[LOG_DATETIME_SIZE];
+    char line[LOG_MESSAGE_SIZE];
     struct tm local_time;
     time_t seconds = (time_t)(timestamp_microseconds / 1000000U);
 
@@ -257,7 +257,7 @@ static void write_formatted_record(
     ...
 )
 {
-    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    char message[LOG_MESSAGE_SIZE];
     va_list arguments;
 
     va_start(arguments, format);
@@ -272,8 +272,8 @@ static void write_timed_record(
     ...
 )
 {
-    char payload[SQM_MON_TIMED_PAYLOAD_SIZE];
-    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    char payload[TIMED_PAYLOAD_SIZE];
+    char message[LOG_MESSAGE_SIZE];
     uint64_t processing_time_microseconds = log_realtime_microseconds();
     va_list arguments;
 
@@ -385,7 +385,7 @@ void log_system_message(
     ...
 )
 {
-    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    char message[LOG_MESSAGE_SIZE];
     va_list arguments;
     uint64_t timestamp_microseconds = log_realtime_microseconds();
 
@@ -411,7 +411,7 @@ void log_message(
     ...
 )
 {
-    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    char message[LOG_MESSAGE_SIZE];
     va_list arguments;
     uint64_t timestamp_microseconds;
 

@@ -22,12 +22,10 @@
 #include <time.h>
 #include <unistd.h>
 
-#define SQM_MON_CAKE_ERROR_SIZE 256U
-#define SQM_MON_CONFIG_ERROR_SIZE 256U
-#define SQM_MON_LATENCY_ERROR_SIZE 256U
-#define SQM_MON_LATENCY_TIMEOUT_MILLISECONDS 500
-#define SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS 1000
-#define SQM_MON_LOAD_CONDITION_SIZE 16U
+#define ERROR_SIZE 256U
+#define LATENCY_TIMEOUT_MILLISECONDS 500
+#define TRAFFIC_INTERVAL_MILLISECONDS 1000
+#define LOAD_CONDITION_SIZE 16U
 
 enum cake_observation_state {
     CAKE_OBSERVATION_UNKNOWN,
@@ -156,7 +154,7 @@ static bool observe_latency(
 )
 {
     struct latency_sample sample;
-    char error[SQM_MON_LATENCY_ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = "";
     enum latency_probe_result probe_result;
 
     if (!latency_is_open(latency)) {
@@ -193,7 +191,7 @@ static bool observe_latency(
 
     probe_result = latency_probe(
         latency,
-        SQM_MON_LATENCY_TIMEOUT_MILLISECONDS,
+        LATENCY_TIMEOUT_MILLISECONDS,
         &sample,
         error,
         sizeof(error)
@@ -315,7 +313,7 @@ static bool observe_cake(
     struct cake_observation *observation
 )
 {
-    char error[SQM_MON_CAKE_ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = "";
     enum cake_read_result read_result;
 
     read_result = cake_read(
@@ -585,8 +583,8 @@ static void log_controller_stats(
     const struct latency_observation *latency
 )
 {
-    char download_condition[SQM_MON_LOAD_CONDITION_SIZE];
-    char upload_condition[SQM_MON_LOAD_CONDITION_SIZE];
+    char download_condition[LOAD_CONDITION_SIZE];
+    char upload_condition[LOAD_CONDITION_SIZE];
     uint64_t download_rate = output->download_rate_bits_per_second / 1000U;
     uint64_t upload_rate = output->upload_rate_bits_per_second / 1000U;
     uint32_t one_way_baseline = latency->baseline_microseconds / 2U;
@@ -706,7 +704,7 @@ static void apply_bandwidth(
 )
 {
     struct cake_observation verified;
-    char error[SQM_MON_CAKE_ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = "";
     enum cake_read_result read_result;
 
     if (output_cake_changes) {
@@ -1042,7 +1040,7 @@ static int run_event_loop(
         poll_result = poll(
             &descriptor,
             1U,
-            SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS
+            TRAFFIC_INTERVAL_MILLISECONDS
         );
         if (poll_result < 0) {
             if (errno == EINTR) {
@@ -1157,7 +1155,7 @@ static int create_signal_descriptor(sigset_t *previous_mask)
 int main(int argc, char **argv)
 {
     struct sqm_mon_config config;
-    char config_error[SQM_MON_CONFIG_ERROR_SIZE] = "";
+    char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
     sigset_t previous_mask;
     bool foreground = false;

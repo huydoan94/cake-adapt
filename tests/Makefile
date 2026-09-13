@@ -26,8 +26,8 @@ check: $(TARGETS)
 	./test_log
 	./test_traffic
 
-test_latency: test_latency.o latency.o
-	$(CC) $(LDFLAGS) -o $@ test_latency.o latency.o $(LDLIBS)
+test_latency: test_latency.o latency.o error.o
+	$(CC) $(LDFLAGS) -o $@ test_latency.o latency.o error.o $(LDLIBS)
 
 test_traffic: test_traffic.o traffic.o
 	$(CC) $(LDFLAGS) -o $@ test_traffic.o traffic.o $(LDLIBS)
@@ -55,6 +55,9 @@ controller.o: ../src/controller.c ../src/controller.h
 
 latency.o: ../src/latency.c ../src/latency.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/latency.c
+
+error.o: ../src/error.c ../src/error.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/error.c
 
 log.o: ../src/log.c ../src/log.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/log.c
