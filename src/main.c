@@ -8,18 +8,19 @@
 #include "netlink.h"
 #include "traffic.h"
 
+#include <libubox/uloop.h>
+
 #include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
 #include <limits.h>
-#include <poll.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/random.h>
-#include <sys/signalfd.h>
 #include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
@@ -355,6 +356,14 @@ struct observation_context {
     bool upload_cake_valid;
     bool latency_observation_failed;
     bool traffic_clock_failed;
+};
+
+struct event_loop {
+    struct observation_context observation;
+    const struct sqm_mon_config *config;
+    struct uloop_fd traffic_timer;
+    struct uloop_fd latency_output;
+    int result;
 };
 
 static const char *line_state_name(enum controller_line_state state)
@@ -988,7 +997,7 @@ static size_t find_active_reflector(
     return SIZE_MAX;
 }
 
-static void receive_latency_samples(
+static bool receive_latency_samples(
     struct observation_context *context,
     const struct sqm_mon_config *config
 )
@@ -1007,7 +1016,7 @@ static void receive_latency_samples(
         bool low_load;
 
         if (result == LATENCY_PROBE_PENDING) {
-            return;
+            return true;
         }
         if (result == LATENCY_PROBE_TIMEOUT) {
             continue;
@@ -1021,8 +1030,7 @@ static void receive_latency_samples(
                 );
             }
             context->latency_observation_failed = true;
-            latency_close(&context->latency);
-            return;
+            return false;
         }
 
         reflector_index = find_active_reflector(config, sample.target);
@@ -1033,8 +1041,7 @@ static void receive_latency_samples(
                 sample.target
             );
             context->latency_observation_failed = true;
-            latency_close(&context->latency);
-            return;
+            return false;
         }
 
         latency_tracker_update(
@@ -1124,17 +1131,129 @@ static int create_traffic_timer(uint64_t interval_microseconds)
     return descriptor;
 }
 
-enum event_descriptor {
-    EVENT_SIGNAL,
-    EVENT_TRAFFIC_TIMER,
-    EVENT_LATENCY_OUTPUT,
-    EVENT_DESCRIPTOR_COUNT
-};
-
-static int run_event_loop(
-    int signal_file_descriptor,
-    const struct sqm_mon_config *config
+static struct event_loop *event_loop_from_traffic_timer(
+    struct uloop_fd *descriptor
 )
+{
+    return (struct event_loop *)(void *)(
+        (unsigned char *)(void *)descriptor -
+        offsetof(struct event_loop, traffic_timer)
+    );
+}
+
+static struct event_loop *event_loop_from_latency_output(
+    struct uloop_fd *descriptor
+)
+{
+    return (struct event_loop *)(void *)(
+        (unsigned char *)(void *)descriptor -
+        offsetof(struct event_loop, latency_output)
+    );
+}
+
+static void stop_event_loop(struct event_loop *loop, const char *message)
+{
+    log_message(LOG_LEVEL_ERROR, "%s", message);
+    loop->result = -1;
+    uloop_end();
+}
+
+static void close_latency(struct event_loop *loop)
+{
+    if (loop->latency_output.registered) {
+        (void)uloop_fd_delete(&loop->latency_output);
+    }
+    loop->latency_output.fd = -1;
+    latency_close(&loop->observation.latency);
+}
+
+static void handle_latency_output(
+    struct uloop_fd *descriptor,
+    unsigned int events
+)
+{
+    struct event_loop *loop = event_loop_from_latency_output(descriptor);
+
+    (void)events;
+    if (!receive_latency_samples(&loop->observation, loop->config)) {
+        close_latency(loop);
+    }
+}
+
+static bool watch_latency(struct event_loop *loop)
+{
+    int saved_errno;
+
+    if (loop->latency_output.registered) {
+        return true;
+    }
+    if (!ensure_latency_open(&loop->observation, loop->config)) {
+        return false;
+    }
+
+    loop->latency_output.fd = loop->observation.latency.output_descriptor;
+    if (uloop_fd_add(
+            &loop->latency_output,
+            ULOOP_READ | ULOOP_ERROR_CB
+        ) == 0) {
+        return true;
+    }
+
+    saved_errno = errno;
+    log_message(
+        LOG_LEVEL_WARNING,
+        "latency observation degraded: could not monitor fping output: %s",
+        strerror(saved_errno)
+    );
+    loop->observation.latency_observation_failed = true;
+    close_latency(loop);
+    return false;
+}
+
+static void handle_traffic_timer(
+    struct uloop_fd *descriptor,
+    unsigned int events
+)
+{
+    struct event_loop *loop = event_loop_from_traffic_timer(descriptor);
+    uint64_t expirations;
+    ssize_t bytes_read;
+
+    if (descriptor->error || descriptor->eof) {
+        stop_event_loop(loop, "traffic monitor timer reported an error");
+        return;
+    }
+    if ((events & ULOOP_READ) == 0U) {
+        return;
+    }
+
+    bytes_read = read(descriptor->fd, &expirations, sizeof(expirations));
+    if (bytes_read != (ssize_t)sizeof(expirations)) {
+        if (bytes_read < 0 && (errno == EAGAIN || errno == EINTR)) {
+            return;
+        }
+        if (bytes_read < 0) {
+            log_message(
+                LOG_LEVEL_ERROR,
+                "could not read traffic monitor timer: %s",
+                strerror(errno)
+            );
+            loop->result = -1;
+            uloop_end();
+        } else {
+            stop_event_loop(
+                loop,
+                "could not read traffic monitor timer: incomplete read"
+            );
+        }
+        return;
+    }
+
+    observe_traffic_cycle(&loop->observation, loop->config);
+    (void)watch_latency(loop);
+}
+
+static int run_event_loop(const struct sqm_mon_config *config)
 {
     const struct controller_config controller_config = {
         .download = {
@@ -1156,212 +1275,96 @@ static int run_event_loop(
                 config->maximum_upload_rate_bits_per_second
         }
     };
-    struct pollfd descriptors[EVENT_DESCRIPTOR_COUNT] = {
-        [EVENT_SIGNAL] = {
-            .fd = signal_file_descriptor,
-            .events = POLLIN,
-            .revents = 0
+    struct event_loop loop = {
+        .observation = {
+            .ingress_cake_state = CAKE_OBSERVATION_UNKNOWN,
+            .upload_cake_state = CAKE_OBSERVATION_UNKNOWN,
+            .download_traffic_state = TRAFFIC_OBSERVATION_UNKNOWN,
+            .upload_traffic_state = TRAFFIC_OBSERVATION_UNKNOWN,
+            .latency_observation_failed = false,
+            .traffic_clock_failed = false
         },
-        [EVENT_TRAFFIC_TIMER] = {
-            .fd = -1,
-            .events = POLLIN,
-            .revents = 0
+        .config = config,
+        .traffic_timer = {
+            .cb = handle_traffic_timer,
+            .fd = -1
         },
-        [EVENT_LATENCY_OUTPUT] = {
-            .fd = -1,
-            .events = POLLIN,
-            .revents = 0
-        }
+        .latency_output = {
+            .cb = handle_latency_output,
+            .fd = -1
+        },
+        .result = -1
     };
-    struct observation_context context = {
-        .ingress_cake_state = CAKE_OBSERVATION_UNKNOWN,
-        .upload_cake_state = CAKE_OBSERVATION_UNKNOWN,
-        .download_traffic_state = TRAFFIC_OBSERVATION_UNKNOWN,
-        .upload_traffic_state = TRAFFIC_OBSERVATION_UNKNOWN,
-        .latency_observation_failed = false,
-        .traffic_clock_failed = false
-    };
-    int traffic_timer_descriptor;
-    int result = -1;
+    bool previous_sigchld_handling = uloop_handle_sigchld;
+    int run_status;
     size_t index;
 
-    controller_init(&context.controller, &controller_config);
-    latency_init(&context.latency);
+    controller_init(&loop.observation.controller, &controller_config);
+    latency_init(&loop.observation.latency);
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
-        latency_tracker_init(&context.latency_trackers[index]);
+        latency_tracker_init(&loop.observation.latency_trackers[index]);
     }
-    netlink_init(&context.netlink);
-    traffic_monitor_init(&context.download_traffic_monitor);
-    traffic_monitor_init(&context.upload_traffic_monitor);
+    netlink_init(&loop.observation.netlink);
+    traffic_monitor_init(&loop.observation.download_traffic_monitor);
+    traffic_monitor_init(&loop.observation.upload_traffic_monitor);
 
-    traffic_timer_descriptor = create_traffic_timer(
-        config->monitor_achieved_rates_interval_microseconds
-    );
-    if (traffic_timer_descriptor < 0) {
+    /* latency.c owns and reaps fping; uloop must not consume its SIGCHLD. */
+    uloop_handle_sigchld = false;
+    if (uloop_init() != 0) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not initialize event loop: %s",
+            strerror(errno)
+        );
+        uloop_handle_sigchld = previous_sigchld_handling;
         goto done;
     }
-    descriptors[EVENT_TRAFFIC_TIMER].fd = traffic_timer_descriptor;
-    observe_traffic_cycle(&context, config);
-    (void)ensure_latency_open(&context, config);
 
-    for (;;) {
-        struct signalfd_siginfo signal_information;
-        int poll_result;
-
-        descriptors[EVENT_LATENCY_OUTPUT].fd =
-            context.latency.output_descriptor;
-        for (index = 0U; index < EVENT_DESCRIPTOR_COUNT; index++) {
-            descriptors[index].revents = 0;
-        }
-        poll_result = poll(
-            descriptors,
-            EVENT_DESCRIPTOR_COUNT,
-            -1
-        );
-        if (poll_result < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-
-            log_message(
-                LOG_LEVEL_ERROR,
-                "poll failed while waiting for shutdown: %s",
-                strerror(errno)
-            );
-            goto done;
-        }
-
-        if ((descriptors[EVENT_SIGNAL].revents &
-                (POLLERR | POLLHUP | POLLNVAL)) != 0) {
-            log_message(
-                LOG_LEVEL_ERROR,
-                "signal descriptor reported an error (revents=0x%x)",
-                (unsigned int)descriptors[EVENT_SIGNAL].revents
-            );
-            goto done;
-        }
-        if ((descriptors[EVENT_SIGNAL].revents & POLLIN) != 0) {
-            ssize_t bytes_read = read(
-                signal_file_descriptor,
-                &signal_information,
-                sizeof(signal_information)
-            );
-
-            if (bytes_read < 0 && errno != EAGAIN && errno != EINTR) {
-                log_message(
-                    LOG_LEVEL_ERROR,
-                    "could not read shutdown signal: %s",
-                    strerror(errno)
-                );
-                goto done;
-            }
-            if (bytes_read > 0 &&
-                (size_t)bytes_read != sizeof(signal_information)) {
-                log_message(
-                    LOG_LEVEL_ERROR,
-                    "received an incomplete shutdown signal"
-                );
-                goto done;
-            }
-            if (bytes_read == (ssize_t)sizeof(signal_information) &&
-                (signal_information.ssi_signo == (uint32_t)SIGINT ||
-                    signal_information.ssi_signo == (uint32_t)SIGTERM)) {
-                log_message(
-                    LOG_LEVEL_NOTICE,
-                    "received signal %u; shutting down",
-                    signal_information.ssi_signo
-                );
-                result = 0;
-                goto done;
-            }
-        }
-
-        if ((descriptors[EVENT_TRAFFIC_TIMER].revents &
-                (POLLERR | POLLHUP | POLLNVAL)) != 0) {
-            log_message(
-                LOG_LEVEL_ERROR,
-                "traffic timer reported an error (revents=0x%x)",
-                (unsigned int)descriptors[EVENT_TRAFFIC_TIMER].revents
-            );
-            goto done;
-        }
-        if ((descriptors[EVENT_TRAFFIC_TIMER].revents & POLLIN) != 0) {
-            uint64_t expirations;
-            ssize_t bytes_read = read(
-                traffic_timer_descriptor,
-                &expirations,
-                sizeof(expirations)
-            );
-
-            if (bytes_read != (ssize_t)sizeof(expirations)) {
-                if (bytes_read < 0 &&
-                    (errno == EAGAIN || errno == EINTR)) {
-                    continue;
-                }
-                log_message(
-                    LOG_LEVEL_ERROR,
-                    "could not read traffic monitor timer: %s",
-                    bytes_read < 0 ? strerror(errno) : "incomplete read"
-                );
-                goto done;
-            }
-            observe_traffic_cycle(&context, config);
-            (void)ensure_latency_open(&context, config);
-        }
-
-        if (latency_is_open(&context.latency) &&
-            (descriptors[EVENT_LATENCY_OUTPUT].revents &
-                (POLLIN | POLLERR | POLLHUP | POLLNVAL)) != 0) {
-            receive_latency_samples(&context, config);
-        }
+    loop.traffic_timer.fd = create_traffic_timer(
+        config->monitor_achieved_rates_interval_microseconds
+    );
+    if (loop.traffic_timer.fd < 0) {
+        goto uloop_done;
     }
+    if (uloop_fd_add(
+            &loop.traffic_timer,
+            ULOOP_READ | ULOOP_ERROR_CB
+        ) != 0) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not monitor traffic timer: %s",
+            strerror(errno)
+        );
+        goto uloop_done;
+    }
+
+    observe_traffic_cycle(&loop.observation, config);
+    (void)watch_latency(&loop);
+    run_status = uloop_run();
+    if (run_status == SIGINT || run_status == SIGTERM) {
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "received signal %d; shutting down",
+            run_status
+        );
+        loop.result = 0;
+    }
+
+uloop_done:
+    close_latency(&loop);
+    if (loop.traffic_timer.registered) {
+        (void)uloop_fd_delete(&loop.traffic_timer);
+    }
+    if (loop.traffic_timer.fd >= 0) {
+        (void)close(loop.traffic_timer.fd);
+    }
+    uloop_done();
+    uloop_handle_sigchld = previous_sigchld_handling;
 
 done:
-    if (traffic_timer_descriptor >= 0) {
-        (void)close(traffic_timer_descriptor);
-    }
-    netlink_close(&context.netlink);
-    latency_close(&context.latency);
-    return result;
-}
-
-static int create_signal_descriptor(sigset_t *previous_mask)
-{
-    sigset_t mask;
-    int descriptor;
-
-    if (sigemptyset(&mask) != 0 ||
-        sigaddset(&mask, SIGINT) != 0 ||
-        sigaddset(&mask, SIGTERM) != 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not create shutdown signal mask: %s",
-            strerror(errno)
-        );
-        return -1;
-    }
-
-    if (sigprocmask(SIG_BLOCK, &mask, previous_mask) != 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not block shutdown signals: %s",
-            strerror(errno)
-        );
-        return -1;
-    }
-
-    descriptor = signalfd(-1, &mask, SFD_CLOEXEC | SFD_NONBLOCK);
-    if (descriptor < 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not create signal descriptor: %s",
-            strerror(errno)
-        );
-        (void)sigprocmask(SIG_SETMASK, previous_mask, NULL);
-        return -1;
-    }
-
-    return descriptor;
+    netlink_close(&loop.observation.netlink);
+    latency_close(&loop.observation.latency);
+    return loop.result;
 }
 
 int main(int argc, char **argv)
@@ -1369,9 +1372,7 @@ int main(int argc, char **argv)
     struct sqm_mon_config config;
     char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
-    sigset_t previous_mask;
     bool foreground = false;
-    int signal_file_descriptor;
     int option;
     int result;
 
@@ -1484,12 +1485,6 @@ int main(int argc, char **argv)
         (long)getpid()
     );
 
-    signal_file_descriptor = create_signal_descriptor(&previous_mask);
-    if (signal_file_descriptor < 0) {
-        log_close();
-        return 1;
-    }
-
     if (config.adjust_download || config.adjust_upload) {
         log_message(
             LOG_LEVEL_NOTICE,
@@ -1500,26 +1495,7 @@ int main(int argc, char **argv)
     } else {
         log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
     }
-    result = run_event_loop(
-        signal_file_descriptor,
-        &config
-    );
-
-    if (close(signal_file_descriptor) != 0) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "could not close signal descriptor: %s",
-            strerror(errno)
-        );
-    }
-
-    if (sigprocmask(SIG_SETMASK, &previous_mask, NULL) != 0) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "could not restore signal mask: %s",
-            strerror(errno)
-        );
-    }
+    result = run_event_loop(&config);
 
     log_system_message(
         "Stopped sqm-mon with PID: %ld and config: /etc/config/sqm-mon",

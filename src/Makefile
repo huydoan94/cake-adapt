@@ -22,7 +22,7 @@ OBJECTS := main.o cake.o config.o controller.o error.o latency.o log.o netlink.o
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox
 
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
