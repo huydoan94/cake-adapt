@@ -71,10 +71,10 @@ struct controller_output {
     enum controller_rate_reason upload_rate_reason;
     uint64_t download_rate_bits_per_second;
     uint64_t upload_rate_bits_per_second;
-    uint64_t download_delay_sum_microseconds;
-    uint64_t upload_delay_sum_microseconds;
-    uint32_t download_average_delay_microseconds;
-    uint32_t upload_average_delay_microseconds;
+    int64_t download_delay_sum_microseconds;
+    int64_t upload_delay_sum_microseconds;
+    int64_t download_average_delay_microseconds;
+    int64_t upload_average_delay_microseconds;
     unsigned int download_delayed_sample_count;
     unsigned int upload_delayed_sample_count;
     bool download_state_changed;
@@ -89,9 +89,9 @@ struct controller_direction {
     struct controller_direction_config config;
     enum controller_line_state state;
     enum controller_congestion_state congestion;
-    uint32_t delay_samples[CONTROLLER_DELAY_WINDOW_SAMPLES];
+    int64_t delay_samples[CONTROLLER_DELAY_WINDOW_SAMPLES];
     bool delayed_samples[CONTROLLER_DELAY_WINDOW_SAMPLES];
-    uint64_t delay_sum_microseconds;
+    int64_t delay_sum_microseconds;
     uint64_t shaper_rate_bits_per_second;
     unsigned int delay_next_sample;
     unsigned int delayed_sample_count;

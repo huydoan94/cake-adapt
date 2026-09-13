@@ -369,7 +369,7 @@ void latency_close(struct sqm_mon_latency *latency)
 void latency_tracker_init(struct latency_tracker *tracker)
 {
     tracker->baseline_scaled = 0U;
-    tracker->delta_ewma_microseconds = 0U;
+    tracker->delta_ewma_microseconds = 0;
     tracker->initialized = false;
 }
 
@@ -407,11 +407,9 @@ void latency_tracker_update(
         (tracker->baseline_scaled + BASELINE_SCALE / 2U) /
             BASELINE_SCALE
     );
-    observation->delta_microseconds = sample->round_trip_microseconds >
-            observation->baseline_microseconds
-        ? sample->round_trip_microseconds -
-            observation->baseline_microseconds
-        : 0U;
+    observation->delta_microseconds =
+        (int64_t)sample->round_trip_microseconds -
+        (int64_t)observation->baseline_microseconds;
     observation->delta_ewma_microseconds = tracker->delta_ewma_microseconds;
     observation->timestamp_microseconds = sample->timestamp_microseconds;
     observation->sequence = sample->sequence;
@@ -425,13 +423,13 @@ void latency_tracker_update_delta_ewma(
 {
     /* cake-autorate freezes reflector delay EWMA while either link is busy. */
     if (low_load) {
-        tracker->delta_ewma_microseconds = (uint32_t)(
-            ((uint64_t)DELTA_EWMA_WEIGHT *
-                    observation->delta_microseconds / 2U +
-                (1000U - DELTA_EWMA_WEIGHT) *
+        /* An RTT probe represents equal download and upload one-way delay. */
+        tracker->delta_ewma_microseconds =
+            ((int64_t)DELTA_EWMA_WEIGHT *
+                    (observation->delta_microseconds / 2) +
+                (int64_t)(1000U - DELTA_EWMA_WEIGHT) *
                     tracker->delta_ewma_microseconds) /
-            1000U
-        );
+            1000;
     }
     observation->delta_ewma_microseconds =
         tracker->delta_ewma_microseconds;

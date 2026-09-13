@@ -171,26 +171,23 @@ static enum controller_line_state update_line_state(
 static enum controller_congestion_state update_congestion(
     struct controller_direction *direction,
     const struct controller_latency_input *latency,
-    uint32_t *average_delay_microseconds
+    int64_t *average_delay_microseconds
 )
 {
-    uint32_t rtt_delta;
-    uint32_t owd_delta;
+    int64_t rtt_delta;
+    int64_t owd_delta;
     unsigned int index;
 
     if (!latency->valid) {
         direction->congestion = CONTROLLER_CONGESTION_UNKNOWN;
-        *average_delay_microseconds = 0U;
+        *average_delay_microseconds = 0;
         return direction->congestion;
     }
 
     /* A round-trip delta approximates twice the one-way queueing delay. */
-    rtt_delta = latency->current_rtt_microseconds >=
-            latency->baseline_rtt_microseconds
-        ? latency->current_rtt_microseconds -
-            latency->baseline_rtt_microseconds
-        : 0U;
-    owd_delta = rtt_delta / 2U;
+    rtt_delta = (int64_t)latency->current_rtt_microseconds -
+        (int64_t)latency->baseline_rtt_microseconds;
+    owd_delta = rtt_delta / 2;
     index = direction->delay_next_sample;
 
     /* Maintain a fixed rolling window without rescanning every sample. */
@@ -209,10 +206,8 @@ static enum controller_congestion_state update_congestion(
 
     direction->delay_next_sample =
         (index + 1U) % CONTROLLER_DELAY_WINDOW_SAMPLES;
-    *average_delay_microseconds = (uint32_t)(
-        direction->delay_sum_microseconds /
-        CONTROLLER_DELAY_WINDOW_SAMPLES
-    );
+    *average_delay_microseconds = direction->delay_sum_microseconds /
+        CONTROLLER_DELAY_WINDOW_SAMPLES;
     direction->congestion =
         direction->delayed_sample_count >= BUFFERBLOAT_DETECTION_SAMPLES
             ? CONTROLLER_CONGESTION_DETECTED
@@ -220,7 +215,7 @@ static enum controller_congestion_state update_congestion(
     return direction->congestion;
 }
 
-static unsigned int downward_factor(uint32_t average_delay_microseconds)
+static unsigned int downward_factor(int64_t average_delay_microseconds)
 {
     uint64_t scaled;
 
@@ -246,7 +241,7 @@ static unsigned int downward_factor(uint32_t average_delay_microseconds)
             1000U);
 }
 
-static unsigned int upward_factor(uint32_t average_delay_microseconds)
+static unsigned int upward_factor(int64_t average_delay_microseconds)
 {
     uint64_t scaled;
 
@@ -288,7 +283,7 @@ static enum controller_rate_reason adjust_rate(
     struct controller_direction *direction,
     const struct controller_direction_input *input,
     bool latency_valid,
-    uint32_t average_delay_microseconds,
+    int64_t average_delay_microseconds,
     uint64_t timestamp_microseconds
 )
 {
@@ -420,8 +415,8 @@ void controller_update(
         controller->upload.congestion;
     enum controller_rate_reason download_reason;
     enum controller_rate_reason upload_reason;
-    uint32_t download_average_delay;
-    uint32_t upload_average_delay;
+    int64_t download_average_delay;
+    int64_t upload_average_delay;
 
     output->download_state = update_line_state(
         &controller->download,

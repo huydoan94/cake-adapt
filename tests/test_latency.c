@@ -85,7 +85,8 @@ static void test_lower_sample_reduces_baseline(void)
     observation = track(&tracker, 25000U);
 
     assert(observation.baseline_microseconds == 25500U);
-    assert(observation.delta_microseconds == 0U);
+    assert(observation.delta_microseconds == -500);
+    assert(observation.delta_ewma_microseconds == -23);
 }
 
 static void test_higher_sample_reports_delta(void)
@@ -125,7 +126,7 @@ static void test_maximum_rtt_does_not_overflow_delta(void)
     observation = track(&tracker, UINT32_MAX);
 
     assert(observation.baseline_microseconds == 4294968U);
-    assert(observation.delta_microseconds == 4290672327U);
+    assert(observation.delta_microseconds == INT64_C(4290672327));
 }
 
 int main(void)

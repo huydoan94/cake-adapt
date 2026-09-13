@@ -28,15 +28,15 @@ struct latency_sample {
 struct latency_observation {
     uint32_t round_trip_microseconds;
     uint32_t baseline_microseconds;
-    uint32_t delta_microseconds;
-    uint32_t delta_ewma_microseconds;
+    int64_t delta_microseconds;
+    int64_t delta_ewma_microseconds;
     uint64_t timestamp_microseconds;
     uint16_t sequence;
 };
 
 struct latency_tracker {
     uint64_t baseline_scaled;
-    uint32_t delta_ewma_microseconds;
+    int64_t delta_ewma_microseconds;
     bool initialized;
 };
 

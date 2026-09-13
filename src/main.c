@@ -564,16 +564,18 @@ static void load_condition(
 
 static void log_load_stats(const struct controller_input *input)
 {
-    log_record(
-        "LOAD",
-        "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
-        "; %" PRIu64,
-        log_realtime_microseconds(),
-        input->download.traffic_rate_bits_per_second / 1000U,
-        input->upload.traffic_rate_bits_per_second / 1000U,
-        input->download.cake_rate_bits_per_second / 1000U,
-        input->upload.cake_rate_bits_per_second / 1000U
-    );
+    const struct log_load_record record = {
+        .download_achieved_rate_kbps =
+            input->download.traffic_rate_bits_per_second / 1000U,
+        .upload_achieved_rate_kbps =
+            input->upload.traffic_rate_bits_per_second / 1000U,
+        .cake_download_rate_kbps =
+            input->download.cake_rate_bits_per_second / 1000U,
+        .cake_upload_rate_kbps =
+            input->upload.cake_rate_bits_per_second / 1000U
+    };
+
+    log_load(&record);
 }
 
 static void log_controller_stats(
@@ -589,7 +591,7 @@ static void log_controller_stats(
     uint64_t upload_rate = output->upload_rate_bits_per_second / 1000U;
     uint32_t one_way_baseline = latency->baseline_microseconds / 2U;
     uint32_t one_way_delay = latency->round_trip_microseconds / 2U;
-    uint32_t one_way_delta = latency->delta_microseconds / 2U;
+    int64_t one_way_delta = latency->delta_microseconds / 2;
 
     load_condition(
         download_condition,
@@ -611,70 +613,85 @@ static void log_controller_stats(
     );
 
     if (config->output_processing_stats) {
-        log_record(
-            "DATA",
-            "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %u; %u;"
-            " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu16 ";"
-            " %" PRIu32 "; %" PRIu32 "; %" PRIu32 "; %" PRIu32
-            "; %u; %" PRIu32 "; %" PRIu32 "; %" PRIu32 ";"
-            " %" PRIu32 "; %u; %u; %" PRIu32 "; %u; %u; %u;"
-            " %" PRIu32 "; %u; %u; %s; %s; %" PRIu64 "; %" PRIu64,
-            log_realtime_microseconds(),
-            input->download.traffic_rate_bits_per_second / 1000U,
-            input->upload.traffic_rate_bits_per_second / 1000U,
-            load_percent(
+        /*
+         * ICMP echo supplies RTT rather than directional timestamps. Match
+         * cake-autorate's fping/ping path by recording the same half-RTT
+         * estimate in its separate download and upload OWD columns.
+         */
+        const struct log_data_record record = {
+            .download_achieved_rate_kbps =
+                input->download.traffic_rate_bits_per_second / 1000U,
+            .upload_achieved_rate_kbps =
+                input->upload.traffic_rate_bits_per_second / 1000U,
+            .download_load_percent = load_percent(
                 input->download.traffic_rate_bits_per_second,
                 input->download.cake_rate_bits_per_second
             ),
-            load_percent(
+            .upload_load_percent = load_percent(
                 input->upload.traffic_rate_bits_per_second,
                 input->upload.cake_rate_bits_per_second
             ),
-            latency->timestamp_microseconds / 1000000U,
-            latency->timestamp_microseconds % 1000000U,
-            config->latency_target,
-            latency->sequence,
-            one_way_baseline,
-            one_way_delay,
-            latency->delta_ewma_microseconds,
-            one_way_delta,
-            CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
-            one_way_baseline,
-            one_way_delay,
-            latency->delta_ewma_microseconds,
-            one_way_delta,
-            CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
-            output->download_delayed_sample_count,
-            output->download_average_delay_microseconds,
-            CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
-            CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
-            output->upload_delayed_sample_count,
-            output->upload_average_delay_microseconds,
-            CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
-            CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
-            download_condition,
-            upload_condition,
-            download_rate,
-            upload_rate
-        );
+            .icmp_timestamp_microseconds = latency->timestamp_microseconds,
+            .reflector = config->latency_target,
+            .sequence = latency->sequence,
+            .download_owd_baseline_microseconds = one_way_baseline,
+            .download_owd_microseconds = one_way_delay,
+            .download_owd_delta_ewma_microseconds =
+                latency->delta_ewma_microseconds,
+            .download_owd_delta_microseconds = one_way_delta,
+            .download_adjust_delay_threshold_microseconds =
+                CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
+            .upload_owd_baseline_microseconds = one_way_baseline,
+            .upload_owd_microseconds = one_way_delay,
+            .upload_owd_delta_ewma_microseconds =
+                latency->delta_ewma_microseconds,
+            .upload_owd_delta_microseconds = one_way_delta,
+            .upload_adjust_delay_threshold_microseconds =
+                CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
+            .download_sum_delays =
+                output->download_delayed_sample_count,
+            .download_average_owd_delta_microseconds =
+                output->download_average_delay_microseconds,
+            .download_maximum_adjust_up_threshold_microseconds =
+                CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
+            .download_maximum_adjust_down_threshold_microseconds =
+                CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
+            .upload_sum_delays = output->upload_delayed_sample_count,
+            .upload_average_owd_delta_microseconds =
+                output->upload_average_delay_microseconds,
+            .upload_maximum_adjust_up_threshold_microseconds =
+                CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
+            .upload_maximum_adjust_down_threshold_microseconds =
+                CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
+            .download_load_condition = download_condition,
+            .upload_load_condition = upload_condition,
+            .cake_download_rate_kbps = download_rate,
+            .cake_upload_rate_kbps = upload_rate
+        };
+
+        log_data(&record);
     }
 
     if (config->output_summary_stats) {
-        log_record(
-            "SUMMARY",
-            "%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRIu32 ";"
-            " %" PRIu32 "; %s; %s; %" PRIu64 "; %" PRIu64,
-            input->download.traffic_rate_bits_per_second / 1000U,
-            input->upload.traffic_rate_bits_per_second / 1000U,
-            output->download_delayed_sample_count,
-            output->upload_delayed_sample_count,
-            output->download_average_delay_microseconds,
-            output->upload_average_delay_microseconds,
-            download_condition,
-            upload_condition,
-            download_rate,
-            upload_rate
-        );
+        const struct log_summary_record record = {
+            .download_achieved_rate_kbps =
+                input->download.traffic_rate_bits_per_second / 1000U,
+            .upload_achieved_rate_kbps =
+                input->upload.traffic_rate_bits_per_second / 1000U,
+            .download_sum_delays =
+                output->download_delayed_sample_count,
+            .upload_sum_delays = output->upload_delayed_sample_count,
+            .download_average_owd_delta_microseconds =
+                output->download_average_delay_microseconds,
+            .upload_average_owd_delta_microseconds =
+                output->upload_average_delay_microseconds,
+            .download_load_condition = download_condition,
+            .upload_load_condition = upload_condition,
+            .cake_download_rate_kbps = download_rate,
+            .cake_upload_rate_kbps = upload_rate
+        };
+
+        log_summary(&record);
     }
 }
 
@@ -693,12 +710,7 @@ static void apply_bandwidth(
     enum cake_read_result read_result;
 
     if (output_cake_changes) {
-        log_record(
-            "SHAPER",
-            "tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
-            interface,
-            desired_rate / 1000U
-        );
+        log_shaper(interface, desired_rate / 1000U);
     }
 
     if (cake_set_bandwidth(

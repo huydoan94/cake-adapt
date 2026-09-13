@@ -251,6 +251,31 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
     assert(output.upload_average_delay_microseconds == 15000U);
 }
 
+static void test_below_baseline_delay_remains_signed(void)
+{
+    struct sqm_mon_controller controller;
+    const struct controller_config config = monitor_config();
+    struct controller_input input = input_with_rates(
+        1U * MEBABIT,
+        8U * MEBABIT,
+        1U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    input.latency.baseline_rtt_microseconds = 30000U;
+    input.latency.current_rtt_microseconds = 24000U;
+    controller_init(&controller, &config);
+    controller_update(&controller, &input, &output);
+
+    assert(output.download_delay_sum_microseconds == -3000);
+    assert(output.upload_delay_sum_microseconds == -3000);
+    assert(output.download_average_delay_microseconds == -500);
+    assert(output.upload_average_delay_microseconds == -500);
+    assert(output.download_delayed_sample_count == 0U);
+    assert(output.upload_delayed_sample_count == 0U);
+}
+
 static void test_delay_window_clears_after_old_delays_expire(void)
 {
     struct sqm_mon_controller controller;
@@ -678,6 +703,7 @@ int main(void)
     test_line_hysteresis_and_recovery();
     test_invalid_direction_returns_to_unknown();
     test_three_of_six_delays_detect_bufferbloat();
+    test_below_baseline_delay_remains_signed();
     test_delay_window_clears_after_old_delays_expire();
     test_missing_probe_holds_delay_window();
     test_initial_rate_is_baseline();

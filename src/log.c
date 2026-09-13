@@ -13,6 +13,7 @@
 #include <time.h>
 
 #define SQM_MON_LOG_MESSAGE_SIZE 2048U
+#define SQM_MON_TIMED_PAYLOAD_SIZE 2000U
 #define SQM_MON_LOG_DATETIME_SIZE 20U
 
 static bool log_to_stdout;
@@ -239,7 +240,7 @@ void log_print_headers(
     }
 }
 
-void log_record(
+static void write_formatted_record(
     const char *type,
     const char *format,
     ...
@@ -252,6 +253,120 @@ void log_record(
     (void)vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
     write_record(type, message);
+}
+
+static void write_timed_record(
+    const char *type,
+    const char *format,
+    ...
+)
+{
+    char payload[SQM_MON_TIMED_PAYLOAD_SIZE];
+    char message[SQM_MON_LOG_MESSAGE_SIZE];
+    uint64_t processing_time_microseconds = log_realtime_microseconds();
+    va_list arguments;
+
+    va_start(arguments, format);
+    (void)vsnprintf(payload, sizeof(payload), format, arguments);
+    va_end(arguments);
+
+    (void)snprintf(
+        message,
+        sizeof(message),
+        "%" PRIu64 ".%06" PRIu64 "; %s",
+        processing_time_microseconds / 1000000U,
+        processing_time_microseconds % 1000000U,
+        payload
+    );
+    write_record(type, message);
+}
+
+void log_load(const struct log_load_record *record)
+{
+    write_timed_record(
+        "LOAD",
+        "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
+        record->download_achieved_rate_kbps,
+        record->upload_achieved_rate_kbps,
+        record->cake_download_rate_kbps,
+        record->cake_upload_rate_kbps
+    );
+}
+
+void log_data(const struct log_data_record *record)
+{
+    write_timed_record(
+        "DATA",
+        "%" PRIu64 "; %" PRIu64 "; %u; %u;"
+        " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu16 ";"
+        " %" PRIu32 "; %" PRIu32 "; %" PRId64 "; %" PRId64
+        "; %" PRIu32 "; %" PRIu32 "; %" PRIu32 "; %" PRId64 ";"
+        " %" PRId64 "; %" PRIu32 "; %u; %" PRId64 "; %" PRIu32
+        "; %" PRIu32 "; %u; %" PRId64 "; %" PRIu32 "; %" PRIu32
+        "; %s; %s; %" PRIu64 "; %" PRIu64,
+        record->download_achieved_rate_kbps,
+        record->upload_achieved_rate_kbps,
+        record->download_load_percent,
+        record->upload_load_percent,
+        record->icmp_timestamp_microseconds / 1000000U,
+        record->icmp_timestamp_microseconds % 1000000U,
+        record->reflector,
+        record->sequence,
+        record->download_owd_baseline_microseconds,
+        record->download_owd_microseconds,
+        record->download_owd_delta_ewma_microseconds,
+        record->download_owd_delta_microseconds,
+        record->download_adjust_delay_threshold_microseconds,
+        record->upload_owd_baseline_microseconds,
+        record->upload_owd_microseconds,
+        record->upload_owd_delta_ewma_microseconds,
+        record->upload_owd_delta_microseconds,
+        record->upload_adjust_delay_threshold_microseconds,
+        record->download_sum_delays,
+        record->download_average_owd_delta_microseconds,
+        record->download_maximum_adjust_up_threshold_microseconds,
+        record->download_maximum_adjust_down_threshold_microseconds,
+        record->upload_sum_delays,
+        record->upload_average_owd_delta_microseconds,
+        record->upload_maximum_adjust_up_threshold_microseconds,
+        record->upload_maximum_adjust_down_threshold_microseconds,
+        record->download_load_condition,
+        record->upload_load_condition,
+        record->cake_download_rate_kbps,
+        record->cake_upload_rate_kbps
+    );
+}
+
+void log_summary(const struct log_summary_record *record)
+{
+    write_formatted_record(
+        "SUMMARY",
+        "%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
+        " %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
+        record->download_achieved_rate_kbps,
+        record->upload_achieved_rate_kbps,
+        record->download_sum_delays,
+        record->upload_sum_delays,
+        record->download_average_owd_delta_microseconds,
+        record->upload_average_owd_delta_microseconds,
+        record->download_load_condition,
+        record->upload_load_condition,
+        record->cake_download_rate_kbps,
+        record->cake_upload_rate_kbps
+    );
+}
+
+void log_shaper(
+    const char *interface,
+    uint64_t rate_kbps
+)
+{
+    write_formatted_record(
+        "SHAPER",
+        "tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
+        interface,
+        rate_kbps
+    );
 }
 
 void log_system_message(
