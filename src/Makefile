@@ -15,7 +15,7 @@ WARNINGS := \
 	-Werror
 
 TARGET := sqm-mon
-OBJECTS := main.o cake.o config.o controller.o error.o latency.o log.o netlink.o traffic.o
+OBJECTS := main.o cake.o config.o controller.o error.o latency.o log.o monitor.o netlink.o traffic.o
 
 .PHONY: all clean
 
