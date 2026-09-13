@@ -40,4 +40,13 @@ enum cake_read_result cake_read(
     size_t error_size
 );
 
+int cake_set_bandwidth(
+    struct sqm_mon_netlink *netlink,
+    const char *interface,
+    const struct cake_observation *observation,
+    uint64_t bandwidth_bits_per_second,
+    char *error,
+    size_t error_size
+);
+
 #endif

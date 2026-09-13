@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
@@ -12,11 +13,19 @@
 
 struct sqm_mon_config {
     bool enabled;
+    bool adjust_download;
+    bool adjust_upload;
     char interface[IF_NAMESIZE];
     char ingress_interface[IF_NAMESIZE];
     char latency_target[SQM_MON_LATENCY_TARGET_SIZE];
     char log_file[SQM_MON_LOG_FILE_SIZE];
     char log_level[SQM_MON_LOG_LEVEL_SIZE];
+    uint64_t minimum_download_rate_bits_per_second;
+    uint64_t base_download_rate_bits_per_second;
+    uint64_t maximum_download_rate_bits_per_second;
+    uint64_t minimum_upload_rate_bits_per_second;
+    uint64_t base_upload_rate_bits_per_second;
+    uint64_t maximum_upload_rate_bits_per_second;
 };
 
 int config_load(

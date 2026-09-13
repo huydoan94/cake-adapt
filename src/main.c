@@ -18,13 +18,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/signalfd.h>
+#include <time.h>
 #include <unistd.h>
 
 #define SQM_MON_CAKE_ERROR_SIZE 256U
 #define SQM_MON_CONFIG_ERROR_SIZE 256U
 #define SQM_MON_LATENCY_ERROR_SIZE 256U
 #define SQM_MON_LATENCY_TIMEOUT_MILLISECONDS 500
-#define SQM_MON_TRAFFIC_ERROR_SIZE 256U
 #define SQM_MON_TRAFFIC_INTERVAL_MILLISECONDS 1000
 
 enum cake_observation_state {
@@ -32,6 +32,12 @@ enum cake_observation_state {
     CAKE_OBSERVATION_AVAILABLE,
     CAKE_OBSERVATION_NOT_FOUND,
     CAKE_OBSERVATION_FAILED
+};
+
+enum traffic_observation_state {
+    TRAFFIC_OBSERVATION_UNKNOWN,
+    TRAFFIC_OBSERVATION_AVAILABLE,
+    TRAFFIC_OBSERVATION_UNAVAILABLE
 };
 
 static void print_usage(const char *program_name)
@@ -45,85 +51,101 @@ static void print_usage(const char *program_name)
 
 static bool observe_traffic(
     struct sqm_mon_traffic_monitor *monitor,
+    enum traffic_observation_state *state,
+    const char *direction,
     const char *interface,
-    bool *read_failed,
-    struct traffic_rates *rates
+    const struct cake_observation *cake,
+    bool cake_valid,
+    const struct timespec *timestamp,
+    uint64_t *rate_bits_per_second
 )
 {
-    struct traffic_sample sample;
-    char error[SQM_MON_TRAFFIC_ERROR_SIZE] = "";
+    struct traffic_sample sample = {
+        .bytes = cake_valid ? cake->bytes : 0U,
+        .qdisc_handle = cake_valid ? cake->handle : 0U,
+        .qdisc_parent = cake_valid ? cake->parent : 0U,
+        .timestamp = *timestamp
+    };
     enum traffic_update_result update_result;
 
-    memset(rates, 0, sizeof(*rates));
-
-    if (traffic_read(
-            interface,
-            &sample,
-            error,
-            sizeof(error)
-        ) != 0) {
-        if (!*read_failed) {
+    *rate_bits_per_second = 0U;
+    if (!cake_valid || !cake->has_basic_stats) {
+        if (*state != TRAFFIC_OBSERVATION_UNAVAILABLE) {
             log_message(
                 LOG_LEVEL_WARNING,
-                "traffic observation degraded: interface=%s: %s",
-                interface,
-                error
+                "traffic observation unavailable: direction=%s interface=%s"
+                " source=CAKE basic stats",
+                direction,
+                interface
             );
-            traffic_monitor_init(monitor);
         }
-
-        *read_failed = true;
+        *state = TRAFFIC_OBSERVATION_UNAVAILABLE;
+        traffic_monitor_init(monitor);
         return false;
     }
 
-    if (*read_failed) {
+    if (*state == TRAFFIC_OBSERVATION_UNAVAILABLE) {
         log_message(
             LOG_LEVEL_NOTICE,
-            "traffic observation recovered: interface=%s",
+            "traffic observation recovered: direction=%s interface=%s"
+            " source=CAKE basic stats",
+            direction,
             interface
         );
-        *read_failed = false;
     }
+    *state = TRAFFIC_OBSERVATION_AVAILABLE;
 
     update_result = traffic_monitor_update(
         monitor,
         &sample,
-        rates
+        rate_bits_per_second
     );
 
     switch (update_result) {
     case TRAFFIC_UPDATE_BASELINE:
         log_message(
             LOG_LEVEL_INFO,
-            "traffic observation initialized: interface=%s",
+            "traffic observation initialized: direction=%s interface=%s"
+            " source=CAKE basic stats",
+            direction,
             interface
         );
         break;
     case TRAFFIC_UPDATE_RATES:
         log_message(
             LOG_LEVEL_DEBUG,
-            "traffic: interface=%s rx_bytes=%" PRIu64
-            " tx_bytes=%" PRIu64
-            " rx_rate=%" PRIu64 " bit/s"
-            " tx_rate=%" PRIu64 " bit/s",
+            "traffic: direction=%s interface=%s source=cake"
+            " bytes=%" PRIu64 " rate=%" PRIu64 " bit/s",
+            direction,
             interface,
-            sample.rx_bytes,
-            sample.tx_bytes,
-            rates->rx_bits_per_second,
-            rates->tx_bits_per_second
+            sample.bytes,
+            *rate_bits_per_second
         );
         return true;
     case TRAFFIC_UPDATE_COUNTER_RESET:
         log_message(
             LOG_LEVEL_WARNING,
-            "traffic counters reset: interface=%s",
+            "CAKE traffic counter reset; re-baselining:"
+            " direction=%s interface=%s",
+            direction,
             interface
+        );
+        break;
+    case TRAFFIC_UPDATE_QDISC_REPLACED:
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "CAKE qdisc changed; traffic observation re-baselined:"
+            " direction=%s interface=%s handle=0x%08" PRIx32,
+            direction,
+            interface,
+            sample.qdisc_handle
         );
         break;
     case TRAFFIC_UPDATE_INVALID_INTERVAL:
         log_message(
             LOG_LEVEL_WARNING,
-            "traffic sample interval was invalid: interface=%s",
+            "traffic sample interval was invalid: direction=%s interface=%s",
+            direction,
             interface
         );
         break;
@@ -367,11 +389,14 @@ struct observation_context {
     struct sqm_mon_latency latency;
     struct latency_tracker latency_tracker;
     struct sqm_mon_netlink netlink;
-    struct sqm_mon_traffic_monitor traffic_monitor;
+    struct sqm_mon_traffic_monitor download_traffic_monitor;
+    struct sqm_mon_traffic_monitor upload_traffic_monitor;
     enum cake_observation_state ingress_cake_state;
     enum cake_observation_state upload_cake_state;
+    enum traffic_observation_state download_traffic_state;
+    enum traffic_observation_state upload_traffic_state;
     bool latency_observation_failed;
-    bool traffic_read_failed;
+    bool traffic_clock_failed;
 };
 
 static const char *line_state_name(enum controller_line_state state)
@@ -470,10 +495,103 @@ static void log_congestion_state(
     );
 }
 
+static const char *rate_reason_name(enum controller_rate_reason reason)
+{
+    switch (reason) {
+    case CONTROLLER_RATE_UNCHANGED:
+        return "unchanged";
+    case CONTROLLER_RATE_INITIAL:
+        return "initial";
+    case CONTROLLER_RATE_CONGESTION:
+        return "congestion";
+    case CONTROLLER_RATE_HIGH_LOAD:
+        return "high-load";
+    case CONTROLLER_RATE_RETURN_TO_BASE:
+        return "return-to-base";
+    case CONTROLLER_RATE_RECONCILE:
+        return "reconcile";
+    }
+
+    return "invalid";
+}
+
+static void apply_bandwidth(
+    struct sqm_mon_netlink *netlink,
+    const char *direction,
+    const char *interface,
+    const struct cake_observation *current,
+    uint64_t desired_rate,
+    enum controller_rate_reason reason
+)
+{
+    struct cake_observation verified;
+    char error[SQM_MON_CAKE_ERROR_SIZE] = "";
+    enum cake_read_result read_result;
+
+    if (cake_set_bandwidth(
+            netlink,
+            interface,
+            current,
+            desired_rate,
+            error,
+            sizeof(error)
+        ) != 0) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "CAKE bandwidth change failed: direction=%s interface=%s"
+            " old_rate=%" PRIu64 " bit/s desired_rate=%" PRIu64
+            " bit/s reason=%s: %s",
+            direction,
+            interface,
+            current->bandwidth_bits_per_second,
+            desired_rate,
+            rate_reason_name(reason),
+            error
+        );
+        return;
+    }
+
+    read_result = cake_read(
+        netlink,
+        interface,
+        &verified,
+        error,
+        sizeof(error)
+    );
+    if (read_result != CAKE_READ_FOUND || !verified.has_bandwidth ||
+        verified.bandwidth_bits_per_second != desired_rate) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "CAKE bandwidth verification failed: direction=%s interface=%s"
+            " desired_rate=%" PRIu64 " bit/s result=%s",
+            direction,
+            interface,
+            desired_rate,
+            read_result == CAKE_READ_ERROR
+                ? error
+                : "readback did not match"
+        );
+        return;
+    }
+
+    log_message(
+        LOG_LEVEL_NOTICE,
+        "CAKE bandwidth changed: direction=%s interface=%s"
+        " old_rate=%" PRIu64 " bit/s new_rate=%" PRIu64
+        " bit/s reason=%s",
+        direction,
+        interface,
+        current->bandwidth_bits_per_second,
+        verified.bandwidth_bits_per_second,
+        rate_reason_name(reason)
+    );
+}
+
 static void update_controller(
     struct sqm_mon_controller *controller,
+    struct sqm_mon_netlink *netlink,
+    const struct sqm_mon_config *config,
     const struct traffic_rates *rates,
-    bool traffic_valid,
     const struct cake_observation *ingress_cake,
     bool ingress_cake_valid,
     const struct cake_observation *upload_cake,
@@ -482,23 +600,25 @@ static void update_controller(
     bool latency_valid
 )
 {
+    struct timespec current_time;
     struct controller_input input = {
         .download = {
-            .valid = traffic_valid &&
+            .valid = rates->download_valid &&
                 ingress_cake_valid &&
                 ingress_cake->has_bandwidth &&
                 ingress_cake->bandwidth_bits_per_second > 0U,
-            .traffic_rate_bits_per_second = rates->rx_bits_per_second,
+            .traffic_rate_bits_per_second =
+                rates->download_bits_per_second,
             .cake_rate_bits_per_second = ingress_cake_valid
                 ? ingress_cake->bandwidth_bits_per_second
                 : 0U
         },
         .upload = {
-            .valid = traffic_valid &&
+            .valid = rates->upload_valid &&
                 upload_cake_valid &&
                 upload_cake->has_bandwidth &&
                 upload_cake->bandwidth_bits_per_second > 0U,
-            .traffic_rate_bits_per_second = rates->tx_bits_per_second,
+            .traffic_rate_bits_per_second = rates->upload_bits_per_second,
             .cake_rate_bits_per_second = upload_cake_valid
                 ? upload_cake->bandwidth_bits_per_second
                 : 0U
@@ -511,9 +631,17 @@ static void update_controller(
             .baseline_rtt_microseconds = latency_valid
                 ? latency->baseline_microseconds
                 : 0U
-        }
+        },
+        .timestamp_microseconds = 0U
     };
     struct controller_output output;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &current_time) == 0 &&
+        current_time.tv_sec >= 0) {
+        input.timestamp_microseconds =
+            (uint64_t)current_time.tv_sec * 1000000U +
+            (uint64_t)current_time.tv_nsec / 1000U;
+    }
 
     controller_update(controller, &input, &output);
     if (output.download_state_changed) {
@@ -536,6 +664,26 @@ static void update_controller(
             &input.latency
         );
     }
+    if (config->adjust_download && output.download_rate_changed) {
+        apply_bandwidth(
+            netlink,
+            "download",
+            config->ingress_interface,
+            ingress_cake,
+            output.download_rate_bits_per_second,
+            output.download_rate_reason
+        );
+    }
+    if (config->adjust_upload && output.upload_rate_changed) {
+        apply_bandwidth(
+            netlink,
+            "upload",
+            config->interface,
+            upload_cake,
+            output.upload_rate_bits_per_second,
+            output.upload_rate_reason
+        );
+    }
 }
 
 static void observe_cycle(
@@ -546,18 +694,12 @@ static void observe_cycle(
     struct cake_observation ingress_cake;
     struct cake_observation upload_cake;
     struct latency_observation latency = { 0U, 0U, 0U };
-    struct traffic_rates rates;
+    struct traffic_rates rates = { 0U, 0U, false, false };
+    struct timespec traffic_timestamp;
     bool ingress_cake_valid = false;
     bool latency_valid = false;
-    bool traffic_valid;
     bool upload_cake_valid;
 
-    traffic_valid = observe_traffic(
-        &context->traffic_monitor,
-        config->interface,
-        &context->traffic_read_failed,
-        &rates
-    );
     if (config->latency_target[0] != '\0') {
         latency_valid = observe_latency(
             &context->latency,
@@ -581,10 +723,53 @@ static void observe_cycle(
             &ingress_cake
         );
     }
+    if (clock_gettime(CLOCK_MONOTONIC, &traffic_timestamp) != 0) {
+        if (!context->traffic_clock_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "traffic observation degraded: monotonic clock failed: %s",
+                strerror(errno)
+            );
+        }
+        context->traffic_clock_failed = true;
+        traffic_monitor_init(&context->download_traffic_monitor);
+        traffic_monitor_init(&context->upload_traffic_monitor);
+    } else {
+        if (context->traffic_clock_failed) {
+            log_message(
+                LOG_LEVEL_NOTICE,
+                "traffic observation recovered: monotonic clock available"
+            );
+            context->traffic_clock_failed = false;
+        }
+        if (config->ingress_interface[0] != '\0') {
+            rates.download_valid = observe_traffic(
+                &context->download_traffic_monitor,
+                &context->download_traffic_state,
+                "download",
+                config->ingress_interface,
+                &ingress_cake,
+                ingress_cake_valid,
+                &traffic_timestamp,
+                &rates.download_bits_per_second
+            );
+        }
+        rates.upload_valid = observe_traffic(
+            &context->upload_traffic_monitor,
+            &context->upload_traffic_state,
+            "upload",
+            config->interface,
+            &upload_cake,
+            upload_cake_valid,
+            &traffic_timestamp,
+            &rates.upload_bits_per_second
+        );
+    }
     update_controller(
         &context->controller,
+        &context->netlink,
+        config,
         &rates,
-        traffic_valid,
         &ingress_cake,
         ingress_cake_valid,
         &upload_cake,
@@ -599,6 +784,26 @@ static int run_event_loop(
     const struct sqm_mon_config *config
 )
 {
+    const struct controller_config controller_config = {
+        .download = {
+            .adjust = config->adjust_download,
+            .minimum_rate_bits_per_second =
+                config->minimum_download_rate_bits_per_second,
+            .base_rate_bits_per_second =
+                config->base_download_rate_bits_per_second,
+            .maximum_rate_bits_per_second =
+                config->maximum_download_rate_bits_per_second
+        },
+        .upload = {
+            .adjust = config->adjust_upload,
+            .minimum_rate_bits_per_second =
+                config->minimum_upload_rate_bits_per_second,
+            .base_rate_bits_per_second =
+                config->base_upload_rate_bits_per_second,
+            .maximum_rate_bits_per_second =
+                config->maximum_upload_rate_bits_per_second
+        }
+    };
     struct pollfd descriptor = {
         .fd = signal_file_descriptor,
         .events = POLLIN,
@@ -607,16 +812,19 @@ static int run_event_loop(
     struct observation_context context = {
         .ingress_cake_state = CAKE_OBSERVATION_UNKNOWN,
         .upload_cake_state = CAKE_OBSERVATION_UNKNOWN,
+        .download_traffic_state = TRAFFIC_OBSERVATION_UNKNOWN,
+        .upload_traffic_state = TRAFFIC_OBSERVATION_UNKNOWN,
         .latency_observation_failed = false,
-        .traffic_read_failed = false
+        .traffic_clock_failed = false
     };
     int result = -1;
 
-    controller_init(&context.controller);
+    controller_init(&context.controller, &controller_config);
     latency_init(&context.latency);
     latency_tracker_init(&context.latency_tracker);
     netlink_init(&context.netlink);
-    traffic_monitor_init(&context.traffic_monitor);
+    traffic_monitor_init(&context.download_traffic_monitor);
+    traffic_monitor_init(&context.upload_traffic_monitor);
 
     if (config->latency_target[0] == '\0') {
         log_message(
@@ -844,6 +1052,26 @@ int main(int argc, char **argv)
         config.log_level,
         config.log_file[0] == '\0' ? "disabled" : config.log_file
     );
+    if (config.adjust_download) {
+        log_message(
+            LOG_LEVEL_INFO,
+            "download adjustment configured: minimum=%" PRIu64
+            " bit/s base=%" PRIu64 " bit/s maximum=%" PRIu64 " bit/s",
+            config.minimum_download_rate_bits_per_second,
+            config.base_download_rate_bits_per_second,
+            config.maximum_download_rate_bits_per_second
+        );
+    }
+    if (config.adjust_upload) {
+        log_message(
+            LOG_LEVEL_INFO,
+            "upload adjustment configured: minimum=%" PRIu64
+            " bit/s base=%" PRIu64 " bit/s maximum=%" PRIu64 " bit/s",
+            config.minimum_upload_rate_bits_per_second,
+            config.base_upload_rate_bits_per_second,
+            config.maximum_upload_rate_bits_per_second
+        );
+    }
 
     signal_file_descriptor = create_signal_descriptor(&previous_mask);
     if (signal_file_descriptor < 0) {
@@ -851,7 +1079,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
+    if (config.adjust_download || config.adjust_upload) {
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "started with CAKE bandwidth control: download=%s upload=%s",
+            config.adjust_download ? "enabled" : "disabled",
+            config.adjust_upload ? "enabled" : "disabled"
+        );
+    } else {
+        log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
+    }
     result = run_event_loop(
         signal_file_descriptor,
         &config

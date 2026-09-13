@@ -320,6 +320,7 @@ static int handle_qdisc(
 
     traffic_control = NLMSG_DATA(message);
     if (traffic_control->tcm_ifindex != (int)context->interface_index ||
+        traffic_control->tcm_parent != TC_H_ROOT ||
         context->found) {
         return 0;
     }
@@ -394,4 +395,66 @@ enum cake_read_result cake_read(
     }
 
     return context.found ? CAKE_READ_FOUND : CAKE_READ_NOT_FOUND;
+}
+
+int cake_set_bandwidth(
+    struct sqm_mon_netlink *netlink,
+    const char *interface,
+    const struct cake_observation *observation,
+    uint64_t bandwidth_bits_per_second,
+    char *error,
+    size_t error_size
+)
+{
+    uint64_t bandwidth_bytes_per_second;
+    unsigned int interface_index;
+
+    if (observation == NULL) {
+        set_error(error, error_size, "CAKE observation is null");
+        return -1;
+    }
+    if (bandwidth_bits_per_second < 8U ||
+        bandwidth_bits_per_second % 8U != 0U) {
+        set_error(
+            error,
+            error_size,
+            "CAKE bandwidth must be a positive multiple of 8 bit/s"
+        );
+        return -1;
+    }
+
+    errno = 0;
+    interface_index = if_nametoindex(interface);
+    if (interface_index == 0U) {
+        set_error(
+            error,
+            error_size,
+            "could not find interface '%s': %s",
+            interface,
+            errno == 0 ? "unknown interface" : strerror(errno)
+        );
+        return -1;
+    }
+    if (netlink_open(netlink, error, error_size) != 0) {
+        return -1;
+    }
+
+    bandwidth_bytes_per_second = bandwidth_bits_per_second / 8U;
+    if (netlink_change_qdisc_option(
+            netlink,
+            interface_index,
+            observation->handle,
+            observation->parent,
+            "cake",
+            TCA_CAKE_BASE_RATE64,
+            &bandwidth_bytes_per_second,
+            sizeof(bandwidth_bytes_per_second),
+            error,
+            error_size
+        ) != 0) {
+        netlink_close(netlink);
+        return -1;
+    }
+
+    return 0;
 }

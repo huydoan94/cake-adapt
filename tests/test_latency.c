@@ -83,7 +83,7 @@ static void test_lower_sample_reduces_baseline(void)
     (void)track(&tracker, 30000U);
     observation = track(&tracker, 25000U);
 
-    assert(observation.baseline_microseconds == 25000U);
+    assert(observation.baseline_microseconds == 25500U);
     assert(observation.delta_microseconds == 0U);
 }
 
@@ -96,24 +96,21 @@ static void test_higher_sample_reports_delta(void)
     (void)track(&tracker, 25000U);
     observation = track(&tracker, 40000U);
 
-    assert(observation.baseline_microseconds == 25000U);
-    assert(observation.delta_microseconds == 15000U);
+    assert(observation.baseline_microseconds == 25015U);
+    assert(observation.delta_microseconds == 14985U);
 }
 
-static void test_baseline_adapts_after_old_minimum_expires(void)
+static void test_baseline_increases_slowly(void)
 {
     struct latency_tracker tracker;
-    struct latency_observation observation = { 0U, 0U, 0U };
-    unsigned int index;
+    struct latency_observation observation;
 
     latency_tracker_init(&tracker);
     (void)track(&tracker, 10000U);
-    for (index = 0U; index < LATENCY_BASELINE_WINDOW_SAMPLES; index++) {
-        observation = track(&tracker, 20000U);
-    }
+    observation = track(&tracker, 20000U);
 
-    assert(observation.baseline_microseconds == 20000U);
-    assert(observation.delta_microseconds == 0U);
+    assert(observation.baseline_microseconds == 10010U);
+    assert(observation.delta_microseconds == 9990U);
 }
 
 static void test_maximum_rtt_does_not_overflow_delta(void)
@@ -125,8 +122,8 @@ static void test_maximum_rtt_does_not_overflow_delta(void)
     (void)track(&tracker, 1U);
     observation = track(&tracker, UINT32_MAX);
 
-    assert(observation.baseline_microseconds == 1U);
-    assert(observation.delta_microseconds == UINT32_MAX - 1U);
+    assert(observation.baseline_microseconds == 4294968U);
+    assert(observation.delta_microseconds == 4290672327U);
 }
 
 int main(void)
@@ -137,7 +134,7 @@ int main(void)
     test_first_sample_establishes_baseline();
     test_lower_sample_reduces_baseline();
     test_higher_sample_reports_delta();
-    test_baseline_adapts_after_old_minimum_expires();
+    test_baseline_increases_slowly();
     test_maximum_rtt_does_not_overflow_delta();
 
     (void)puts("latency tests passed");

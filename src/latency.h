@@ -2,10 +2,9 @@
 #define SQM_MON_LATENCY_H
 
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#define LATENCY_BASELINE_WINDOW_SAMPLES 300U
 
 struct sqm_mon_latency {
     int socket_descriptor;
@@ -31,9 +30,8 @@ struct latency_observation {
 };
 
 struct latency_tracker {
-    uint32_t samples[LATENCY_BASELINE_WINDOW_SAMPLES];
-    size_t next_sample;
-    size_t sample_count;
+    uint64_t baseline_scaled;
+    bool initialized;
 };
 
 void latency_init(struct sqm_mon_latency *latency);

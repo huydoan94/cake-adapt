@@ -35,4 +35,17 @@ int netlink_dump_qdiscs(
     size_t error_size
 );
 
+int netlink_change_qdisc_option(
+    struct sqm_mon_netlink *netlink,
+    unsigned int interface_index,
+    uint32_t handle,
+    uint32_t parent,
+    const char *kind,
+    unsigned short option_type,
+    const void *option_data,
+    size_t option_size,
+    char *error,
+    size_t error_size
+);
+
 #endif

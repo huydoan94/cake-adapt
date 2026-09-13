@@ -18,6 +18,9 @@
 #include <unistd.h>
 
 #define LATENCY_RESPONSE_SIZE 256U
+#define BASELINE_SCALE 1000U
+#define BASELINE_INCREASE_WEIGHT 1U
+#define BASELINE_DECREASE_WEIGHT 900U
 
 static void set_error(
     char *error,
@@ -354,8 +357,8 @@ void latency_close(struct sqm_mon_latency *latency)
 
 void latency_tracker_init(struct latency_tracker *tracker)
 {
-    tracker->next_sample = 0U;
-    tracker->sample_count = 0U;
+    tracker->baseline_scaled = 0U;
+    tracker->initialized = false;
 }
 
 void latency_tracker_update(
@@ -364,29 +367,34 @@ void latency_tracker_update(
     struct latency_observation *observation
 )
 {
-    uint32_t baseline;
-    size_t index;
+    uint64_t sample_scaled =
+        (uint64_t)sample->round_trip_microseconds * BASELINE_SCALE;
+    unsigned int sample_weight;
 
-    tracker->samples[tracker->next_sample] =
-        sample->round_trip_microseconds;
-    tracker->next_sample =
-        (tracker->next_sample + 1U) % LATENCY_BASELINE_WINDOW_SAMPLES;
-    if (tracker->sample_count < LATENCY_BASELINE_WINDOW_SAMPLES) {
-        tracker->sample_count++;
-    }
-
-    baseline = tracker->samples[0];
-    for (index = 1U; index < tracker->sample_count; index++) {
-        if (tracker->samples[index] < baseline) {
-            baseline = tracker->samples[index];
-        }
+    if (!tracker->initialized) {
+        tracker->baseline_scaled = sample_scaled;
+        tracker->initialized = true;
+    } else {
+        sample_weight = sample_scaled < tracker->baseline_scaled
+            ? BASELINE_DECREASE_WEIGHT
+            : BASELINE_INCREASE_WEIGHT;
+        tracker->baseline_scaled = (
+            tracker->baseline_scaled * (BASELINE_SCALE - sample_weight) +
+            sample_scaled * sample_weight + BASELINE_SCALE / 2U
+        ) / BASELINE_SCALE;
     }
 
     observation->round_trip_microseconds =
         sample->round_trip_microseconds;
-    observation->baseline_microseconds = baseline;
-    observation->delta_microseconds =
-        sample->round_trip_microseconds - baseline;
+    observation->baseline_microseconds = (uint32_t)(
+        (tracker->baseline_scaled + BASELINE_SCALE / 2U) /
+            BASELINE_SCALE
+    );
+    observation->delta_microseconds = sample->round_trip_microseconds >
+            observation->baseline_microseconds
+        ? sample->round_trip_microseconds -
+            observation->baseline_microseconds
+        : 0U;
 }
 
 enum latency_probe_result latency_probe(
