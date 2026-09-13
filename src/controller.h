@@ -62,27 +62,22 @@ struct controller_input {
     uint64_t timestamp_microseconds;
 };
 
+struct controller_direction_output {
+    enum controller_line_state state;
+    enum controller_congestion_state congestion;
+    enum controller_rate_reason rate_reason;
+    uint64_t rate_bits_per_second;
+    int64_t delay_sum_microseconds;
+    int64_t average_delay_microseconds;
+    unsigned int delayed_sample_count;
+    bool state_changed;
+    bool congestion_changed;
+    bool rate_changed;
+};
+
 struct controller_output {
-    enum controller_line_state download_state;
-    enum controller_line_state upload_state;
-    enum controller_congestion_state download_congestion;
-    enum controller_congestion_state upload_congestion;
-    enum controller_rate_reason download_rate_reason;
-    enum controller_rate_reason upload_rate_reason;
-    uint64_t download_rate_bits_per_second;
-    uint64_t upload_rate_bits_per_second;
-    int64_t download_delay_sum_microseconds;
-    int64_t upload_delay_sum_microseconds;
-    int64_t download_average_delay_microseconds;
-    int64_t upload_average_delay_microseconds;
-    unsigned int download_delayed_sample_count;
-    unsigned int upload_delayed_sample_count;
-    bool download_state_changed;
-    bool upload_state_changed;
-    bool download_congestion_changed;
-    bool upload_congestion_changed;
-    bool download_rate_changed;
-    bool upload_rate_changed;
+    struct controller_direction_output download;
+    struct controller_direction_output upload;
 };
 
 struct controller_direction {

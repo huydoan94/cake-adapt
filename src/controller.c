@@ -381,24 +381,63 @@ static void set_rate_output(
     const struct controller_direction *direction,
     const struct controller_direction_input *input,
     enum controller_rate_reason reason,
-    uint64_t *rate,
-    bool *changed,
-    enum controller_rate_reason *output_reason
+    struct controller_direction_output *output
 )
 {
     if (!direction->config.adjust) {
-        *rate = input->cake_rate_bits_per_second;
-        *changed = false;
-        *output_reason = CONTROLLER_RATE_UNCHANGED;
+        output->rate_bits_per_second = input->cake_rate_bits_per_second;
+        output->rate_changed = false;
+        output->rate_reason = CONTROLLER_RATE_UNCHANGED;
         return;
     }
 
-    *rate = direction->shaper_rate_bits_per_second;
-    *changed = input->valid &&
-        input->cake_rate_bits_per_second != *rate;
-    *output_reason = *changed && reason == CONTROLLER_RATE_UNCHANGED
+    output->rate_bits_per_second = direction->shaper_rate_bits_per_second;
+    output->rate_changed = input->valid &&
+        input->cake_rate_bits_per_second != output->rate_bits_per_second;
+    output->rate_reason = output->rate_changed &&
+        reason == CONTROLLER_RATE_UNCHANGED
         ? CONTROLLER_RATE_RECONCILE
         : reason;
+}
+
+static void update_direction(
+    struct controller_direction *direction,
+    const struct controller_direction_input *input,
+    const struct controller_latency_input *latency,
+    uint64_t timestamp_microseconds,
+    struct controller_direction_output *output
+)
+{
+    enum controller_line_state previous_state = direction->state;
+    enum controller_congestion_state previous_congestion =
+        direction->congestion;
+    enum controller_rate_reason reason;
+
+    output->state = update_line_state(direction, input);
+    output->congestion = update_congestion(
+        direction,
+        latency,
+        &output->average_delay_microseconds
+    );
+    reason = adjust_rate(
+        direction,
+        input,
+        latency->valid,
+        output->average_delay_microseconds,
+        timestamp_microseconds
+    );
+    set_rate_output(
+        direction,
+        input,
+        reason,
+        output
+    );
+
+    output->delay_sum_microseconds = direction->delay_sum_microseconds;
+    output->delayed_sample_count = direction->delayed_sample_count;
+    output->state_changed = output->state != previous_state;
+    output->congestion_changed =
+        output->congestion != previous_congestion;
 }
 
 void controller_update(
@@ -407,83 +446,18 @@ void controller_update(
     struct controller_output *output
 )
 {
-    enum controller_line_state previous_download = controller->download.state;
-    enum controller_line_state previous_upload = controller->upload.state;
-    enum controller_congestion_state previous_download_congestion =
-        controller->download.congestion;
-    enum controller_congestion_state previous_upload_congestion =
-        controller->upload.congestion;
-    enum controller_rate_reason download_reason;
-    enum controller_rate_reason upload_reason;
-    int64_t download_average_delay;
-    int64_t upload_average_delay;
-
-    output->download_state = update_line_state(
-        &controller->download,
-        &input->download
-    );
-    output->upload_state = update_line_state(
-        &controller->upload,
-        &input->upload
-    );
-    output->download_congestion = update_congestion(
-        &controller->download,
-        &input->latency,
-        &download_average_delay
-    );
-    output->upload_congestion = update_congestion(
-        &controller->upload,
-        &input->latency,
-        &upload_average_delay
-    );
-
-    download_reason = adjust_rate(
+    update_direction(
         &controller->download,
         &input->download,
-        input->latency.valid,
-        download_average_delay,
-        input->timestamp_microseconds
+        &input->latency,
+        input->timestamp_microseconds,
+        &output->download
     );
-    upload_reason = adjust_rate(
+    update_direction(
         &controller->upload,
         &input->upload,
-        input->latency.valid,
-        upload_average_delay,
-        input->timestamp_microseconds
+        &input->latency,
+        input->timestamp_microseconds,
+        &output->upload
     );
-    set_rate_output(
-        &controller->download,
-        &input->download,
-        download_reason,
-        &output->download_rate_bits_per_second,
-        &output->download_rate_changed,
-        &output->download_rate_reason
-    );
-    set_rate_output(
-        &controller->upload,
-        &input->upload,
-        upload_reason,
-        &output->upload_rate_bits_per_second,
-        &output->upload_rate_changed,
-        &output->upload_rate_reason
-    );
-
-    output->download_delay_sum_microseconds =
-        controller->download.delay_sum_microseconds;
-    output->upload_delay_sum_microseconds =
-        controller->upload.delay_sum_microseconds;
-    output->download_average_delay_microseconds = download_average_delay;
-    output->upload_average_delay_microseconds = upload_average_delay;
-    output->download_delayed_sample_count =
-        controller->download.delayed_sample_count;
-    output->upload_delayed_sample_count =
-        controller->upload.delayed_sample_count;
-
-    output->download_state_changed =
-        output->download_state != previous_download;
-    output->upload_state_changed = output->upload_state != previous_upload;
-    output->download_congestion_changed =
-        output->download_congestion != previous_download_congestion;
-    output->upload_congestion_changed =
-        output->upload_congestion != previous_upload_congestion;
 }

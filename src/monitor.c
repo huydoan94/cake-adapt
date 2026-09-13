@@ -505,8 +505,8 @@ static void log_controller_stats(
 {
     char download_condition[LOAD_CONDITION_SIZE];
     char upload_condition[LOAD_CONDITION_SIZE];
-    uint64_t download_rate = output->download_rate_bits_per_second / 1000U;
-    uint64_t upload_rate = output->upload_rate_bits_per_second / 1000U;
+    uint64_t download_rate = output->download.rate_bits_per_second / 1000U;
+    uint64_t upload_rate = output->upload.rate_bits_per_second / 1000U;
     uint32_t one_way_baseline = latency->baseline_microseconds / 2U;
     uint32_t one_way_delay = latency->round_trip_microseconds / 2U;
     int64_t one_way_delta = latency->delta_microseconds / 2;
@@ -518,7 +518,7 @@ static void log_controller_stats(
         input->download.traffic_rate_bits_per_second,
         input->download.cake_rate_bits_per_second,
         config->connection_active_threshold_bits_per_second,
-        output->download_congestion
+        output->download.congestion
     );
     load_condition(
         upload_condition,
@@ -527,7 +527,7 @@ static void log_controller_stats(
         input->upload.traffic_rate_bits_per_second,
         input->upload.cake_rate_bits_per_second,
         config->connection_active_threshold_bits_per_second,
-        output->upload_congestion
+        output->upload.congestion
     );
 
     if (config->output_processing_stats) {
@@ -567,16 +567,16 @@ static void log_controller_stats(
             .upload_adjust_delay_threshold_microseconds =
                 CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
             .download_sum_delays =
-                output->download_delayed_sample_count,
+                output->download.delayed_sample_count,
             .download_average_owd_delta_microseconds =
-                output->download_average_delay_microseconds,
+                output->download.average_delay_microseconds,
             .download_maximum_adjust_up_threshold_microseconds =
                 CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
             .download_maximum_adjust_down_threshold_microseconds =
                 CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
-            .upload_sum_delays = output->upload_delayed_sample_count,
+            .upload_sum_delays = output->upload.delayed_sample_count,
             .upload_average_owd_delta_microseconds =
-                output->upload_average_delay_microseconds,
+                output->upload.average_delay_microseconds,
             .upload_maximum_adjust_up_threshold_microseconds =
                 CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
             .upload_maximum_adjust_down_threshold_microseconds =
@@ -597,12 +597,12 @@ static void log_controller_stats(
             .upload_achieved_rate_kbps =
                 input->upload.traffic_rate_bits_per_second / 1000U,
             .download_sum_delays =
-                output->download_delayed_sample_count,
-            .upload_sum_delays = output->upload_delayed_sample_count,
+                output->download.delayed_sample_count,
+            .upload_sum_delays = output->upload.delayed_sample_count,
             .download_average_owd_delta_microseconds =
-                output->download_average_delay_microseconds,
+                output->download.average_delay_microseconds,
             .upload_average_owd_delta_microseconds =
-                output->upload_average_delay_microseconds,
+                output->upload.average_delay_microseconds,
             .download_load_condition = download_condition,
             .upload_load_condition = upload_condition,
             .cake_download_rate_kbps = download_rate,
@@ -733,45 +733,45 @@ static void update_controller(
     }
 
     controller_update(controller, &input, &output);
-    if (output.download_state_changed) {
+    if (output.download.state_changed) {
         log_line_state(
             download->name,
-            output.download_state,
+            output.download.state,
             &input.download
         );
     }
-    if (output.upload_state_changed) {
-        log_line_state(upload->name, output.upload_state, &input.upload);
+    if (output.upload.state_changed) {
+        log_line_state(upload->name, output.upload.state, &input.upload);
     }
-    if (output.download_congestion_changed) {
+    if (output.download.congestion_changed) {
         log_congestion_state(
             download->name,
-            output.download_congestion,
+            output.download.congestion,
             &input.latency
         );
     }
-    if (output.upload_congestion_changed) {
+    if (output.upload.congestion_changed) {
         log_congestion_state(
             upload->name,
-            output.upload_congestion,
+            output.upload.congestion,
             &input.latency
         );
     }
-    if (config->adjust_download && output.download_rate_changed) {
+    if (config->adjust_download && output.download.rate_changed) {
         apply_bandwidth(
             netlink,
             download,
-            output.download_rate_bits_per_second,
-            output.download_rate_reason,
+            output.download.rate_bits_per_second,
+            output.download.rate_reason,
             config->output_cake_changes
         );
     }
-    if (config->adjust_upload && output.upload_rate_changed) {
+    if (config->adjust_upload && output.upload.rate_changed) {
         apply_bandwidth(
             netlink,
             upload,
-            output.upload_rate_bits_per_second,
-            output.upload_rate_reason,
+            output.upload.rate_bits_per_second,
+            output.upload.rate_reason,
             config->output_cake_changes
         );
     }

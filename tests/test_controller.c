@@ -76,9 +76,9 @@ static void accept_rates(
 )
 {
     input->download.cake_rate_bits_per_second =
-        output->download_rate_bits_per_second;
+        output->download.rate_bits_per_second;
     input->upload.cake_rate_bits_per_second =
-        output->upload_rate_bits_per_second;
+        output->upload.rate_bits_per_second;
 }
 
 static void test_initial_state_is_unknown(void)
@@ -109,12 +109,12 @@ static void test_low_load_is_below_capacity(void)
     controller_init(&controller, &config);
     controller_update(&controller, &input, &output);
 
-    assert(output.download_state == CONTROLLER_LINE_BELOW_CAPACITY);
-    assert(output.upload_state == CONTROLLER_LINE_BELOW_CAPACITY);
-    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
-    assert(output.upload_congestion == CONTROLLER_CONGESTION_CLEAR);
-    assert(!output.download_rate_changed);
-    assert(!output.upload_rate_changed);
+    assert(output.download.state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.upload.state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(!output.download.rate_changed);
+    assert(!output.upload.rate_changed);
 }
 
 static void test_sustained_download_is_saturated(void)
@@ -131,14 +131,14 @@ static void test_sustained_download_is_saturated(void)
 
     controller_init(&controller, &config);
     controller_update(&controller, &input, &output);
-    assert(output.download_state == CONTROLLER_LINE_UNKNOWN);
+    assert(output.download.state == CONTROLLER_LINE_UNKNOWN);
     controller_update(&controller, &input, &output);
-    assert(output.download_state == CONTROLLER_LINE_UNKNOWN);
+    assert(output.download.state == CONTROLLER_LINE_UNKNOWN);
     controller_update(&controller, &input, &output);
 
-    assert(output.download_state == CONTROLLER_LINE_SATURATED);
-    assert(output.download_state_changed);
-    assert(output.upload_state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.download.state == CONTROLLER_LINE_SATURATED);
+    assert(output.download.state_changed);
+    assert(output.upload.state == CONTROLLER_LINE_BELOW_CAPACITY);
 }
 
 static void test_brief_burst_does_not_saturate(void)
@@ -163,7 +163,7 @@ static void test_brief_burst_does_not_saturate(void)
     update_repeatedly(&controller, &high, &output, 2U);
     controller_update(&controller, &low, &output);
 
-    assert(output.download_state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.download.state == CONTROLLER_LINE_BELOW_CAPACITY);
 }
 
 static void test_line_hysteresis_and_recovery(void)
@@ -193,12 +193,12 @@ static void test_line_hysteresis_and_recovery(void)
     controller_init(&controller, &config);
     update_repeatedly(&controller, &high, &output, 3U);
     update_repeatedly(&controller, &middle, &output, 5U);
-    assert(output.download_state == CONTROLLER_LINE_SATURATED);
+    assert(output.download.state == CONTROLLER_LINE_SATURATED);
 
     update_repeatedly(&controller, &low, &output, 2U);
-    assert(output.download_state == CONTROLLER_LINE_SATURATED);
+    assert(output.download.state == CONTROLLER_LINE_SATURATED);
     controller_update(&controller, &low, &output);
-    assert(output.download_state == CONTROLLER_LINE_BELOW_CAPACITY);
+    assert(output.download.state == CONTROLLER_LINE_BELOW_CAPACITY);
 }
 
 static void test_invalid_direction_returns_to_unknown(void)
@@ -218,8 +218,8 @@ static void test_invalid_direction_returns_to_unknown(void)
     input.download.valid = false;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_state == CONTROLLER_LINE_UNKNOWN);
-    assert(output.download_state_changed);
+    assert(output.download.state == CONTROLLER_LINE_UNKNOWN);
+    assert(output.download.state_changed);
 }
 
 static void test_three_of_six_delays_detect_bufferbloat(void)
@@ -237,18 +237,18 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
     input.latency.current_rtt_microseconds = 90002U;
     controller_init(&controller, &config);
     update_repeatedly(&controller, &input, &output, 2U);
-    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
     controller_update(&controller, &input, &output);
 
-    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
-    assert(output.upload_congestion == CONTROLLER_CONGESTION_DETECTED);
-    assert(output.download_congestion_changed);
-    assert(output.download_delayed_sample_count == 3U);
-    assert(output.upload_delayed_sample_count == 3U);
-    assert(output.download_delay_sum_microseconds == 90003U);
-    assert(output.upload_delay_sum_microseconds == 90003U);
-    assert(output.download_average_delay_microseconds == 15000U);
-    assert(output.upload_average_delay_microseconds == 15000U);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download.congestion_changed);
+    assert(output.download.delayed_sample_count == 3U);
+    assert(output.upload.delayed_sample_count == 3U);
+    assert(output.download.delay_sum_microseconds == 90003U);
+    assert(output.upload.delay_sum_microseconds == 90003U);
+    assert(output.download.average_delay_microseconds == 15000U);
+    assert(output.upload.average_delay_microseconds == 15000U);
 }
 
 static void test_below_baseline_delay_remains_signed(void)
@@ -268,12 +268,12 @@ static void test_below_baseline_delay_remains_signed(void)
     controller_init(&controller, &config);
     controller_update(&controller, &input, &output);
 
-    assert(output.download_delay_sum_microseconds == -3000);
-    assert(output.upload_delay_sum_microseconds == -3000);
-    assert(output.download_average_delay_microseconds == -500);
-    assert(output.upload_average_delay_microseconds == -500);
-    assert(output.download_delayed_sample_count == 0U);
-    assert(output.upload_delayed_sample_count == 0U);
+    assert(output.download.delay_sum_microseconds == -3000);
+    assert(output.upload.delay_sum_microseconds == -3000);
+    assert(output.download.average_delay_microseconds == -500);
+    assert(output.upload.average_delay_microseconds == -500);
+    assert(output.download.delayed_sample_count == 0U);
+    assert(output.upload.delayed_sample_count == 0U);
 }
 
 static void test_delay_window_clears_after_old_delays_expire(void)
@@ -293,11 +293,11 @@ static void test_delay_window_clears_after_old_delays_expire(void)
     update_repeatedly(&controller, &input, &output, 3U);
     input.latency.current_rtt_microseconds = 30000U;
     update_repeatedly(&controller, &input, &output, 3U);
-    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
     controller_update(&controller, &input, &output);
 
-    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
-    assert(output.download_congestion_changed);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.download.congestion_changed);
 }
 
 static void test_missing_probe_holds_delay_window(void)
@@ -317,11 +317,11 @@ static void test_missing_probe_holds_delay_window(void)
     update_repeatedly(&controller, &input, &output, 2U);
     input.latency.valid = false;
     controller_update(&controller, &input, &output);
-    assert(output.download_congestion == CONTROLLER_CONGESTION_UNKNOWN);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
     input.latency.valid = true;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
 }
 
 static void test_initial_rate_is_baseline(void)
@@ -339,10 +339,10 @@ static void test_initial_rate_is_baseline(void)
     controller_init(&controller, &config);
     controller_update(&controller, &input, &output);
 
-    assert(output.download_rate_bits_per_second == 8U * MEBABIT);
-    assert(output.upload_rate_bits_per_second == 8U * MEBABIT);
-    assert(output.download_rate_changed);
-    assert(output.download_rate_reason == CONTROLLER_RATE_INITIAL);
+    assert(output.download.rate_bits_per_second == 8U * MEBABIT);
+    assert(output.upload.rate_bits_per_second == 8U * MEBABIT);
+    assert(output.download.rate_changed);
+    assert(output.download.rate_reason == CONTROLLER_RATE_INITIAL);
 }
 
 static void test_initial_rate_waits_for_valid_qdisc_input(void)
@@ -360,14 +360,14 @@ static void test_initial_rate_waits_for_valid_qdisc_input(void)
     input.download.valid = false;
     controller_init(&controller, &config);
     controller_update(&controller, &input, &output);
-    assert(!output.download_rate_changed);
+    assert(!output.download.rate_changed);
     assert(controller.download.initial_rate_pending);
 
     input.download.valid = true;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 8U * MEBABIT);
-    assert(output.download_rate_changed);
-    assert(output.download_rate_reason == CONTROLLER_RATE_INITIAL);
+    assert(output.download.rate_bits_per_second == 8U * MEBABIT);
+    assert(output.download.rate_changed);
+    assert(output.download.rate_reason == CONTROLLER_RATE_INITIAL);
 }
 
 static void test_high_load_increases_rate_four_percent(void)
@@ -387,9 +387,9 @@ static void test_high_load_increases_rate_four_percent(void)
     input.timestamp_microseconds += 300000U;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_rate_bits_per_second == 8320000U);
-    assert(output.download_rate_changed);
-    assert(output.download_rate_reason == CONTROLLER_RATE_HIGH_LOAD);
+    assert(output.download.rate_bits_per_second == 8320000U);
+    assert(output.download.rate_changed);
+    assert(output.download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
 }
 
 static void test_high_load_waits_for_congestion_refractory_period(void)
@@ -408,13 +408,13 @@ static void test_high_load_waits_for_congestion_refractory_period(void)
     controller_update(&controller, &input, &output);
     input.timestamp_microseconds += 299999U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 8U * MEBABIT);
-    assert(!output.download_rate_changed);
+    assert(output.download.rate_bits_per_second == 8U * MEBABIT);
+    assert(!output.download.rate_changed);
 
     input.timestamp_microseconds++;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 8320000U);
-    assert(output.download_rate_reason == CONTROLLER_RATE_HIGH_LOAD);
+    assert(output.download.rate_bits_per_second == 8320000U);
+    assert(output.download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
 }
 
 static void test_severe_bufferbloat_reduces_both_rates(void)
@@ -439,11 +439,11 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
     input.timestamp_microseconds += 150000U;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
-    assert(output.download_rate_bits_per_second == 6U * MEBABIT);
-    assert(output.upload_rate_bits_per_second == 6U * MEBABIT);
-    assert(output.download_rate_reason == CONTROLLER_RATE_CONGESTION);
-    assert(output.upload_rate_reason == CONTROLLER_RATE_CONGESTION);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download.rate_bits_per_second == 6U * MEBABIT);
+    assert(output.upload.rate_bits_per_second == 6U * MEBABIT);
+    assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
+    assert(output.upload.rate_reason == CONTROLLER_RATE_CONGESTION);
 }
 
 static void test_bufferbloat_reduction_scales_with_average_delay(void)
@@ -468,8 +468,8 @@ static void test_bufferbloat_reduction_scales_with_average_delay(void)
     input.timestamp_microseconds += 150000U;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_congestion == CONTROLLER_CONGESTION_DETECTED);
-    assert(output.download_rate_bits_per_second == 6960000U);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download.rate_bits_per_second == 6960000U);
 }
 
 static void test_bufferbloat_reduction_observes_refractory_period(void)
@@ -492,18 +492,18 @@ static void test_bufferbloat_reduction_observes_refractory_period(void)
     controller_update(&controller, &input, &output);
     input.timestamp_microseconds += 150000U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 6U * MEBABIT);
+    assert(output.download.rate_bits_per_second == 6U * MEBABIT);
     accept_rates(&input, &output);
 
     input.timestamp_microseconds += 299999U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 6U * MEBABIT);
-    assert(!output.download_rate_changed);
+    assert(output.download.rate_bits_per_second == 6U * MEBABIT);
+    assert(!output.download.rate_changed);
 
     input.timestamp_microseconds++;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 5U * MEBABIT);
-    assert(output.download_rate_reason == CONTROLLER_RATE_CONGESTION);
+    assert(output.download.rate_bits_per_second == 5U * MEBABIT);
+    assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
 }
 
 static void test_low_load_returns_rate_toward_baseline(void)
@@ -526,10 +526,10 @@ static void test_low_load_returns_rate_toward_baseline(void)
     input.timestamp_microseconds = 2000000U;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_rate_bits_per_second == 9900000U);
-    assert(output.upload_rate_bits_per_second == 6060000U);
-    assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
-    assert(output.upload_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    assert(output.download.rate_bits_per_second == 9900000U);
+    assert(output.upload.rate_bits_per_second == 6060000U);
+    assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    assert(output.upload.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
 }
 
 static void test_low_load_waits_for_decay_refractory_period(void)
@@ -552,13 +552,13 @@ static void test_low_load_waits_for_decay_refractory_period(void)
 
     input.timestamp_microseconds += 999999U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 10U * MEBABIT);
-    assert(!output.download_rate_changed);
+    assert(output.download.rate_bits_per_second == 10U * MEBABIT);
+    assert(!output.download.rate_changed);
 
     input.timestamp_microseconds++;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 9900000U);
-    assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    assert(output.download.rate_bits_per_second == 9900000U);
+    assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
 }
 
 static void test_congestion_restarts_decay_refractory_period(void)
@@ -592,17 +592,17 @@ static void test_congestion_restarts_decay_refractory_period(void)
         input.timestamp_microseconds++;
         controller_update(&controller, &input, &output);
     }
-    assert(output.download_congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
 
     input.timestamp_microseconds = adjustment_time + 999999U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 6U * MEBABIT);
-    assert(!output.download_rate_changed);
+    assert(output.download.rate_bits_per_second == 6U * MEBABIT);
+    assert(!output.download.rate_changed);
 
     input.timestamp_microseconds++;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 6060000U);
-    assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    assert(output.download.rate_bits_per_second == 6060000U);
+    assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
 }
 
 static void test_high_load_restarts_decay_refractory_period(void)
@@ -629,13 +629,13 @@ static void test_high_load_restarts_decay_refractory_period(void)
     input.download.traffic_rate_bits_per_second = 1U * MEBABIT;
     input.timestamp_microseconds = adjustment_time + 999999U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 8320000U);
-    assert(!output.download_rate_changed);
+    assert(output.download.rate_bits_per_second == 8320000U);
+    assert(!output.download.rate_changed);
 
     input.timestamp_microseconds++;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 8236800U);
-    assert(output.download_rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    assert(output.download.rate_bits_per_second == 8236800U);
+    assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
 }
 
 static void test_rate_limits_are_hard_bounds(void)
@@ -655,7 +655,7 @@ static void test_rate_limits_are_hard_bounds(void)
     controller_update(&controller, &input, &output);
     input.timestamp_microseconds += 300000U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 8100000U);
+    assert(output.download.rate_bits_per_second == 8100000U);
 
     config.download.minimum_rate_bits_per_second = 7U * MEBABIT;
     config.download.maximum_rate_bits_per_second = 12U * MEBABIT;
@@ -668,7 +668,7 @@ static void test_rate_limits_are_hard_bounds(void)
     controller_update(&controller, &input, &output);
     input.timestamp_microseconds += 150000U;
     controller_update(&controller, &input, &output);
-    assert(output.download_rate_bits_per_second == 7U * MEBABIT);
+    assert(output.download.rate_bits_per_second == 7U * MEBABIT);
 }
 
 static void test_invalid_sample_does_not_adjust_rate(void)
@@ -688,10 +688,10 @@ static void test_invalid_sample_does_not_adjust_rate(void)
     input.latency.valid = false;
     controller_update(&controller, &input, &output);
 
-    assert(output.download_rate_bits_per_second == 8U * MEBABIT);
-    assert(output.upload_rate_bits_per_second == 8U * MEBABIT);
-    assert(!output.download_rate_changed);
-    assert(!output.upload_rate_changed);
+    assert(output.download.rate_bits_per_second == 8U * MEBABIT);
+    assert(output.upload.rate_bits_per_second == 8U * MEBABIT);
+    assert(!output.download.rate_changed);
+    assert(!output.upload.rate_changed);
 }
 
 int main(void)
