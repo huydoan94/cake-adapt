@@ -15,7 +15,20 @@ WARNINGS := \
 	-Werror
 
 TARGET := sqm-mon
-OBJECTS := main.o cake.o config.o controller.o error.o latency.o log.o monitor.o netlink.o traffic.o
+SOURCES := \
+	main.c \
+	cake.c \
+	config.c \
+	controller.c \
+	error.c \
+	latency.c \
+	log.c \
+	monitor.c \
+	netlink.c \
+	traffic.c
+OBJECT_DIR ?= ../build
+OBJECTS := $(SOURCES:%.c=$(OBJECT_DIR)/%.o)
+DEPENDENCIES := $(OBJECTS:.o=.d)
 
 .PHONY: all clean
 
@@ -24,10 +37,13 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox
 
-%.o: %.c
+$(OBJECT_DIR):
+	mkdir -p $@
+
+$(OBJECT_DIR)/%.o: %.c | $(OBJECT_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS) $(OBJECTS:.o=.d)
+	$(RM) $(TARGET) $(OBJECTS) $(DEPENDENCIES)
 
--include $(OBJECTS:.o=.d)
+-include $(DEPENDENCIES)

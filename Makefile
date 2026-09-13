@@ -30,7 +30,8 @@ define Build/Compile
 		$(TARGET_CONFIGURE_OPTS) \
 		CPPFLAGS="$(TARGET_CPPFLAGS)" \
 		CFLAGS="$(TARGET_CFLAGS)" \
-		LDFLAGS="$(TARGET_LDFLAGS)"
+		LDFLAGS="$(TARGET_LDFLAGS)" \
+		OBJECT_DIR="$(PKG_BUILD_DIR)/build"
 endef
 
 define Package/sqm-mon/conffiles
