@@ -258,17 +258,34 @@ The objective is a smaller native implementation for the required use case.
 
 ## Relationship with cake-autorate
 
+The primary target is full behavioral replacement of `cake-autorate` in native
+C. This includes its probing, reflector management, load classification,
+bufferbloat detection, rate adjustment, sleep/stall handling, logging and other
+operational behavior required by its configuration.
+
+Port that behavior incrementally and verify each step. Keep every
+cake-autorate configuration option represented in the typed UCI configuration
+model so the remaining work can be tackled one option or subsystem at a time.
+An option may be parsed and stored before its behavior is implemented, but do
+not describe it as operational until the corresponding code is complete and
+tested.
+
 The first meaningful functional replacement is the continuously running autorate controller.
 
 Initially, existing SQM may continue creating CAKE and IFB while `sqm-mon` only observes or adjusts an already-created CAKE instance.
 
-Only after that behavior is verified should sqm-mon assume ownership of:
+Only after cake-autorate replacement behavior is verified should sqm-mon assume
+ownership of:
 
 * CAKE creation
 * IFB creation
 * ingress redirect
 * ctinfo action
 * cleanup
+
+Replacing `sqm-scripts` remains a possible later phase, not a committed
+requirement. Proceed with it only when the user decides the native replacement
+is suitable for their deployment.
 
 ---
 
