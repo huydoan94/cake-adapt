@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <math.h>
+#include <spawn.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -25,6 +26,8 @@
 #define BASELINE_INCREASE_WEIGHT 1U
 #define BASELINE_DECREASE_WEIGHT 900U
 #define DELTA_EWMA_WEIGHT 95U
+
+extern char **environ;
 
 static bool parse_unsigned(
     const char *start,
@@ -206,7 +209,6 @@ static int set_nonblocking(
 )
 {
     int flags = fcntl(descriptor, F_GETFL);
-
     if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
         error_set(
             error,
@@ -262,33 +264,95 @@ static void stop_child(pid_t process_identifier)
     }
 }
 
-static int read_exec_result(
-    int descriptor,
-    int *exec_error
+static int spawn_fping(
+    pid_t *process_identifier,
+    const int output_pipe[2],
+    const int diagnostic_pipe[2],
+    char *const arguments[],
+    char *error,
+    size_t error_size
 )
 {
-    unsigned char *destination = (unsigned char *)(void *)exec_error;
-    size_t received = 0U;
+    posix_spawn_file_actions_t actions;
+    posix_spawnattr_t attributes;
+    sigset_t child_signal_mask;
+    int result;
 
-    while (received < sizeof(*exec_error)) {
-        ssize_t result = read(
-            descriptor,
-            destination + received,
-            sizeof(*exec_error) - received
-        );
-
-        if (result == 0) {
-            return received == 0U ? 0 : -1;
-        }
-        if (result < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            return -1;
-        }
-        received += (size_t)result;
+    result = posix_spawn_file_actions_init(&actions);
+    if (result != 0) {
+        goto failed;
     }
-    return 1;
+    if ((result = posix_spawn_file_actions_addclose(
+            &actions,
+            output_pipe[0]
+        )) != 0 ||
+        (result = posix_spawn_file_actions_addclose(
+            &actions,
+            diagnostic_pipe[0]
+        )) != 0 ||
+        (result = posix_spawn_file_actions_adddup2(
+            &actions,
+            output_pipe[1],
+            STDOUT_FILENO
+        )) != 0 ||
+        (result = posix_spawn_file_actions_adddup2(
+            &actions,
+            diagnostic_pipe[1],
+            STDERR_FILENO
+        )) != 0 ||
+        (result = posix_spawn_file_actions_addclose(
+            &actions,
+            output_pipe[1]
+        )) != 0 ||
+        (result = posix_spawn_file_actions_addclose(
+            &actions,
+            diagnostic_pipe[1]
+        )) != 0) {
+        goto destroy_actions;
+    }
+
+    result = posix_spawnattr_init(&attributes);
+    if (result != 0) {
+        goto destroy_actions;
+    }
+    if (sigemptyset(&child_signal_mask) != 0) {
+        result = errno;
+        goto destroy_attributes;
+    }
+
+    result = posix_spawnattr_setsigmask(&attributes, &child_signal_mask);
+    if (result == 0) {
+        result = posix_spawnattr_setflags(
+            &attributes,
+            POSIX_SPAWN_SETSIGMASK
+        );
+    }
+    if (result == 0) {
+        result = posix_spawn(
+            process_identifier,
+            FPING_PATH,
+            &actions,
+            &attributes,
+            arguments,
+            environ
+        );
+    }
+
+destroy_attributes:
+    (void)posix_spawnattr_destroy(&attributes);
+destroy_actions:
+    (void)posix_spawn_file_actions_destroy(&actions);
+failed:
+    if (result != 0) {
+        error_set(
+            error,
+            error_size,
+            "could not start fping: %s",
+            strerror(result)
+        );
+        return -1;
+    }
+    return 0;
 }
 
 static int start_fping(
@@ -306,13 +370,9 @@ static int start_fping(
     char **arguments;
     int output_pipe[2] = { -1, -1 };
     int diagnostic_pipe[2] = { -1, -1 };
-    int exec_pipe[2] = { -1, -1 };
-    sigset_t child_signal_mask;
     pid_t process_identifier;
     uint64_t period;
     uint64_t response_interval;
-    int exec_error = 0;
-    int exec_result;
     size_t index;
 
     if (target_count == 0U) {
@@ -372,19 +432,8 @@ static int start_fping(
         arguments[12U + index] = (char *)targets[index];
     }
 
-    if (sigemptyset(&child_signal_mask) != 0) {
-        error_set(
-            error,
-            error_size,
-            "could not prepare fping signal mask: %s",
-            strerror(errno)
-        );
-        free(arguments);
-        return -1;
-    }
     if (pipe2(output_pipe, O_CLOEXEC) != 0 ||
-        pipe2(diagnostic_pipe, O_CLOEXEC) != 0 ||
-        pipe2(exec_pipe, O_CLOEXEC) != 0) {
+        pipe2(diagnostic_pipe, O_CLOEXEC) != 0) {
         error_set(
             error,
             error_size,
@@ -393,72 +442,29 @@ static int start_fping(
         );
         close_pipe(output_pipe);
         close_pipe(diagnostic_pipe);
-        close_pipe(exec_pipe);
         free(arguments);
         return -1;
     }
 
-    process_identifier = fork();
-    if (process_identifier < 0) {
-        error_set(
+    if (spawn_fping(
+            &process_identifier,
+            output_pipe,
+            diagnostic_pipe,
+            arguments,
             error,
-            error_size,
-            "could not start fping: %s",
-            strerror(errno)
-        );
+            error_size
+        ) != 0) {
         close_pipe(output_pipe);
         close_pipe(diagnostic_pipe);
-        close_pipe(exec_pipe);
         free(arguments);
         return -1;
-    }
-
-    if (process_identifier == 0) {
-        int child_error = 0;
-
-        (void)close(output_pipe[0]);
-        (void)close(diagnostic_pipe[0]);
-        (void)close(exec_pipe[0]);
-        if (sigprocmask(SIG_SETMASK, &child_signal_mask, NULL) != 0 ||
-            dup2(output_pipe[1], STDOUT_FILENO) < 0 ||
-            dup2(diagnostic_pipe[1], STDERR_FILENO) < 0) {
-            child_error = errno;
-        } else {
-            (void)close(output_pipe[1]);
-            (void)close(diagnostic_pipe[1]);
-            execv(FPING_PATH, arguments);
-            child_error = errno;
-        }
-        while (write(exec_pipe[1], &child_error, sizeof(child_error)) < 0 &&
-               errno == EINTR) {
-        }
-        _exit(127);
     }
 
     (void)close(output_pipe[1]);
     output_pipe[1] = -1;
     (void)close(diagnostic_pipe[1]);
     diagnostic_pipe[1] = -1;
-    (void)close(exec_pipe[1]);
-    exec_pipe[1] = -1;
-
-    exec_result = read_exec_result(exec_pipe[0], &exec_error);
-    close_pipe(exec_pipe);
     free(arguments);
-    if (exec_result != 0) {
-        error_set(
-            error,
-            error_size,
-            exec_result > 0
-                ? "could not execute fping: %s"
-                : "could not confirm fping startup: %s",
-            exec_result > 0 ? strerror(exec_error) : strerror(errno)
-        );
-        close_pipe(output_pipe);
-        close_pipe(diagnostic_pipe);
-        stop_child(process_identifier);
-        return -1;
-    }
 
     if (set_nonblocking(output_pipe[0], error, error_size) != 0 ||
         set_nonblocking(diagnostic_pipe[0], error, error_size) != 0) {
