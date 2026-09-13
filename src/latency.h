@@ -11,7 +11,6 @@
 
 struct sqm_mon_latency {
     int output_descriptor;
-    int diagnostic_descriptor;
     pid_t process_identifier;
     char output_buffer[LATENCY_OUTPUT_SIZE];
     size_t output_length;

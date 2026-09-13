@@ -1128,7 +1128,6 @@ enum event_descriptor {
     EVENT_SIGNAL,
     EVENT_TRAFFIC_TIMER,
     EVENT_LATENCY_OUTPUT,
-    EVENT_LATENCY_DIAGNOSTIC,
     EVENT_DESCRIPTOR_COUNT
 };
 
@@ -1172,11 +1171,6 @@ static int run_event_loop(
             .fd = -1,
             .events = POLLIN,
             .revents = 0
-        },
-        [EVENT_LATENCY_DIAGNOSTIC] = {
-            .fd = -1,
-            .events = POLLIN,
-            .revents = 0
         }
     };
     struct observation_context context = {
@@ -1216,8 +1210,6 @@ static int run_event_loop(
 
         descriptors[EVENT_LATENCY_OUTPUT].fd =
             context.latency.output_descriptor;
-        descriptors[EVENT_LATENCY_DIAGNOSTIC].fd =
-            context.latency.diagnostic_descriptor;
         for (index = 0U; index < EVENT_DESCRIPTOR_COUNT; index++) {
             descriptors[index].revents = 0;
         }
@@ -1318,8 +1310,7 @@ static int run_event_loop(
         }
 
         if (latency_is_open(&context.latency) &&
-            ((descriptors[EVENT_LATENCY_OUTPUT].revents |
-                descriptors[EVENT_LATENCY_DIAGNOSTIC].revents) &
+            (descriptors[EVENT_LATENCY_OUTPUT].revents &
                 (POLLIN | POLLERR | POLLHUP | POLLNVAL)) != 0) {
             receive_latency_samples(&context, config);
         }

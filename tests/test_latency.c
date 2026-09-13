@@ -12,7 +12,6 @@ static void test_initial_state_is_closed(void)
     latency_init(&latency);
 
     assert(latency.output_descriptor == -1);
-    assert(latency.diagnostic_descriptor == -1);
     assert(latency.process_identifier == -1);
     assert(!latency_is_open(&latency));
 }
@@ -87,7 +86,6 @@ static void test_close_is_idempotent(void)
     latency_close(&latency);
 
     assert(latency.output_descriptor == -1);
-    assert(latency.diagnostic_descriptor == -1);
     assert(latency.process_identifier == -1);
 }
 

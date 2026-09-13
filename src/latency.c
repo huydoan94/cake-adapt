@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #define FPING_PATH "/usr/bin/fping"
+#define NULL_PATH "/dev/null"
 #define FPING_TIMEOUT_MILLISECONDS "10000"
 #define CHILD_STOP_ATTEMPTS 50U
 #define CHILD_STOP_INTERVAL_NANOSECONDS 10000000L
@@ -267,7 +268,6 @@ static void stop_child(pid_t process_identifier)
 static int spawn_fping(
     pid_t *process_identifier,
     const int output_pipe[2],
-    const int diagnostic_pipe[2],
     char *const arguments[],
     char *error,
     size_t error_size
@@ -286,27 +286,21 @@ static int spawn_fping(
             &actions,
             output_pipe[0]
         )) != 0 ||
-        (result = posix_spawn_file_actions_addclose(
-            &actions,
-            diagnostic_pipe[0]
-        )) != 0 ||
         (result = posix_spawn_file_actions_adddup2(
             &actions,
             output_pipe[1],
             STDOUT_FILENO
         )) != 0 ||
-        (result = posix_spawn_file_actions_adddup2(
-            &actions,
-            diagnostic_pipe[1],
-            STDERR_FILENO
-        )) != 0 ||
         (result = posix_spawn_file_actions_addclose(
             &actions,
             output_pipe[1]
         )) != 0 ||
-        (result = posix_spawn_file_actions_addclose(
+        (result = posix_spawn_file_actions_addopen(
             &actions,
-            diagnostic_pipe[1]
+            STDERR_FILENO,
+            NULL_PATH,
+            O_WRONLY,
+            0
         )) != 0) {
         goto destroy_actions;
     }
@@ -369,7 +363,6 @@ static int start_fping(
     char response_interval_milliseconds[32];
     char **arguments;
     int output_pipe[2] = { -1, -1 };
-    int diagnostic_pipe[2] = { -1, -1 };
     pid_t process_identifier;
     uint64_t period;
     uint64_t response_interval;
@@ -432,8 +425,7 @@ static int start_fping(
         arguments[12U + index] = (char *)targets[index];
     }
 
-    if (pipe2(output_pipe, O_CLOEXEC) != 0 ||
-        pipe2(diagnostic_pipe, O_CLOEXEC) != 0) {
+    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
         error_set(
             error,
             error_size,
@@ -441,7 +433,6 @@ static int start_fping(
             strerror(errno)
         );
         close_pipe(output_pipe);
-        close_pipe(diagnostic_pipe);
         free(arguments);
         return -1;
     }
@@ -449,33 +440,26 @@ static int start_fping(
     if (spawn_fping(
             &process_identifier,
             output_pipe,
-            diagnostic_pipe,
             arguments,
             error,
             error_size
         ) != 0) {
         close_pipe(output_pipe);
-        close_pipe(diagnostic_pipe);
         free(arguments);
         return -1;
     }
 
     (void)close(output_pipe[1]);
     output_pipe[1] = -1;
-    (void)close(diagnostic_pipe[1]);
-    diagnostic_pipe[1] = -1;
     free(arguments);
 
-    if (set_nonblocking(output_pipe[0], error, error_size) != 0 ||
-        set_nonblocking(diagnostic_pipe[0], error, error_size) != 0) {
+    if (set_nonblocking(output_pipe[0], error, error_size) != 0) {
         close_pipe(output_pipe);
-        close_pipe(diagnostic_pipe);
         stop_child(process_identifier);
         return -1;
     }
 
     latency->output_descriptor = output_pipe[0];
-    latency->diagnostic_descriptor = diagnostic_pipe[0];
     latency->process_identifier = process_identifier;
     latency->output_length = 0U;
     return 0;
@@ -558,7 +542,6 @@ void latency_init(struct sqm_mon_latency *latency)
 {
     *latency = (struct sqm_mon_latency) {
         .output_descriptor = -1,
-        .diagnostic_descriptor = -1,
         .process_identifier = -1,
         .output_buffer = "",
         .output_length = 0U
@@ -596,7 +579,6 @@ static bool target_is_valid(const char *target)
 bool latency_is_open(const struct sqm_mon_latency *latency)
 {
     return latency->output_descriptor >= 0 &&
-        latency->diagnostic_descriptor >= 0 &&
         latency->process_identifier > 0;
 }
 
@@ -660,11 +642,7 @@ void latency_close(struct sqm_mon_latency *latency)
     if (latency->output_descriptor >= 0) {
         (void)close(latency->output_descriptor);
     }
-    if (latency->diagnostic_descriptor >= 0) {
-        (void)close(latency->diagnostic_descriptor);
-    }
     latency->output_descriptor = -1;
-    latency->diagnostic_descriptor = -1;
     latency->process_identifier = -1;
     latency->output_length = 0U;
     stop_child(process_identifier);
@@ -789,49 +767,6 @@ enum latency_probe_result latency_receive(
         if (latency->output_length == sizeof(latency->output_buffer)) {
             error_set(error, error_size, "fping output line is too long");
             return LATENCY_PROBE_ERROR;
-        }
-
-        {
-            char diagnostic[256];
-            ssize_t received = read(
-                latency->diagnostic_descriptor,
-                diagnostic,
-                sizeof(diagnostic) - 1U
-            );
-
-            if (received > 0) {
-                size_t length = (size_t)received;
-
-                diagnostic[length] = '\0';
-                while (length > 0U &&
-                       (diagnostic[length - 1U] == '\n' ||
-                        diagnostic[length - 1U] == '\r')) {
-                    diagnostic[--length] = '\0';
-                }
-                error_set(
-                    error,
-                    error_size,
-                    "fping reported: %.180s",
-                    diagnostic
-                );
-                return LATENCY_PROBE_ERROR;
-            }
-            if (received == 0) {
-                set_child_exit_error(latency, error, error_size);
-                return LATENCY_PROBE_ERROR;
-            }
-            if (received < 0 && errno == EINTR) {
-                continue;
-            }
-            if (received < 0 && errno != EAGAIN) {
-                error_set(
-                    error,
-                    error_size,
-                    "could not read fping diagnostics: %s",
-                    strerror(errno)
-                );
-                return LATENCY_PROBE_ERROR;
-            }
         }
 
         {
