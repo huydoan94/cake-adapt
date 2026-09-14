@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <time.h>
 
 #define ERROR_SIZE 256U
@@ -274,6 +275,8 @@ struct observation_context {
     bool latency_observation_failed;
     bool traffic_clock_failed;
     bool health_clock_failed;
+    uint64_t last_reflector_replacement_microseconds;
+    uint64_t last_reflector_comparison_microseconds;
 };
 
 struct event_loop {
@@ -296,6 +299,17 @@ static bool monotonic_microseconds(uint64_t *timestamp_microseconds)
     *timestamp_microseconds =
         (uint64_t)timestamp.tv_sec * 1000000U +
         (uint64_t)timestamp.tv_nsec / 1000U;
+    return true;
+}
+
+static bool random_index(size_t count, size_t *index)
+{
+    uint32_t value;
+    /* no_pingers is validated as 1..CONFIG_MAX_REFLECTORS at startup. */
+    if (getentropy(&value, sizeof(value)) != 0) {
+        return false;
+    }
+    *index = (size_t)(value % (uint32_t)count);
     return true;
 }
 
@@ -710,7 +724,6 @@ static void update_controller(
     const char *reflector
 )
 {
-    struct timespec current_time;
     struct controller_input input = {
         .download = direction_input(download),
         .upload = direction_input(upload),
@@ -727,12 +740,7 @@ static void update_controller(
     };
     struct controller_output output;
 
-    if (clock_gettime(CLOCK_MONOTONIC, &current_time) == 0 &&
-        current_time.tv_sec >= 0) {
-        input.timestamp_microseconds =
-            (uint64_t)current_time.tv_sec * 1000000U +
-            (uint64_t)current_time.tv_nsec / 1000U;
-    }
+    (void)monotonic_microseconds(&input.timestamp_microseconds);
 
     controller_update(controller, &input, &output);
     if (output.download.state_changed) {
@@ -1066,7 +1074,6 @@ static bool replace_active_reflector(
     size_t active_count = (size_t)config->no_pingers;
     size_t reflector_count = (size_t)config->reflector_count;
     size_t bad_index = context->reflector_order[pinger];
-    size_t index;
 
     if (reflector_count <= active_count) {
         log_message(
@@ -1107,12 +1114,12 @@ static bool replace_active_reflector(
         latency_tracker_reset(&context->latency_trackers[bad_index]);
     }
 
-    context->reflector_order[pinger] =
-        context->reflector_order[active_count];
-    for (index = active_count; index + 1U < reflector_count; index++) {
-        context->reflector_order[index] = context->reflector_order[index + 1U];
-    }
-    context->reflector_order[reflector_count - 1U] = bad_index;
+    reflector_rotate(
+        context->reflector_order,
+        reflector_count,
+        active_count,
+        pinger
+    );
     reflector_health_reset(
         &context->reflector_health[pinger],
         timestamp_microseconds
@@ -1152,6 +1159,169 @@ static struct event_loop *event_loop_from_reflector_health_timer(
     );
 }
 
+static bool interval_elapsed(
+    uint64_t timestamp_microseconds,
+    uint64_t previous_microseconds,
+    uint64_t interval_microseconds
+)
+{
+    return timestamp_microseconds > previous_microseconds &&
+        timestamp_microseconds - previous_microseconds > interval_microseconds;
+}
+
+static bool signed_delta_exceeds(int64_t delta, uint64_t threshold)
+{
+    return delta > 0 && (uint64_t)delta > threshold;
+}
+
+static bool compare_active_reflectors(
+    struct event_loop *loop,
+    uint64_t timestamp_microseconds
+)
+{
+    struct reflector_comparison comparisons[CONFIG_MAX_REFLECTORS];
+    size_t active_count = (size_t)loop->config->no_pingers;
+    size_t index;
+
+    reflector_compare(
+        loop->observation.latency_trackers,
+        loop->observation.reflector_order,
+        active_count,
+        comparisons
+    );
+
+    for (index = 0U; index < active_count; index++) {
+        const struct reflector_comparison *comparison = &comparisons[index];
+        const char *reflector = loop->config->reflectors[
+            loop->observation.reflector_order[index]
+        ];
+
+        if (loop->config->output_reflector_stats) {
+            const struct log_reflector_record record = {
+                .reflector = reflector,
+                .minimum_sum_owd_baselines_microseconds =
+                    comparison->minimum_sum_owd_baselines_microseconds,
+                .sum_owd_baselines_microseconds =
+                    comparison->sum_owd_baselines_microseconds,
+                .sum_owd_baselines_delta_microseconds =
+                    comparison->sum_owd_baselines_delta_microseconds,
+                .sum_owd_baselines_delta_threshold_microseconds =
+                    loop->config
+                        ->reflector_sum_owd_baselines_delta_threshold_microseconds,
+                .minimum_download_delta_ewma_microseconds =
+                    comparison->minimum_download_delta_ewma_microseconds,
+                .download_delta_ewma_microseconds =
+                    comparison->download_delta_ewma_microseconds,
+                .download_delta_ewma_delta_microseconds =
+                    comparison->download_delta_ewma_delta_microseconds,
+                .delta_ewma_delta_threshold_microseconds =
+                    loop->config
+                        ->reflector_owd_delta_ewma_delta_threshold_microseconds,
+                .minimum_upload_delta_ewma_microseconds =
+                    comparison->minimum_upload_delta_ewma_microseconds,
+                .upload_delta_ewma_microseconds =
+                    comparison->upload_delta_ewma_microseconds,
+                .upload_delta_ewma_delta_microseconds =
+                    comparison->upload_delta_ewma_delta_microseconds
+            };
+
+            log_reflector(&record);
+        }
+
+        if (comparison->sum_owd_baselines_delta_microseconds >
+            loop->config
+                ->reflector_sum_owd_baselines_delta_threshold_microseconds) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "Warning: reflector: %s sum_owd_baselines_us exceeds the"
+                " minimum by set threshold.",
+                reflector
+            );
+        } else if (signed_delta_exceeds(
+                comparison->download_delta_ewma_delta_microseconds,
+                loop->config
+                    ->reflector_owd_delta_ewma_delta_threshold_microseconds
+            )) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "Warning: reflector: %s dl_owd_delta_ewma_us exceeds the"
+                " minimum by set threshold.",
+                reflector
+            );
+        } else if (signed_delta_exceeds(
+                comparison->upload_delta_ewma_delta_microseconds,
+                loop->config
+                    ->reflector_owd_delta_ewma_delta_threshold_microseconds
+            )) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "Warning: reflector: %s ul_owd_delta_ewma_us exceeds the"
+                " minimum by set threshold.",
+                reflector
+            );
+        } else {
+            continue;
+        }
+
+        (void)replace_active_reflector(loop, index, timestamp_microseconds);
+        return true;
+    }
+    return false;
+}
+
+static bool run_scheduled_reflector_work(
+    struct event_loop *loop,
+    uint64_t timestamp_microseconds
+)
+{
+    uint64_t replacement_interval_microseconds =
+        loop->config->reflector_replacement_interval_minutes * 60000000U;
+    uint64_t comparison_interval_microseconds =
+        loop->config->reflector_comparison_interval_minutes * 60000000U;
+    size_t pinger;
+
+    if (interval_elapsed(
+            timestamp_microseconds,
+            loop->observation.last_reflector_replacement_microseconds,
+            replacement_interval_microseconds
+        )) {
+        loop->observation.last_reflector_replacement_microseconds =
+            timestamp_microseconds;
+        if (!random_index((size_t)loop->config->no_pingers, &pinger)) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "could not randomly select reflector for replacement: %s",
+                strerror(errno)
+            );
+            return false;
+        }
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "reflector: %s randomly selected for replacement.",
+            loop->config->reflectors[
+                loop->observation.reflector_order[pinger]
+            ]
+        );
+        (void)replace_active_reflector(
+            loop,
+            pinger,
+            timestamp_microseconds
+        );
+        return true;
+    }
+
+    if (interval_elapsed(
+            timestamp_microseconds,
+            loop->observation.last_reflector_comparison_microseconds,
+            comparison_interval_microseconds
+        )) {
+        loop->observation.last_reflector_comparison_microseconds =
+            timestamp_microseconds;
+        return compare_active_reflectors(loop, timestamp_microseconds);
+    }
+    return false;
+}
+
 static void handle_reflector_health_timer(struct uloop_interval *timer)
 {
     struct event_loop *loop = event_loop_from_reflector_health_timer(timer);
@@ -1176,6 +1346,9 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
             "reflector health check recovered: monotonic clock available"
         );
         loop->observation.health_clock_failed = false;
+    }
+    if (run_scheduled_reflector_work(loop, timestamp_microseconds)) {
+        return;
     }
 
     for (index = 0U; index < (size_t)loop->config->no_pingers; index++) {
@@ -1396,6 +1569,10 @@ int monitor_run(const struct sqm_mon_config *config)
         );
         goto done;
     }
+    loop.observation.last_reflector_replacement_microseconds =
+        start_microseconds;
+    loop.observation.last_reflector_comparison_microseconds =
+        start_microseconds;
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
         if (reflector_health_init(
                 &loop.observation.reflector_health[index],

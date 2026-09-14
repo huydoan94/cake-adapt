@@ -49,6 +49,14 @@ static const char summary_header[] =
     " DL_AVG_OWD_DELTA_US; UL_AVG_OWD_DELTA_US; DL_LOAD_CONDITION;"
     " UL_LOAD_CONDITION; CAKE_DL_RATE_KBPS; CAKE_UL_RATE_KBPS";
 
+static const char reflector_header[] =
+    "REFLECTOR_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; REFLECTOR;"
+    " MIN_SUM_OWD_BASELINES_US; SUM_OWD_BASELINES_US;"
+    " SUM_OWD_BASELINES_DELTA_US; SUM_OWD_BASELINES_DELTA_THR_US;"
+    " MIN_DL_DELTA_EWMA_US; DL_DELTA_EWMA_US; DL_DELTA_EWMA_DELTA_US;"
+    " DL_DELTA_EWMA_DELTA_THR; MIN_UL_DELTA_EWMA_US; UL_DELTA_EWMA_US;"
+    " UL_DELTA_EWMA_DELTA_US; UL_DELTA_EWMA_DELTA_THR";
+
 static int syslog_priority(enum log_level level)
 {
     switch (level) {
@@ -237,6 +245,7 @@ void log_set_debug_syslog(bool enabled)
 void log_print_headers(
     bool output_processing_stats,
     bool output_load_stats,
+    bool output_reflector_stats,
     bool output_summary_stats
 )
 {
@@ -245,6 +254,9 @@ void log_print_headers(
     }
     if (output_load_stats) {
         write_line(load_header);
+    }
+    if (output_reflector_stats) {
+        write_line(reflector_header);
     }
     if (output_summary_stats) {
         write_line(summary_header);
@@ -364,6 +376,29 @@ void log_summary(const struct log_summary_record *record)
         record->upload_load_condition,
         record->cake_download_rate_kbps,
         record->cake_upload_rate_kbps
+    );
+}
+
+void log_reflector(const struct log_reflector_record *record)
+{
+    write_timed_record(
+        "REFLECTOR",
+        "%s; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+        "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64
+        "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64,
+        record->reflector,
+        record->minimum_sum_owd_baselines_microseconds,
+        record->sum_owd_baselines_microseconds,
+        record->sum_owd_baselines_delta_microseconds,
+        record->sum_owd_baselines_delta_threshold_microseconds,
+        record->minimum_download_delta_ewma_microseconds,
+        record->download_delta_ewma_microseconds,
+        record->download_delta_ewma_delta_microseconds,
+        record->delta_ewma_delta_threshold_microseconds,
+        record->minimum_upload_delta_ewma_microseconds,
+        record->upload_delta_ewma_microseconds,
+        record->upload_delta_ewma_delta_microseconds,
+        record->delta_ewma_delta_threshold_microseconds
     );
 }
 

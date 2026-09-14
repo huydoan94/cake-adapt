@@ -465,8 +465,7 @@ static int start_fping(
 
 static int take_output_line(
     struct sqm_mon_latency *latency,
-    char *line,
-    size_t line_size
+    char line[LATENCY_OUTPUT_SIZE]
 )
 {
     char *newline = memchr(
@@ -486,10 +485,7 @@ static int take_output_line(
     if (length > 0U && latency->output_buffer[length - 1U] == '\r') {
         --length;
     }
-    if (length >= line_size) {
-        return -1;
-    }
-
+    /* The newline occupies a buffer byte, leaving room for the terminator. */
     memcpy(line, latency->output_buffer, length);
     line[length] = '\0';
     memmove(
@@ -809,6 +805,79 @@ enum reflector_health_result reflector_health_check(
     return offence ? REFLECTOR_OFFENCE : REFLECTOR_HEALTHY;
 }
 
+void reflector_compare(
+    const struct latency_tracker *trackers,
+    const size_t *reflector_order,
+    size_t active_count,
+    struct reflector_comparison *comparisons
+)
+{
+    uint64_t minimum_baseline;
+    int64_t minimum_delta_ewma;
+    size_t index;
+
+    minimum_baseline =
+        (uint64_t)trackers[reflector_order[0]].one_way_baseline_microseconds *
+        2U;
+    minimum_delta_ewma =
+        trackers[reflector_order[0]].one_way_delta_ewma_microseconds;
+    for (index = 1U; index < active_count; index++) {
+        const struct latency_tracker *tracker =
+            &trackers[reflector_order[index]];
+        uint64_t sum_baselines =
+            (uint64_t)tracker->one_way_baseline_microseconds * 2U;
+
+        if (sum_baselines < minimum_baseline) {
+            minimum_baseline = sum_baselines;
+        }
+        if (tracker->one_way_delta_ewma_microseconds < minimum_delta_ewma) {
+            minimum_delta_ewma = tracker->one_way_delta_ewma_microseconds;
+        }
+    }
+
+    for (index = 0U; index < active_count; index++) {
+        const struct latency_tracker *tracker =
+            &trackers[reflector_order[index]];
+        uint64_t sum_baselines =
+            (uint64_t)tracker->one_way_baseline_microseconds * 2U;
+        int64_t delta_ewma = tracker->one_way_delta_ewma_microseconds;
+
+        comparisons[index] = (struct reflector_comparison) {
+            .minimum_sum_owd_baselines_microseconds = minimum_baseline,
+            .sum_owd_baselines_microseconds = sum_baselines,
+            .sum_owd_baselines_delta_microseconds =
+                sum_baselines - minimum_baseline,
+            .minimum_download_delta_ewma_microseconds = minimum_delta_ewma,
+            .download_delta_ewma_microseconds = delta_ewma,
+            .download_delta_ewma_delta_microseconds =
+                delta_ewma - minimum_delta_ewma,
+            .minimum_upload_delta_ewma_microseconds = minimum_delta_ewma,
+            .upload_delta_ewma_microseconds = delta_ewma,
+            .upload_delta_ewma_delta_microseconds =
+                delta_ewma - minimum_delta_ewma
+        };
+    }
+}
+
+void reflector_rotate(
+    size_t *reflector_order,
+    size_t reflector_count,
+    size_t active_count,
+    size_t pinger
+)
+{
+    size_t bad_reflector;
+
+    bad_reflector = reflector_order[pinger];
+    reflector_order[pinger] = reflector_order[active_count];
+    memmove(
+        &reflector_order[active_count],
+        &reflector_order[active_count + 1U],
+        (reflector_count - active_count - 1U) * sizeof(*reflector_order)
+    );
+    reflector_order[reflector_count - 1U] = bad_reflector;
+}
+
 enum latency_probe_result latency_receive(
     struct sqm_mon_latency *latency,
     struct latency_sample *sample,
@@ -826,14 +895,9 @@ enum latency_probe_result latency_receive(
             char line[LATENCY_OUTPUT_SIZE];
             int line_result = take_output_line(
                 latency,
-                line,
-                sizeof(line)
+                line
             );
 
-            if (line_result < 0) {
-                error_set(error, error_size, "fping output line is too long");
-                return LATENCY_PROBE_ERROR;
-            }
             if (line_result > 0) {
                 enum latency_fping_line_result parse_result =
                     latency_parse_fping_line(

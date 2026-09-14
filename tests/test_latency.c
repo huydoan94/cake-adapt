@@ -358,6 +358,46 @@ static void test_reflector_health_reset_clears_offences(void)
     reflector_health_cleanup(&health);
 }
 
+static void test_reflector_comparison_uses_active_order(void)
+{
+    struct latency_tracker trackers[3];
+    const size_t order[] = { 2U, 0U };
+    struct reflector_comparison comparisons[2];
+    size_t index;
+
+    for (index = 0U; index < 3U; index++) {
+        init_tracker(&trackers[index]);
+    }
+    trackers[0].one_way_baseline_microseconds = 90000U;
+    trackers[0].one_way_delta_ewma_microseconds = -100;
+    trackers[1].one_way_baseline_microseconds = 1U;
+    trackers[1].one_way_delta_ewma_microseconds = -1000;
+    trackers[2].one_way_baseline_microseconds = 100000U;
+    trackers[2].one_way_delta_ewma_microseconds = 400;
+
+    reflector_compare(trackers, order, 2U, comparisons);
+    assert(comparisons[0].minimum_sum_owd_baselines_microseconds == 180000U);
+    assert(comparisons[0].sum_owd_baselines_microseconds == 200000U);
+    assert(comparisons[0].sum_owd_baselines_delta_microseconds == 20000U);
+    assert(comparisons[0].minimum_download_delta_ewma_microseconds == -100);
+    assert(comparisons[0].download_delta_ewma_delta_microseconds == 500);
+    assert(comparisons[0].upload_delta_ewma_delta_microseconds == 500);
+    assert(comparisons[1].sum_owd_baselines_delta_microseconds == 0U);
+    assert(comparisons[1].download_delta_ewma_delta_microseconds == 0);
+}
+
+static void test_reflector_rotation_uses_first_standby(void)
+{
+    size_t order[] = { 0U, 1U, 2U, 3U, 4U };
+
+    reflector_rotate(order, 5U, 2U, 1U);
+    assert(order[0] == 0U);
+    assert(order[1] == 2U);
+    assert(order[2] == 3U);
+    assert(order[3] == 4U);
+    assert(order[4] == 1U);
+}
+
 int main(void)
 {
     test_initial_state_is_closed();
@@ -381,6 +421,8 @@ int main(void)
     test_reflector_health_rejects_invalid_window();
     test_latency_tracker_reset_discards_measurements();
     test_reflector_health_reset_clears_offences();
+    test_reflector_comparison_uses_active_order();
+    test_reflector_rotation_uses_first_standby();
 
     (void)puts("latency tests passed");
     return 0;

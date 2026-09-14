@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/random.h>
 #include <unistd.h>
 
 #define ERROR_SIZE 256U
@@ -25,34 +24,6 @@ static void print_usage(const char *program_name)
     );
 }
 
-static bool read_random_values(uint32_t *values, size_t count)
-{
-    unsigned char *destination = (unsigned char *)(void *)values;
-    size_t expected = count * sizeof(*values);
-    size_t received = 0U;
-
-    while (received < expected) {
-        ssize_t result = getrandom(
-            destination + received,
-            expected - received,
-            0
-        );
-
-        if (result > 0) {
-            received += (size_t)result;
-            continue;
-        }
-        if (result < 0 && errno == EINTR) {
-            continue;
-        }
-        if (result == 0) {
-            errno = EIO;
-        }
-        return false;
-    }
-    return true;
-}
-
 static void randomize_reflector_list(struct sqm_mon_config *config)
 {
     uint32_t random_values[CONFIG_MAX_REFLECTORS - 1U];
@@ -63,7 +34,8 @@ static void randomize_reflector_list(struct sqm_mon_config *config)
     if (!config->randomize_reflectors || count < 2U) {
         return;
     }
-    if (!read_random_values(random_values, count - 1U)) {
+    /* At most 63 words (252 bytes), within getentropy's 256-byte limit. */
+    if (getentropy(random_values, (count - 1U) * sizeof(*random_values)) != 0) {
         log_message(
             LOG_LEVEL_WARNING,
             "could not randomize reflectors: %s",
@@ -164,6 +136,7 @@ int main(int argc, char **argv)
     log_print_headers(
         config.output_processing_stats,
         config.output_load_stats,
+        config.output_reflector_stats,
         config.output_summary_stats
     );
     randomize_reflector_list(&config);

@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "cake.h"
 #include "error.h"
 
@@ -7,6 +9,7 @@
 #include <linux/pkt_sched.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
+#include <netlink/attr.h>
 #include <string.h>
 
 struct cake_dump_context {
@@ -15,97 +18,42 @@ struct cake_dump_context {
     bool found;
 };
 
-static const struct rtattr *next_attribute(
-    const struct rtattr *attribute,
-    size_t *remaining
-)
-{
-    size_t attribute_length;
-    size_t aligned_length;
-
-    if (*remaining < sizeof(*attribute)) {
-        return NULL;
-    }
-
-    attribute_length = attribute->rta_len;
-    if (attribute_length < sizeof(*attribute) ||
-        attribute_length > *remaining) {
-        return NULL;
-    }
-
-    aligned_length = RTA_ALIGN(attribute_length);
-    if (aligned_length > *remaining) {
-        *remaining = 0U;
-        return NULL;
-    }
-
-    *remaining -= aligned_length;
-    return (const struct rtattr *)(
-        (const unsigned char *)attribute + aligned_length
-    );
-}
-
-static const struct rtattr *find_attribute(
+static struct nlattr *find_attribute(
     const void *data,
     size_t length,
     unsigned short type
 )
 {
-    const struct rtattr *attribute = data;
-    size_t remaining = length;
-
-    while (remaining >= sizeof(*attribute)) {
-        if (attribute->rta_len < sizeof(*attribute) ||
-            (size_t)attribute->rta_len > remaining) {
-            return NULL;
-        }
-
-        if ((attribute->rta_type & NLA_TYPE_MASK) == type) {
-            return attribute;
-        }
-
-        attribute = next_attribute(attribute, &remaining);
-        if (attribute == NULL) {
-            break;
-        }
+    /* Kernel message lengths are external input; nla_find takes an int. */
+    if (length > INT_MAX) {
+        return NULL;
     }
-
-    return NULL;
-}
-
-static const void *attribute_data(const struct rtattr *attribute)
-{
-    return (const unsigned char *)attribute + sizeof(*attribute);
-}
-
-static size_t attribute_payload(const struct rtattr *attribute)
-{
-    return (size_t)attribute->rta_len - sizeof(*attribute);
+    return nla_find((struct nlattr *)(void *)data, (int)length, type);
 }
 
 static bool read_u32(
-    const struct rtattr *attribute,
+    const struct nlattr *attribute,
     uint32_t *value
 )
 {
-    if (attribute == NULL || attribute_payload(attribute) < sizeof(*value)) {
+    if (attribute == NULL || nla_len(attribute) < (int)sizeof(*value)) {
         return false;
     }
 
-    memcpy(value, attribute_data(attribute), sizeof(*value));
+    memcpy(value, nla_data(attribute), sizeof(*value));
     return true;
 }
 
 static bool read_u64(
-    const struct rtattr *attribute,
+    const struct nlattr *attribute,
     uint64_t *value
 )
 {
-    if (attribute == NULL || attribute_payload(attribute) < sizeof(*value)) {
+    if (attribute == NULL || nla_len(attribute) < (int)sizeof(*value)) {
         return false;
     }
 
-    memcpy(value, attribute_data(attribute), sizeof(*value));
+    memcpy(value, nla_data(attribute), sizeof(*value));
     return true;
 }
 
@@ -119,7 +67,7 @@ static uint64_t rate_to_bits_per_second(uint64_t bytes_per_second)
     return bytes_per_second * 8U;
 }
 
-static bool kind_is_cake(const struct rtattr *kind)
+static bool kind_is_cake(const struct nlattr *kind)
 {
     const char expected[] = "cake";
     size_t payload;
@@ -128,17 +76,17 @@ static bool kind_is_cake(const struct rtattr *kind)
         return false;
     }
 
-    payload = attribute_payload(kind);
+    payload = (size_t)nla_len(kind);
     return payload >= sizeof(expected) &&
-        memcmp(attribute_data(kind), expected, sizeof(expected)) == 0;
+        memcmp(nla_data(kind), expected, sizeof(expected)) == 0;
 }
 
 static void parse_options(
-    const struct rtattr *options,
+    const struct nlattr *options,
     struct cake_observation *observation
 )
 {
-    const struct rtattr *bandwidth;
+    const struct nlattr *bandwidth;
     uint64_t rate;
 
     if (options == NULL) {
@@ -146,8 +94,8 @@ static void parse_options(
     }
 
     bandwidth = find_attribute(
-        attribute_data(options),
-        attribute_payload(options),
+        nla_data(options),
+        (size_t)nla_len(options),
         TCA_CAKE_BASE_RATE64
     );
     if (read_u64(bandwidth, &rate)) {
@@ -158,7 +106,7 @@ static void parse_options(
 }
 
 static void parse_basic_stats(
-    const struct rtattr *basic,
+    const struct nlattr *basic,
     struct cake_observation *observation
 )
 {
@@ -169,8 +117,8 @@ static void parse_basic_stats(
         return;
     }
 
-    data = attribute_data(basic);
-    payload = attribute_payload(basic);
+    data = nla_data(basic);
+    payload = (size_t)nla_len(basic);
     if (payload < sizeof(uint64_t) + sizeof(uint32_t)) {
         return;
     }
@@ -186,17 +134,17 @@ static void parse_basic_stats(
 }
 
 static void parse_queue_stats(
-    const struct rtattr *queue,
+    const struct nlattr *queue,
     struct cake_observation *observation
 )
 {
     struct gnet_stats_queue stats;
 
-    if (queue == NULL || attribute_payload(queue) < sizeof(stats)) {
+    if (queue == NULL || nla_len(queue) < (int)sizeof(stats)) {
         return;
     }
 
-    memcpy(&stats, attribute_data(queue), sizeof(stats));
+    memcpy(&stats, nla_data(queue), sizeof(stats));
     observation->queue_length = stats.qlen;
     observation->backlog_bytes = stats.backlog;
     observation->drops = stats.drops;
@@ -204,13 +152,13 @@ static void parse_queue_stats(
 }
 
 static void parse_cake_stats(
-    const struct rtattr *application,
+    const struct nlattr *application,
     struct cake_observation *observation
 )
 {
-    const struct rtattr *capacity;
-    const struct rtattr *memory_limit;
-    const struct rtattr *memory_used;
+    const struct nlattr *capacity;
+    const struct nlattr *memory_limit;
+    const struct nlattr *memory_used;
     uint64_t rate;
     bool has_memory_limit;
     bool has_memory_used;
@@ -220,8 +168,8 @@ static void parse_cake_stats(
     }
 
     capacity = find_attribute(
-        attribute_data(application),
-        attribute_payload(application),
+        nla_data(application),
+        (size_t)nla_len(application),
         TCA_CAKE_STATS_CAPACITY_ESTIMATE64
     );
     if (read_u64(capacity, &rate)) {
@@ -231,13 +179,13 @@ static void parse_cake_stats(
     }
 
     memory_limit = find_attribute(
-        attribute_data(application),
-        attribute_payload(application),
+        nla_data(application),
+        (size_t)nla_len(application),
         TCA_CAKE_STATS_MEMORY_LIMIT
     );
     memory_used = find_attribute(
-        attribute_data(application),
-        attribute_payload(application),
+        nla_data(application),
+        (size_t)nla_len(application),
         TCA_CAKE_STATS_MEMORY_USED
     );
     has_memory_limit = read_u32(
@@ -252,7 +200,7 @@ static void parse_cake_stats(
 }
 
 static void parse_stats(
-    const struct rtattr *stats,
+    const struct nlattr *stats,
     struct cake_observation *observation
 )
 {
@@ -262,24 +210,24 @@ static void parse_stats(
 
     parse_basic_stats(
         find_attribute(
-            attribute_data(stats),
-            attribute_payload(stats),
+            nla_data(stats),
+            (size_t)nla_len(stats),
             TCA_STATS_BASIC
         ),
         observation
     );
     parse_queue_stats(
         find_attribute(
-            attribute_data(stats),
-            attribute_payload(stats),
+            nla_data(stats),
+            (size_t)nla_len(stats),
             TCA_STATS_QUEUE
         ),
         observation
     );
     parse_cake_stats(
         find_attribute(
-            attribute_data(stats),
-            attribute_payload(stats),
+            nla_data(stats),
+            (size_t)nla_len(stats),
             TCA_STATS_APP
         ),
         observation
@@ -293,8 +241,8 @@ static int handle_qdisc(
 {
     struct cake_dump_context *context = context_pointer;
     const struct tcmsg *traffic_control;
-    const struct rtattr *attributes;
-    const struct rtattr *kind;
+    const struct nlattr *attributes;
+    const struct nlattr *kind;
     size_t attributes_length;
 
     if (message->nlmsg_len < NLMSG_LENGTH(sizeof(struct tcmsg))) {
@@ -309,7 +257,7 @@ static int handle_qdisc(
         return 0;
     }
 
-    attributes = (const struct rtattr *)(
+    attributes = (const struct nlattr *)(
         (const unsigned char *)traffic_control +
         NLMSG_ALIGN(sizeof(*traffic_control))
     );

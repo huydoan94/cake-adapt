@@ -1,4 +1,5 @@
 CC ?= cc
+.DEFAULT_GOAL := all
 
 CPPFLAGS ?= -I../src
 CFLAGS ?= -O2
@@ -15,6 +16,17 @@ WARNINGS := \
 	-Werror
 
 TARGETS := test_controller test_latency test_log test_traffic
+
+# Optional host integration check using the same libnl API as libnl-tiny.
+NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0))
+NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0)
+
+.PHONY: check-netlink
+check-netlink: test_cake
+	./test_cake
+
+test_cake: test_cake.c ../src/cake.c ../src/cake.h ../src/netlink.c ../src/netlink.h ../src/error.c
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cake.c ../src/netlink.c ../src/error.c $(LDLIBS) $(NETLINK_LIBS)
 
 .PHONY: all check clean
 
@@ -66,6 +78,6 @@ traffic.o: ../src/traffic.c ../src/traffic.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/traffic.c
 
 clean:
-	$(RM) $(TARGETS) *.o *.d
+	$(RM) $(TARGETS) test_cake *.o *.d
 
 -include *.d

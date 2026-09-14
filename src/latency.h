@@ -78,6 +78,18 @@ enum reflector_health_result {
     REFLECTOR_MISBEHAVING
 };
 
+struct reflector_comparison {
+    uint64_t minimum_sum_owd_baselines_microseconds;
+    uint64_t sum_owd_baselines_microseconds;
+    uint64_t sum_owd_baselines_delta_microseconds;
+    int64_t minimum_download_delta_ewma_microseconds;
+    int64_t download_delta_ewma_microseconds;
+    int64_t download_delta_ewma_delta_microseconds;
+    int64_t minimum_upload_delta_ewma_microseconds;
+    int64_t upload_delta_ewma_microseconds;
+    int64_t upload_delta_ewma_delta_microseconds;
+};
+
 void latency_init(struct sqm_mon_latency *latency);
 
 bool latency_is_open(const struct sqm_mon_latency *latency);
@@ -139,6 +151,22 @@ void reflector_health_record_response(
 enum reflector_health_result reflector_health_check(
     struct reflector_health *health,
     uint64_t timestamp_microseconds
+);
+
+/* Validated, nonempty active order; indices refer to initialized trackers. */
+void reflector_compare(
+    const struct latency_tracker *trackers,
+    const size_t *reflector_order,
+    size_t active_count,
+    struct reflector_comparison *comparisons
+);
+
+/* Caller supplies an active pinger and at least one standby reflector. */
+void reflector_rotate(
+    size_t *reflector_order,
+    size_t reflector_count,
+    size_t active_count,
+    size_t pinger
 );
 
 enum latency_probe_result latency_receive(

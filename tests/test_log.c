@@ -26,6 +26,12 @@ static const char expected_headers[] =
     "LOAD_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
     " DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS;"
     " CAKE_DL_RATE_KBPS; CAKE_UL_RATE_KBPS\n"
+    "REFLECTOR_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; REFLECTOR;"
+    " MIN_SUM_OWD_BASELINES_US; SUM_OWD_BASELINES_US;"
+    " SUM_OWD_BASELINES_DELTA_US; SUM_OWD_BASELINES_DELTA_THR_US;"
+    " MIN_DL_DELTA_EWMA_US; DL_DELTA_EWMA_US; DL_DELTA_EWMA_DELTA_US;"
+    " DL_DELTA_EWMA_DELTA_THR; MIN_UL_DELTA_EWMA_US; UL_DELTA_EWMA_US;"
+    " UL_DELTA_EWMA_DELTA_US; UL_DELTA_EWMA_DELTA_THR\n"
     "SUMMARY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; DL_ACHIEVED_RATE_KBPS;"
     " UL_ACHIEVED_RATE_KBPS; DL_SUM_DELAYS; UL_SUM_DELAYS;"
     " DL_AVG_OWD_DELTA_US; UL_AVG_OWD_DELTA_US; DL_LOAD_CONDITION;"
@@ -144,7 +150,7 @@ static void assert_record_delimiter_count(
 static void test_cake_autorate_headers_and_record_format(void)
 {
     char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
-    char contents[4096];
+    char contents[8192];
     const struct log_data_record data_record = {
         .download_achieved_rate_kbps = 10U,
         .upload_achieved_rate_kbps = 20U,
@@ -194,6 +200,20 @@ static void test_cake_autorate_headers_and_record_format(void)
         .cake_download_rate_kbps = 71U,
         .cake_upload_rate_kbps = 81U
     };
+    const struct log_reflector_record reflector_record = {
+        .reflector = "1.0.0.1",
+        .minimum_sum_owd_baselines_microseconds = 100U,
+        .sum_owd_baselines_microseconds = 110U,
+        .sum_owd_baselines_delta_microseconds = 10U,
+        .sum_owd_baselines_delta_threshold_microseconds = 20000U,
+        .minimum_download_delta_ewma_microseconds = -5,
+        .download_delta_ewma_microseconds = 7,
+        .download_delta_ewma_delta_microseconds = 12,
+        .delta_ewma_delta_threshold_microseconds = 10000U,
+        .minimum_upload_delta_ewma_microseconds = -6,
+        .upload_delta_ewma_microseconds = 8,
+        .upload_delta_ewma_delta_microseconds = 14
+    };
     const char *field_end;
     const char *field_start;
     const char *load_line;
@@ -206,10 +226,11 @@ static void test_cake_autorate_headers_and_record_format(void)
 
     log_init("sqm-mon-test", false);
     assert(log_set_file(path) == 0);
-    log_print_headers(true, true, true);
+    log_print_headers(true, true, true, true);
     log_load(&load_record);
     log_data(&data_record);
     log_summary(&summary_record);
+    log_reflector(&reflector_record);
     log_shaper("eth1", 28000U);
     log_system_message("Started test process");
     log_close();
@@ -230,6 +251,9 @@ static void test_cake_autorate_headers_and_record_format(void)
     record_line = strstr(contents, "\nSHAPER; ");
     assert(record_line != NULL);
     assert_record_delimiter_count(record_line + 1, 3U);
+    record_line = strstr(contents, "\nREFLECTOR; ");
+    assert(record_line != NULL);
+    assert_record_delimiter_count(record_line + 1, 16U);
 
     field_start = strchr(load_line, ';');
     assert(field_start != NULL);
@@ -256,6 +280,11 @@ static void test_cake_autorate_headers_and_record_format(void)
     assert(strstr(
         contents,
         "; tc qdisc change root dev eth1 cake bandwidth 28000Kbit\n"
+    ) != NULL);
+    assert(strstr(
+        contents,
+        "; 1.0.0.1; 100; 110; 10; 20000; -5; 7; 12; 10000;"
+        " -6; 8; 14; 10000\n"
     ) != NULL);
     assert(strstr(contents, "SYSLOG; 20") != NULL);
     assert(strstr(contents, "; Started test process\n") != NULL);

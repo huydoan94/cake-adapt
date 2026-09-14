@@ -64,6 +64,21 @@ struct log_summary_record {
     uint64_t cake_upload_rate_kbps;
 };
 
+struct log_reflector_record {
+    const char *reflector;
+    uint64_t minimum_sum_owd_baselines_microseconds;
+    uint64_t sum_owd_baselines_microseconds;
+    uint64_t sum_owd_baselines_delta_microseconds;
+    uint64_t sum_owd_baselines_delta_threshold_microseconds;
+    int64_t minimum_download_delta_ewma_microseconds;
+    int64_t download_delta_ewma_microseconds;
+    int64_t download_delta_ewma_delta_microseconds;
+    uint64_t delta_ewma_delta_threshold_microseconds;
+    int64_t minimum_upload_delta_ewma_microseconds;
+    int64_t upload_delta_ewma_microseconds;
+    int64_t upload_delta_ewma_delta_microseconds;
+};
+
 void log_init(
     const char *identifier,
     bool foreground
@@ -80,6 +95,7 @@ void log_set_debug_syslog(bool enabled);
 void log_print_headers(
     bool output_processing_stats,
     bool output_load_stats,
+    bool output_reflector_stats,
     bool output_summary_stats
 );
 
@@ -90,6 +106,8 @@ void log_load(const struct log_load_record *record);
 void log_data(const struct log_data_record *record);
 
 void log_summary(const struct log_summary_record *record);
+
+void log_reflector(const struct log_reflector_record *record);
 
 void log_shaper(
     const char *interface,

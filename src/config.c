@@ -86,34 +86,19 @@ static int copy_option(
 
 static void derive_ingress_interface(struct sqm_mon_config *config)
 {
-    size_t interface_length;
-    size_t maximum_suffix_length =
-        sizeof(config->ingress_interface) - sizeof(IFB_PREFIX);
-
     config->ingress_interface[0] = '\0';
     if (config->interface[0] == '\0') {
         return;
     }
 
     /* SQM names its ingress IFB "ifb4<interface>", truncated to IFNAMSIZ. */
-    interface_length = strlen(config->interface);
-    if (interface_length > maximum_suffix_length) {
-        interface_length = maximum_suffix_length;
-    }
-
-    memcpy(
+    (void)snprintf(
         config->ingress_interface,
-        IFB_PREFIX,
-        sizeof(IFB_PREFIX) - 1U
+        sizeof(config->ingress_interface),
+        IFB_PREFIX "%.*s",
+        (int)(sizeof(config->ingress_interface) - sizeof(IFB_PREFIX)),
+        config->interface
     );
-    memcpy(
-        config->ingress_interface + sizeof(IFB_PREFIX) - 1U,
-        config->interface,
-        interface_length
-    );
-    config->ingress_interface[
-        sizeof(IFB_PREFIX) - 1U + interface_length
-    ] = '\0';
 }
 
 static int parse_boolean(
@@ -501,6 +486,17 @@ static int validate_latency_config(
             error,
             error_size,
             "reflector offence threshold must be between 1 and its window"
+        );
+        return -1;
+    }
+    if (config->reflector_replacement_interval_minutes >
+            UINT64_MAX / 60000000U ||
+        config->reflector_comparison_interval_minutes >
+            UINT64_MAX / 60000000U) {
+        error_set(
+            error,
+            error_size,
+            "reflector replacement and comparison intervals are too large"
         );
         return -1;
     }
