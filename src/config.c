@@ -471,6 +471,39 @@ static int validate_latency_config(
         );
         return -1;
     }
+    if (config->reflector_health_check_interval_microseconds == 0U ||
+        config->reflector_response_deadline_microseconds == 0U) {
+        error_set(
+            error,
+            error_size,
+            "reflector health interval and response deadline must be positive"
+        );
+        return -1;
+    }
+    if (config->reflector_health_check_interval_microseconds % 1000U != 0U ||
+        config->reflector_health_check_interval_microseconds / 1000U >
+            UINT_MAX) {
+        error_set(
+            error,
+            error_size,
+            "option 'reflector_health_check_interval_s' must be a whole"
+            " number of milliseconds no greater than %u",
+            UINT_MAX
+        );
+        return -1;
+    }
+    if (config->reflector_misbehaving_detection_window == 0U ||
+        config->reflector_misbehaving_detection_window > SIZE_MAX ||
+        config->reflector_misbehaving_detection_threshold == 0U ||
+        config->reflector_misbehaving_detection_threshold >
+            config->reflector_misbehaving_detection_window) {
+        error_set(
+            error,
+            error_size,
+            "reflector offence threshold must be between 1 and its window"
+        );
+        return -1;
+    }
 
     for (index = 0U; index < config->reflector_count; index++) {
         for (comparison = index + 1U;

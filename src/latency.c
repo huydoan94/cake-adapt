@@ -719,6 +719,76 @@ void latency_tracker_update_delta_ewma(
         tracker->one_way_delta_ewma_microseconds;
 }
 
+int reflector_health_init(
+    struct reflector_health *health,
+    const struct reflector_health_config *config,
+    uint64_t start_microseconds
+)
+{
+    if (health == NULL || config == NULL || config->detection_window == 0U ||
+        config->detection_threshold == 0U ||
+        config->detection_threshold > config->detection_window) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    health->offences = calloc(
+        config->detection_window,
+        sizeof(*health->offences)
+    );
+    if (health->offences == NULL) {
+        return -1;
+    }
+    health->config = *config;
+    health->last_response_microseconds = start_microseconds;
+    health->offence_index = 0U;
+    health->offence_count = 0U;
+    return 0;
+}
+
+void reflector_health_cleanup(struct reflector_health *health)
+{
+    free(health->offences);
+    health->offences = NULL;
+    health->offence_index = 0U;
+    health->offence_count = 0U;
+}
+
+void reflector_health_record_response(
+    struct reflector_health *health,
+    uint64_t timestamp_microseconds
+)
+{
+    health->last_response_microseconds = timestamp_microseconds;
+}
+
+enum reflector_health_result reflector_health_check(
+    struct reflector_health *health,
+    uint64_t timestamp_microseconds
+)
+{
+    bool offence = timestamp_microseconds > health->last_response_microseconds &&
+        timestamp_microseconds - health->last_response_microseconds >
+            health->config.response_deadline_microseconds;
+
+    if (health->offences[health->offence_index] != 0U) {
+        health->offence_count--;
+    }
+    health->offences[health->offence_index] = offence ? 1U : 0U;
+    if (offence) {
+        health->offence_count++;
+    }
+    health->offence_index++;
+    if (health->offence_index == health->config.detection_window) {
+        health->offence_index = 0U;
+    }
+
+    if (health->offence_count >= health->config.detection_threshold) {
+        return REFLECTOR_MISBEHAVING;
+    }
+    return offence ? REFLECTOR_OFFENCE : REFLECTOR_HEALTHY;
+}
+
 enum latency_probe_result latency_receive(
     struct sqm_mon_latency *latency,
     struct latency_sample *sample,

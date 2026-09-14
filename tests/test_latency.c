@@ -291,6 +291,42 @@ static void test_maximum_rtt_does_not_overflow_delta(void)
     assert(observation.one_way_delta_microseconds == INT64_C(2145236264));
 }
 
+static void test_reflector_health_uses_rolling_offence_window(void)
+{
+    const struct reflector_health_config config = {
+        .response_deadline_microseconds = 1000000U,
+        .detection_window = 4U,
+        .detection_threshold = 2U
+    };
+    struct reflector_health health = { 0 };
+
+    assert(reflector_health_init(&health, &config, 1000000U) == 0);
+    assert(reflector_health_check(&health, 2000000U) == REFLECTOR_HEALTHY);
+    assert(reflector_health_check(&health, 2000001U) == REFLECTOR_OFFENCE);
+    reflector_health_record_response(&health, 2500000U);
+    assert(reflector_health_check(&health, 3000000U) == REFLECTOR_HEALTHY);
+    assert(reflector_health_check(&health, 3500001U) == REFLECTOR_MISBEHAVING);
+    reflector_health_record_response(&health, 4000000U);
+    assert(reflector_health_check(&health, 4000000U) == REFLECTOR_MISBEHAVING);
+    assert(reflector_health_check(&health, 4000000U) == REFLECTOR_HEALTHY);
+    reflector_health_cleanup(&health);
+}
+
+static void test_reflector_health_rejects_invalid_window(void)
+{
+    struct reflector_health_config config = {
+        .response_deadline_microseconds = 1000000U,
+        .detection_window = 2U,
+        .detection_threshold = 3U
+    };
+    struct reflector_health health = { 0 };
+
+    assert(reflector_health_init(&health, &config, 0U) != 0);
+    config.detection_window = 0U;
+    config.detection_threshold = 0U;
+    assert(reflector_health_init(&health, &config, 0U) != 0);
+}
+
 int main(void)
 {
     test_initial_state_is_closed();
@@ -310,6 +346,8 @@ int main(void)
     test_higher_sample_reports_delta();
     test_baseline_increases_slowly();
     test_maximum_rtt_does_not_overflow_delta();
+    test_reflector_health_uses_rolling_offence_window();
+    test_reflector_health_rejects_invalid_window();
 
     (void)puts("latency tests passed");
     return 0;

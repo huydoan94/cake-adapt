@@ -266,20 +266,37 @@ struct observation_context {
     struct sqm_mon_controller controller;
     struct sqm_mon_latency latency;
     struct latency_tracker latency_trackers[CONFIG_MAX_REFLECTORS];
+    struct reflector_health reflector_health[CONFIG_MAX_REFLECTORS];
     struct sqm_mon_netlink netlink;
     struct monitored_direction download;
     struct monitored_direction upload;
     bool latency_observation_failed;
     bool traffic_clock_failed;
+    bool health_clock_failed;
 };
 
 struct event_loop {
     struct observation_context observation;
     const struct sqm_mon_config *config;
     struct uloop_interval traffic_timer;
+    struct uloop_interval reflector_health_timer;
     struct uloop_fd latency_output;
     int result;
 };
+
+static bool monotonic_microseconds(uint64_t *timestamp_microseconds)
+{
+    struct timespec timestamp;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &timestamp) != 0 ||
+        timestamp.tv_sec < 0) {
+        return false;
+    }
+    *timestamp_microseconds =
+        (uint64_t)timestamp.tv_sec * 1000000U +
+        (uint64_t)timestamp.tv_nsec / 1000U;
+    return true;
+}
 
 static const char *line_state_name(enum controller_line_state state)
 {
@@ -925,6 +942,16 @@ static bool receive_latency_samples(
             &sample,
             &observation
         );
+        {
+            uint64_t response_timestamp_microseconds;
+
+            if (monotonic_microseconds(&response_timestamp_microseconds)) {
+                reflector_health_record_response(
+                    &context->reflector_health[reflector_index],
+                    response_timestamp_microseconds
+                );
+            }
+        }
         low_load = direction_has_low_load(
             &context->download,
             rounded_divide(
@@ -1032,6 +1059,76 @@ static void handle_traffic_timer(
     (void)watch_latency(loop);
 }
 
+static struct event_loop *event_loop_from_reflector_health_timer(
+    struct uloop_interval *timer
+)
+{
+    return (struct event_loop *)(void *)(
+        (unsigned char *)(void *)timer -
+        offsetof(struct event_loop, reflector_health_timer)
+    );
+}
+
+static void handle_reflector_health_timer(struct uloop_interval *timer)
+{
+    struct event_loop *loop = event_loop_from_reflector_health_timer(timer);
+    uint64_t timestamp_microseconds;
+    size_t index;
+
+    if (!monotonic_microseconds(&timestamp_microseconds)) {
+        if (!loop->observation.health_clock_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "reflector health check degraded: monotonic clock failed: %s",
+                strerror(errno)
+            );
+        }
+        loop->observation.health_clock_failed = true;
+        return;
+    }
+    if (loop->observation.health_clock_failed) {
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "reflector health check recovered: monotonic clock available"
+        );
+        loop->observation.health_clock_failed = false;
+    }
+
+    for (index = 0U; index < (size_t)loop->config->no_pingers; index++) {
+        enum reflector_health_result result = reflector_health_check(
+            &loop->observation.reflector_health[index],
+            timestamp_microseconds
+        );
+
+        if (result == REFLECTOR_HEALTHY) {
+            continue;
+        }
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "no ping response from reflector: %s within"
+            " reflector_response_deadline: %.3fs",
+            loop->config->reflectors[index],
+            (double)loop->config->reflector_response_deadline_microseconds /
+                1000000.0
+        );
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "reflector=%s, sum_reflector_offences=%zu and"
+            " reflector_misbehaving_detection_thr=%" PRIu64,
+            loop->config->reflectors[index],
+            loop->observation.reflector_health[index].offence_count,
+            loop->config->reflector_misbehaving_detection_threshold
+        );
+        if (result == REFLECTOR_MISBEHAVING) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "Warning: reflector: %s seems to be misbehaving.",
+                loop->config->reflectors[index]
+            );
+        }
+    }
+}
+
 int monitor_run(const struct sqm_mon_config *config)
 {
     /* Match cake-autorate's startup rounding to per-thousand and percent. */
@@ -1111,6 +1208,14 @@ int monitor_run(const struct sqm_mon_config *config)
         .alpha_delta_ewma_per_million =
             config->alpha_delta_ewma_per_million
     };
+    const struct reflector_health_config reflector_health_config = {
+        .response_deadline_microseconds =
+            config->reflector_response_deadline_microseconds,
+        .detection_window =
+            (size_t)config->reflector_misbehaving_detection_window,
+        .detection_threshold =
+            (size_t)config->reflector_misbehaving_detection_threshold
+    };
     struct event_loop loop = {
         .observation = {
             .download = {
@@ -1132,6 +1237,9 @@ int monitor_run(const struct sqm_mon_config *config)
         .traffic_timer = {
             .cb = handle_traffic_timer
         },
+        .reflector_health_timer = {
+            .cb = handle_reflector_health_timer
+        },
         .latency_output = {
             .cb = handle_latency_output,
             .fd = -1
@@ -1140,6 +1248,8 @@ int monitor_run(const struct sqm_mon_config *config)
     };
     bool previous_sigchld_handling = uloop_handle_sigchld;
     int run_status;
+    uint64_t start_microseconds;
+    size_t health_count = 0U;
     size_t index;
 
     latency_init(&loop.observation.latency);
@@ -1170,6 +1280,29 @@ int monitor_run(const struct sqm_mon_config *config)
             goto done;
         }
     }
+    if (!monotonic_microseconds(&start_microseconds)) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not initialize reflector health clock: %s",
+            strerror(errno)
+        );
+        goto done;
+    }
+    for (index = 0U; index < (size_t)config->no_pingers; index++) {
+        if (reflector_health_init(
+                &loop.observation.reflector_health[index],
+                &reflector_health_config,
+                start_microseconds
+            ) != 0) {
+            log_message(
+                LOG_LEVEL_ERROR,
+                "could not initialize reflector health: %s",
+                strerror(errno)
+            );
+            goto done;
+        }
+        health_count++;
+    }
 
     /* latency.c owns and reaps fping; uloop must not consume its SIGCHLD. */
     uloop_handle_sigchld = false;
@@ -1196,6 +1329,19 @@ int monitor_run(const struct sqm_mon_config *config)
         );
         goto uloop_done;
     }
+    if (uloop_interval_set(
+            &loop.reflector_health_timer,
+            (unsigned int)(
+                config->reflector_health_check_interval_microseconds / 1000U
+            )
+        ) != 0) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not monitor reflector health timer: %s",
+            strerror(errno)
+        );
+        goto uloop_done;
+    }
 
     observe_traffic_cycle(&loop.observation, config);
     (void)watch_latency(&loop);
@@ -1212,10 +1358,14 @@ int monitor_run(const struct sqm_mon_config *config)
 uloop_done:
     close_latency(&loop);
     (void)uloop_interval_cancel(&loop.traffic_timer);
+    (void)uloop_interval_cancel(&loop.reflector_health_timer);
     uloop_done();
     uloop_handle_sigchld = previous_sigchld_handling;
 
 done:
+    for (index = 0U; index < health_count; index++) {
+        reflector_health_cleanup(&loop.observation.reflector_health[index]);
+    }
     netlink_close(&loop.observation.netlink);
     latency_close(&loop.observation.latency);
     controller_close(&loop.observation.controller);

@@ -58,6 +58,26 @@ struct latency_tracker {
     int64_t one_way_delta_ewma_microseconds;
 };
 
+struct reflector_health_config {
+    uint64_t response_deadline_microseconds;
+    size_t detection_window;
+    size_t detection_threshold;
+};
+
+struct reflector_health {
+    struct reflector_health_config config;
+    unsigned char *offences;
+    uint64_t last_response_microseconds;
+    size_t offence_index;
+    size_t offence_count;
+};
+
+enum reflector_health_result {
+    REFLECTOR_HEALTHY,
+    REFLECTOR_OFFENCE,
+    REFLECTOR_MISBEHAVING
+};
+
 void latency_init(struct sqm_mon_latency *latency);
 
 bool latency_is_open(const struct sqm_mon_latency *latency);
@@ -94,6 +114,24 @@ void latency_tracker_update_delta_ewma(
     struct latency_tracker *tracker,
     bool low_load,
     struct latency_observation *observation
+);
+
+int reflector_health_init(
+    struct reflector_health *health,
+    const struct reflector_health_config *config,
+    uint64_t start_microseconds
+);
+
+void reflector_health_cleanup(struct reflector_health *health);
+
+void reflector_health_record_response(
+    struct reflector_health *health,
+    uint64_t timestamp_microseconds
+);
+
+enum reflector_health_result reflector_health_check(
+    struct reflector_health *health,
+    uint64_t timestamp_microseconds
 );
 
 enum latency_probe_result latency_receive(
