@@ -634,6 +634,27 @@ Give the subagent only the context needed for these operations. Use a
 minimal-context fork, preferably `fork_turns: "none"`, rather than copying the
 entire conversation.
 
+### Delegated command permissions
+
+SDK directories and VM network access may be outside the subagent's default
+sandbox even when they are authorized for the task. A delegated verifier must
+not treat errors such as these as build, authentication or runtime failures:
+
+```text
+Read-only file system
+socket: Operation not permitted
+```
+
+Reuse an existing approved command prefix whenever one is available. If no
+matching approval exists, return the exact command and justification to the
+primary agent instead of waiting indefinitely on a subagent approval prompt.
+The primary agent can establish a narrowly scoped approval and then resume the
+delegated verifier. Do not request a broad shell or interpreter prefix.
+
+Only report the operation as blocked when the scoped approval is denied or the
+approved command itself fails. Never work around a denied escalation, and never
+broaden the requested operation while retrying it.
+
 Keep these responsibilities on the primary model:
 
 * architecture and production-code changes
