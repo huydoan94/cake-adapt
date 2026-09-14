@@ -311,9 +311,9 @@ void log_data(const struct log_data_record *record)
         "%" PRIu64 "; %" PRIu64 "; %u; %u;"
         " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 ";"
         " %" PRIu32 "; %" PRIu32 "; %" PRId64 "; %" PRId64
-        "; %" PRIu32 "; %" PRIu32 "; %" PRIu32 "; %" PRId64 ";"
-        " %" PRId64 "; %" PRIu32 "; %u; %" PRId64 "; %" PRIu32
-        "; %" PRIu32 "; %u; %" PRId64 "; %" PRIu32 "; %" PRIu32
+        "; %" PRIu64 "; %" PRIu32 "; %" PRIu32 "; %" PRId64 ";"
+        " %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64
+        "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64 "; %" PRIu64
         "; %s; %s; %" PRIu64 "; %" PRIu64,
         record->download_achieved_rate_kbps,
         record->upload_achieved_rate_kbps,

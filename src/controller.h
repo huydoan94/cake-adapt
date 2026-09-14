@@ -4,12 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define CONTROLLER_DELAY_WINDOW_SAMPLES 6U
-#define CONTROLLER_HIGH_LOAD_PERCENT 75U
-#define CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS 30000U
-#define CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS 10000U
-#define CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS 60000U
-
 enum controller_line_state {
     CONTROLLER_LINE_UNKNOWN,
     CONTROLLER_LINE_BELOW_CAPACITY,
@@ -36,11 +30,25 @@ struct controller_direction_config {
     uint64_t minimum_rate_bits_per_second;
     uint64_t base_rate_bits_per_second;
     uint64_t maximum_rate_bits_per_second;
+    uint64_t average_delay_maximum_adjust_up_microseconds;
+    uint64_t delay_threshold_microseconds;
+    uint64_t average_delay_maximum_adjust_down_microseconds;
 };
 
 struct controller_config {
     struct controller_direction_config download;
     struct controller_direction_config upload;
+    unsigned int bufferbloat_detection_window;
+    unsigned int bufferbloat_detection_threshold;
+    uint64_t rate_minimum_adjust_down_bufferbloat_per_thousand;
+    uint64_t rate_maximum_adjust_down_bufferbloat_per_thousand;
+    uint64_t rate_minimum_adjust_up_high_load_per_thousand;
+    uint64_t rate_maximum_adjust_up_high_load_per_thousand;
+    uint64_t rate_adjust_down_low_load_per_thousand;
+    uint64_t rate_adjust_up_low_load_per_thousand;
+    uint64_t high_load_threshold_percent;
+    uint64_t bufferbloat_refractory_period_microseconds;
+    uint64_t decay_refractory_period_microseconds;
 };
 
 struct controller_direction_input {
@@ -80,12 +88,16 @@ struct controller_output {
     struct controller_direction_output upload;
 };
 
+struct controller_delay_sample {
+    int64_t delay_microseconds;
+    bool delayed;
+};
+
 struct controller_direction {
     struct controller_direction_config config;
     enum controller_line_state state;
     enum controller_congestion_state congestion;
-    int64_t delay_samples[CONTROLLER_DELAY_WINDOW_SAMPLES];
-    bool delayed_samples[CONTROLLER_DELAY_WINDOW_SAMPLES];
+    struct controller_delay_sample *delay_samples;
     int64_t delay_sum_microseconds;
     uint64_t shaper_rate_bits_per_second;
     unsigned int delay_next_sample;
@@ -98,13 +110,21 @@ struct controller_direction {
 };
 
 struct sqm_mon_controller {
+    struct controller_config config;
     struct controller_direction download;
     struct controller_direction upload;
 };
 
-void controller_init(
+int controller_init(
     struct sqm_mon_controller *controller,
     const struct controller_config *config
+);
+
+void controller_close(struct sqm_mon_controller *controller);
+
+unsigned int controller_load_percent(
+    uint64_t traffic_rate_bits_per_second,
+    uint64_t shaper_rate_bits_per_second
 );
 
 void controller_update(

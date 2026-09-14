@@ -13,7 +13,6 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#include <limits.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -398,49 +397,26 @@ static const char *rate_reason_name(enum controller_rate_reason reason)
     return "invalid";
 }
 
-static unsigned int load_percent(
-    uint64_t traffic_rate,
-    uint64_t cake_rate
-)
+static uint64_t rounded_divide(uint64_t value, uint64_t divisor)
 {
-    /* cake-autorate truncates both rates to Kbit/s before this division. */
-    uint64_t achieved_rate_kbps = traffic_rate / 1000U;
-    uint64_t shaper_rate_kbps = cake_rate / 1000U;
-    uint64_t quotient;
-    uint64_t remainder;
-    uint64_t percentage;
+    uint64_t quotient = value / divisor;
+    uint64_t remainder = value % divisor;
 
-    if (shaper_rate_kbps == 0U) {
-        return 0U;
-    }
-    quotient = achieved_rate_kbps / shaper_rate_kbps;
-    if (quotient > UINT_MAX / 100U) {
-        return UINT_MAX;
-    }
-    remainder = achieved_rate_kbps % shaper_rate_kbps;
-    percentage = quotient * 100U;
-    if (remainder > UINT64_MAX / 100U) {
-        percentage += (uint64_t)(
-            (long double)remainder * 100.0L /
-            (long double)shaper_rate_kbps
-        );
-    } else {
-        percentage += remainder * 100U / shaper_rate_kbps;
-    }
-    return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
+    return quotient + (remainder >= (divisor + 1U) / 2U ? 1U : 0U);
 }
 
 static bool direction_has_low_load(
-    const struct monitored_direction *direction
+    const struct monitored_direction *direction,
+    uint64_t high_load_threshold_percent
 )
 {
     return direction->traffic_valid &&
-        load_percent(
+        controller_load_percent(
             direction->traffic_rate_bits_per_second,
             direction->cake_valid
                 ? direction->cake.bandwidth_bits_per_second
                 : 0U
-        ) < CONTROLLER_HIGH_LOAD_PERCENT;
+        ) < high_load_threshold_percent;
 }
 
 static void load_condition(
@@ -450,13 +426,14 @@ static void load_condition(
     uint64_t traffic_rate,
     uint64_t cake_rate,
     uint64_t connection_active_threshold,
+    uint64_t high_load_threshold_percent,
     enum controller_congestion_state congestion
 )
 {
     const char *state;
 
-    if (load_percent(traffic_rate, cake_rate) >
-        CONTROLLER_HIGH_LOAD_PERCENT) {
+    if (controller_load_percent(traffic_rate, cake_rate) >
+        high_load_threshold_percent) {
         state = "high";
     } else if (traffic_rate > connection_active_threshold) {
         state = "low";
@@ -516,6 +493,10 @@ static void log_controller_stats(
         input->download.traffic_rate_bits_per_second,
         input->download.cake_rate_bits_per_second,
         config->connection_active_threshold_bits_per_second,
+        rounded_divide(
+            config->high_load_threshold_per_million,
+            10000U
+        ),
         output->download.congestion
     );
     load_condition(
@@ -525,6 +506,10 @@ static void log_controller_stats(
         input->upload.traffic_rate_bits_per_second,
         input->upload.cake_rate_bits_per_second,
         config->connection_active_threshold_bits_per_second,
+        rounded_divide(
+            config->high_load_threshold_per_million,
+            10000U
+        ),
         output->upload.congestion
     );
 
@@ -539,11 +524,11 @@ static void log_controller_stats(
                 input->download.traffic_rate_bits_per_second / 1000U,
             .upload_achieved_rate_kbps =
                 input->upload.traffic_rate_bits_per_second / 1000U,
-            .download_load_percent = load_percent(
+            .download_load_percent = controller_load_percent(
                 input->download.traffic_rate_bits_per_second,
                 input->download.cake_rate_bits_per_second
             ),
-            .upload_load_percent = load_percent(
+            .upload_load_percent = controller_load_percent(
                 input->upload.traffic_rate_bits_per_second,
                 input->upload.cake_rate_bits_per_second
             ),
@@ -556,29 +541,29 @@ static void log_controller_stats(
                 latency->delta_ewma_microseconds,
             .download_owd_delta_microseconds = one_way_delta,
             .download_adjust_delay_threshold_microseconds =
-                CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
+                config->download_owd_delta_delay_threshold_microseconds,
             .upload_owd_baseline_microseconds = one_way_baseline,
             .upload_owd_microseconds = one_way_delay,
             .upload_owd_delta_ewma_microseconds =
                 latency->delta_ewma_microseconds,
             .upload_owd_delta_microseconds = one_way_delta,
             .upload_adjust_delay_threshold_microseconds =
-                CONTROLLER_OWD_DELAY_THRESHOLD_MICROSECONDS,
+                config->upload_owd_delta_delay_threshold_microseconds,
             .download_sum_delays =
                 output->download.delayed_sample_count,
             .download_average_owd_delta_microseconds =
                 output->download.average_delay_microseconds,
             .download_maximum_adjust_up_threshold_microseconds =
-                CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
+                config->download_average_owd_delta_maximum_adjust_up_microseconds,
             .download_maximum_adjust_down_threshold_microseconds =
-                CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
+                config->download_average_owd_delta_maximum_adjust_down_microseconds,
             .upload_sum_delays = output->upload.delayed_sample_count,
             .upload_average_owd_delta_microseconds =
                 output->upload.average_delay_microseconds,
             .upload_maximum_adjust_up_threshold_microseconds =
-                CONTROLLER_OWD_MAXIMUM_ADJUST_UP_MICROSECONDS,
+                config->upload_average_owd_delta_maximum_adjust_up_microseconds,
             .upload_maximum_adjust_down_threshold_microseconds =
-                CONTROLLER_OWD_MAXIMUM_ADJUST_DOWN_MICROSECONDS,
+                config->upload_average_owd_delta_maximum_adjust_down_microseconds,
             .download_load_condition = download_condition,
             .upload_load_condition = upload_condition,
             .cake_download_rate_kbps = download_rate,
@@ -939,8 +924,19 @@ static bool receive_latency_samples(
             &sample,
             &observation
         );
-        low_load = direction_has_low_load(&context->download) &&
-            direction_has_low_load(&context->upload);
+        low_load = direction_has_low_load(
+            &context->download,
+            rounded_divide(
+                config->high_load_threshold_per_million,
+                10000U
+            )
+        ) && direction_has_low_load(
+            &context->upload,
+            rounded_divide(
+                config->high_load_threshold_per_million,
+                10000U
+            )
+        );
 
         latency_tracker_update_delta_ewma(
             &context->latency_trackers[reflector_index],
@@ -1037,6 +1033,7 @@ static void handle_traffic_timer(
 
 int monitor_run(const struct sqm_mon_config *config)
 {
+    /* Match cake-autorate's startup rounding to per-thousand and percent. */
     const struct controller_config controller_config = {
         .download = {
             .adjust = config->adjust_download,
@@ -1045,7 +1042,13 @@ int monitor_run(const struct sqm_mon_config *config)
             .base_rate_bits_per_second =
                 config->base_download_rate_bits_per_second,
             .maximum_rate_bits_per_second =
-                config->maximum_download_rate_bits_per_second
+                config->maximum_download_rate_bits_per_second,
+            .average_delay_maximum_adjust_up_microseconds =
+                config->download_average_owd_delta_maximum_adjust_up_microseconds,
+            .delay_threshold_microseconds =
+                config->download_owd_delta_delay_threshold_microseconds,
+            .average_delay_maximum_adjust_down_microseconds =
+                config->download_average_owd_delta_maximum_adjust_down_microseconds
         },
         .upload = {
             .adjust = config->adjust_upload,
@@ -1054,8 +1057,50 @@ int monitor_run(const struct sqm_mon_config *config)
             .base_rate_bits_per_second =
                 config->base_upload_rate_bits_per_second,
             .maximum_rate_bits_per_second =
-                config->maximum_upload_rate_bits_per_second
-        }
+                config->maximum_upload_rate_bits_per_second,
+            .average_delay_maximum_adjust_up_microseconds =
+                config->upload_average_owd_delta_maximum_adjust_up_microseconds,
+            .delay_threshold_microseconds =
+                config->upload_owd_delta_delay_threshold_microseconds,
+            .average_delay_maximum_adjust_down_microseconds =
+                config->upload_average_owd_delta_maximum_adjust_down_microseconds
+        },
+        .bufferbloat_detection_window =
+            (unsigned int)config->bufferbloat_detection_window,
+        .bufferbloat_detection_threshold =
+            (unsigned int)config->bufferbloat_detection_threshold,
+        .rate_minimum_adjust_down_bufferbloat_per_thousand = rounded_divide(
+            config->shaper_rate_minimum_adjust_down_bufferbloat_per_million,
+            1000U
+        ),
+        .rate_maximum_adjust_down_bufferbloat_per_thousand = rounded_divide(
+            config->shaper_rate_maximum_adjust_down_bufferbloat_per_million,
+            1000U
+        ),
+        .rate_minimum_adjust_up_high_load_per_thousand = rounded_divide(
+            config->shaper_rate_minimum_adjust_up_load_high_per_million,
+            1000U
+        ),
+        .rate_maximum_adjust_up_high_load_per_thousand = rounded_divide(
+            config->shaper_rate_maximum_adjust_up_load_high_per_million,
+            1000U
+        ),
+        .rate_adjust_down_low_load_per_thousand = rounded_divide(
+            config->shaper_rate_adjust_down_load_low_per_million,
+            1000U
+        ),
+        .rate_adjust_up_low_load_per_thousand = rounded_divide(
+            config->shaper_rate_adjust_up_load_low_per_million,
+            1000U
+        ),
+        .high_load_threshold_percent = rounded_divide(
+            config->high_load_threshold_per_million,
+            10000U
+        ),
+        .bufferbloat_refractory_period_microseconds =
+            config->bufferbloat_refractory_period_microseconds,
+        .decay_refractory_period_microseconds =
+            config->decay_refractory_period_microseconds
     };
     struct event_loop loop = {
         .observation = {
@@ -1088,14 +1133,24 @@ int monitor_run(const struct sqm_mon_config *config)
     int run_status;
     size_t index;
 
-    controller_init(&loop.observation.controller, &controller_config);
     latency_init(&loop.observation.latency);
-    for (index = 0U; index < (size_t)config->no_pingers; index++) {
-        latency_tracker_init(&loop.observation.latency_trackers[index]);
-    }
     netlink_init(&loop.observation.netlink);
     traffic_monitor_init(&loop.observation.download.traffic_monitor);
     traffic_monitor_init(&loop.observation.upload.traffic_monitor);
+    if (controller_init(
+            &loop.observation.controller,
+            &controller_config
+        ) != 0) {
+        log_message(
+            LOG_LEVEL_ERROR,
+            "could not initialize controller: %s",
+            strerror(errno)
+        );
+        goto done;
+    }
+    for (index = 0U; index < (size_t)config->no_pingers; index++) {
+        latency_tracker_init(&loop.observation.latency_trackers[index]);
+    }
 
     /* latency.c owns and reaps fping; uloop must not consume its SIGCHLD. */
     uloop_handle_sigchld = false;
@@ -1144,5 +1199,6 @@ uloop_done:
 done:
     netlink_close(&loop.observation.netlink);
     latency_close(&loop.observation.latency);
+    controller_close(&loop.observation.controller);
     return loop.result;
 }

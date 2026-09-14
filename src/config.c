@@ -441,6 +441,26 @@ static int validate_latency_config(
         );
         return -1;
     }
+    if (config->bufferbloat_detection_window == 0U ||
+        config->bufferbloat_detection_window > UINT_MAX) {
+        error_set(
+            error,
+            error_size,
+            "option 'bufferbloat_detection_window' must be between 1 and %u",
+            UINT_MAX
+        );
+        return -1;
+    }
+    if (config->bufferbloat_detection_threshold >
+        config->bufferbloat_detection_window) {
+        error_set(
+            error,
+            error_size,
+            "option 'bufferbloat_detection_thr' cannot be greater than"
+            " 'bufferbloat_detection_window'"
+        );
+        return -1;
+    }
 
     for (index = 0U; index < config->reflector_count; index++) {
         for (comparison = index + 1U;
