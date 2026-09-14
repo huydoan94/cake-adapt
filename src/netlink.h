@@ -6,9 +6,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+struct nl_sock;
+
 struct sqm_mon_netlink {
-    int socket_descriptor;
-    uint32_t sequence;
+    struct nl_sock *socket;
 };
 
 typedef int (*netlink_message_handler)(

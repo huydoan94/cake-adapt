@@ -4,6 +4,8 @@ CPPFLAGS ?=
 CFLAGS ?= -O2
 LDFLAGS ?=
 LDLIBS ?=
+NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0 2>/dev/null))
+NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0 2>/dev/null)
 
 WARNINGS := \
 	-Wall \
@@ -35,13 +37,13 @@ DEPENDENCIES := $(OBJECTS:.o=.d)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox $(NETLINK_LIBS)
 
 $(OBJECT_DIR):
 	mkdir -p $@
 
 $(OBJECT_DIR)/%.o: %.c | $(OBJECT_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 clean:
 	$(RM) $(TARGET) $(OBJECTS) $(DEPENDENCIES)

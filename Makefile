@@ -12,7 +12,7 @@ define Package/sqm-mon
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +fping
+  DEPENDS:=+libuci +libubox +libnl-tiny +fping
 endef
 
 define Package/sqm-mon/description
@@ -31,6 +31,8 @@ define Build/Compile
 		CPPFLAGS="$(TARGET_CPPFLAGS)" \
 		CFLAGS="$(TARGET_CFLAGS)" \
 		LDFLAGS="$(TARGET_LDFLAGS)" \
+		NETLINK_CFLAGS="-isystem $(STAGING_DIR)/usr/include/libnl-tiny" \
+		NETLINK_LIBS="-lnl-tiny" \
 		OBJECT_DIR="$(PKG_BUILD_DIR)/build"
 endef
 
