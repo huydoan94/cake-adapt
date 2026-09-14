@@ -32,9 +32,10 @@ struct latency_sample {
 
 struct latency_observation {
     uint32_t round_trip_microseconds;
-    uint32_t baseline_microseconds;
-    int64_t delta_microseconds;
-    int64_t delta_ewma_microseconds;
+    uint32_t one_way_microseconds;
+    uint32_t one_way_baseline_microseconds;
+    int64_t one_way_delta_microseconds;
+    int64_t one_way_delta_ewma_microseconds;
     uint64_t timestamp_microseconds;
     uint64_t sequence;
 };
@@ -45,10 +46,16 @@ enum latency_fping_line_result {
     LATENCY_FPING_LINE_INVALID
 };
 
+struct latency_tracker_config {
+    uint64_t alpha_baseline_increase_per_million;
+    uint64_t alpha_baseline_decrease_per_million;
+    uint64_t alpha_delta_ewma_per_million;
+};
+
 struct latency_tracker {
-    uint64_t baseline_scaled;
-    int64_t delta_ewma_microseconds;
-    bool initialized;
+    struct latency_tracker_config config;
+    uint32_t one_way_baseline_microseconds;
+    int64_t one_way_delta_ewma_microseconds;
 };
 
 void latency_init(struct sqm_mon_latency *latency);
@@ -72,7 +79,10 @@ enum latency_fping_line_result latency_parse_fping_line(
     struct latency_sample *sample
 );
 
-void latency_tracker_init(struct latency_tracker *tracker);
+int latency_tracker_init(
+    struct latency_tracker *tracker,
+    const struct latency_tracker_config *config
+);
 
 void latency_tracker_update(
     struct latency_tracker *tracker,

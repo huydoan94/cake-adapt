@@ -482,9 +482,6 @@ static void log_controller_stats(
     char upload_condition[LOAD_CONDITION_SIZE];
     uint64_t download_rate = output->download.rate_bits_per_second / 1000U;
     uint64_t upload_rate = output->upload.rate_bits_per_second / 1000U;
-    uint32_t one_way_baseline = latency->baseline_microseconds / 2U;
-    uint32_t one_way_delay = latency->round_trip_microseconds / 2U;
-    int64_t one_way_delta = latency->delta_microseconds / 2;
 
     load_condition(
         download_condition,
@@ -535,18 +532,22 @@ static void log_controller_stats(
             .icmp_timestamp_microseconds = latency->timestamp_microseconds,
             .reflector = reflector,
             .sequence = latency->sequence,
-            .download_owd_baseline_microseconds = one_way_baseline,
-            .download_owd_microseconds = one_way_delay,
+            .download_owd_baseline_microseconds =
+                latency->one_way_baseline_microseconds,
+            .download_owd_microseconds = latency->one_way_microseconds,
             .download_owd_delta_ewma_microseconds =
-                latency->delta_ewma_microseconds,
-            .download_owd_delta_microseconds = one_way_delta,
+                latency->one_way_delta_ewma_microseconds,
+            .download_owd_delta_microseconds =
+                latency->one_way_delta_microseconds,
             .download_adjust_delay_threshold_microseconds =
                 config->download_owd_delta_delay_threshold_microseconds,
-            .upload_owd_baseline_microseconds = one_way_baseline,
-            .upload_owd_microseconds = one_way_delay,
+            .upload_owd_baseline_microseconds =
+                latency->one_way_baseline_microseconds,
+            .upload_owd_microseconds = latency->one_way_microseconds,
             .upload_owd_delta_ewma_microseconds =
-                latency->delta_ewma_microseconds,
-            .upload_owd_delta_microseconds = one_way_delta,
+                latency->one_way_delta_ewma_microseconds,
+            .upload_owd_delta_microseconds =
+                latency->one_way_delta_microseconds,
             .upload_adjust_delay_threshold_microseconds =
                 config->upload_owd_delta_delay_threshold_microseconds,
             .download_sum_delays =
@@ -698,10 +699,10 @@ static void update_controller(
         .latency = {
             .valid = latency_valid,
             .current_rtt_microseconds = latency_valid
-                ? latency->round_trip_microseconds
+                ? latency->one_way_microseconds * 2U
                 : 0U,
             .baseline_rtt_microseconds = latency_valid
-                ? latency->baseline_microseconds
+                ? latency->one_way_baseline_microseconds * 2U
                 : 0U
         },
         .timestamp_microseconds = 0U
@@ -1102,6 +1103,14 @@ int monitor_run(const struct sqm_mon_config *config)
         .decay_refractory_period_microseconds =
             config->decay_refractory_period_microseconds
     };
+    const struct latency_tracker_config latency_tracker_config = {
+        .alpha_baseline_increase_per_million =
+            config->alpha_baseline_increase_per_million,
+        .alpha_baseline_decrease_per_million =
+            config->alpha_baseline_decrease_per_million,
+        .alpha_delta_ewma_per_million =
+            config->alpha_delta_ewma_per_million
+    };
     struct event_loop loop = {
         .observation = {
             .download = {
@@ -1149,7 +1158,17 @@ int monitor_run(const struct sqm_mon_config *config)
         goto done;
     }
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
-        latency_tracker_init(&loop.observation.latency_trackers[index]);
+        if (latency_tracker_init(
+                &loop.observation.latency_trackers[index],
+                &latency_tracker_config
+            ) != 0) {
+            log_message(
+                LOG_LEVEL_ERROR,
+                "could not initialize latency tracker: %s",
+                strerror(errno)
+            );
+            goto done;
+        }
     }
 
     /* latency.c owns and reaps fping; uloop must not consume its SIGCHLD. */

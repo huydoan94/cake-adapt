@@ -461,6 +461,16 @@ static int validate_latency_config(
         );
         return -1;
     }
+    if (config->alpha_baseline_increase_per_million > 1000000U ||
+        config->alpha_baseline_decrease_per_million > 1000000U ||
+        config->alpha_delta_ewma_per_million > 1000000U) {
+        error_set(
+            error,
+            error_size,
+            "alpha options must be between 0 and 1"
+        );
+        return -1;
+    }
 
     for (index = 0U; index < config->reflector_count; index++) {
         for (comparison = index + 1U;

@@ -23,10 +23,8 @@
 #define FPING_TIMEOUT_MILLISECONDS "10000"
 #define CHILD_STOP_ATTEMPTS 50U
 #define CHILD_STOP_INTERVAL_NANOSECONDS 10000000L
-#define BASELINE_SCALE 1000U
-#define BASELINE_INCREASE_WEIGHT 1U
-#define BASELINE_DECREASE_WEIGHT 900U
-#define DELTA_EWMA_WEIGHT 95U
+#define ALPHA_SCALE 1000000U
+#define INITIAL_ONE_WAY_BASELINE_MICROSECONDS 100000U
 
 extern char **environ;
 
@@ -648,11 +646,23 @@ void latency_close(struct sqm_mon_latency *latency)
     stop_child(process_identifier);
 }
 
-void latency_tracker_init(struct latency_tracker *tracker)
+int latency_tracker_init(
+    struct latency_tracker *tracker,
+    const struct latency_tracker_config *config
+)
 {
-    tracker->baseline_scaled = 0U;
-    tracker->delta_ewma_microseconds = 0;
-    tracker->initialized = false;
+    if (config->alpha_baseline_increase_per_million > ALPHA_SCALE ||
+        config->alpha_baseline_decrease_per_million > ALPHA_SCALE ||
+        config->alpha_delta_ewma_per_million > ALPHA_SCALE) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    tracker->config = *config;
+    tracker->one_way_baseline_microseconds =
+        INITIAL_ONE_WAY_BASELINE_MICROSECONDS;
+    tracker->one_way_delta_ewma_microseconds = 0;
+    return 0;
 }
 
 void latency_tracker_update(
@@ -661,38 +671,30 @@ void latency_tracker_update(
     struct latency_observation *observation
 )
 {
-    uint64_t sample_scaled =
-        (uint64_t)sample->round_trip_microseconds * BASELINE_SCALE;
-    unsigned int sample_weight;
+    uint32_t one_way_microseconds = sample->round_trip_microseconds / 2U;
+    uint64_t alpha = one_way_microseconds >=
+        tracker->one_way_baseline_microseconds
+        ? tracker->config.alpha_baseline_increase_per_million
+        : tracker->config.alpha_baseline_decrease_per_million;
 
-    if (!tracker->initialized) {
-        tracker->baseline_scaled = sample_scaled;
-        tracker->initialized = true;
-    } else {
-        /*
-         * Keep three decimal places for the integer EWMA. Lower RTT samples
-         * get 90% weight while higher samples get 0.1%, so the baseline falls
-         * quickly but does not absorb transient queueing delay.
-         */
-        sample_weight = sample_scaled < tracker->baseline_scaled
-            ? BASELINE_DECREASE_WEIGHT
-            : BASELINE_INCREASE_WEIGHT;
-        tracker->baseline_scaled = (
-            tracker->baseline_scaled * (BASELINE_SCALE - sample_weight) +
-            sample_scaled * sample_weight + BASELINE_SCALE / 2U
-        ) / BASELINE_SCALE;
-    }
+    /* This is cake-autorate's integer one-way baseline EWMA. */
+    tracker->one_way_baseline_microseconds = (uint32_t)(
+        (alpha * one_way_microseconds +
+            (ALPHA_SCALE - alpha) *
+                tracker->one_way_baseline_microseconds) /
+            ALPHA_SCALE
+    );
 
     observation->round_trip_microseconds =
         sample->round_trip_microseconds;
-    observation->baseline_microseconds = (uint32_t)(
-        (tracker->baseline_scaled + BASELINE_SCALE / 2U) /
-            BASELINE_SCALE
-    );
-    observation->delta_microseconds =
-        (int64_t)sample->round_trip_microseconds -
-        (int64_t)observation->baseline_microseconds;
-    observation->delta_ewma_microseconds = tracker->delta_ewma_microseconds;
+    observation->one_way_microseconds = one_way_microseconds;
+    observation->one_way_baseline_microseconds =
+        tracker->one_way_baseline_microseconds;
+    observation->one_way_delta_microseconds =
+        (int64_t)one_way_microseconds -
+        (int64_t)tracker->one_way_baseline_microseconds;
+    observation->one_way_delta_ewma_microseconds =
+        tracker->one_way_delta_ewma_microseconds;
     observation->timestamp_microseconds = sample->timestamp_microseconds;
     observation->sequence = sample->sequence;
 }
@@ -703,18 +705,18 @@ void latency_tracker_update_delta_ewma(
     struct latency_observation *observation
 )
 {
+    int64_t alpha = (int64_t)tracker->config.alpha_delta_ewma_per_million;
+
     /* cake-autorate freezes reflector delay EWMA while either link is busy. */
     if (low_load) {
-        /* An RTT probe represents equal download and upload one-way delay. */
-        tracker->delta_ewma_microseconds =
-            ((int64_t)DELTA_EWMA_WEIGHT *
-                    (observation->delta_microseconds / 2) +
-                (int64_t)(1000U - DELTA_EWMA_WEIGHT) *
-                    tracker->delta_ewma_microseconds) /
-            1000;
+        tracker->one_way_delta_ewma_microseconds =
+            (alpha * observation->one_way_delta_microseconds +
+                ((int64_t)ALPHA_SCALE - alpha) *
+                    tracker->one_way_delta_ewma_microseconds) /
+            (int64_t)ALPHA_SCALE;
     }
-    observation->delta_ewma_microseconds =
-        tracker->delta_ewma_microseconds;
+    observation->one_way_delta_ewma_microseconds =
+        tracker->one_way_delta_ewma_microseconds;
 }
 
 enum latency_probe_result latency_receive(

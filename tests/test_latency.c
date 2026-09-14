@@ -5,6 +5,17 @@
 #include <stdio.h>
 #include <string.h>
 
+static const struct latency_tracker_config default_tracker_config = {
+    .alpha_baseline_increase_per_million = 1000U,
+    .alpha_baseline_decrease_per_million = 900000U,
+    .alpha_delta_ewma_per_million = 95000U
+};
+
+static void init_tracker(struct latency_tracker *tracker)
+{
+    assert(latency_tracker_init(tracker, &default_tracker_config) == 0);
+}
+
 static void test_initial_state_is_closed(void)
 {
     struct sqm_mon_latency latency;
@@ -163,17 +174,66 @@ static struct latency_observation track(
     return observation;
 }
 
-static void test_first_sample_establishes_baseline(void)
+static void test_first_sample_updates_initialized_baseline(void)
 {
     struct latency_tracker tracker;
     struct latency_observation observation;
 
-    latency_tracker_init(&tracker);
+    init_tracker(&tracker);
     observation = track(&tracker, 30000U);
 
     assert(observation.round_trip_microseconds == 30000U);
-    assert(observation.baseline_microseconds == 30000U);
-    assert(observation.delta_microseconds == 0U);
+    assert(observation.one_way_microseconds == 15000U);
+    assert(observation.one_way_baseline_microseconds == 23500U);
+    assert(observation.one_way_delta_microseconds == -8500);
+    assert(observation.one_way_delta_ewma_microseconds == -807);
+}
+
+static void test_configured_alpha_values_are_used(void)
+{
+    const struct latency_tracker_config config = {
+        .alpha_baseline_increase_per_million = 200000U,
+        .alpha_baseline_decrease_per_million = 500000U,
+        .alpha_delta_ewma_per_million = 500000U
+    };
+    struct latency_tracker tracker;
+    struct latency_observation observation;
+
+    assert(latency_tracker_init(&tracker, &config) == 0);
+    observation = track(&tracker, 300000U);
+    assert(observation.one_way_baseline_microseconds == 110000U);
+    assert(observation.one_way_delta_microseconds == 40000);
+    assert(observation.one_way_delta_ewma_microseconds == 20000);
+
+    observation = track(&tracker, 100000U);
+    assert(observation.one_way_baseline_microseconds == 80000U);
+    assert(observation.one_way_delta_microseconds == -30000);
+    assert(observation.one_way_delta_ewma_microseconds == -5000);
+}
+
+static void test_delta_ewma_freezes_during_load(void)
+{
+    struct latency_tracker tracker;
+    struct latency_sample sample = {
+        .round_trip_microseconds = 240000U
+    };
+    struct latency_observation observation;
+
+    init_tracker(&tracker);
+    latency_tracker_update(&tracker, &sample, &observation);
+    latency_tracker_update_delta_ewma(&tracker, false, &observation);
+
+    assert(observation.one_way_delta_microseconds == 19980);
+    assert(observation.one_way_delta_ewma_microseconds == 0);
+}
+
+static void test_invalid_alpha_is_rejected(void)
+{
+    struct latency_tracker_config config = default_tracker_config;
+    struct latency_tracker tracker;
+
+    config.alpha_delta_ewma_per_million = 1000001U;
+    assert(latency_tracker_init(&tracker, &config) != 0);
 }
 
 static void test_lower_sample_reduces_baseline(void)
@@ -181,13 +241,13 @@ static void test_lower_sample_reduces_baseline(void)
     struct latency_tracker tracker;
     struct latency_observation observation;
 
-    latency_tracker_init(&tracker);
+    init_tracker(&tracker);
     (void)track(&tracker, 30000U);
     observation = track(&tracker, 25000U);
 
-    assert(observation.baseline_microseconds == 25500U);
-    assert(observation.delta_microseconds == -500);
-    assert(observation.delta_ewma_microseconds == -23);
+    assert(observation.one_way_baseline_microseconds == 13600U);
+    assert(observation.one_way_delta_microseconds == -1100);
+    assert(observation.one_way_delta_ewma_microseconds == -834);
 }
 
 static void test_higher_sample_reports_delta(void)
@@ -195,13 +255,13 @@ static void test_higher_sample_reports_delta(void)
     struct latency_tracker tracker;
     struct latency_observation observation;
 
-    latency_tracker_init(&tracker);
-    (void)track(&tracker, 25000U);
-    observation = track(&tracker, 40000U);
+    init_tracker(&tracker);
+    (void)track(&tracker, 200000U);
+    observation = track(&tracker, 240000U);
 
-    assert(observation.baseline_microseconds == 25015U);
-    assert(observation.delta_microseconds == 14985U);
-    assert(observation.delta_ewma_microseconds == 711U);
+    assert(observation.one_way_baseline_microseconds == 100020U);
+    assert(observation.one_way_delta_microseconds == 19980U);
+    assert(observation.one_way_delta_ewma_microseconds == 1898U);
 }
 
 static void test_baseline_increases_slowly(void)
@@ -209,12 +269,12 @@ static void test_baseline_increases_slowly(void)
     struct latency_tracker tracker;
     struct latency_observation observation;
 
-    latency_tracker_init(&tracker);
-    (void)track(&tracker, 10000U);
-    observation = track(&tracker, 20000U);
+    init_tracker(&tracker);
+    (void)track(&tracker, 200000U);
+    observation = track(&tracker, 220000U);
 
-    assert(observation.baseline_microseconds == 10010U);
-    assert(observation.delta_microseconds == 9990U);
+    assert(observation.one_way_baseline_microseconds == 100010U);
+    assert(observation.one_way_delta_microseconds == 9990U);
 }
 
 static void test_maximum_rtt_does_not_overflow_delta(void)
@@ -222,12 +282,13 @@ static void test_maximum_rtt_does_not_overflow_delta(void)
     struct latency_tracker tracker;
     struct latency_observation observation;
 
-    latency_tracker_init(&tracker);
-    (void)track(&tracker, 1U);
+    init_tracker(&tracker);
+    (void)track(&tracker, 200000U);
     observation = track(&tracker, UINT32_MAX);
 
-    assert(observation.baseline_microseconds == 4294968U);
-    assert(observation.delta_microseconds == INT64_C(4290672327));
+    assert(observation.one_way_microseconds == 2147483647U);
+    assert(observation.one_way_baseline_microseconds == 2247383U);
+    assert(observation.one_way_delta_microseconds == INT64_C(2145236264));
 }
 
 int main(void)
@@ -241,7 +302,10 @@ int main(void)
     test_fping_six_digit_timestamp_is_preserved();
     test_fping_timeout_is_recognized();
     test_fping_reply_identifies_each_target();
-    test_first_sample_establishes_baseline();
+    test_first_sample_updates_initialized_baseline();
+    test_configured_alpha_values_are_used();
+    test_delta_ewma_freezes_during_load();
+    test_invalid_alpha_is_rejected();
     test_lower_sample_reduces_baseline();
     test_higher_sample_reports_delta();
     test_baseline_increases_slowly();
