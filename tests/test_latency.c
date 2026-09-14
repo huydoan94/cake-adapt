@@ -327,6 +327,37 @@ static void test_reflector_health_rejects_invalid_window(void)
     assert(reflector_health_init(&health, &config, 0U) != 0);
 }
 
+static void test_latency_tracker_reset_discards_measurements(void)
+{
+    struct latency_tracker tracker;
+    struct latency_observation observation;
+
+    init_tracker(&tracker);
+    (void)track(&tracker, 30000U);
+    latency_tracker_reset(&tracker);
+    observation = track(&tracker, 200000U);
+
+    assert(observation.one_way_baseline_microseconds == 100000U);
+    assert(observation.one_way_delta_ewma_microseconds == 0);
+}
+
+static void test_reflector_health_reset_clears_offences(void)
+{
+    const struct reflector_health_config config = {
+        .response_deadline_microseconds = 100U,
+        .detection_window = 2U,
+        .detection_threshold = 1U
+    };
+    struct reflector_health health = { 0 };
+
+    assert(reflector_health_init(&health, &config, 100U) == 0);
+    assert(reflector_health_check(&health, 201U) == REFLECTOR_MISBEHAVING);
+    reflector_health_reset(&health, 300U);
+    assert(reflector_health_check(&health, 400U) == REFLECTOR_HEALTHY);
+    assert(health.offence_count == 0U);
+    reflector_health_cleanup(&health);
+}
+
 int main(void)
 {
     test_initial_state_is_closed();
@@ -348,6 +379,8 @@ int main(void)
     test_maximum_rtt_does_not_overflow_delta();
     test_reflector_health_uses_rolling_offence_window();
     test_reflector_health_rejects_invalid_window();
+    test_latency_tracker_reset_discards_measurements();
+    test_reflector_health_reset_clears_offences();
 
     (void)puts("latency tests passed");
     return 0;

@@ -659,10 +659,15 @@ int latency_tracker_init(
     }
 
     tracker->config = *config;
+    latency_tracker_reset(tracker);
+    return 0;
+}
+
+void latency_tracker_reset(struct latency_tracker *tracker)
+{
     tracker->one_way_baseline_microseconds =
         INITIAL_ONE_WAY_BASELINE_MICROSECONDS;
     tracker->one_way_delta_ewma_microseconds = 0;
-    return 0;
 }
 
 void latency_tracker_update(
@@ -750,6 +755,21 @@ void reflector_health_cleanup(struct reflector_health *health)
 {
     free(health->offences);
     health->offences = NULL;
+    health->offence_index = 0U;
+    health->offence_count = 0U;
+}
+
+void reflector_health_reset(
+    struct reflector_health *health,
+    uint64_t start_microseconds
+)
+{
+    memset(
+        health->offences,
+        0,
+        health->config.detection_window * sizeof(*health->offences)
+    );
+    health->last_response_microseconds = start_microseconds;
     health->offence_index = 0U;
     health->offence_count = 0U;
 }

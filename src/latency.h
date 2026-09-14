@@ -104,6 +104,8 @@ int latency_tracker_init(
     const struct latency_tracker_config *config
 );
 
+void latency_tracker_reset(struct latency_tracker *tracker);
+
 void latency_tracker_update(
     struct latency_tracker *tracker,
     const struct latency_sample *sample,
@@ -123,6 +125,11 @@ int reflector_health_init(
 );
 
 void reflector_health_cleanup(struct reflector_health *health);
+
+void reflector_health_reset(
+    struct reflector_health *health,
+    uint64_t start_microseconds
+);
 
 void reflector_health_record_response(
     struct reflector_health *health,

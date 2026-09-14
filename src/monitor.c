@@ -267,6 +267,7 @@ struct observation_context {
     struct sqm_mon_latency latency;
     struct latency_tracker latency_trackers[CONFIG_MAX_REFLECTORS];
     struct reflector_health reflector_health[CONFIG_MAX_REFLECTORS];
+    size_t reflector_order[CONFIG_MAX_REFLECTORS];
     struct sqm_mon_netlink netlink;
     struct monitored_direction download;
     struct monitored_direction upload;
@@ -838,7 +839,7 @@ static bool ensure_latency_open(
         return true;
     }
     for (index = 0U; index < target_count; index++) {
-        targets[index] = config->reflectors[index];
+        targets[index] = config->reflectors[context->reflector_order[index]];
     }
     if (latency_open(
             &context->latency,
@@ -875,6 +876,7 @@ static bool ensure_latency_open(
 }
 
 static size_t find_active_reflector(
+    const struct observation_context *context,
     const struct sqm_mon_config *config,
     const char *target
 )
@@ -883,7 +885,10 @@ static size_t find_active_reflector(
     size_t index;
 
     for (index = 0U; index < target_count; index++) {
-        if (strcmp(config->reflectors[index], target) == 0) {
+        if (strcmp(
+                config->reflectors[context->reflector_order[index]],
+                target
+            ) == 0) {
             return index;
         }
     }
@@ -926,7 +931,7 @@ static bool receive_latency_samples(
             return false;
         }
 
-        reflector_index = find_active_reflector(config, sample.target);
+        reflector_index = find_active_reflector(context, config, sample.target);
         if (reflector_index == SIZE_MAX) {
             log_message(
                 LOG_LEVEL_WARNING,
@@ -938,7 +943,9 @@ static bool receive_latency_samples(
         }
 
         latency_tracker_update(
-            &context->latency_trackers[reflector_index],
+            &context->latency_trackers[
+                context->reflector_order[reflector_index]
+            ],
             &sample,
             &observation
         );
@@ -967,7 +974,9 @@ static bool receive_latency_samples(
         );
 
         latency_tracker_update_delta_ewma(
-            &context->latency_trackers[reflector_index],
+            &context->latency_trackers[
+                context->reflector_order[reflector_index]
+            ],
             low_load,
             &observation
         );
@@ -1046,6 +1055,80 @@ static bool watch_latency(struct event_loop *loop)
     return false;
 }
 
+static bool replace_active_reflector(
+    struct event_loop *loop,
+    size_t pinger,
+    uint64_t timestamp_microseconds
+)
+{
+    struct observation_context *context = &loop->observation;
+    const struct sqm_mon_config *config = loop->config;
+    size_t active_count = (size_t)config->no_pingers;
+    size_t reflector_count = (size_t)config->reflector_count;
+    size_t bad_index = context->reflector_order[pinger];
+    size_t index;
+
+    if (reflector_count <= active_count) {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "No additional reflectors specified so just retaining: %s.",
+            config->reflectors[bad_index]
+        );
+        reflector_health_reset(
+            &context->reflector_health[pinger],
+            timestamp_microseconds
+        );
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "Resetting reflector offences associated with reflector: %s.",
+            config->reflectors[bad_index]
+        );
+        return true;
+    }
+
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "replacing reflector: %s with %s.",
+        config->reflectors[bad_index],
+        config->reflectors[context->reflector_order[active_count]]
+    );
+    if (config->retain_reflector_stats) {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "Retaining reflector stats associated with: %s",
+            config->reflectors[bad_index]
+        );
+    } else {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "Discarding reflector stats associated with %s",
+            config->reflectors[bad_index]
+        );
+        latency_tracker_reset(&context->latency_trackers[bad_index]);
+    }
+
+    context->reflector_order[pinger] =
+        context->reflector_order[active_count];
+    for (index = active_count; index + 1U < reflector_count; index++) {
+        context->reflector_order[index] = context->reflector_order[index + 1U];
+    }
+    context->reflector_order[reflector_count - 1U] = bad_index;
+    reflector_health_reset(
+        &context->reflector_health[pinger],
+        timestamp_microseconds
+    );
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "Resetting reflector offences associated with reflector: %s.",
+        config->reflectors[context->reflector_order[pinger]]
+    );
+
+    /* fping owns all active targets in one process, so rotate them together. */
+    close_latency(loop);
+    (void)watch_latency(loop);
+    return true;
+}
+
 static void handle_traffic_timer(
     struct uloop_interval *timer
 )
@@ -1073,6 +1156,7 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
 {
     struct event_loop *loop = event_loop_from_reflector_health_timer(timer);
     uint64_t timestamp_microseconds;
+    bool reflector_replaced = false;
     size_t index;
 
     if (!monotonic_microseconds(&timestamp_microseconds)) {
@@ -1107,7 +1191,9 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
             LOG_LEVEL_DEBUG,
             "no ping response from reflector: %s within"
             " reflector_response_deadline: %.3fs",
-            loop->config->reflectors[index],
+            loop->config->reflectors[
+                loop->observation.reflector_order[index]
+            ],
             (double)loop->config->reflector_response_deadline_microseconds /
                 1000000.0
         );
@@ -1115,7 +1201,9 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
             LOG_LEVEL_DEBUG,
             "reflector=%s, sum_reflector_offences=%zu and"
             " reflector_misbehaving_detection_thr=%" PRIu64,
-            loop->config->reflectors[index],
+            loop->config->reflectors[
+                loop->observation.reflector_order[index]
+            ],
             loop->observation.reflector_health[index].offence_count,
             loop->config->reflector_misbehaving_detection_threshold
         );
@@ -1123,8 +1211,27 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
             log_message(
                 LOG_LEVEL_DEBUG,
                 "Warning: reflector: %s seems to be misbehaving.",
-                loop->config->reflectors[index]
+                loop->config->reflectors[
+                    loop->observation.reflector_order[index]
+                ]
             );
+            if (!reflector_replaced) {
+                reflector_replaced = replace_active_reflector(
+                    loop,
+                    index,
+                    timestamp_microseconds
+                );
+            } else {
+                log_message(
+                    LOG_LEVEL_DEBUG,
+                    "Warning: skipping replacement of reflector: %s given"
+                    " prior replacement within this reflector health check"
+                    " cycle.",
+                    loop->config->reflectors[
+                        loop->observation.reflector_order[index]
+                    ]
+                );
+            }
         }
     }
 }
@@ -1267,7 +1374,7 @@ int monitor_run(const struct sqm_mon_config *config)
         );
         goto done;
     }
-    for (index = 0U; index < (size_t)config->no_pingers; index++) {
+    for (index = 0U; index < (size_t)config->reflector_count; index++) {
         if (latency_tracker_init(
                 &loop.observation.latency_trackers[index],
                 &latency_tracker_config
@@ -1279,6 +1386,7 @@ int monitor_run(const struct sqm_mon_config *config)
             );
             goto done;
         }
+        loop.observation.reflector_order[index] = index;
     }
     if (!monotonic_microseconds(&start_microseconds)) {
         log_message(
