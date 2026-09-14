@@ -1,6 +1,7 @@
 #include "config.h"
 #include "error.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -419,6 +420,24 @@ static int validate_latency_config(
             error,
             error_size,
             "option 'monitor_achieved_rates_interval_ms' must be positive"
+        );
+        return -1;
+    }
+    if (config->monitor_achieved_rates_interval_microseconds % 1000U != 0U) {
+        error_set(
+            error,
+            error_size,
+            "option 'monitor_achieved_rates_interval_ms' must be a whole"
+            " number of milliseconds"
+        );
+        return -1;
+    }
+    if (config->monitor_achieved_rates_interval_microseconds / 1000U >
+        UINT_MAX) {
+        error_set(
+            error,
+            error_size,
+            "option 'monitor_achieved_rates_interval_ms' is too large"
         );
         return -1;
     }

@@ -20,9 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/timerfd.h>
 #include <time.h>
-#include <unistd.h>
 
 #define ERROR_SIZE 256U
 #define LOAD_CONDITION_SIZE 16U
@@ -279,7 +277,7 @@ struct observation_context {
 struct event_loop {
     struct observation_context observation;
     const struct sqm_mon_config *config;
-    struct uloop_fd traffic_timer;
+    struct uloop_interval traffic_timer;
     struct uloop_fd latency_output;
     int result;
 };
@@ -962,68 +960,14 @@ static bool receive_latency_samples(
     }
 }
 
-static int create_traffic_timer(uint64_t interval_microseconds)
-{
-    struct itimerspec schedule = { 0 };
-    uint64_t seconds = interval_microseconds / 1000000U;
-    int descriptor;
-
-    schedule.it_interval.tv_sec = (time_t)seconds;
-    if (schedule.it_interval.tv_sec < 0 ||
-        (uint64_t)schedule.it_interval.tv_sec != seconds) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "traffic monitor interval is too large"
-        );
-        return -1;
-    }
-    schedule.it_interval.tv_nsec = (long)(
-        interval_microseconds % 1000000U * 1000U
-    );
-    schedule.it_value = schedule.it_interval;
-
-    descriptor = timerfd_create(
-        CLOCK_MONOTONIC,
-        TFD_CLOEXEC | TFD_NONBLOCK
-    );
-    if (descriptor < 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not create traffic monitor timer: %s",
-            strerror(errno)
-        );
-        return -1;
-    }
-    if (timerfd_settime(descriptor, 0, &schedule, NULL) != 0) {
-        int saved_errno = errno;
-
-        (void)close(descriptor);
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not schedule traffic monitor timer: %s",
-            strerror(saved_errno)
-        );
-        return -1;
-    }
-    return descriptor;
-}
-
-static struct event_loop *event_loop_from_descriptor(
-    struct uloop_fd *descriptor,
-    size_t member_offset
+static struct event_loop *event_loop_from_latency_output(
+    struct uloop_fd *descriptor
 )
 {
     return (struct event_loop *)(void *)(
         (unsigned char *)(void *)descriptor -
-        member_offset
+        offsetof(struct event_loop, latency_output)
     );
-}
-
-static void stop_event_loop(struct event_loop *loop, const char *message)
-{
-    log_message(LOG_LEVEL_ERROR, "%s", message);
-    loop->result = -1;
-    uloop_end();
 }
 
 static void close_latency(struct event_loop *loop)
@@ -1040,10 +984,7 @@ static void handle_latency_output(
     unsigned int events
 )
 {
-    struct event_loop *loop = event_loop_from_descriptor(
-        descriptor,
-        offsetof(struct event_loop, latency_output)
-    );
+    struct event_loop *loop = event_loop_from_latency_output(descriptor);
 
     (void)events;
     if (!receive_latency_samples(&loop->observation, loop->config)) {
@@ -1082,46 +1023,13 @@ static bool watch_latency(struct event_loop *loop)
 }
 
 static void handle_traffic_timer(
-    struct uloop_fd *descriptor,
-    unsigned int events
+    struct uloop_interval *timer
 )
 {
-    struct event_loop *loop = event_loop_from_descriptor(
-        descriptor,
+    struct event_loop *loop = (struct event_loop *)(void *)(
+        (unsigned char *)(void *)timer -
         offsetof(struct event_loop, traffic_timer)
     );
-    uint64_t expirations;
-    ssize_t bytes_read;
-
-    if (descriptor->error || descriptor->eof) {
-        stop_event_loop(loop, "traffic monitor timer reported an error");
-        return;
-    }
-    if ((events & ULOOP_READ) == 0U) {
-        return;
-    }
-
-    bytes_read = read(descriptor->fd, &expirations, sizeof(expirations));
-    if (bytes_read != (ssize_t)sizeof(expirations)) {
-        if (bytes_read < 0 && (errno == EAGAIN || errno == EINTR)) {
-            return;
-        }
-        if (bytes_read < 0) {
-            log_message(
-                LOG_LEVEL_ERROR,
-                "could not read traffic monitor timer: %s",
-                strerror(errno)
-            );
-            loop->result = -1;
-            uloop_end();
-        } else {
-            stop_event_loop(
-                loop,
-                "could not read traffic monitor timer: incomplete read"
-            );
-        }
-        return;
-    }
 
     observe_traffic_cycle(&loop->observation, loop->config);
     (void)watch_latency(loop);
@@ -1168,8 +1076,7 @@ int monitor_run(const struct sqm_mon_config *config)
         },
         .config = config,
         .traffic_timer = {
-            .cb = handle_traffic_timer,
-            .fd = -1
+            .cb = handle_traffic_timer
         },
         .latency_output = {
             .cb = handle_latency_output,
@@ -1202,15 +1109,11 @@ int monitor_run(const struct sqm_mon_config *config)
         goto done;
     }
 
-    loop.traffic_timer.fd = create_traffic_timer(
-        config->monitor_achieved_rates_interval_microseconds
-    );
-    if (loop.traffic_timer.fd < 0) {
-        goto uloop_done;
-    }
-    if (uloop_fd_add(
+    if (uloop_interval_set(
             &loop.traffic_timer,
-            ULOOP_READ | ULOOP_ERROR_CB
+            (unsigned int)(
+                config->monitor_achieved_rates_interval_microseconds / 1000U
+            )
         ) != 0) {
         log_message(
             LOG_LEVEL_ERROR,
@@ -1234,12 +1137,7 @@ int monitor_run(const struct sqm_mon_config *config)
 
 uloop_done:
     close_latency(&loop);
-    if (loop.traffic_timer.registered) {
-        (void)uloop_fd_delete(&loop.traffic_timer);
-    }
-    if (loop.traffic_timer.fd >= 0) {
-        (void)close(loop.traffic_timer.fd);
-    }
+    (void)uloop_interval_cancel(&loop.traffic_timer);
     uloop_done();
     uloop_handle_sigchld = previous_sigchld_handling;
 
