@@ -186,38 +186,33 @@ static struct nl_cb *create_callbacks(
     size_t error_size
 )
 {
+    static const struct {
+        enum nl_cb_type type;
+        nl_recvmsg_msg_cb_t handler;
+    } handlers[] = {
+        { NL_CB_VALID, handle_valid_response },
+        { NL_CB_FINISH, handle_complete_response },
+        { NL_CB_ACK, handle_complete_response }
+    };
     struct nl_cb *callbacks = nl_cb_alloc(NL_CB_CUSTOM);
-    int result;
+    int result = 0;
 
     if (callbacks == NULL) {
         error_set(error, error_size, "could not allocate rtnetlink callbacks");
         return NULL;
     }
 
-    result = nl_cb_set(
-        callbacks,
-        NL_CB_VALID,
-        NL_CB_CUSTOM,
-        handle_valid_response,
-        context
-    );
-    if (result == 0) {
+    for (size_t index = 0; index < sizeof(handlers) / sizeof(handlers[0]); ++index) {
         result = nl_cb_set(
             callbacks,
-            NL_CB_FINISH,
+            handlers[index].type,
             NL_CB_CUSTOM,
-            handle_complete_response,
+            handlers[index].handler,
             context
         );
-    }
-    if (result == 0) {
-        result = nl_cb_set(
-            callbacks,
-            NL_CB_ACK,
-            NL_CB_CUSTOM,
-            handle_complete_response,
-            context
-        );
+        if (result < 0) {
+            break;
+        }
     }
     if (result == 0) {
         result = nl_cb_err(

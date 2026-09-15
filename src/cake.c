@@ -10,6 +10,7 @@
 #include <linux/rtnetlink.h>
 #include <net/if.h>
 #include <netlink/attr.h>
+#include <netlink/msg.h>
 #include <string.h>
 
 struct cake_dump_context {
@@ -17,45 +18,6 @@ struct cake_dump_context {
     struct cake_observation *observation;
     bool found;
 };
-
-static struct nlattr *find_attribute(
-    const void *data,
-    size_t length,
-    unsigned short type
-)
-{
-    /* Kernel message lengths are external input; nla_find takes an int. */
-    if (length > INT_MAX) {
-        return NULL;
-    }
-    return nla_find((struct nlattr *)(void *)data, (int)length, type);
-}
-
-static bool read_u32(
-    const struct nlattr *attribute,
-    uint32_t *value
-)
-{
-    if (attribute == NULL || nla_len(attribute) < (int)sizeof(*value)) {
-        return false;
-    }
-
-    memcpy(value, nla_data(attribute), sizeof(*value));
-    return true;
-}
-
-static bool read_u64(
-    const struct nlattr *attribute,
-    uint64_t *value
-)
-{
-    if (attribute == NULL || nla_len(attribute) < (int)sizeof(*value)) {
-        return false;
-    }
-
-    memcpy(value, nla_data(attribute), sizeof(*value));
-    return true;
-}
 
 static uint64_t rate_to_bits_per_second(uint64_t bytes_per_second)
 {
@@ -67,171 +29,115 @@ static uint64_t rate_to_bits_per_second(uint64_t bytes_per_second)
     return bytes_per_second * 8U;
 }
 
-static bool kind_is_cake(const struct nlattr *kind)
-{
-    const char expected[] = "cake";
-    size_t payload;
-
-    if (kind == NULL) {
-        return false;
-    }
-
-    payload = (size_t)nla_len(kind);
-    return payload >= sizeof(expected) &&
-        memcmp(nla_data(kind), expected, sizeof(expected)) == 0;
-}
-
 static void parse_options(
-    const struct nlattr *options,
+    struct nlattr *options,
     struct cake_observation *observation
 )
 {
-    const struct nlattr *bandwidth;
-    uint64_t rate;
+    static const struct nla_policy policy[TCA_CAKE_MAX + 1] = {
+        [TCA_CAKE_BASE_RATE64] = { .type = NLA_U64 }
+    };
+    struct nlattr *attributes[TCA_CAKE_MAX + 1];
 
-    if (options == NULL) {
+    if (options == NULL ||
+        nla_parse_nested(
+            attributes,
+            TCA_CAKE_MAX,
+            options,
+            policy
+        ) < 0) {
         return;
     }
-
-    bandwidth = find_attribute(
-        nla_data(options),
-        (size_t)nla_len(options),
-        TCA_CAKE_BASE_RATE64
-    );
-    if (read_u64(bandwidth, &rate)) {
+    if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
         observation->bandwidth_bits_per_second =
-            rate_to_bits_per_second(rate);
+            rate_to_bits_per_second(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]));
         observation->has_bandwidth = true;
     }
 }
 
-static void parse_basic_stats(
-    const struct nlattr *basic,
-    struct cake_observation *observation
-)
-{
-    const unsigned char *data;
-    size_t payload;
-
-    if (basic == NULL) {
-        return;
-    }
-
-    data = nla_data(basic);
-    payload = (size_t)nla_len(basic);
-    if (payload < sizeof(uint64_t) + sizeof(uint32_t)) {
-        return;
-    }
-
-    /* TCA_STATS_BASIC is the kernel ABI pair: u64 bytes, then u32 packets. */
-    memcpy(&observation->bytes, data, sizeof(observation->bytes));
-    memcpy(
-        &observation->packets,
-        data + sizeof(observation->bytes),
-        sizeof(observation->packets)
-    );
-    observation->has_basic_stats = true;
-}
-
-static void parse_queue_stats(
-    const struct nlattr *queue,
-    struct cake_observation *observation
-)
-{
-    struct gnet_stats_queue stats;
-
-    if (queue == NULL || nla_len(queue) < (int)sizeof(stats)) {
-        return;
-    }
-
-    memcpy(&stats, nla_data(queue), sizeof(stats));
-    observation->queue_length = stats.qlen;
-    observation->backlog_bytes = stats.backlog;
-    observation->drops = stats.drops;
-    observation->has_queue_stats = true;
-}
-
 static void parse_cake_stats(
-    const struct nlattr *application,
+    struct nlattr *application,
     struct cake_observation *observation
 )
 {
-    const struct nlattr *capacity;
-    const struct nlattr *memory_limit;
-    const struct nlattr *memory_used;
-    uint64_t rate;
-    bool has_memory_limit;
-    bool has_memory_used;
+    static const struct nla_policy policy[TCA_CAKE_STATS_MAX + 1] = {
+        [TCA_CAKE_STATS_CAPACITY_ESTIMATE64] = { .type = NLA_U64 },
+        [TCA_CAKE_STATS_MEMORY_LIMIT] = { .type = NLA_U32 },
+        [TCA_CAKE_STATS_MEMORY_USED] = { .type = NLA_U32 }
+    };
+    struct nlattr *attributes[TCA_CAKE_STATS_MAX + 1];
 
-    if (application == NULL) {
+    if (application == NULL ||
+        nla_parse_nested(
+            attributes,
+            TCA_CAKE_STATS_MAX,
+            application,
+            policy
+        ) < 0) {
         return;
     }
-
-    capacity = find_attribute(
-        nla_data(application),
-        (size_t)nla_len(application),
-        TCA_CAKE_STATS_CAPACITY_ESTIMATE64
-    );
-    if (read_u64(capacity, &rate)) {
+    if (attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] != NULL) {
         observation->capacity_estimate_bits_per_second =
-            rate_to_bits_per_second(rate);
+            rate_to_bits_per_second(nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]));
         observation->has_capacity_estimate = true;
     }
-
-    memory_limit = find_attribute(
-        nla_data(application),
-        (size_t)nla_len(application),
-        TCA_CAKE_STATS_MEMORY_LIMIT
-    );
-    memory_used = find_attribute(
-        nla_data(application),
-        (size_t)nla_len(application),
-        TCA_CAKE_STATS_MEMORY_USED
-    );
-    has_memory_limit = read_u32(
-        memory_limit,
-        &observation->memory_limit_bytes
-    );
-    has_memory_used = read_u32(
-        memory_used,
-        &observation->memory_used_bytes
-    );
-    observation->has_memory_stats = has_memory_limit && has_memory_used;
+    if (attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL) {
+        observation->memory_limit_bytes = nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_LIMIT]);
+    }
+    if (attributes[TCA_CAKE_STATS_MEMORY_USED] != NULL) {
+        observation->memory_used_bytes = nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_USED]);
+    }
+    observation->has_memory_stats =
+        attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL &&
+        attributes[TCA_CAKE_STATS_MEMORY_USED] != NULL;
 }
 
 static void parse_stats(
-    const struct nlattr *stats,
+    struct nlattr *stats,
     struct cake_observation *observation
 )
 {
-    if (stats == NULL) {
+    static const struct nla_policy policy[TCA_STATS_MAX + 1] = {
+        /* The ABI is 12 bytes; sizeof(gnet_stats_basic) can include padding. */
+        [TCA_STATS_BASIC] = {
+            .type = NLA_BINARY,
+            .minlen = sizeof(uint64_t) + sizeof(uint32_t)
+        },
+        [TCA_STATS_QUEUE] = {
+            .type = NLA_BINARY,
+            .minlen = sizeof(struct gnet_stats_queue)
+        }
+    };
+    struct nlattr *attributes[TCA_STATS_MAX + 1];
+
+    /* Invalid optional statistics do not prevent discovering the qdisc. */
+    if (stats == NULL ||
+        nla_parse_nested(
+            attributes,
+            TCA_STATS_MAX,
+            stats,
+            policy
+        ) < 0) {
         return;
     }
+    if (attributes[TCA_STATS_BASIC] != NULL) {
+        struct gnet_stats_basic basic = { 0 };
 
-    parse_basic_stats(
-        find_attribute(
-            nla_data(stats),
-            (size_t)nla_len(stats),
-            TCA_STATS_BASIC
-        ),
-        observation
-    );
-    parse_queue_stats(
-        find_attribute(
-            nla_data(stats),
-            (size_t)nla_len(stats),
-            TCA_STATS_QUEUE
-        ),
-        observation
-    );
-    parse_cake_stats(
-        find_attribute(
-            nla_data(stats),
-            (size_t)nla_len(stats),
-            TCA_STATS_APP
-        ),
-        observation
-    );
+        nla_memcpy(&basic, attributes[TCA_STATS_BASIC], sizeof(basic));
+        observation->bytes = basic.bytes;
+        observation->packets = basic.packets;
+        observation->has_basic_stats = true;
+    }
+    if (attributes[TCA_STATS_QUEUE] != NULL) {
+        struct gnet_stats_queue queue;
+
+        nla_memcpy(&queue, attributes[TCA_STATS_QUEUE], sizeof(queue));
+        observation->queue_length = queue.qlen;
+        observation->backlog_bytes = queue.backlog;
+        observation->drops = queue.drops;
+        observation->has_queue_stats = true;
+    }
+    parse_cake_stats(attributes[TCA_STATS_APP], observation);
 }
 
 static int handle_qdisc(
@@ -240,12 +146,14 @@ static int handle_qdisc(
 )
 {
     struct cake_dump_context *context = context_pointer;
+    static const struct nla_policy policy[TCA_MAX + 1] = {
+        [TCA_KIND] = { .type = NLA_NUL_STRING }
+    };
     const struct tcmsg *traffic_control;
-    const struct nlattr *attributes;
-    const struct nlattr *kind;
-    size_t attributes_length;
+    struct nlattr *attributes[TCA_MAX + 1];
 
-    if (message->nlmsg_len < NLMSG_LENGTH(sizeof(struct tcmsg))) {
+    if (!nlmsg_valid_hdr(message, sizeof(struct tcmsg)) ||
+        message->nlmsg_len > INT_MAX) {
         return -1;
     }
 
@@ -257,14 +165,15 @@ static int handle_qdisc(
         return 0;
     }
 
-    attributes = (const struct nlattr *)(
-        (const unsigned char *)traffic_control +
-        NLMSG_ALIGN(sizeof(*traffic_control))
-    );
-    attributes_length =
-        (size_t)message->nlmsg_len - NLMSG_LENGTH(sizeof(*traffic_control));
-    kind = find_attribute(attributes, attributes_length, TCA_KIND);
-    if (!kind_is_cake(kind)) {
+    if (nla_parse(
+            attributes,
+            TCA_MAX,
+            nlmsg_attrdata(message, sizeof(*traffic_control)),
+            nlmsg_attrlen(message, sizeof(*traffic_control)),
+            policy
+        ) < 0 ||
+        attributes[TCA_KIND] == NULL ||
+        nla_strcmp(attributes[TCA_KIND], "cake") != 0) {
         return 0;
     }
 
@@ -272,11 +181,11 @@ static int handle_qdisc(
     context->observation->handle = traffic_control->tcm_handle;
     context->observation->parent = traffic_control->tcm_parent;
     parse_options(
-        find_attribute(attributes, attributes_length, TCA_OPTIONS),
+        attributes[TCA_OPTIONS],
         context->observation
     );
     parse_stats(
-        find_attribute(attributes, attributes_length, TCA_STATS2),
+        attributes[TCA_STATS2],
         context->observation
     );
     context->found = true;
