@@ -3,6 +3,7 @@
 #include "cpu.h"
 
 #include "error.h"
+#include "helpers.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -19,12 +20,12 @@ static uint64_t counter_sum(const struct cpu_counter *counter)
         counter->guest + counter->guest_nice;
 }
 
-void cpu_monitor_init(struct cpu_monitor *monitor)
+void cpu_init(struct cpu_monitor *monitor)
 {
     memset(monitor, 0, sizeof(*monitor));
 }
 
-int cpu_read_path(
+int cpu_read(
     const char *path,
     struct cpu_sample *sample,
     char *error,
@@ -32,13 +33,11 @@ int cpu_read_path(
 )
 {
     FILE *file;
-    struct timespec timestamp;
     char *line = NULL;
     size_t capacity = 0U;
     int result = -1;
 
-    if (clock_gettime(CLOCK_REALTIME, &timestamp) != 0 ||
-        timestamp.tv_sec < 0) {
+    if (!read_clock_microseconds(CLOCK_REALTIME, &sample->timestamp_microseconds)) {
         error_set(
             error,
             error_size,
@@ -47,8 +46,6 @@ int cpu_read_path(
         );
         return -1;
     }
-    sample->timestamp_microseconds = (uint64_t)timestamp.tv_sec * 1000000U +
-        (uint64_t)timestamp.tv_nsec / 1000U;
     file = fopen(path, "r");
     if (file == NULL) {
         error_set(error, error_size, "could not open %s: %s", path, strerror(errno));

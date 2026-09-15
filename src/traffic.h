@@ -25,9 +25,9 @@ enum traffic_update_result {
     TRAFFIC_UPDATE_INVALID_INTERVAL
 };
 
-void traffic_monitor_init(struct sqm_mon_traffic_monitor *monitor);
+void traffic_init(struct sqm_mon_traffic_monitor *monitor);
 
-enum traffic_update_result traffic_monitor_update(
+enum traffic_update_result traffic_update(
     struct sqm_mon_traffic_monitor *monitor,
     const struct traffic_sample *sample,
     uint64_t *rate_bits_per_second

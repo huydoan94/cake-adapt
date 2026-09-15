@@ -184,6 +184,20 @@ static void test_remote_csv_and_local_fallback(void)
 
 int main(void)
 {
+    uint64_t value = 0U;
+    char error[256] = "";
+
+    assert(parse_scaled_decimal("18446744073709551615", 1U, &value, "test", error, sizeof(error)) == 0);
+    assert(value == UINT64_MAX);
+    assert(parse_scaled_decimal("18446744073709551616", 1U, &value, "test", error, sizeof(error)) != 0);
+    assert(strstr(error, "too large") != NULL);
+    assert(parse_scaled_decimal("1.025", 1000U, &value, "test", error, sizeof(error)) == 0);
+    assert(value == 1025U);
+    assert(parse_scaled_decimal("1.0251", 1000U, &value, "test", error, sizeof(error)) != 0);
+    assert(strstr(error, "more precision") != NULL);
+    assert(parse_scaled_decimal("+1", 1U, &value, "test", error, sizeof(error)) != 0);
+    assert(strstr(error, "non-negative decimal") != NULL);
+
     test_fping_only_and_intentional_exclusions();
     test_reflector_list_is_validated_after_url_fetch();
     test_new_timer_and_limit_validation();

@@ -2,8 +2,11 @@
 
 #include "config.h"
 #include "error.h"
+#include "helpers.h"
 #include "latency.h"
 #include "log.h"
+
+#include <libubox/utils.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -182,21 +185,18 @@ static int parse_scaled_decimal(
     const char *character = value;
     uint64_t scaled_value = 0U;
     uint64_t fractional_place;
+    size_t integer_digits;
 
     if (value[0] == '\0' || scale == 0U) {
         error_set(error, error_size, "option '%s' is empty", option_name);
         return -1;
     }
 
-    while (*character >= '0' && *character <= '9') {
-        unsigned int digit = (unsigned int)(*character - '0');
-
-        if (scaled_value > (UINT64_MAX - digit) / 10U) {
-            error_set(error, error_size, "option '%s' is too large", option_name);
-            return -1;
-        }
-        scaled_value = scaled_value * 10U + digit;
-        ++character;
+    integer_digits = strspn(value, "0123456789");
+    character = value + integer_digits;
+    if (integer_digits != 0U && !parse_unsigned(value, character, &scaled_value)) {
+        error_set(error, error_size, "option '%s' is too large", option_name);
+        return -1;
     }
     if (character == value ||
         (scaled_value > UINT64_MAX / scale)) {
@@ -391,7 +391,7 @@ static int validate_reflectors(
         return -1;
     }
     for (index = 0U; index < config->reflector_count; index++) {
-        if (!latency_target_is_valid(config->reflectors[index])) {
+        if (!target_is_valid(config->reflectors[index])) {
             error_set(error, error_size, "invalid reflector '%s'", config->reflectors[index]);
             return -1;
         }
@@ -640,7 +640,7 @@ static int load_default_reflectors(
     size_t index;
 
     for (index = 0U;
-         index < sizeof(default_reflectors) / sizeof(default_reflectors[0]);
+         index < ARRAY_SIZE(default_reflectors);
          index++) {
         if (copy_reflector(
                 config,
@@ -1194,7 +1194,7 @@ static int load_section(
             context,
             section,
             boolean_options,
-            sizeof(boolean_options) / sizeof(boolean_options[0]),
+            ARRAY_SIZE(boolean_options),
             error,
             error_size
         ) != 0 ||
@@ -1202,7 +1202,7 @@ static int load_section(
             context,
             section,
             string_options,
-            sizeof(string_options) / sizeof(string_options[0]),
+            ARRAY_SIZE(string_options),
             error,
             error_size
         ) != 0 ||
@@ -1210,7 +1210,7 @@ static int load_section(
             context,
             section,
             scaled_options,
-            sizeof(scaled_options) / sizeof(scaled_options[0]),
+            ARRAY_SIZE(scaled_options),
             error,
             error_size
         ) != 0 ||

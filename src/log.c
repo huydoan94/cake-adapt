@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "log.h"
+#include "helpers.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -119,14 +120,10 @@ static const char *level_name(enum log_level level)
 
 static uint64_t clock_microseconds(clockid_t clock_identifier)
 {
-    struct timespec timestamp;
+    uint64_t timestamp = 0U;
 
-    if (clock_gettime(clock_identifier, &timestamp) != 0 ||
-        timestamp.tv_sec < 0) {
-        return 0U;
-    }
-    return (uint64_t)timestamp.tv_sec * 1000000U +
-        (uint64_t)timestamp.tv_nsec / 1000U;
+    (void)read_clock_microseconds(clock_identifier, &timestamp);
+    return timestamp;
 }
 
 uint64_t log_realtime_microseconds(void)

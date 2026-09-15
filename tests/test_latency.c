@@ -17,7 +17,7 @@ static const struct latency_tracker_config default_tracker_config = {
 
 static void init_tracker(struct latency_tracker *tracker)
 {
-    assert(latency_tracker_init(tracker, &default_tracker_config) == 0);
+    assert(tracker_init(tracker, &default_tracker_config) == 0);
 }
 
 static void test_initial_state_is_closed(void)
@@ -114,7 +114,7 @@ static void test_fping_reply_is_parsed(void)
 {
     struct latency_sample sample;
 
-    assert(latency_parse_fping_line(
+    assert(parse_fping_line(
         "[1789284242.09616] 1.1.1.1 : [65536], 64 bytes,"
             " 31.9 ms (31.9 avg, 0% loss)",
         &sample
@@ -129,7 +129,7 @@ static void test_fping_six_digit_timestamp_is_preserved(void)
 {
     struct latency_sample sample;
 
-    assert(latency_parse_fping_line(
+    assert(parse_fping_line(
         "[1789284242.000123] 9.9.9.9 : [7], 64 bytes,"
             " 0.125 ms (0.125 avg, 0% loss)",
         &sample
@@ -144,7 +144,7 @@ static void test_fping_timeout_is_recognized(void)
 {
     struct latency_sample sample;
 
-    assert(latency_parse_fping_line(
+    assert(parse_fping_line(
         "[1789284242.09616] 1.1.1.1 : [8], timed out"
             " (NaN avg, 100% loss)",
         &sample
@@ -157,7 +157,7 @@ static void test_fping_reply_identifies_each_target(void)
 {
     struct latency_sample sample;
 
-    assert(latency_parse_fping_line(
+    assert(parse_fping_line(
         "[1789284242.09616] 9.9.9.9  : [8], 64 bytes,"
             " 31.9 ms (31.9 avg, 0% loss)",
         &sample
@@ -175,12 +175,12 @@ static struct latency_observation track(
     };
     struct latency_observation observation;
 
-    latency_tracker_update(
+    tracker_update(
         tracker,
         &sample,
         &observation
     );
-    latency_tracker_update_delta_ewma(tracker, true, &observation);
+    tracker_update_delta_ewma(tracker, true, &observation);
     return observation;
 }
 
@@ -209,7 +209,7 @@ static void test_configured_alpha_values_are_used(void)
     struct latency_tracker tracker;
     struct latency_observation observation;
 
-    assert(latency_tracker_init(&tracker, &config) == 0);
+    assert(tracker_init(&tracker, &config) == 0);
     observation = track(&tracker, 300000U);
     assert(observation.one_way_baseline_microseconds == 110000U);
     assert(observation.one_way_delta_microseconds == 40000);
@@ -230,8 +230,8 @@ static void test_delta_ewma_freezes_during_load(void)
     struct latency_observation observation;
 
     init_tracker(&tracker);
-    latency_tracker_update(&tracker, &sample, &observation);
-    latency_tracker_update_delta_ewma(&tracker, false, &observation);
+    tracker_update(&tracker, &sample, &observation);
+    tracker_update_delta_ewma(&tracker, false, &observation);
 
     assert(observation.one_way_delta_microseconds == 19980);
     assert(observation.one_way_delta_ewma_microseconds == 0);
@@ -243,7 +243,7 @@ static void test_invalid_alpha_is_rejected(void)
     struct latency_tracker tracker;
 
     config.alpha_delta_ewma_per_million = 1000001U;
-    assert(latency_tracker_init(&tracker, &config) != 0);
+    assert(tracker_init(&tracker, &config) != 0);
 }
 
 static void test_lower_sample_reduces_baseline(void)
@@ -310,16 +310,16 @@ static void test_reflector_health_uses_rolling_offence_window(void)
     };
     struct reflector_health health = { 0 };
 
-    assert(reflector_health_init(&health, &config, 1000000U) == 0);
-    assert(reflector_health_check(&health, 2000000U) == REFLECTOR_HEALTHY);
-    assert(reflector_health_check(&health, 2000001U) == REFLECTOR_OFFENCE);
-    reflector_health_record_response(&health, 2500000U);
-    assert(reflector_health_check(&health, 3000000U) == REFLECTOR_HEALTHY);
-    assert(reflector_health_check(&health, 3500001U) == REFLECTOR_MISBEHAVING);
-    reflector_health_record_response(&health, 4000000U);
-    assert(reflector_health_check(&health, 4000000U) == REFLECTOR_MISBEHAVING);
-    assert(reflector_health_check(&health, 4000000U) == REFLECTOR_HEALTHY);
-    reflector_health_cleanup(&health);
+    assert(health_init(&health, &config, 1000000U) == 0);
+    assert(health_check(&health, 2000000U) == REFLECTOR_HEALTHY);
+    assert(health_check(&health, 2000001U) == REFLECTOR_OFFENCE);
+    health_record_response(&health, 2500000U);
+    assert(health_check(&health, 3000000U) == REFLECTOR_HEALTHY);
+    assert(health_check(&health, 3500001U) == REFLECTOR_MISBEHAVING);
+    health_record_response(&health, 4000000U);
+    assert(health_check(&health, 4000000U) == REFLECTOR_MISBEHAVING);
+    assert(health_check(&health, 4000000U) == REFLECTOR_HEALTHY);
+    health_cleanup(&health);
 }
 
 static void test_reflector_health_rejects_invalid_window(void)
@@ -331,10 +331,10 @@ static void test_reflector_health_rejects_invalid_window(void)
     };
     struct reflector_health health = { 0 };
 
-    assert(reflector_health_init(&health, &config, 0U) != 0);
+    assert(health_init(&health, &config, 0U) != 0);
     config.detection_window = 0U;
     config.detection_threshold = 0U;
-    assert(reflector_health_init(&health, &config, 0U) != 0);
+    assert(health_init(&health, &config, 0U) != 0);
 }
 
 static void test_latency_tracker_reset_discards_measurements(void)
@@ -344,7 +344,7 @@ static void test_latency_tracker_reset_discards_measurements(void)
 
     init_tracker(&tracker);
     (void)track(&tracker, 30000U);
-    latency_tracker_reset(&tracker);
+    tracker_reset(&tracker);
     observation = track(&tracker, 200000U);
 
     assert(observation.one_way_baseline_microseconds == 100000U);
@@ -360,12 +360,12 @@ static void test_reflector_health_reset_clears_offences(void)
     };
     struct reflector_health health = { 0 };
 
-    assert(reflector_health_init(&health, &config, 100U) == 0);
-    assert(reflector_health_check(&health, 201U) == REFLECTOR_MISBEHAVING);
-    reflector_health_reset(&health, 300U);
-    assert(reflector_health_check(&health, 400U) == REFLECTOR_HEALTHY);
+    assert(health_init(&health, &config, 100U) == 0);
+    assert(health_check(&health, 201U) == REFLECTOR_MISBEHAVING);
+    health_reset(&health, 300U);
+    assert(health_check(&health, 400U) == REFLECTOR_HEALTHY);
     assert(health.offence_count == 0U);
-    reflector_health_cleanup(&health);
+    health_cleanup(&health);
 }
 
 static void test_reflector_comparison_uses_active_order(void)
@@ -465,8 +465,8 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
     ) == 0);
     latency_close(&latency);
     assert(!latency_is_open(&latency));
-    assert(latency_target_is_valid("::1"));
-    assert(latency_target_is_valid("2001:4860:4860::8888"));
+    assert(target_is_valid("::1"));
+    assert(target_is_valid("2001:4860:4860::8888"));
 }
 
 int main(void)

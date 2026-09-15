@@ -159,11 +159,6 @@ int controller_init(
 
 void controller_close(struct sqm_mon_controller *controller);
 
-unsigned int controller_load_percent(
-    uint64_t traffic_rate_bits_per_second,
-    uint64_t shaper_rate_bits_per_second
-);
-
 void controller_update(
     struct sqm_mon_controller *controller,
     const struct controller_input *input,
@@ -175,7 +170,7 @@ void controller_set_minimum_rates(
     uint64_t timestamp_microseconds
 );
 
-void controller_activity_update(
+void activity_update(
     struct controller_activity *activity,
     const struct controller_activity_config *config,
     const struct controller_activity_input *input,

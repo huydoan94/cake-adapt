@@ -24,6 +24,7 @@ SOURCES := \
 	controller.c \
 	cpu.c \
 	error.c \
+	helpers.c \
 	latency.c \
 	log.c \
 	monitor.c \

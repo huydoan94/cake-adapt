@@ -1,98 +1,47 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "traffic.h"
+#include "helpers.h"
 
-#include <limits.h>
-#include <stdbool.h>
-#include <stdint.h>
-
-static bool elapsed_milliseconds(
-    const struct timespec *previous,
-    const struct timespec *current,
-    uint64_t *elapsed
-)
-{
-    time_t seconds;
-    long nanoseconds;
-
-    seconds = current->tv_sec - previous->tv_sec;
-    nanoseconds = current->tv_nsec - previous->tv_nsec;
-
-    if (nanoseconds < 0L) {
-        --seconds;
-        nanoseconds += 1000000000L;
-    }
-
-    if (seconds < 0 ||
-        (uint64_t)seconds > UINT64_MAX / 1000U) {
-        return false;
-    }
-
-    *elapsed = (uint64_t)seconds * 1000U +
-        (uint64_t)nanoseconds / 1000000U;
-    return *elapsed > 0U;
-}
-
-static uint64_t bits_per_second(
-    uint64_t byte_delta,
-    uint64_t elapsed_milliseconds_value
-)
-{
-    long double rate;
-
-    /* 8,000 converts a byte delta over milliseconds to bits per second. */
-    rate = (long double)byte_delta * 8000.0L /
-        (long double)elapsed_milliseconds_value;
-    if (rate >= (long double)UINT64_MAX) {
-        return UINT64_MAX;
-    }
-
-    return (uint64_t)rate;
-}
-
-void traffic_monitor_init(struct sqm_mon_traffic_monitor *monitor)
+void traffic_init(struct sqm_mon_traffic_monitor *monitor)
 {
     *monitor = (struct sqm_mon_traffic_monitor) { 0 };
 }
 
-enum traffic_update_result traffic_monitor_update(
+enum traffic_update_result traffic_update(
     struct sqm_mon_traffic_monitor *monitor,
     const struct traffic_sample *sample,
     uint64_t *rate_bits_per_second
 )
 {
-    uint64_t byte_delta;
+    struct traffic_sample previous = monitor->previous_sample;
+    bool has_previous = monitor->has_previous_sample;
     uint64_t elapsed;
 
     *rate_bits_per_second = 0U;
-    if (!monitor->has_previous_sample) {
-        monitor->previous_sample = *sample;
-        monitor->has_previous_sample = true;
+    monitor->previous_sample = *sample;
+    monitor->has_previous_sample = true;
+    if (!has_previous) {
         return TRAFFIC_UPDATE_BASELINE;
     }
 
-    if (sample->qdisc_handle != monitor->previous_sample.qdisc_handle ||
-        sample->qdisc_parent != monitor->previous_sample.qdisc_parent) {
-        monitor->previous_sample = *sample;
+    if (sample->qdisc_handle != previous.qdisc_handle ||
+        sample->qdisc_parent != previous.qdisc_parent) {
         return TRAFFIC_UPDATE_QDISC_REPLACED;
     }
 
-    if (sample->bytes < monitor->previous_sample.bytes) {
-        monitor->previous_sample = *sample;
+    if (sample->bytes < previous.bytes) {
         return TRAFFIC_UPDATE_COUNTER_RESET;
     }
 
     if (!elapsed_milliseconds(
-            &monitor->previous_sample.timestamp,
+            &previous.timestamp,
             &sample->timestamp,
             &elapsed
         )) {
-        monitor->previous_sample = *sample;
         return TRAFFIC_UPDATE_INVALID_INTERVAL;
     }
 
-    byte_delta = sample->bytes - monitor->previous_sample.bytes;
-    *rate_bits_per_second = bits_per_second(byte_delta, elapsed);
-    monitor->previous_sample = *sample;
+    *rate_bits_per_second = bits_per_second(sample->bytes - previous.bytes, elapsed);
     return TRAFFIC_UPDATE_RATES;
 }

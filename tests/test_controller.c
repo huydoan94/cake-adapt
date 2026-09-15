@@ -920,26 +920,26 @@ static void test_sustained_idle_sleep_and_wakeup(void)
     struct controller_activity_input input = activity_input(1U);
     struct controller_activity_output output;
 
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.idle_started_microseconds == 1U);
     input = activity_input(60000001U);
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     input = activity_input(60000002U);
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_IDLE);
     assert(output.state_changed);
     input.timestamp_microseconds += 20000000U;
     input.last_response_microseconds = 1U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_IDLE);
     assert(!output.restart_pingers);
     assert(!output.global_timeout_started);
     input.upload.traffic_rate_bits_per_second = 2000000U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_IDLE);
     input.upload.traffic_rate_bits_per_second += 1000U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(output.state_changed);
 }
@@ -951,23 +951,23 @@ static void test_interrupted_or_invalid_idle_does_not_sleep(void)
     struct controller_activity_output output;
     struct controller_activity_config config = activity_config;
 
-    controller_activity_update(&activity, &config, &input, &output);
+    activity_update(&activity, &config, &input, &output);
     input = activity_input(20000000U);
     input.download.traffic_rate_bits_per_second = 2001000U;
-    controller_activity_update(&activity, &config, &input, &output);
+    activity_update(&activity, &config, &input, &output);
     assert(activity.idle_started_microseconds == 0U);
     input = activity_input(60000002U);
-    controller_activity_update(&activity, &config, &input, &output);
+    activity_update(&activity, &config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(activity.idle_started_microseconds == input.timestamp_microseconds);
     input = activity_input(120000004U);
     input.download.valid = false;
-    controller_activity_update(&activity, &config, &input, &output);
+    activity_update(&activity, &config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(activity.idle_started_microseconds == 0U);
     config.enable_sleep = false;
     input = activity_input(200000000U);
-    controller_activity_update(&activity, &config, &input, &output);
+    activity_update(&activity, &config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(activity.idle_started_microseconds == 0U);
 }
@@ -979,25 +979,25 @@ static void test_stall_timeout_restart_and_response_recovery(void)
     struct controller_activity_output output;
 
     input.timestamp_microseconds = 250001U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     input.timestamp_microseconds++;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_STALL);
     assert(output.check_stall_loads);
     assert(output.state_changed);
     assert(!output.global_timeout_started);
     input.timestamp_microseconds = 10000001U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(output.global_timeout_started);
     assert(output.restart_pingers);
     input.last_pinger_start_microseconds = input.timestamp_microseconds;
     input.timestamp_microseconds++;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(!output.global_timeout_started);
     assert(!output.restart_pingers);
     input.last_response_microseconds = input.timestamp_microseconds;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(output.state_changed);
     assert(!activity.global_timeout_reported);
@@ -1012,15 +1012,15 @@ static void test_both_loads_bypass_stall_but_not_global_timeout(void)
     input.timestamp_microseconds = 10000001U;
     input.download.traffic_rate_bits_per_second = 11000U;
     input.upload.traffic_rate_bits_per_second = 11000U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(output.global_timeout_started);
     assert(output.restart_pingers);
     input.upload.traffic_rate_bits_per_second = 10000U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_STALL);
     input.upload.traffic_rate_bits_per_second += 1000U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(output.state_changed);
 }
@@ -1033,11 +1033,11 @@ static void test_wakeup_grace_prevents_false_stall(void)
 
     input.timestamp_microseconds = 600000U;
     input.grace_until_microseconds = 600001U;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_RUNNING);
     assert(!output.check_stall_loads);
     input.timestamp_microseconds++;
-    controller_activity_update(&activity, &activity_config, &input, &output);
+    activity_update(&activity, &activity_config, &input, &output);
     assert(activity.state == CONTROLLER_STALL);
 }
 

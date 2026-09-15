@@ -2,6 +2,7 @@
 
 #include "latency.h"
 #include "error.h"
+#include "helpers.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -28,36 +29,6 @@
 #define INITIAL_ONE_WAY_BASELINE_MICROSECONDS 100000U
 
 extern char **environ;
-
-static bool parse_unsigned(
-    const char *start,
-    const char *end,
-    uint64_t *value
-)
-{
-    const char *character;
-    uint64_t result = 0U;
-
-    if (start == end) {
-        return false;
-    }
-
-    for (character = start; character < end; character++) {
-        unsigned int digit;
-
-        if (*character < '0' || *character > '9') {
-            return false;
-        }
-        digit = (unsigned int)(*character - '0');
-        if (result > (UINT64_MAX - digit) / 10U) {
-            return false;
-        }
-        result = result * 10U + digit;
-    }
-
-    *value = result;
-    return true;
-}
 
 static bool parse_timestamp(
     const char *line,
@@ -119,7 +90,7 @@ static bool parse_timestamp(
     return true;
 }
 
-enum latency_fping_line_result latency_parse_fping_line(
+enum latency_fping_line_result parse_fping_line(
     const char *line,
     struct latency_sample *sample
 )
@@ -596,7 +567,7 @@ void latency_init(struct sqm_mon_latency *latency)
     };
 }
 
-bool latency_target_is_valid(const char *target)
+bool target_is_valid(const char *target)
 {
     size_t length;
     static const char allowed[] =
@@ -654,7 +625,7 @@ int latency_open(
         return -1;
     }
     for (index = 0U; index < target_count; index++) {
-        if (!latency_target_is_valid(targets[index])) {
+        if (!target_is_valid(targets[index])) {
             error_set(
                 error,
                 error_size,
@@ -693,7 +664,7 @@ void latency_close(struct sqm_mon_latency *latency)
     stop_child(process_identifier);
 }
 
-int latency_tracker_init(
+int tracker_init(
     struct latency_tracker *tracker,
     const struct latency_tracker_config *config
 )
@@ -706,18 +677,18 @@ int latency_tracker_init(
     }
 
     tracker->config = *config;
-    latency_tracker_reset(tracker);
+    tracker_reset(tracker);
     return 0;
 }
 
-void latency_tracker_reset(struct latency_tracker *tracker)
+void tracker_reset(struct latency_tracker *tracker)
 {
     tracker->one_way_baseline_microseconds =
         INITIAL_ONE_WAY_BASELINE_MICROSECONDS;
     tracker->one_way_delta_ewma_microseconds = 0;
 }
 
-void latency_tracker_update(
+void tracker_update(
     struct latency_tracker *tracker,
     const struct latency_sample *sample,
     struct latency_observation *observation
@@ -751,7 +722,7 @@ void latency_tracker_update(
     observation->sequence = sample->sequence;
 }
 
-void latency_tracker_update_delta_ewma(
+void tracker_update_delta_ewma(
     struct latency_tracker *tracker,
     bool low_load,
     struct latency_observation *observation
@@ -771,7 +742,7 @@ void latency_tracker_update_delta_ewma(
         tracker->one_way_delta_ewma_microseconds;
 }
 
-int reflector_health_init(
+int health_init(
     struct reflector_health *health,
     const struct reflector_health_config *config,
     uint64_t start_microseconds
@@ -798,7 +769,7 @@ int reflector_health_init(
     return 0;
 }
 
-void reflector_health_cleanup(struct reflector_health *health)
+void health_cleanup(struct reflector_health *health)
 {
     free(health->offences);
     health->offences = NULL;
@@ -806,7 +777,7 @@ void reflector_health_cleanup(struct reflector_health *health)
     health->offence_count = 0U;
 }
 
-void reflector_health_reset(
+void health_reset(
     struct reflector_health *health,
     uint64_t start_microseconds
 )
@@ -821,7 +792,7 @@ void reflector_health_reset(
     health->offence_count = 0U;
 }
 
-void reflector_health_record_response(
+void health_record_response(
     struct reflector_health *health,
     uint64_t timestamp_microseconds
 )
@@ -829,14 +800,16 @@ void reflector_health_record_response(
     health->last_response_microseconds = timestamp_microseconds;
 }
 
-enum reflector_health_result reflector_health_check(
+enum reflector_health_result health_check(
     struct reflector_health *health,
     uint64_t timestamp_microseconds
 )
 {
-    bool offence = timestamp_microseconds > health->last_response_microseconds &&
-        timestamp_microseconds - health->last_response_microseconds >
-            health->config.response_deadline_microseconds;
+    bool offence = interval_elapsed(
+        timestamp_microseconds,
+        health->last_response_microseconds,
+        health->config.response_deadline_microseconds
+    );
 
     if (health->offences[health->offence_index] != 0U) {
         health->offence_count--;
@@ -951,7 +924,7 @@ enum latency_probe_result latency_receive(
 
             if (line_result > 0) {
                 enum latency_fping_line_result parse_result =
-                    latency_parse_fping_line(
+                    parse_fping_line(
                         line,
                         sample
                     );

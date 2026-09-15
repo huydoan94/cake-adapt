@@ -5,12 +5,14 @@
 #include "cake.h"
 #include "controller.h"
 #include "cpu.h"
+#include "helpers.h"
 #include "latency.h"
 #include "log.h"
 #include "netlink.h"
 #include "traffic.h"
 
 #include <libubox/uloop.h>
+#include <libubox/list.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -78,7 +80,7 @@ static void observe_traffic(
             );
         }
         direction->traffic_state = TRAFFIC_OBSERVATION_UNAVAILABLE;
-        traffic_monitor_init(&direction->traffic_monitor);
+        traffic_init(&direction->traffic_monitor);
         return;
     }
 
@@ -93,7 +95,7 @@ static void observe_traffic(
     }
     direction->traffic_state = TRAFFIC_OBSERVATION_AVAILABLE;
 
-    update_result = traffic_monitor_update(
+    update_result = traffic_update(
         &direction->traffic_monitor,
         &sample,
         &direction->traffic_rate_bits_per_second
@@ -314,20 +316,6 @@ struct event_loop {
     int result;
 };
 
-static bool monotonic_microseconds(uint64_t *timestamp_microseconds)
-{
-    struct timespec timestamp;
-
-    if (clock_gettime(CLOCK_MONOTONIC, &timestamp) != 0 ||
-        timestamp.tv_sec < 0) {
-        return false;
-    }
-    *timestamp_microseconds =
-        (uint64_t)timestamp.tv_sec * 1000000U +
-        (uint64_t)timestamp.tv_nsec / 1000U;
-    return true;
-}
-
 static bool random_index(size_t count, size_t *index)
 {
     uint32_t value;
@@ -455,21 +443,13 @@ static const char *rate_reason_name(enum controller_rate_reason reason)
     return "invalid";
 }
 
-static uint64_t rounded_divide(uint64_t value, uint64_t divisor)
-{
-    uint64_t quotient = value / divisor;
-    uint64_t remainder = value % divisor;
-
-    return quotient + (remainder >= (divisor + 1U) / 2U ? 1U : 0U);
-}
-
 static bool direction_has_low_load(
     const struct monitored_direction *direction,
     uint64_t high_load_threshold_percent
 )
 {
     return direction->traffic_valid &&
-        controller_load_percent(
+        load_percent(
             direction->traffic_rate_bits_per_second,
             direction->cake_valid
                 ? direction->cake.bandwidth_bits_per_second
@@ -490,7 +470,7 @@ static void load_condition(
 {
     const char *state;
 
-    if (controller_load_percent(traffic_rate, cake_rate) >
+    if (load_percent(traffic_rate, cake_rate) >
         high_load_threshold_percent) {
         state = "high";
     } else if (traffic_rate > connection_active_threshold) {
@@ -579,11 +559,11 @@ static void log_controller_stats(
                 input->download.traffic_rate_bits_per_second / 1000U,
             .upload_achieved_rate_kbps =
                 input->upload.traffic_rate_bits_per_second / 1000U,
-            .download_load_percent = controller_load_percent(
+            .download_load_percent = load_percent(
                 input->download.traffic_rate_bits_per_second,
                 input->download.cake_rate_bits_per_second
             ),
-            .upload_load_percent = controller_load_percent(
+            .upload_load_percent = load_percent(
                 input->upload.traffic_rate_bits_per_second,
                 input->upload.cake_rate_bits_per_second
             ),
@@ -766,7 +746,7 @@ static void update_controller(
     };
     struct controller_output output;
 
-    (void)monotonic_microseconds(&input.timestamp_microseconds);
+    (void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
 
     controller_update(controller, &input, &output);
     if (output.download.state_changed) {
@@ -837,8 +817,8 @@ static void observe_traffic_cycle(
         context->upload.cake_valid = false;
         context->download.traffic_valid = false;
         context->upload.traffic_valid = false;
-        traffic_monitor_init(&context->download.traffic_monitor);
-        traffic_monitor_init(&context->upload.traffic_monitor);
+        traffic_init(&context->download.traffic_monitor);
+        traffic_init(&context->upload.traffic_monitor);
     } else {
         timestamp_microseconds =
             (uint64_t)traffic_timestamp.tv_sec * 1000000U +
@@ -889,7 +869,7 @@ static bool ensure_latency_open(
     if (latency_is_open(&context->latency)) {
         return true;
     }
-    if (!monotonic_microseconds(&timestamp_microseconds) ||
+    if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds) ||
         timestamp_microseconds < context->next_latency_attempt_microseconds) {
         return false;
     }
@@ -1003,7 +983,7 @@ static bool receive_latency_samples(
             return false;
         }
 
-        latency_tracker_update(
+        tracker_update(
             &context->latency_trackers[
                 context->reflector_order[reflector_index]
             ],
@@ -1013,10 +993,10 @@ static bool receive_latency_samples(
         {
             uint64_t response_timestamp_microseconds;
 
-            if (monotonic_microseconds(&response_timestamp_microseconds)) {
+            if (read_clock_microseconds(CLOCK_MONOTONIC, &response_timestamp_microseconds)) {
                 context->last_reflector_response_microseconds =
                     response_timestamp_microseconds;
-                reflector_health_record_response(
+                health_record_response(
                     &context->reflector_health[reflector_index],
                     response_timestamp_microseconds
                 );
@@ -1036,7 +1016,7 @@ static bool receive_latency_samples(
             )
         );
 
-        latency_tracker_update_delta_ewma(
+        tracker_update_delta_ewma(
             &context->latency_trackers[
                 context->reflector_order[reflector_index]
             ],
@@ -1056,16 +1036,6 @@ static bool receive_latency_samples(
     }
 }
 
-static struct event_loop *event_loop_from_latency_output(
-    struct uloop_fd *descriptor
-)
-{
-    return (struct event_loop *)(void *)(
-        (unsigned char *)(void *)descriptor -
-        offsetof(struct event_loop, latency_output)
-    );
-}
-
 static void close_latency(struct event_loop *loop)
 {
     if (loop->latency_output.registered) {
@@ -1080,14 +1050,19 @@ static void handle_latency_output(
     unsigned int events
 )
 {
-    struct event_loop *loop = event_loop_from_latency_output(descriptor);
+    /* libubox's container_of uses a GNU expression; keep the exception local. */
+    struct event_loop *loop = __extension__ container_of(
+        descriptor,
+        struct event_loop,
+        latency_output
+    );
 
     (void)events;
     if (!receive_latency_samples(&loop->observation, loop->config)) {
         uint64_t timestamp_microseconds;
 
         close_latency(loop);
-        if (monotonic_microseconds(&timestamp_microseconds)) {
+        if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
             loop->observation.next_latency_attempt_microseconds =
                 timestamp_microseconds +
                 loop->config->interface_up_check_interval_microseconds;
@@ -1164,7 +1139,7 @@ static void reset_reflector_health(
     size_t index;
 
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
-        reflector_health_reset(
+        health_reset(
             &context->reflector_health[index],
             timestamp_microseconds
         );
@@ -1230,7 +1205,7 @@ static void update_monitor_state(
     enum controller_activity_state previous = context->activity.state;
     struct controller_activity_output output;
 
-    controller_activity_update(
+    activity_update(
         &context->activity,
         &activity_config,
         &input,
@@ -1336,7 +1311,7 @@ static bool replace_active_reflector(
             "No additional reflectors specified so just retaining: %s.",
             config->reflectors[bad_index]
         );
-        reflector_health_reset(
+        health_reset(
             &context->reflector_health[pinger],
             timestamp_microseconds
         );
@@ -1366,7 +1341,7 @@ static bool replace_active_reflector(
             "Discarding reflector stats associated with %s",
             config->reflectors[bad_index]
         );
-        latency_tracker_reset(&context->latency_trackers[bad_index]);
+        tracker_reset(&context->latency_trackers[bad_index]);
     }
 
     reflector_rotate(
@@ -1375,7 +1350,7 @@ static bool replace_active_reflector(
         active_count,
         pinger
     );
-    reflector_health_reset(
+    health_reset(
         &context->reflector_health[pinger],
         timestamp_microseconds
     );
@@ -1396,15 +1371,16 @@ static void handle_traffic_timer(
     struct uloop_interval *timer
 )
 {
-    struct event_loop *loop = (struct event_loop *)(void *)(
-        (unsigned char *)(void *)timer -
-        offsetof(struct event_loop, traffic_timer)
+    struct event_loop *loop = __extension__ container_of(
+        timer,
+        struct event_loop,
+        traffic_timer
     );
 
     uint64_t timestamp_microseconds;
 
     observe_traffic_cycle(&loop->observation, loop->config);
-    if (monotonic_microseconds(&timestamp_microseconds)) {
+    if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
         update_monitor_state(loop, timestamp_microseconds);
     }
     if (loop->observation.activity.state != CONTROLLER_IDLE) {
@@ -1421,7 +1397,7 @@ static void observe_cpu(
     unsigned int usage[CPU_MAX_COUNT];
     char error[ERROR_SIZE] = "";
 
-    if (cpu_read_path("/proc/stat", &sample, error, sizeof(error)) != 0) {
+    if (cpu_read("/proc/stat", &sample, error, sizeof(error)) != 0) {
         if (!loop->cpu_observation_failed) {
             log_message(LOG_LEVEL_WARNING, "CPU observation degraded: %s", error);
         }
@@ -1434,7 +1410,7 @@ static void observe_cpu(
     }
     if (loop->cpu_count != sample.count) {
         loop->cpu_count = sample.count;
-        cpu_monitor_init(&loop->cpu_monitor);
+        cpu_init(&loop->cpu_monitor);
         log_message(LOG_LEVEL_DEBUG, "Detected %zu CPU cores.", sample.count - 1U);
         log_print_cpu_headers(
             &sample,
@@ -1456,9 +1432,10 @@ static void observe_cpu(
 
 static void handle_cpu_timer(struct uloop_interval *timer)
 {
-    struct event_loop *loop = (struct event_loop *)(void *)(
-        (unsigned char *)(void *)timer -
-        offsetof(struct event_loop, cpu_timer)
+    struct event_loop *loop = __extension__ container_of(
+        timer,
+        struct event_loop,
+        cpu_timer
     );
 
     if (loop->observation.activity.state == CONTROLLER_RUNNING) {
@@ -1496,26 +1473,6 @@ static void handle_log_reset_signal(struct uloop_signal *signal)
     if (log_reset_file() != 0) {
         log_message(LOG_LEVEL_WARNING, "log file reset failed: %s", strerror(errno));
     }
-}
-
-static struct event_loop *event_loop_from_reflector_health_timer(
-    struct uloop_interval *timer
-)
-{
-    return (struct event_loop *)(void *)(
-        (unsigned char *)(void *)timer -
-        offsetof(struct event_loop, reflector_health_timer)
-    );
-}
-
-static bool interval_elapsed(
-    uint64_t timestamp_microseconds,
-    uint64_t previous_microseconds,
-    uint64_t interval_microseconds
-)
-{
-    return timestamp_microseconds > previous_microseconds &&
-        timestamp_microseconds - previous_microseconds > interval_microseconds;
 }
 
 static bool signed_delta_exceeds(int64_t delta, uint64_t threshold)
@@ -1673,7 +1630,11 @@ static bool run_scheduled_reflector_work(
 
 static void handle_reflector_health_timer(struct uloop_interval *timer)
 {
-    struct event_loop *loop = event_loop_from_reflector_health_timer(timer);
+    struct event_loop *loop = __extension__ container_of(
+        timer,
+        struct event_loop,
+        reflector_health_timer
+    );
     uint64_t timestamp_microseconds;
     bool reflector_replaced = false;
     size_t index;
@@ -1682,7 +1643,7 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
         return;
     }
 
-    if (!monotonic_microseconds(&timestamp_microseconds)) {
+    if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
         if (!loop->observation.health_clock_failed) {
             log_message(
                 LOG_LEVEL_WARNING,
@@ -1708,7 +1669,7 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
     }
 
     for (index = 0U; index < (size_t)loop->config->no_pingers; index++) {
-        enum reflector_health_result result = reflector_health_check(
+        enum reflector_health_result result = health_check(
             &loop->observation.reflector_health[index],
             timestamp_microseconds
         );
@@ -1904,9 +1865,9 @@ int monitor_run(const struct sqm_mon_config *config)
 
     latency_init(&loop.observation.latency);
     netlink_init(&loop.observation.netlink);
-    traffic_monitor_init(&loop.observation.download.traffic_monitor);
-    traffic_monitor_init(&loop.observation.upload.traffic_monitor);
-    cpu_monitor_init(&loop.cpu_monitor);
+    traffic_init(&loop.observation.download.traffic_monitor);
+    traffic_init(&loop.observation.upload.traffic_monitor);
+    cpu_init(&loop.cpu_monitor);
     if (controller_init(
             &loop.observation.controller,
             &controller_config
@@ -1919,7 +1880,7 @@ int monitor_run(const struct sqm_mon_config *config)
         goto done;
     }
     for (index = 0U; index < (size_t)config->reflector_count; index++) {
-        if (latency_tracker_init(
+        if (tracker_init(
                 &loop.observation.latency_trackers[index],
                 &latency_tracker_config
             ) != 0) {
@@ -1932,7 +1893,7 @@ int monitor_run(const struct sqm_mon_config *config)
         }
         loop.observation.reflector_order[index] = index;
     }
-    if (!monotonic_microseconds(&start_microseconds)) {
+    if (!read_clock_microseconds(CLOCK_MONOTONIC, &start_microseconds)) {
         log_message(
             LOG_LEVEL_ERROR,
             "could not initialize reflector health clock: %s",
@@ -1949,7 +1910,7 @@ int monitor_run(const struct sqm_mon_config *config)
     loop.observation.last_pinger_restart_microseconds = start_microseconds;
     loop.observation.activity.state = CONTROLLER_RUNNING;
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
-        if (reflector_health_init(
+        if (health_init(
                 &loop.observation.reflector_health[index],
                 &reflector_health_config,
                 start_microseconds
@@ -2049,7 +2010,7 @@ uloop_done:
 
 done:
     for (index = 0U; index < health_count; index++) {
-        reflector_health_cleanup(&loop.observation.reflector_health[index]);
+        health_cleanup(&loop.observation.reflector_health[index]);
     }
     netlink_close(&loop.observation.netlink);
     latency_close(&loop.observation.latency);

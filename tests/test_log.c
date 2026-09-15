@@ -16,7 +16,7 @@ static bool use_mock_time;
 static struct timespec mock_time;
 static time_t mock_realtime_offset;
 
-/* Only log.o redirects clock_gettime; no production API is changed for tests. */
+/* Only helpers_log.o redirects the clock; production APIs remain unchanged. */
 int test_log_clock_gettime(
     clockid_t clock_identifier,
     struct timespec *timestamp

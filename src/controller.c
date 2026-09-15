@@ -1,4 +1,7 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "controller.h"
+#include "helpers.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -14,19 +17,6 @@
 #define BITS_PER_KILOBIT 1000U
 #define FACTOR_PER_THOUSAND 1000U
 #define FACTOR_PER_MILLION 1000000U
-
-static uint64_t percentage_of(
-    uint64_t value,
-    unsigned int percentage
-)
-{
-    uint64_t quotient = value / 100U;
-    uint64_t remainder = value % 100U;
-
-    /* Split before multiplying to avoid overflowing the full-width value. */
-    return quotient * percentage +
-        (remainder * percentage + 99U) / 100U;
-}
 
 static uint64_t scale_rate(
     uint64_t rate_bits_per_second,
@@ -386,55 +376,6 @@ static uint64_t upward_factor(
     );
 }
 
-static bool refractory_period_elapsed(
-    uint64_t timestamp_microseconds,
-    uint64_t previous_timestamp_microseconds,
-    uint64_t refractory_period_microseconds
-)
-{
-    /* A backwards monotonic timestamp is treated as not yet elapsed. */
-    return timestamp_microseconds > previous_timestamp_microseconds &&
-        timestamp_microseconds - previous_timestamp_microseconds >
-            refractory_period_microseconds;
-}
-
-unsigned int controller_load_percent(
-    uint64_t traffic_rate_bits_per_second,
-    uint64_t shaper_rate_bits_per_second
-)
-{
-    uint64_t traffic_rate_kilobits_per_second =
-        traffic_rate_bits_per_second / BITS_PER_KILOBIT;
-    uint64_t shaper_rate_kilobits_per_second =
-        shaper_rate_bits_per_second / BITS_PER_KILOBIT;
-    uint64_t quotient;
-    uint64_t remainder;
-    uint64_t percentage;
-
-    if (shaper_rate_kilobits_per_second == 0U) {
-        return 0U;
-    }
-
-    quotient = traffic_rate_kilobits_per_second /
-        shaper_rate_kilobits_per_second;
-    if (quotient > UINT_MAX / 100U) {
-        return UINT_MAX;
-    }
-    remainder = traffic_rate_kilobits_per_second %
-        shaper_rate_kilobits_per_second;
-    percentage = quotient * 100U;
-    if (remainder > UINT64_MAX / 100U) {
-        percentage += (uint64_t)(
-            (long double)remainder * 100.0L /
-            (long double)shaper_rate_kilobits_per_second
-        );
-    } else {
-        percentage += remainder * 100U /
-            shaper_rate_kilobits_per_second;
-    }
-    return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
-}
-
 static enum controller_rate_reason adjust_rate(
     struct controller_direction *direction,
     const struct controller_config *config,
@@ -466,7 +407,7 @@ static enum controller_rate_reason adjust_rate(
     }
 
     if (direction->congestion == CONTROLLER_CONGESTION_DETECTED &&
-        refractory_period_elapsed(
+        interval_elapsed(
             timestamp_microseconds,
             direction->last_congestion_adjustment_microseconds,
             config->bufferbloat_refractory_period_microseconds
@@ -486,13 +427,13 @@ static enum controller_rate_reason adjust_rate(
         direction->last_decay_adjustment_microseconds =
             timestamp_microseconds;
     } else {
-        high_load = controller_load_percent(
+        high_load = load_percent(
             input->traffic_rate_bits_per_second,
             previous_rate
         ) > config->high_load_threshold_percent;
         if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             high_load &&
-            refractory_period_elapsed(
+            interval_elapsed(
                 timestamp_microseconds,
                 direction->last_congestion_adjustment_microseconds,
                 config->bufferbloat_refractory_period_microseconds
@@ -512,7 +453,7 @@ static enum controller_rate_reason adjust_rate(
         } else if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             !high_load &&
             previous_rate != direction->config.base_rate_bits_per_second &&
-            refractory_period_elapsed(
+            interval_elapsed(
                 timestamp_microseconds,
                 direction->last_decay_adjustment_microseconds,
                 config->decay_refractory_period_microseconds
@@ -538,7 +479,7 @@ static enum controller_rate_reason adjust_rate(
     if (direction->congestion == CONTROLLER_CONGESTION_DETECTED) {
         return CONTROLLER_RATE_CONGESTION;
     }
-    if (controller_load_percent(
+    if (load_percent(
             input->traffic_rate_bits_per_second,
             previous_rate
         ) > config->high_load_threshold_percent) {
@@ -679,7 +620,7 @@ static bool activity_rates_above(
     return require_both ? download && upload : download || upload;
 }
 
-void controller_activity_update(
+void activity_update(
     struct controller_activity *activity,
     const struct controller_activity_config *config,
     const struct controller_activity_input *input,

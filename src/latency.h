@@ -9,7 +9,7 @@
 #define LATENCY_OUTPUT_SIZE 512U
 #define LATENCY_TARGET_SIZE 256U
 
-bool latency_target_is_valid(const char *target);
+bool target_is_valid(const char *target);
 
 struct sqm_mon_latency {
     int output_descriptor;
@@ -110,49 +110,49 @@ int latency_open(
 
 void latency_close(struct sqm_mon_latency *latency);
 
-enum latency_fping_line_result latency_parse_fping_line(
+enum latency_fping_line_result parse_fping_line(
     const char *line,
     struct latency_sample *sample
 );
 
-int latency_tracker_init(
+int tracker_init(
     struct latency_tracker *tracker,
     const struct latency_tracker_config *config
 );
 
-void latency_tracker_reset(struct latency_tracker *tracker);
+void tracker_reset(struct latency_tracker *tracker);
 
-void latency_tracker_update(
+void tracker_update(
     struct latency_tracker *tracker,
     const struct latency_sample *sample,
     struct latency_observation *observation
 );
 
-void latency_tracker_update_delta_ewma(
+void tracker_update_delta_ewma(
     struct latency_tracker *tracker,
     bool low_load,
     struct latency_observation *observation
 );
 
-int reflector_health_init(
+int health_init(
     struct reflector_health *health,
     const struct reflector_health_config *config,
     uint64_t start_microseconds
 );
 
-void reflector_health_cleanup(struct reflector_health *health);
+void health_cleanup(struct reflector_health *health);
 
-void reflector_health_reset(
+void health_reset(
     struct reflector_health *health,
     uint64_t start_microseconds
 );
 
-void reflector_health_record_response(
+void health_record_response(
     struct reflector_health *health,
     uint64_t timestamp_microseconds
 );
 
-enum reflector_health_result reflector_health_check(
+enum reflector_health_result health_check(
     struct reflector_health *health,
     uint64_t timestamp_microseconds
 );

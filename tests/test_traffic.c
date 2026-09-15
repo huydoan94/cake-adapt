@@ -47,9 +47,9 @@ static void test_initial_sample_establishes_baseline(void)
     struct traffic_sample first = sample(100U, 10, 0L);
     uint64_t rate = 123U;
 
-    traffic_monitor_init(&monitor);
+    traffic_init(&monitor);
 
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &first,
         &rate
@@ -64,10 +64,10 @@ static void test_rate_is_calculated_from_cake_bytes(void)
     struct traffic_sample second = sample(2100U, 11, 0L);
     uint64_t rate;
 
-    traffic_monitor_init(&monitor);
-    (void)traffic_monitor_update(&monitor, &first, &rate);
+    traffic_init(&monitor);
+    (void)traffic_update(&monitor, &first, &rate);
 
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &second,
         &rate
@@ -82,9 +82,9 @@ static void test_subsecond_interval_is_supported(void)
     struct traffic_sample second = sample(1000U, 10, 750000000L);
     uint64_t rate;
 
-    traffic_monitor_init(&monitor);
-    (void)traffic_monitor_update(&monitor, &first, &rate);
-    (void)traffic_monitor_update(&monitor, &second, &rate);
+    traffic_init(&monitor);
+    (void)traffic_update(&monitor, &first, &rate);
+    (void)traffic_update(&monitor, &second, &rate);
 
     assert(rate == 16000U);
 }
@@ -97,16 +97,16 @@ static void test_counter_reset_creates_new_baseline(void)
     struct traffic_sample next = sample(1200U, 12, 0L);
     uint64_t rate;
 
-    traffic_monitor_init(&monitor);
-    (void)traffic_monitor_update(&monitor, &first, &rate);
+    traffic_init(&monitor);
+    (void)traffic_update(&monitor, &first, &rate);
 
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &reset,
         &rate
     ) == TRAFFIC_UPDATE_COUNTER_RESET);
     assert(rate == 0U);
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &next,
         &rate
@@ -134,16 +134,16 @@ static void test_qdisc_replacement_creates_new_baseline(void)
     );
     uint64_t rate;
 
-    traffic_monitor_init(&monitor);
-    (void)traffic_monitor_update(&monitor, &first, &rate);
+    traffic_init(&monitor);
+    (void)traffic_update(&monitor, &first, &rate);
 
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &replacement,
         &rate
     ) == TRAFFIC_UPDATE_QDISC_REPLACED);
     assert(rate == 0U);
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &next,
         &rate
@@ -158,10 +158,10 @@ static void test_invalid_interval_creates_new_baseline(void)
     struct traffic_sample same_time = sample(200U, 10, 0L);
     uint64_t rate;
 
-    traffic_monitor_init(&monitor);
-    (void)traffic_monitor_update(&monitor, &first, &rate);
+    traffic_init(&monitor);
+    (void)traffic_update(&monitor, &first, &rate);
 
-    assert(traffic_monitor_update(
+    assert(traffic_update(
         &monitor,
         &same_time,
         &rate
@@ -180,9 +180,9 @@ static void test_large_64_bit_counter_is_supported(void)
     );
     uint64_t rate;
 
-    traffic_monitor_init(&monitor);
-    (void)traffic_monitor_update(&monitor, &first, &rate);
-    assert(traffic_monitor_update(
+    traffic_init(&monitor);
+    (void)traffic_update(&monitor, &first, &rate);
+    assert(traffic_update(
         &monitor,
         &second,
         &rate

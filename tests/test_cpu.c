@@ -26,7 +26,7 @@ static void test_proc_stat_parsing(void)
         file
     ) >= 0);
     assert(fclose(file) == 0);
-    assert(cpu_read_path(path, &sample, error, sizeof(error)) == 0);
+    assert(cpu_read(path, &sample, error, sizeof(error)) == 0);
     assert(sample.timestamp_microseconds > 0U);
     assert(sample.count == 2U);
     assert(strcmp(sample.counters[0].identifier, "cpu") == 0);
@@ -38,7 +38,7 @@ static void test_proc_stat_parsing(void)
     assert(sample.counters[1].iowait == 0U);
     assert(sample.counters[1].guest_nice == 0U);
     assert(unlink(path) == 0);
-    assert(cpu_read_path(path, &sample, error, sizeof(error)) != 0);
+    assert(cpu_read(path, &sample, error, sizeof(error)) != 0);
 }
 
 static void test_cpu_usage_matches_cake_autorate(void)
@@ -53,7 +53,7 @@ static void test_cpu_usage_matches_cake_autorate(void)
     };
     unsigned int usage[CPU_MAX_COUNT];
 
-    cpu_monitor_init(&monitor);
+    cpu_init(&monitor);
     cpu_usage(&monitor, &sample, usage);
     assert(usage[0] == 30U);
     sample.counters[0].user = 30U;

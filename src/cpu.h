@@ -32,9 +32,9 @@ struct cpu_monitor {
     uint64_t previous_idle[CPU_MAX_COUNT];
 };
 
-void cpu_monitor_init(struct cpu_monitor *monitor);
+void cpu_init(struct cpu_monitor *monitor);
 
-int cpu_read_path(
+int cpu_read(
     const char *path,
     struct cpu_sample *sample,
     char *error,

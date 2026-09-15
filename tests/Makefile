@@ -15,7 +15,7 @@ WARNINGS := \
 	-Wconversion \
 	-Werror
 
-TARGETS := test_controller test_latency test_log test_traffic test_cpu
+TARGETS := test_controller test_latency test_log test_traffic test_cpu test_helpers
 
 # Optional host integration check using the same libnl API as libnl-tiny.
 NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0))
@@ -27,8 +27,8 @@ UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 check-config: test_config
 	./test_config
 
-test_config: test_config.c ../src/config.c ../src/config.h ../src/latency.c ../src/log.c ../src/error.c
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -Wl,--wrap=posix_spawn -o $@ test_config.c ../src/latency.c ../src/log.c ../src/error.c $(LDLIBS) -lz
+test_config: test_config.c ../src/config.c ../src/config.h ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c ../src/helpers.h
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -Wl,--wrap=posix_spawn -o $@ test_config.c ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c $(LDLIBS) -lz
 
 .PHONY: check-netlink
 check-netlink: test_cake
@@ -47,21 +47,25 @@ check: $(TARGETS)
 	./test_log
 	./test_traffic
 	./test_cpu
+	./test_helpers
 
-test_latency: test_latency.o latency.o error.o
-	$(CC) $(LDFLAGS) -o $@ test_latency.o latency.o error.o $(LDLIBS)
+test_latency: test_latency.o latency.o error.o helpers.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-test_traffic: test_traffic.o traffic.o
-	$(CC) $(LDFLAGS) -o $@ test_traffic.o traffic.o $(LDLIBS)
+test_traffic: test_traffic.o traffic.o helpers.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-test_controller: test_controller.o controller.o
-	$(CC) $(LDFLAGS) -o $@ test_controller.o controller.o $(LDLIBS)
+test_controller: test_controller.o controller.o helpers.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-test_log: test_log.o log.o
-	$(CC) $(LDFLAGS) -o $@ test_log.o log.o $(LDLIBS) -lz
+test_log: test_log.o log.o helpers_log.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) -lz
 
-test_cpu: test_cpu.c ../src/cpu.c ../src/cpu.h ../src/error.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cpu.c ../src/cpu.c ../src/error.c $(LDLIBS)
+test_cpu: test_cpu.c ../src/cpu.c ../src/cpu.h ../src/error.c ../src/helpers.c ../src/helpers.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cpu.c ../src/cpu.c ../src/error.c ../src/helpers.c $(LDLIBS)
+
+test_helpers: test_helpers.c helpers.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 test_latency.o: test_latency.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
@@ -85,7 +89,13 @@ error.o: ../src/error.c ../src/error.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/error.c
 
 log.o: ../src/log.c ../src/log.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -Dclock_gettime=test_log_clock_gettime -std=c11 -MMD -MP -c -o $@ ../src/log.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/log.c
+
+helpers.o: ../src/helpers.c ../src/helpers.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/helpers.c
+
+helpers_log.o: ../src/helpers.c ../src/helpers.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -Dclock_gettime=test_log_clock_gettime -std=c11 -MMD -MP -c -o $@ ../src/helpers.c
 
 traffic.o: ../src/traffic.c ../src/traffic.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/traffic.c
