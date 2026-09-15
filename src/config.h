@@ -103,4 +103,10 @@ int config_load(
     size_t error_size
 );
 
+int config_load_remote_reflectors(
+    struct sqm_mon_config *config,
+    char *error,
+    size_t error_size
+);
+
 #endif

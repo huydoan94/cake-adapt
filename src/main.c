@@ -69,6 +69,7 @@ int main(int argc, char **argv)
     struct sqm_mon_config config;
     char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
+    const char *log_path;
     bool foreground = false;
     int option;
     int result;
@@ -121,12 +122,22 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    if (config.log_file[0] != '\0' &&
-        log_set_file(config.log_file) != 0) {
+    log_path = config.log_file_path_override[0] != '\0'
+        ? config.log_file_path_override
+        : config.log_file;
+
+    if (config.log_to_file && log_path[0] != '\0' &&
+        log_set_file(
+            log_path,
+            config.log_file_max_time_minutes,
+            config.log_file_max_size_kilobytes,
+            config.log_file_buffer_timeout_microseconds,
+            config.log_file_export_compress
+        ) != 0) {
         log_message(
             LOG_LEVEL_ERROR,
             "could not open log file '%s': %s",
-            config.log_file,
+            log_path,
             strerror(errno)
         );
         log_close();
@@ -139,6 +150,20 @@ int main(int argc, char **argv)
         config.output_reflector_stats,
         config.output_summary_stats
     );
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "Local list of reflectors contains %" PRIu64 " entries.",
+        config.reflector_count
+    );
+    if (config_load_remote_reflectors(
+            &config,
+            config_error,
+            sizeof(config_error)
+        ) != 0) {
+        log_message(LOG_LEVEL_ERROR, "reflector configuration error: %s", config_error);
+        log_close();
+        return 1;
+    }
     randomize_reflector_list(&config);
 
     log_message(
@@ -155,7 +180,7 @@ int main(int argc, char **argv)
         config.reflector_ping_interval_microseconds,
         config.monitor_achieved_rates_interval_microseconds,
         config.debug ? 1U : 0U,
-        config.log_file[0] == '\0' ? "disabled" : config.log_file
+        !config.log_to_file || log_path[0] == '\0' ? "disabled" : log_path
     );
     if (config.adjust_download) {
         log_message(

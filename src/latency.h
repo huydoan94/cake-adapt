@@ -9,6 +9,8 @@
 #define LATENCY_OUTPUT_SIZE 512U
 #define LATENCY_TARGET_SIZE 256U
 
+bool latency_target_is_valid(const char *target);
+
 struct sqm_mon_latency {
     int output_descriptor;
     pid_t process_identifier;
@@ -100,6 +102,8 @@ int latency_open(
     const char *const *targets,
     size_t target_count,
     uint64_t reflector_ping_interval_microseconds,
+    const char *extra_arguments,
+    const char *prefix,
     char *error,
     size_t error_size
 );

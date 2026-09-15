@@ -2,25 +2,44 @@
 
 #include "log.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <syslog.h>
 #include <time.h>
+#include <unistd.h>
+#include <zlib.h>
 
 #define LOG_MESSAGE_SIZE 2048U
 #define TIMED_PAYLOAD_SIZE 2000U
 #define LOG_DATETIME_SIZE 20U
+#define LOG_PATH_SIZE 512U
 
 static bool log_to_stdout;
 static bool log_to_syslog;
 static bool debug_to_syslog;
 static FILE *log_file;
+static char log_path[LOG_PATH_SIZE];
+static uint64_t log_opened_microseconds;
+static uint64_t log_last_flush_microseconds;
+static uint64_t log_maximum_age_microseconds;
+static uint64_t log_maximum_size_bytes;
+static uint64_t log_buffer_timeout_microseconds;
+static bool log_compress_exports;
+static bool header_data;
+static bool header_load;
+static bool header_reflector;
+static bool header_summary;
+static char *cpu_header;
+static bool header_cpu_raw;
+static bool log_maintenance_active;
 static enum log_level minimum_log_level = LOG_LEVEL_INFO;
 
 /* cake-autorate 3.3.0-PRERELEASE (ac75f493) analyzer schemas. */
@@ -56,6 +75,11 @@ static const char reflector_header[] =
     " MIN_DL_DELTA_EWMA_US; DL_DELTA_EWMA_US; DL_DELTA_EWMA_DELTA_US;"
     " DL_DELTA_EWMA_DELTA_THR; MIN_UL_DELTA_EWMA_US; UL_DELTA_EWMA_US;"
     " UL_DELTA_EWMA_DELTA_US; UL_DELTA_EWMA_DELTA_THR";
+
+static const char cpu_raw_header[] =
+    "CPU_RAW_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_ID;"
+    " USER; NICE; SYSTEM; IDLE; IOWAIT; IRQ; SIRQ; STEAL; GUEST;"
+    " GUEST_NICE";
 
 static int syslog_priority(enum log_level level)
 {
@@ -93,16 +117,231 @@ static const char *level_name(enum log_level level)
     return "ERROR";
 }
 
-uint64_t log_realtime_microseconds(void)
+static uint64_t clock_microseconds(clockid_t clock_identifier)
 {
     struct timespec timestamp;
 
-    if (clock_gettime(CLOCK_REALTIME, &timestamp) != 0 ||
+    if (clock_gettime(clock_identifier, &timestamp) != 0 ||
         timestamp.tv_sec < 0) {
         return 0U;
     }
     return (uint64_t)timestamp.tv_sec * 1000000U +
         (uint64_t)timestamp.tv_nsec / 1000U;
+}
+
+uint64_t log_realtime_microseconds(void)
+{
+    return clock_microseconds(CLOCK_REALTIME);
+}
+
+static void write_headers_to_file(void)
+{
+    if (header_data) {
+        (void)fprintf(log_file, "%s\n", data_header);
+    }
+    if (header_load) {
+        (void)fprintf(log_file, "%s\n", load_header);
+    }
+    if (header_reflector) {
+        (void)fprintf(log_file, "%s\n", reflector_header);
+    }
+    if (header_summary) {
+        (void)fprintf(log_file, "%s\n", summary_header);
+    }
+    if (cpu_header != NULL) {
+        (void)fprintf(log_file, "%s\n", cpu_header);
+    }
+    if (header_cpu_raw) {
+        (void)fprintf(log_file, "%s\n", cpu_raw_header);
+    }
+}
+
+static bool export_log(
+    const char *export_path,
+    bool compress,
+    bool include_previous
+)
+{
+    char buffer[4096];
+    char previous_path[LOG_PATH_SIZE + 5U];
+    const char *source_paths[] = { previous_path, log_path };
+    FILE *destination = NULL;
+    gzFile compressed_destination = NULL;
+    size_t length;
+    size_t index;
+    bool success = true;
+
+    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", log_path);
+    if (compress) {
+        compressed_destination = gzopen(export_path, "wb");
+        if (compressed_destination == NULL) {
+            return false;
+        }
+    } else {
+        destination = fopen(export_path, "w");
+        if (destination == NULL) {
+            return false;
+        }
+    }
+    for (index = include_previous ? 0U : 1U; index < 2U; index++) {
+        FILE *source = fopen(source_paths[index], "r");
+
+        if (source == NULL) {
+            if (index == 0U && errno == ENOENT) {
+                continue;
+            }
+            success = false;
+            break;
+        }
+        while ((length = fread(buffer, 1U, sizeof(buffer), source)) > 0U) {
+            if (compress
+                    ? gzwrite(compressed_destination, buffer, (unsigned int)length) != (int)length
+                    : fwrite(buffer, 1U, length, destination) != length) {
+                success = false;
+                break;
+            }
+        }
+        success = !ferror(source) && success;
+        success = fclose(source) == 0 && success;
+        if (!success) {
+            break;
+        }
+    }
+    success = (compress
+        ? gzclose(compressed_destination) == Z_OK
+        : fclose(destination) == 0) && success;
+    return success;
+}
+
+static int truncate_log_file(void)
+{
+    if (fflush(log_file) != 0 || ftruncate(fileno(log_file), 0) != 0 ||
+        fseeko(log_file, 0, SEEK_SET) != 0) {
+        return -1;
+    }
+    write_headers_to_file();
+    (void)fflush(log_file);
+    log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
+    log_last_flush_microseconds = log_opened_microseconds;
+    return 0;
+}
+
+int log_export_file(
+    char *export_path,
+    size_t export_path_size
+)
+{
+    struct tm local_time;
+    time_t seconds = time(NULL);
+    char stamp[20];
+    size_t path_length = strlen(log_path);
+    int written;
+
+    if (log_file == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+    if (localtime_r(&seconds, &local_time) == NULL ||
+        strftime(stamp, sizeof(stamp), "%Y_%m_%d_%H_%M_%S", &local_time) == 0U) {
+        return -1;
+    }
+    if (path_length >= 4U && strcmp(log_path + path_length - 4U, ".log") == 0) {
+        path_length -= 4U;
+    }
+    written = snprintf(
+        export_path,
+        export_path_size,
+        "%.*s_%s.log%s",
+        (int)path_length,
+        log_path,
+        stamp,
+        log_compress_exports ? ".gz" : ""
+    );
+    if (written < 0 || (size_t)written >= export_path_size) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    log_message(LOG_LEVEL_DEBUG, "Exporting log file with path: %s", export_path);
+    if (fflush(log_file) != 0) {
+        return -1;
+    }
+    return export_log(export_path, log_compress_exports, true) ? 0 : -1;
+}
+
+int log_reset_file(void)
+{
+    char previous_path[LOG_PATH_SIZE + 5U];
+    FILE *previous;
+
+    if (log_file == NULL) {
+        errno = EBADF;
+        return -1;
+    }
+    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", log_path);
+    previous = fopen(previous_path, "w");
+    if (previous == NULL) {
+        return -1;
+    }
+    (void)fclose(previous);
+    return truncate_log_file();
+}
+
+static void maintain_log_file(uint64_t timestamp_microseconds)
+{
+    off_t size;
+    bool rotate;
+
+    if (log_file == NULL || log_maintenance_active) {
+        return;
+    }
+    if (log_buffer_timeout_microseconds == 0U ||
+        timestamp_microseconds - log_last_flush_microseconds >=
+            log_buffer_timeout_microseconds) {
+        (void)fflush(log_file);
+        log_last_flush_microseconds = timestamp_microseconds;
+    }
+    size = ftello(log_file);
+    rotate = (log_maximum_age_microseconds > 0U &&
+            timestamp_microseconds - log_opened_microseconds >
+                log_maximum_age_microseconds) ||
+        (log_maximum_size_bytes > 0U && size >= 0 &&
+            (uint64_t)size > log_maximum_size_bytes);
+    if (rotate) {
+        char previous_path[LOG_PATH_SIZE + 5U];
+
+        log_maintenance_active = true;
+        if (log_maximum_age_microseconds > 0U &&
+            timestamp_microseconds - log_opened_microseconds >
+                log_maximum_age_microseconds) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "log file maximum time: %" PRIu64 " minutes has elapsed so flushing and rotating log file.",
+                log_maximum_age_microseconds / 60000000U
+            );
+        } else {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "log file size: %" PRIu64 " KB has exceeded configured maximum: %" PRIu64 " KB so flushing and rotating log file.",
+                (uint64_t)size / 1024U,
+                log_maximum_size_bytes / 1024U
+            );
+        }
+        (void)snprintf(
+            previous_path,
+            sizeof(previous_path),
+            "%s.old",
+            log_path
+        );
+        if (fflush(log_file) == 0 && export_log(previous_path, false, false)) {
+            (void)truncate_log_file();
+        }
+        log_maintenance_active = false;
+    }
+}
+
+void log_tick(void)
+{
+    maintain_log_file(clock_microseconds(CLOCK_MONOTONIC));
 }
 
 static void write_line(const char *line)
@@ -113,7 +352,7 @@ static void write_line(const char *line)
     }
     if (log_file != NULL) {
         (void)fprintf(log_file, "%s\n", line);
-        (void)fflush(log_file);
+        maintain_log_file(clock_microseconds(CLOCK_MONOTONIC));
     }
 }
 
@@ -179,6 +418,9 @@ void log_close(void)
         (void)fclose(log_file);
         log_file = NULL;
     }
+    free(cpu_header);
+    cpu_header = NULL;
+    header_cpu_raw = false;
 
     if (log_to_syslog) {
         closelog();
@@ -186,7 +428,13 @@ void log_close(void)
     }
 }
 
-int log_set_file(const char *path)
+int log_set_file(
+    const char *path,
+    uint64_t maximum_time_minutes,
+    uint64_t maximum_size_kilobytes,
+    uint64_t buffer_timeout_microseconds,
+    bool compress_exports
+)
 {
     FILE *file;
     int descriptor_flags;
@@ -196,7 +444,12 @@ int log_set_file(const char *path)
         return -1;
     }
 
-    file = fopen(path, "a");
+    if (strlen(path) >= sizeof(log_path)) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    (void)snprintf(log_path, sizeof(log_path), "%s", path);
+    file = fopen(path, "a+");
     if (file == NULL) {
         return -1;
     }
@@ -214,6 +467,12 @@ int log_set_file(const char *path)
         (void)fclose(log_file);
     }
     log_file = file;
+    log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
+    log_last_flush_microseconds = log_opened_microseconds;
+    log_maximum_age_microseconds = maximum_time_minutes * 60000000U;
+    log_maximum_size_bytes = maximum_size_kilobytes * 1024U;
+    log_buffer_timeout_microseconds = buffer_timeout_microseconds;
+    log_compress_exports = compress_exports;
 
     return 0;
 }
@@ -249,6 +508,10 @@ void log_print_headers(
     bool output_summary_stats
 )
 {
+    header_data = output_processing_stats;
+    header_load = output_load_stats;
+    header_reflector = output_reflector_stats;
+    header_summary = output_summary_stats;
     if (output_processing_stats) {
         write_line(data_header);
     }
@@ -260,6 +523,45 @@ void log_print_headers(
     }
     if (output_summary_stats) {
         write_line(summary_header);
+    }
+}
+
+void log_print_cpu_headers(
+    const struct cpu_sample *sample,
+    bool output_cpu_stats,
+    bool output_cpu_raw_stats
+)
+{
+    size_t index;
+    size_t size;
+    FILE *stream;
+
+    free(cpu_header);
+    cpu_header = NULL;
+    header_cpu_raw = output_cpu_raw_stats;
+    if (output_cpu_stats) {
+        stream = open_memstream(&cpu_header, &size);
+        if (stream == NULL) {
+            return;
+        }
+        (void)fputs(
+            "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME",
+            stream
+        );
+        for (index = 0U; index < sample->count; index++) {
+            const char *identifier = sample->counters[index].identifier;
+
+            (void)fputs("; ", stream);
+            while (*identifier != '\0') {
+                (void)fputc(toupper((unsigned char)*identifier++), stream);
+            }
+            (void)fputs("_USAGE", stream);
+        }
+        (void)fclose(stream);
+        write_line(cpu_header);
+    }
+    if (output_cpu_raw_stats) {
+        write_line(cpu_raw_header);
     }
 }
 
@@ -400,6 +702,62 @@ void log_reflector(const struct log_reflector_record *record)
         record->upload_delta_ewma_delta_microseconds,
         record->delta_ewma_delta_threshold_microseconds
     );
+}
+
+void log_cpu(
+    const struct cpu_sample *sample,
+    const unsigned int *usage
+)
+{
+    char *message = NULL;
+    size_t size;
+    size_t index;
+    FILE *stream = open_memstream(&message, &size);
+
+    if (stream == NULL) {
+        return;
+    }
+    (void)fprintf(
+        stream,
+        "%" PRIu64 ".%06" PRIu64,
+        sample->timestamp_microseconds / 1000000U,
+        sample->timestamp_microseconds % 1000000U
+    );
+    for (index = 0U; index < sample->count; index++) {
+        (void)fprintf(stream, "; %u", usage[index]);
+    }
+    (void)fclose(stream);
+    write_record("CPU", message);
+    free(message);
+}
+
+void log_cpu_raw(const struct cpu_sample *sample)
+{
+    size_t index;
+
+    for (index = 0U; index < sample->count; index++) {
+        const struct cpu_counter *counter = &sample->counters[index];
+
+        write_formatted_record(
+            "CPU_RAW",
+            "%" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 "; %" PRIu64
+            "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+            "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
+            sample->timestamp_microseconds / 1000000U,
+            sample->timestamp_microseconds % 1000000U,
+            counter->identifier,
+            counter->user,
+            counter->nice,
+            counter->system,
+            counter->idle,
+            counter->iowait,
+            counter->irq,
+            counter->softirq,
+            counter->steal,
+            counter->guest,
+            counter->guest_nice
+        );
+    }
 }
 
 void log_shaper(

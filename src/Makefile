@@ -22,6 +22,7 @@ SOURCES := \
 	cake.c \
 	config.c \
 	controller.c \
+	cpu.c \
 	error.c \
 	latency.c \
 	log.c \
@@ -37,7 +38,7 @@ DEPENDENCIES := $(OBJECTS:.o=.d)
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox $(NETLINK_LIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox -lz $(NETLINK_LIBS)
 
 $(OBJECT_DIR):
 	mkdir -p $@

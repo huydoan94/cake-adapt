@@ -878,6 +878,169 @@ static void test_invalid_sample_does_not_adjust_rate(void)
     assert(!output.upload.rate_changed);
 }
 
+static void test_minimum_rate_enforcement_preserves_opt_out(void)
+{
+    struct sqm_mon_controller controller;
+    struct controller_config config = adjusting_config();
+
+    config.upload.adjust = false;
+    init_controller(&controller, &config);
+    controller_set_minimum_rates(&controller, 123U);
+    assert(controller.download.shaper_rate_bits_per_second == config.download.minimum_rate_bits_per_second);
+    assert(!controller.download.initial_rate_pending);
+    assert(controller.download.last_congestion_adjustment_microseconds == 123U);
+    assert(controller.download.last_decay_adjustment_microseconds == 123U);
+    assert(controller.upload.shaper_rate_bits_per_second == config.upload.base_rate_bits_per_second);
+    controller_close(&controller);
+}
+
+static const struct controller_activity_config activity_config = {
+    .enable_sleep = true,
+    .active_threshold_bits_per_second = 2000000U,
+    .stall_threshold_bits_per_second = 10000U,
+    .sustained_idle_microseconds = 60000000U,
+    .stall_timeout_microseconds = 250000U,
+    .global_timeout_microseconds = 10000000U
+};
+
+static struct controller_activity_input activity_input(uint64_t timestamp)
+{
+    return (struct controller_activity_input) {
+        .download = { .valid = true },
+        .upload = { .valid = true },
+        .timestamp_microseconds = timestamp,
+        .last_response_microseconds = timestamp,
+        .last_pinger_start_microseconds = 1U
+    };
+}
+
+static void test_sustained_idle_sleep_and_wakeup(void)
+{
+    struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+    struct controller_activity_input input = activity_input(1U);
+    struct controller_activity_output output;
+
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.idle_started_microseconds == 1U);
+    input = activity_input(60000001U);
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    input = activity_input(60000002U);
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_IDLE);
+    assert(output.state_changed);
+    input.timestamp_microseconds += 20000000U;
+    input.last_response_microseconds = 1U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_IDLE);
+    assert(!output.restart_pingers);
+    assert(!output.global_timeout_started);
+    input.upload.traffic_rate_bits_per_second = 2000000U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_IDLE);
+    input.upload.traffic_rate_bits_per_second += 1000U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(output.state_changed);
+}
+
+static void test_interrupted_or_invalid_idle_does_not_sleep(void)
+{
+    struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+    struct controller_activity_input input = activity_input(1U);
+    struct controller_activity_output output;
+    struct controller_activity_config config = activity_config;
+
+    controller_activity_update(&activity, &config, &input, &output);
+    input = activity_input(20000000U);
+    input.download.traffic_rate_bits_per_second = 2001000U;
+    controller_activity_update(&activity, &config, &input, &output);
+    assert(activity.idle_started_microseconds == 0U);
+    input = activity_input(60000002U);
+    controller_activity_update(&activity, &config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(activity.idle_started_microseconds == input.timestamp_microseconds);
+    input = activity_input(120000004U);
+    input.download.valid = false;
+    controller_activity_update(&activity, &config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(activity.idle_started_microseconds == 0U);
+    config.enable_sleep = false;
+    input = activity_input(200000000U);
+    controller_activity_update(&activity, &config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(activity.idle_started_microseconds == 0U);
+}
+
+static void test_stall_timeout_restart_and_response_recovery(void)
+{
+    struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+    struct controller_activity_input input = activity_input(1U);
+    struct controller_activity_output output;
+
+    input.timestamp_microseconds = 250001U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    input.timestamp_microseconds++;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_STALL);
+    assert(output.check_stall_loads);
+    assert(output.state_changed);
+    assert(!output.global_timeout_started);
+    input.timestamp_microseconds = 10000001U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(output.global_timeout_started);
+    assert(output.restart_pingers);
+    input.last_pinger_start_microseconds = input.timestamp_microseconds;
+    input.timestamp_microseconds++;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(!output.global_timeout_started);
+    assert(!output.restart_pingers);
+    input.last_response_microseconds = input.timestamp_microseconds;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(output.state_changed);
+    assert(!activity.global_timeout_reported);
+}
+
+static void test_both_loads_bypass_stall_but_not_global_timeout(void)
+{
+    struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+    struct controller_activity_input input = activity_input(1U);
+    struct controller_activity_output output;
+
+    input.timestamp_microseconds = 10000001U;
+    input.download.traffic_rate_bits_per_second = 11000U;
+    input.upload.traffic_rate_bits_per_second = 11000U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(output.global_timeout_started);
+    assert(output.restart_pingers);
+    input.upload.traffic_rate_bits_per_second = 10000U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_STALL);
+    input.upload.traffic_rate_bits_per_second += 1000U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(output.state_changed);
+}
+
+static void test_wakeup_grace_prevents_false_stall(void)
+{
+    struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+    struct controller_activity_input input = activity_input(1U);
+    struct controller_activity_output output;
+
+    input.timestamp_microseconds = 600000U;
+    input.grace_until_microseconds = 600001U;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_RUNNING);
+    assert(!output.check_stall_loads);
+    input.timestamp_microseconds++;
+    controller_activity_update(&activity, &activity_config, &input, &output);
+    assert(activity.state == CONTROLLER_STALL);
+}
+
 int main(void)
 {
     test_initial_state_is_unknown();
@@ -908,6 +1071,12 @@ int main(void)
     test_high_load_restarts_decay_refractory_period();
     test_rate_limits_are_hard_bounds();
     test_invalid_sample_does_not_adjust_rate();
+    test_minimum_rate_enforcement_preserves_opt_out();
+    test_sustained_idle_sleep_and_wakeup();
+    test_interrupted_or_invalid_idle_does_not_sleep();
+    test_stall_timeout_restart_and_response_recovery();
+    test_both_loads_bypass_stall_but_not_global_timeout();
+    test_wakeup_grace_prevents_false_stall();
 
     (void)puts("controller tests passed");
     return 0;

@@ -12,7 +12,7 @@ define Package/sqm-mon
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libnl-tiny +fping
+  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +uclient-fetch
 endef
 
 define Package/sqm-mon/description

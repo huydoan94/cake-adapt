@@ -1,9 +1,13 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "latency.h"
 
 #include <assert.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 static const struct latency_tracker_config default_tracker_config = {
     .alpha_baseline_increase_per_million = 1000U,
@@ -41,6 +45,8 @@ static void test_invalid_target_is_rejected_before_starting_fping(void)
         targets,
         1U,
         1000000U,
+        "",
+        "",
         error,
         sizeof(error)
     ) != 0);
@@ -61,6 +67,8 @@ static void test_empty_target_list_is_rejected(void)
         NULL,
         0U,
         1000000U,
+        "",
+        "",
         error,
         sizeof(error)
     ) != 0);
@@ -81,6 +89,8 @@ static void test_sub_millisecond_response_spacing_is_rejected(void)
         targets,
         2U,
         1999U,
+        "",
+        "",
         error,
         sizeof(error)
     ) != 0);
@@ -398,6 +408,67 @@ static void test_reflector_rotation_uses_first_standby(void)
     assert(order[4] == 1U);
 }
 
+static void test_pinger_arguments_reject_command_substitution(void)
+{
+    struct sqm_mon_latency latency;
+    const char *targets[] = { "1.1.1.1" };
+    char error[256] = "";
+
+    latency_init(&latency);
+    assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "$(id)", "", error, sizeof(error)) != 0);
+    assert(strstr(error, "ping_extra_args") != NULL);
+    assert(!latency_is_open(&latency));
+    assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "", "'unterminated", error, sizeof(error)) != 0);
+    assert(strstr(error, "ping_prefix_string") != NULL);
+    assert(!latency_is_open(&latency));
+}
+
+static void test_prefix_and_extra_args_reach_owned_process(void)
+{
+    struct sqm_mon_latency latency;
+    const char *targets[] = { "1.1.1.1", "::1" };
+    char error[256] = "";
+    char output[1024];
+    size_t length = 0U;
+    struct pollfd descriptor;
+
+    latency_init(&latency);
+    assert(latency_open(
+        &latency,
+        "lo",
+        targets,
+        2U,
+        300000U,
+        "-I 'lo2' -k 768",
+        "/usr/bin/printf '%s\\n'",
+        error,
+        sizeof(error)
+    ) == 0);
+    descriptor = (struct pollfd) { .fd = latency.output_descriptor, .events = POLLIN };
+    for (;;) {
+        ssize_t bytes;
+
+        assert(poll(&descriptor, 1U, 1000) > 0);
+        assert(length < sizeof(output) - 1U);
+        bytes = read(latency.output_descriptor, output + length, sizeof(output) - 1U - length);
+        assert(bytes >= 0);
+        if (bytes == 0) {
+            break;
+        }
+        length += (size_t)bytes;
+    }
+    output[length] = '\0';
+    assert(strcmp(
+        output,
+        "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
+        "--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
+    ) == 0);
+    latency_close(&latency);
+    assert(!latency_is_open(&latency));
+    assert(latency_target_is_valid("::1"));
+    assert(latency_target_is_valid("2001:4860:4860::8888"));
+}
+
 int main(void)
 {
     test_initial_state_is_closed();
@@ -423,6 +494,8 @@ int main(void)
     test_reflector_health_reset_clears_offences();
     test_reflector_comparison_uses_active_order();
     test_reflector_rotation_uses_first_standby();
+    test_pinger_arguments_reject_command_substitution();
+    test_prefix_and_extra_args_reach_owned_process();
 
     (void)puts("latency tests passed");
     return 0;

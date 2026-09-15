@@ -7,7 +7,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
+#include <zlib.h>
+
+static bool use_mock_time;
+static struct timespec mock_time;
+static time_t mock_realtime_offset;
+
+/* Only log.o redirects clock_gettime; no production API is changed for tests. */
+int test_log_clock_gettime(
+    clockid_t clock_identifier,
+    struct timespec *timestamp
+)
+{
+    if (use_mock_time) {
+        *timestamp = mock_time;
+        if (clock_identifier == CLOCK_REALTIME) {
+            timestamp->tv_sec += mock_realtime_offset;
+        }
+        return 0;
+    }
+    return clock_gettime(clock_identifier, timestamp);
+}
 
 /* Verbatim cake-autorate 3.3.0-PRERELEASE (ac75f493) headers. */
 static const char expected_headers[] =
@@ -66,7 +89,7 @@ static void test_debug_logging_to_file(void)
 
     log_init("sqm-mon-test", false);
     assert(log_set_level("debug") == 0);
-    assert(log_set_file(path) == 0);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
     log_message(LOG_LEVEL_DEBUG, "sample value=%d", 42);
     log_close();
 
@@ -88,7 +111,7 @@ static void test_file_logging_respects_level(void)
 
     log_init("sqm-mon-test", false);
     assert(log_set_level("notice") == 0);
-    assert(log_set_file(path) == 0);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
     log_message(LOG_LEVEL_DEBUG, "hidden debug message");
     log_message(LOG_LEVEL_NOTICE, "visible notice");
     log_close();
@@ -102,7 +125,7 @@ static void test_file_logging_respects_level(void)
 
 static void test_empty_file_path_is_rejected(void)
 {
-    assert(log_set_file("") != 0);
+    assert(log_set_file("", 0U, 0U, 0U, false) != 0);
 }
 
 static void assert_epoch_realtime_field(
@@ -225,7 +248,7 @@ static void test_cake_autorate_headers_and_record_format(void)
     assert(close(descriptor) == 0);
 
     log_init("sqm-mon-test", false);
-    assert(log_set_file(path) == 0);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
     log_print_headers(true, true, true, true);
     log_load(&load_record);
     log_data(&data_record);
@@ -291,12 +314,155 @@ static void test_cake_autorate_headers_and_record_format(void)
     assert(unlink(path) == 0);
 }
 
+static void test_cpu_schema_matches_cake_autorate(void)
+{
+    char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
+    char contents[4096];
+    const struct cpu_sample sample = {
+        .timestamp_microseconds = 1234567U,
+        .count = 2U,
+        .counters = {
+            { .identifier = "cpu", .user = 1U, .nice = 2U, .system = 3U,
+              .idle = 4U, .iowait = 5U, .irq = 6U, .softirq = 7U,
+              .steal = 8U, .guest = 9U, .guest_nice = 10U },
+            { .identifier = "cpu0", .idle = 50U }
+        }
+    };
+    const unsigned int usage[] = { 40U, 50U };
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    log_init("sqm-mon-test", false);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+    log_print_cpu_headers(&sample, true, true);
+    log_cpu(&sample, usage);
+    log_cpu_raw(&sample);
+    log_close();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_USAGE; CPU0_USAGE\n") != NULL);
+    assert(strstr(contents, "CPU_RAW_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_ID; USER; NICE; SYSTEM; IDLE; IOWAIT; IRQ; SIRQ; STEAL; GUEST; GUEST_NICE\n") != NULL);
+    assert_record_delimiter_count(strstr(contents, "\nCPU; ") + 1, 5U);
+    assert_record_delimiter_count(strstr(contents, "\nCPU_RAW; ") + 1, 14U);
+    assert(strstr(contents, "; 1.234567; 40; 50\n") != NULL);
+    assert(strstr(contents, "; 1.234567; cpu; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10\n") != NULL);
+    assert(unlink(path) == 0);
+}
+
+static void test_rotation_export_and_reset_preserve_live_inode(void)
+{
+    char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
+    char previous_path[128];
+    char export_path[256];
+    char contents[4096];
+    char large_message[1600];
+    struct stat before;
+    struct stat after;
+    gzFile export_file;
+    int length;
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    assert(stat(path, &before) == 0);
+    memset(large_message, 'x', sizeof(large_message) - 1U);
+    large_message[sizeof(large_message) - 1U] = '\0';
+    memcpy(large_message, "before rotation ", 16U);
+    log_init("sqm-mon-test", false);
+    assert(log_set_level("info") == 0);
+    assert(log_set_file(path, 0U, 1U, 0U, true) == 0);
+    log_print_headers(false, true, false, false);
+    log_message(LOG_LEVEL_INFO, "%s", large_message);
+    assert(stat(path, &after) == 0);
+    assert(before.st_ino == after.st_ino);
+    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", path);
+    read_log(previous_path, contents, sizeof(contents));
+    assert(strstr(contents, "before rotation ") != NULL);
+    log_message(LOG_LEVEL_INFO, "after rotation");
+    assert(log_export_file(export_path, sizeof(export_path)) == 0);
+    assert(strcmp(export_path + strlen(export_path) - 3U, ".gz") == 0);
+    export_file = gzopen(export_path, "rb");
+    assert(export_file != NULL);
+    length = gzread(export_file, contents, (unsigned int)(sizeof(contents) - 1U));
+    assert(length > 0);
+    contents[length] = '\0';
+    assert(gzclose(export_file) == Z_OK);
+    assert(strstr(contents, "before rotation ") != NULL);
+    assert(strstr(contents, "after rotation") != NULL);
+    assert(log_reset_file() == 0);
+    assert(stat(path, &after) == 0);
+    assert(before.st_ino == after.st_ino);
+    log_close();
+    read_log(path, contents, sizeof(contents));
+    assert(strncmp(contents, "LOAD_HEADER; ", 13U) == 0);
+    assert(strstr(contents, "after rotation") == NULL);
+    assert(unlink(path) == 0);
+    assert(unlink(previous_path) == 0);
+    assert(unlink(export_path) == 0);
+}
+
+static void test_buffer_timeout_and_time_rotation(void)
+{
+    char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
+    char previous_path[128];
+    char contents[4096];
+    struct stat before;
+    struct stat after;
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    assert(stat(path, &before) == 0);
+    use_mock_time = true;
+    mock_time = (struct timespec) { .tv_sec = 1000 };
+    log_init("sqm-mon-test", false);
+    assert(log_set_file(path, 1U, 0U, 500000U, false) == 0);
+    log_print_headers(false, true, false, false);
+    log_message(LOG_LEVEL_INFO, "buffered until timeout");
+    read_log(path, contents, sizeof(contents));
+    assert(contents[0] == '\0');
+    mock_time.tv_nsec = 499999000L;
+    log_tick();
+    read_log(path, contents, sizeof(contents));
+    assert(contents[0] == '\0');
+    mock_time.tv_nsec = 500000000L;
+    log_tick();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "buffered until timeout") != NULL);
+    mock_realtime_offset = 3600;
+    log_tick();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "buffered until timeout") != NULL);
+    mock_realtime_offset = 0;
+    mock_time.tv_sec = 1060;
+    mock_time.tv_nsec = 0;
+    log_tick();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "buffered until timeout") != NULL);
+    mock_time.tv_sec++;
+    log_tick();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "buffered until timeout") == NULL);
+    assert(stat(path, &after) == 0);
+    assert(before.st_ino == after.st_ino);
+    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", path);
+    read_log(previous_path, contents, sizeof(contents));
+    assert(strstr(contents, "buffered until timeout") != NULL);
+    log_close();
+    use_mock_time = false;
+    assert(unlink(path) == 0);
+    assert(unlink(previous_path) == 0);
+}
+
 int main(void)
 {
     test_debug_logging_to_file();
     test_file_logging_respects_level();
     test_empty_file_path_is_rejected();
     test_cake_autorate_headers_and_record_format();
+    test_cpu_schema_matches_cake_autorate();
+    test_rotation_export_and_reset_preserve_live_inode();
+    test_buffer_timeout_and_time_rotation();
 
     (void)puts("log tests passed");
     return 0;

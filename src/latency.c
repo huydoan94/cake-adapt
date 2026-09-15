@@ -17,6 +17,7 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <wordexp.h>
 
 #define FPING_PATH "/usr/bin/fping"
 #define NULL_PATH "/dev/null"
@@ -244,7 +245,8 @@ static void stop_child(pid_t process_identifier)
         return;
     }
 
-    (void)kill(process_identifier, SIGTERM);
+    /* A prefix may launch fping as a child; terminate the owned group too. */
+    (void)kill(-process_identifier, SIGTERM);
     for (attempt = 0U; attempt < CHILD_STOP_ATTEMPTS; attempt++) {
         pid_t result = waitpid(process_identifier, NULL, WNOHANG);
 
@@ -258,7 +260,7 @@ static void stop_child(pid_t process_identifier)
         (void)nanosleep(&interval, NULL);
     }
 
-    (void)kill(process_identifier, SIGKILL);
+    (void)kill(-process_identifier, SIGKILL);
     while (waitpid(process_identifier, NULL, 0) < 0 && errno == EINTR) {
     }
 }
@@ -266,6 +268,7 @@ static void stop_child(pid_t process_identifier)
 static int spawn_fping(
     pid_t *process_identifier,
     const int output_pipe[2],
+    const char *executable,
     char *const arguments[],
     char *error,
     size_t error_size
@@ -314,15 +317,18 @@ static int spawn_fping(
 
     result = posix_spawnattr_setsigmask(&attributes, &child_signal_mask);
     if (result == 0) {
+        result = posix_spawnattr_setpgroup(&attributes, 0);
+    }
+    if (result == 0) {
         result = posix_spawnattr_setflags(
             &attributes,
-            POSIX_SPAWN_SETSIGMASK
+            POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETPGROUP
         );
     }
     if (result == 0) {
-        result = posix_spawn(
+        result = posix_spawnp(
             process_identifier,
-            FPING_PATH,
+            executable,
             &actions,
             &attributes,
             arguments,
@@ -353,6 +359,8 @@ static int start_fping(
     const char *const *targets,
     size_t target_count,
     uint64_t reflector_ping_interval_microseconds,
+    const char *extra_arguments,
+    const char *prefix,
     char *error,
     size_t error_size
 )
@@ -360,11 +368,16 @@ static int start_fping(
     char period_milliseconds[32];
     char response_interval_milliseconds[32];
     char **arguments;
+    wordexp_t extra_words = { 0 };
+    wordexp_t prefix_words = { 0 };
     int output_pipe[2] = { -1, -1 };
     pid_t process_identifier;
     uint64_t period;
     uint64_t response_interval;
     size_t index;
+    size_t cursor = 0U;
+    int word_result;
+    bool interface_configured = false;
 
     if (target_count == 0U) {
         error_set(error, error_size, "fping requires at least one target");
@@ -393,11 +406,31 @@ static int start_fping(
         return -1;
     }
 
-    if (target_count > SIZE_MAX - 13U) {
-        error_set(error, error_size, "too many fping targets");
-        return -1;
+    if (extra_arguments[0] != '\0') {
+        word_result = wordexp(extra_arguments, &extra_words, WRDE_NOCMD);
+        if (word_result != 0) {
+            if (word_result == WRDE_NOSPACE) {
+                wordfree(&extra_words);
+            }
+            error_set(error, error_size, "could not parse ping_extra_args");
+            return -1;
+        }
     }
-    arguments = calloc(target_count + 13U, sizeof(*arguments));
+    if (prefix[0] != '\0') {
+        word_result = wordexp(prefix, &prefix_words, WRDE_NOCMD);
+        if (word_result != 0 || prefix_words.we_wordc == 0U) {
+            if (word_result == WRDE_NOSPACE || word_result == 0) {
+                wordfree(&prefix_words);
+            }
+            wordfree(&extra_words);
+            error_set(error, error_size, "could not parse ping_prefix_string");
+            return -1;
+        }
+    }
+    arguments = calloc(
+        prefix_words.we_wordc + extra_words.we_wordc + target_count + 13U,
+        sizeof(*arguments)
+    );
     if (arguments == NULL) {
         error_set(
             error,
@@ -405,22 +438,35 @@ static int start_fping(
             "could not allocate fping arguments: %s",
             strerror(errno)
         );
-        return -1;
+        goto failed;
     }
-    arguments[0] = (char *)FPING_PATH;
-    arguments[1] = (char *)"-4";
-    arguments[2] = (char *)"-I";
-    arguments[3] = (char *)interface;
-    arguments[4] = (char *)"--timestamp";
-    arguments[5] = (char *)"--loop";
-    arguments[6] = (char *)"--period";
-    arguments[7] = period_milliseconds;
-    arguments[8] = (char *)"--interval";
-    arguments[9] = response_interval_milliseconds;
-    arguments[10] = (char *)"--timeout";
-    arguments[11] = (char *)FPING_TIMEOUT_MILLISECONDS;
+    for (index = 0U; index < prefix_words.we_wordc; index++) {
+        arguments[cursor++] = prefix_words.we_wordv[index];
+    }
+    arguments[cursor++] = (char *)FPING_PATH;
+    for (index = 0U; index < extra_words.we_wordc; index++) {
+        arguments[cursor++] = extra_words.we_wordv[index];
+        if (strncmp(extra_words.we_wordv[index], "-I", 2U) == 0 ||
+            strcmp(extra_words.we_wordv[index], "--iface") == 0 ||
+            strncmp(extra_words.we_wordv[index], "--iface=", 8U) == 0) {
+            interface_configured = true;
+        }
+    }
+    /* Keep the SQM interface default, but honor an explicit routing override. */
+    if (!interface_configured) {
+        arguments[cursor++] = (char *)"-I";
+        arguments[cursor++] = (char *)interface;
+    }
+    arguments[cursor++] = (char *)"--timestamp";
+    arguments[cursor++] = (char *)"--loop";
+    arguments[cursor++] = (char *)"--period";
+    arguments[cursor++] = period_milliseconds;
+    arguments[cursor++] = (char *)"--interval";
+    arguments[cursor++] = response_interval_milliseconds;
+    arguments[cursor++] = (char *)"--timeout";
+    arguments[cursor++] = (char *)FPING_TIMEOUT_MILLISECONDS;
     for (index = 0U; index < target_count; index++) {
-        arguments[12U + index] = (char *)targets[index];
+        arguments[cursor++] = (char *)targets[index];
     }
 
     if (pipe2(output_pipe, O_CLOEXEC) != 0) {
@@ -432,24 +478,27 @@ static int start_fping(
         );
         close_pipe(output_pipe);
         free(arguments);
-        return -1;
+        goto failed;
     }
 
     if (spawn_fping(
             &process_identifier,
             output_pipe,
+            arguments[0],
             arguments,
             error,
             error_size
         ) != 0) {
         close_pipe(output_pipe);
         free(arguments);
-        return -1;
+        goto failed;
     }
 
     (void)close(output_pipe[1]);
     output_pipe[1] = -1;
     free(arguments);
+    wordfree(&prefix_words);
+    wordfree(&extra_words);
 
     if (set_nonblocking(output_pipe[0], error, error_size) != 0) {
         close_pipe(output_pipe);
@@ -461,6 +510,11 @@ static int start_fping(
     latency->process_identifier = process_identifier;
     latency->output_length = 0U;
     return 0;
+
+failed:
+    wordfree(&prefix_words);
+    wordfree(&extra_words);
+    return -1;
 }
 
 static int take_output_line(
@@ -542,32 +596,24 @@ void latency_init(struct sqm_mon_latency *latency)
     };
 }
 
-static bool target_is_valid(const char *target)
+bool latency_target_is_valid(const char *target)
 {
-    const char *character;
     size_t length;
+    static const char allowed[] =
+        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-";
 
     if (target == NULL || target[0] == '\0') {
         return false;
     }
     length = strlen(target);
     if (length >= LATENCY_TARGET_SIZE ||
-        !((target[0] >= '0' && target[0] <= '9') ||
+        !(target[0] == ':' || (target[0] >= '0' && target[0] <= '9') ||
             (target[0] >= 'A' && target[0] <= 'Z') ||
             (target[0] >= 'a' && target[0] <= 'z'))) {
         return false;
     }
 
-    for (character = target + 1; *character != '\0'; character++) {
-        if (!((*character >= '0' && *character <= '9') ||
-                (*character >= 'A' && *character <= 'Z') ||
-                (*character >= 'a' && *character <= 'z') ||
-                *character == '.' || *character == '-' ||
-                *character == '_')) {
-            return false;
-        }
-    }
-    return true;
+    return strspn(target, allowed) == length;
 }
 
 bool latency_is_open(const struct sqm_mon_latency *latency)
@@ -582,6 +628,8 @@ int latency_open(
     const char *const *targets,
     size_t target_count,
     uint64_t reflector_ping_interval_microseconds,
+    const char *extra_arguments,
+    const char *prefix,
     char *error,
     size_t error_size
 )
@@ -592,7 +640,8 @@ int latency_open(
         error_set(error, error_size, "fping interface is empty");
         return -1;
     }
-    if (targets == NULL || target_count == 0U) {
+    if (targets == NULL || target_count == 0U || extra_arguments == NULL ||
+        prefix == NULL) {
         error_set(error, error_size, "fping requires at least one target");
         return -1;
     }
@@ -605,11 +654,11 @@ int latency_open(
         return -1;
     }
     for (index = 0U; index < target_count; index++) {
-        if (!target_is_valid(targets[index])) {
+        if (!latency_target_is_valid(targets[index])) {
             error_set(
                 error,
                 error_size,
-                "latency target '%s' is not a valid IPv4 address or hostname",
+                "latency target '%s' is not a valid IP address or hostname",
                 targets[index] == NULL ? "(null)" : targets[index]
             );
             return -1;
@@ -621,6 +670,8 @@ int latency_open(
             targets,
             target_count,
             reflector_ping_interval_microseconds,
+            extra_arguments,
+            prefix,
             error,
             error_size
         ) != 0) {

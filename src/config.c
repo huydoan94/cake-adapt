@@ -1,11 +1,21 @@
+#define _GNU_SOURCE
+
 #include "config.h"
 #include "error.h"
+#include "latency.h"
+#include "log.h"
 
+#include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
+#include <fcntl.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 /*
  * Current libuci headers contain inline helpers that trigger -Wsign-conversion.
@@ -25,6 +35,9 @@
 #define UCI_SECTION "main"
 #define UCI_SECTION_TYPE "sqm_mon"
 #define IFB_PREFIX "ifb4"
+#define UCLIENT_FETCH_PATH "/bin/uclient-fetch"
+
+extern char **environ;
 
 static const char *const default_reflectors[] = {
     "1.1.1.1", "1.0.0.1",
@@ -355,7 +368,7 @@ static int validate_rate_range(
     return 0;
 }
 
-static int validate_latency_config(
+static int validate_reflectors(
     const struct sqm_mon_config *config,
     char *error,
     size_t error_size
@@ -364,19 +377,6 @@ static int validate_latency_config(
     uint64_t index;
     uint64_t comparison;
 
-    if (!config->enabled && !config->adjust_download &&
-        !config->adjust_upload) {
-        return 0;
-    }
-    if (strcmp(config->pinger_method, "fping") != 0) {
-        error_set(
-            error,
-            error_size,
-            "option 'pinger_method' must be 'fping' until other methods"
-            " are implemented"
-        );
-        return -1;
-    }
     if (config->reflector_count == 0U) {
         error_set(error, error_size, "at least one reflector is required");
         return -1;
@@ -388,6 +388,43 @@ static int validate_latency_config(
             error_size,
             "option 'no_pingers' must be between 1 and the reflector count"
         );
+        return -1;
+    }
+    for (index = 0U; index < config->reflector_count; index++) {
+        if (!latency_target_is_valid(config->reflectors[index])) {
+            error_set(error, error_size, "invalid reflector '%s'", config->reflectors[index]);
+            return -1;
+        }
+        for (comparison = index + 1U; comparison < config->reflector_count; comparison++) {
+            if (strcmp(config->reflectors[index], config->reflectors[comparison]) == 0) {
+                error_set(error, error_size, "duplicate reflector '%s'", config->reflectors[index]);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int validate_latency_config(
+    const struct sqm_mon_config *config,
+    char *error,
+    size_t error_size
+)
+{
+    if (!config->enabled && !config->adjust_download && !config->adjust_upload) {
+        return 0;
+    }
+    if (strcmp(config->pinger_method, "fping") != 0) {
+        error_set(error, error_size, "option 'pinger_method' must be 'fping'; no other pinger is supported");
+        return -1;
+    }
+    if (config->no_pingers == 0U || config->no_pingers > CONFIG_MAX_REFLECTORS) {
+        error_set(error, error_size, "option 'no_pingers' must be between 1 and %u", CONFIG_MAX_REFLECTORS);
+        return -1;
+    }
+    /* URL lists are fetched after logging is configured, not during UCI parsing. */
+    if (config->reflectors_url[0] == '\0' &&
+        validate_reflectors(config, error, error_size) != 0) {
         return -1;
     }
     if (config->reflector_ping_interval_microseconds /
@@ -500,25 +537,49 @@ static int validate_latency_config(
         );
         return -1;
     }
-
-    for (index = 0U; index < config->reflector_count; index++) {
-        for (comparison = index + 1U;
-             comparison < config->reflector_count;
-             comparison++) {
-            if (strcmp(
-                    config->reflectors[index],
-                    config->reflectors[comparison]
-                ) == 0) {
-                error_set(
-                    error,
-                    error_size,
-                    "duplicate reflector '%s'",
-                    config->reflectors[index]
-                );
-                return -1;
-            }
-        }
+    if (config->stall_detection_threshold == 0U ||
+        config->stall_detection_threshold >
+            UINT64_MAX /
+                (config->reflector_ping_interval_microseconds /
+                    config->no_pingers) ||
+        config->global_ping_response_timeout_microseconds == 0U ||
+        config->interface_up_check_interval_microseconds == 0U) {
+        error_set(
+            error,
+            error_size,
+            "stall, global ping timeout and interface retry settings must be"
+            " positive and representable"
+        );
+        return -1;
     }
+    if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
+        (config->monitor_cpu_usage_interval_microseconds == 0U ||
+            config->monitor_cpu_usage_interval_microseconds % 1000U != 0U ||
+            config->monitor_cpu_usage_interval_microseconds / 1000U > UINT_MAX)) {
+        error_set(
+            error,
+            error_size,
+            "CPU monitoring interval must be a positive whole number of milliseconds no greater than %u",
+            UINT_MAX
+        );
+        return -1;
+    }
+    if (config->log_file_max_time_minutes > UINT64_MAX / 60000000U ||
+        config->log_file_max_size_kilobytes > UINT64_MAX / 1024U ||
+        config->log_file_buffer_timeout_microseconds / 1000U > UINT_MAX ||
+        config->reflector_ping_interval_microseconds > UINT64_MAX / 2U) {
+        error_set(error, error_size, "logging or pinger intervals are too large");
+        return -1;
+    }
+    if (config->enable_sleep_function &&
+        (config->connection_active_threshold_bits_per_second >
+                config->minimum_download_rate_bits_per_second ||
+            config->connection_active_threshold_bits_per_second >
+                config->minimum_upload_rate_bits_per_second)) {
+        error_set(error, error_size, "connection active threshold cannot exceed either minimum shaper rate");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -628,6 +689,165 @@ static int load_reflectors(
         }
     }
     return 0;
+}
+
+static int append_remote_reflectors(
+    struct sqm_mon_config *config,
+    char *error,
+    size_t error_size
+)
+{
+    posix_spawn_file_actions_t actions;
+    char *arguments[] = {
+        (char *)UCLIENT_FETCH_PATH,
+        (char *)"-q",
+        (char *)"-O",
+        (char *)"-",
+        (char *)"-T",
+        (char *)"10",
+        config->reflectors_url,
+        NULL
+    };
+    int output_pipe[2];
+    FILE *output;
+    char *line = NULL;
+    size_t capacity = 0U;
+    uint64_t line_number = 0U;
+    pid_t process;
+    int status;
+    int result;
+    bool actions_initialized = false;
+
+    if (config->reflectors_url[0] == '\0') {
+        return 0;
+    }
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "Appending local list of reflectors with remote list of reflectors at: %s.",
+        config->reflectors_url
+    );
+    if (strncmp(config->reflectors_url, "https://", 8U) != 0) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "reflectors_url is not https:// -- the remote reflector list is fetched without TLS and can be tampered with in transit."
+        );
+    }
+    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
+        error_set(error, error_size, "could not create reflector URL pipe");
+        return -1;
+    }
+    result = posix_spawn_file_actions_init(&actions);
+    actions_initialized = result == 0;
+    if (result == 0) {
+        result = posix_spawn_file_actions_addclose(&actions, output_pipe[0]);
+    }
+    if (result == 0) {
+        result = posix_spawn_file_actions_adddup2(
+            &actions,
+            output_pipe[1],
+            STDOUT_FILENO
+        );
+    }
+    if (result == 0) {
+        result = posix_spawn_file_actions_addclose(&actions, output_pipe[1]);
+    }
+    if (result == 0) {
+        result = posix_spawn_file_actions_addopen(
+            &actions,
+            STDERR_FILENO,
+            "/dev/null",
+            O_WRONLY,
+            0
+        );
+    }
+    if (result == 0) {
+        result = posix_spawn(
+            &process,
+            UCLIENT_FETCH_PATH,
+            &actions,
+            NULL,
+            arguments,
+            environ
+        );
+    }
+    if (actions_initialized) {
+        (void)posix_spawn_file_actions_destroy(&actions);
+    }
+    (void)close(output_pipe[1]);
+    if (result != 0) {
+        (void)close(output_pipe[0]);
+        error_set(
+            error,
+            error_size,
+            "could not fetch reflectors_url: %s",
+            strerror(result)
+        );
+        return -1;
+    }
+
+    output = fdopen(output_pipe[0], "r");
+    if (output == NULL) {
+        (void)close(output_pipe[0]);
+        (void)waitpid(process, NULL, 0);
+        error_set(error, error_size, "could not read reflectors_url");
+        return -1;
+    }
+    while (getline(&line, &capacity, output) >= 0) {
+        char *end;
+
+        if (line_number++ < config->reflectors_url_skip_lines) {
+            continue;
+        }
+        end = strpbrk(line, ",\r\n");
+        if (end != NULL) {
+            *end = '\0';
+        }
+        if (line[0] != '\0' &&
+            copy_reflector(config, line, error, error_size) != 0) {
+            free(line);
+            (void)fclose(output);
+            (void)waitpid(process, NULL, 0);
+            return -1;
+        }
+    }
+    free(line);
+    (void)fclose(output);
+    do {
+        result = waitpid(process, &status, 0);
+    } while (result < 0 && errno == EINTR);
+    if (result < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        error_set(error, error_size, "could not fetch reflectors_url");
+        return -1;
+    }
+    return 0;
+}
+
+int config_load_remote_reflectors(
+    struct sqm_mon_config *config,
+    char *error,
+    size_t error_size
+)
+{
+    uint64_t local_count = config->reflector_count;
+
+    if (config->reflectors_url[0] == '\0') {
+        return 0;
+    }
+    if (append_remote_reflectors(config, error, error_size) != 0) {
+        config->reflector_count = local_count;
+        log_message(
+            LOG_LEVEL_WARNING,
+            "remote reflector fetch degraded: %s; retaining local list",
+            error
+        );
+        error[0] = '\0';
+    }
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "Local list of reflectors now contains %" PRIu64 " entries.",
+        config->reflector_count
+    );
+    return validate_reflectors(config, error, error_size);
 }
 
 static int load_section(

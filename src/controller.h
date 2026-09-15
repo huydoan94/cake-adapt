@@ -88,6 +88,43 @@ struct controller_output {
     struct controller_direction_output upload;
 };
 
+enum controller_activity_state {
+    CONTROLLER_RUNNING,
+    CONTROLLER_IDLE,
+    CONTROLLER_STALL
+};
+
+struct controller_activity_config {
+    bool enable_sleep;
+    uint64_t active_threshold_bits_per_second;
+    uint64_t stall_threshold_bits_per_second;
+    uint64_t sustained_idle_microseconds;
+    uint64_t stall_timeout_microseconds;
+    uint64_t global_timeout_microseconds;
+};
+
+struct controller_activity_input {
+    struct controller_direction_input download;
+    struct controller_direction_input upload;
+    uint64_t timestamp_microseconds;
+    uint64_t last_response_microseconds;
+    uint64_t last_pinger_start_microseconds;
+    uint64_t grace_until_microseconds;
+};
+
+struct controller_activity {
+    enum controller_activity_state state;
+    uint64_t idle_started_microseconds;
+    bool global_timeout_reported;
+};
+
+struct controller_activity_output {
+    bool state_changed;
+    bool check_stall_loads;
+    bool global_timeout_started;
+    bool restart_pingers;
+};
+
 struct controller_delay_sample {
     int64_t delay_microseconds;
     bool delayed;
@@ -131,6 +168,18 @@ void controller_update(
     struct sqm_mon_controller *controller,
     const struct controller_input *input,
     struct controller_output *output
+);
+
+void controller_set_minimum_rates(
+    struct sqm_mon_controller *controller,
+    uint64_t timestamp_microseconds
+);
+
+void controller_activity_update(
+    struct controller_activity *activity,
+    const struct controller_activity_config *config,
+    const struct controller_activity_input *input,
+    struct controller_activity_output *output
 );
 
 #endif

@@ -4,6 +4,7 @@
 
 #include "cake.h"
 #include "controller.h"
+#include "cpu.h"
 #include "latency.h"
 #include "log.h"
 #include "netlink.h"
@@ -48,6 +49,7 @@ struct monitored_direction {
     uint64_t traffic_rate_bits_per_second;
     bool cake_valid;
     bool traffic_valid;
+    uint64_t next_cake_observation_microseconds;
 };
 
 static void observe_traffic(
@@ -207,12 +209,19 @@ static void log_cake_sample(
 
 static void observe_cake(
     struct sqm_mon_netlink *netlink,
-    struct monitored_direction *direction
+    struct monitored_direction *direction,
+    uint64_t timestamp_microseconds,
+    uint64_t retry_interval_microseconds
 )
 {
     char error[ERROR_SIZE] = "";
     enum cake_read_result read_result;
 
+    if (timestamp_microseconds <
+        direction->next_cake_observation_microseconds) {
+        direction->cake_valid = false;
+        return;
+    }
     read_result = cake_read(
         netlink,
         direction->interface,
@@ -233,6 +242,7 @@ static void observe_cake(
         }
         direction->cake_state = CAKE_OBSERVATION_AVAILABLE;
         direction->cake_valid = true;
+        direction->next_cake_observation_microseconds = 0U;
         log_cake_sample(direction->interface, &direction->cake);
         return;
     case CAKE_READ_NOT_FOUND:
@@ -248,6 +258,8 @@ static void observe_cake(
             );
         }
         direction->cake_state = CAKE_OBSERVATION_NOT_FOUND;
+        direction->next_cake_observation_microseconds =
+            timestamp_microseconds + retry_interval_microseconds;
         break;
     case CAKE_READ_ERROR:
         if (direction->cake_state != CAKE_OBSERVATION_FAILED) {
@@ -259,6 +271,8 @@ static void observe_cake(
             );
         }
         direction->cake_state = CAKE_OBSERVATION_FAILED;
+        direction->next_cake_observation_microseconds =
+            timestamp_microseconds + retry_interval_microseconds;
         break;
     }
 }
@@ -277,6 +291,11 @@ struct observation_context {
     bool health_clock_failed;
     uint64_t last_reflector_replacement_microseconds;
     uint64_t last_reflector_comparison_microseconds;
+    uint64_t last_reflector_response_microseconds;
+    uint64_t last_pinger_restart_microseconds;
+    uint64_t next_latency_attempt_microseconds;
+    uint64_t pinger_grace_until_microseconds;
+    struct controller_activity activity;
 };
 
 struct event_loop {
@@ -284,6 +303,13 @@ struct event_loop {
     const struct sqm_mon_config *config;
     struct uloop_interval traffic_timer;
     struct uloop_interval reflector_health_timer;
+    struct uloop_interval cpu_timer;
+    struct uloop_interval log_timer;
+    struct uloop_signal log_export_signal;
+    struct uloop_signal log_reset_signal;
+    struct cpu_monitor cpu_monitor;
+    size_t cpu_count;
+    bool cpu_observation_failed;
     struct uloop_fd latency_output;
     int result;
 };
@@ -796,9 +822,8 @@ static void observe_traffic_cycle(
 )
 {
     struct timespec traffic_timestamp;
+    uint64_t timestamp_microseconds;
 
-    observe_cake(&context->netlink, &context->upload);
-    observe_cake(&context->netlink, &context->download);
     if (clock_gettime(CLOCK_MONOTONIC, &traffic_timestamp) != 0) {
         if (!context->traffic_clock_failed) {
             log_message(
@@ -808,11 +833,28 @@ static void observe_traffic_cycle(
             );
         }
         context->traffic_clock_failed = true;
+        context->download.cake_valid = false;
+        context->upload.cake_valid = false;
         context->download.traffic_valid = false;
         context->upload.traffic_valid = false;
         traffic_monitor_init(&context->download.traffic_monitor);
         traffic_monitor_init(&context->upload.traffic_monitor);
     } else {
+        timestamp_microseconds =
+            (uint64_t)traffic_timestamp.tv_sec * 1000000U +
+            (uint64_t)traffic_timestamp.tv_nsec / 1000U;
+        observe_cake(
+            &context->netlink,
+            &context->upload,
+            timestamp_microseconds,
+            config->interface_up_check_interval_microseconds
+        );
+        observe_cake(
+            &context->netlink,
+            &context->download,
+            timestamp_microseconds,
+            config->interface_up_check_interval_microseconds
+        );
         if (context->traffic_clock_failed) {
             log_message(
                 LOG_LEVEL_NOTICE,
@@ -842,10 +884,17 @@ static bool ensure_latency_open(
     char error[ERROR_SIZE] = "";
     size_t target_count = (size_t)config->no_pingers;
     size_t index;
+    uint64_t timestamp_microseconds;
 
     if (latency_is_open(&context->latency)) {
         return true;
     }
+    if (!monotonic_microseconds(&timestamp_microseconds) ||
+        timestamp_microseconds < context->next_latency_attempt_microseconds) {
+        return false;
+    }
+    context->next_latency_attempt_microseconds = timestamp_microseconds +
+        config->interface_up_check_interval_microseconds;
     for (index = 0U; index < target_count; index++) {
         targets[index] = config->reflectors[context->reflector_order[index]];
     }
@@ -855,6 +904,8 @@ static bool ensure_latency_open(
             targets,
             target_count,
             config->reflector_ping_interval_microseconds,
+            config->ping_extra_args,
+            config->ping_prefix_string,
             error,
             sizeof(error)
         ) != 0) {
@@ -880,6 +931,8 @@ static bool ensure_latency_open(
         config->interface
     );
     context->latency_observation_failed = false;
+    context->next_latency_attempt_microseconds = 0U;
+    context->last_pinger_restart_microseconds = timestamp_microseconds;
     return true;
 }
 
@@ -961,6 +1014,8 @@ static bool receive_latency_samples(
             uint64_t response_timestamp_microseconds;
 
             if (monotonic_microseconds(&response_timestamp_microseconds)) {
+                context->last_reflector_response_microseconds =
+                    response_timestamp_microseconds;
                 reflector_health_record_response(
                     &context->reflector_health[reflector_index],
                     response_timestamp_microseconds
@@ -1029,7 +1084,14 @@ static void handle_latency_output(
 
     (void)events;
     if (!receive_latency_samples(&loop->observation, loop->config)) {
+        uint64_t timestamp_microseconds;
+
         close_latency(loop);
+        if (monotonic_microseconds(&timestamp_microseconds)) {
+            loop->observation.next_latency_attempt_microseconds =
+                timestamp_microseconds +
+                loop->config->interface_up_check_interval_microseconds;
+        }
     }
 }
 
@@ -1061,6 +1123,199 @@ static bool watch_latency(struct event_loop *loop)
     loop->observation.latency_observation_failed = true;
     close_latency(loop);
     return false;
+}
+
+static void enforce_minimum_rates(
+    struct observation_context *context,
+    const struct sqm_mon_config *config,
+    uint64_t timestamp_microseconds
+)
+{
+    controller_set_minimum_rates(
+        &context->controller,
+        timestamp_microseconds
+    );
+    if (config->adjust_download && context->download.cake_valid) {
+        apply_bandwidth(
+            &context->netlink,
+            &context->download,
+            config->minimum_download_rate_bits_per_second,
+            CONTROLLER_RATE_RECONCILE,
+            config->output_cake_changes
+        );
+    }
+    if (config->adjust_upload && context->upload.cake_valid) {
+        apply_bandwidth(
+            &context->netlink,
+            &context->upload,
+            config->minimum_upload_rate_bits_per_second,
+            CONTROLLER_RATE_RECONCILE,
+            config->output_cake_changes
+        );
+    }
+}
+
+static void reset_reflector_health(
+    struct observation_context *context,
+    const struct sqm_mon_config *config,
+    uint64_t timestamp_microseconds
+)
+{
+    size_t index;
+
+    for (index = 0U; index < (size_t)config->no_pingers; index++) {
+        reflector_health_reset(
+            &context->reflector_health[index],
+            timestamp_microseconds
+        );
+    }
+}
+
+static void restart_latency(
+    struct event_loop *loop,
+    uint64_t timestamp_microseconds
+)
+{
+    close_latency(loop);
+    loop->observation.next_latency_attempt_microseconds = 0U;
+    reset_reflector_health(
+        &loop->observation,
+        loop->config,
+        timestamp_microseconds
+    );
+    loop->observation.last_pinger_restart_microseconds =
+        timestamp_microseconds;
+    (void)watch_latency(loop);
+}
+
+static void update_monitor_state(
+    struct event_loop *loop,
+    uint64_t timestamp_microseconds
+)
+{
+    static const char *const names[] = { "RUNNING", "IDLE", "STALL" };
+    struct observation_context *context = &loop->observation;
+    const struct sqm_mon_config *config = loop->config;
+    const struct controller_activity_config activity_config = {
+        .enable_sleep = config->enable_sleep_function,
+        .active_threshold_bits_per_second =
+            config->connection_active_threshold_bits_per_second,
+        .stall_threshold_bits_per_second =
+            config->connection_stall_threshold_bits_per_second,
+        .sustained_idle_microseconds =
+            config->sustained_idle_sleep_threshold_microseconds,
+        .stall_timeout_microseconds = config->stall_detection_threshold *
+            (config->reflector_ping_interval_microseconds / config->no_pingers),
+        .global_timeout_microseconds =
+            config->global_ping_response_timeout_microseconds
+    };
+    const struct controller_activity_input input = {
+        .download = {
+            .valid = context->download.traffic_valid,
+            .traffic_rate_bits_per_second =
+                context->download.traffic_rate_bits_per_second
+        },
+        .upload = {
+            .valid = context->upload.traffic_valid,
+            .traffic_rate_bits_per_second =
+                context->upload.traffic_rate_bits_per_second
+        },
+        .timestamp_microseconds = timestamp_microseconds,
+        .last_response_microseconds =
+            context->last_reflector_response_microseconds,
+        .last_pinger_start_microseconds =
+            context->last_pinger_restart_microseconds,
+        .grace_until_microseconds = context->pinger_grace_until_microseconds
+    };
+    enum controller_activity_state previous = context->activity.state;
+    struct controller_activity_output output;
+
+    controller_activity_update(
+        &context->activity,
+        &activity_config,
+        &input,
+        &output
+    );
+    if (output.check_stall_loads) {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "Warning: no reflector response within: %.2f seconds. Checking loads.",
+            (double)activity_config.stall_timeout_microseconds / 1000000.0
+        );
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "load check is: (( %" PRIu64 " kbps > %" PRIu64
+            " kbps for download && %" PRIu64 " kbps > %" PRIu64
+            " kbps for upload ))",
+            context->download.traffic_rate_bits_per_second / 1000U,
+            config->connection_stall_threshold_bits_per_second / 1000U,
+            context->upload.traffic_rate_bits_per_second / 1000U,
+            config->connection_stall_threshold_bits_per_second / 1000U
+        );
+        if (context->activity.state == CONTROLLER_RUNNING) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "load above connection stall threshold so resuming normal operation."
+            );
+        }
+    }
+    if (output.global_timeout_started) {
+        if (config->minimum_shaper_rates_enforcement) {
+            enforce_minimum_rates(
+                context,
+                config,
+                timestamp_microseconds
+            );
+        }
+        log_system_message(
+            "Warning: Configured global ping response timeout: %.3f seconds exceeded.",
+            (double)activity_config.global_timeout_microseconds / 1000000.0
+        );
+    }
+    if (output.state_changed) {
+        if (context->activity.state == CONTROLLER_RUNNING) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                previous == CONTROLLER_IDLE
+                    ? "Connection load exceeded active threshold. Resuming normal operation."
+                    : "Connection stall ended. Resuming normal operation."
+            );
+        }
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "Changing main state from: %s to: %s",
+            names[previous],
+            names[context->activity.state]
+        );
+        if (context->activity.state == CONTROLLER_IDLE) {
+            log_message(LOG_LEVEL_DEBUG, "Connection idle. Waiting for minimum load.");
+            if (config->minimum_shaper_rates_enforcement) {
+                log_message(LOG_LEVEL_DEBUG, "Enforcing minimum shaper rates.");
+                enforce_minimum_rates(
+                    context,
+                    config,
+                    timestamp_microseconds
+                );
+            }
+            close_latency(loop);
+        } else if (previous == CONTROLLER_IDLE) {
+            context->last_reflector_response_microseconds = timestamp_microseconds;
+            /* Match cake-autorate's two-period setup grace after waking. */
+            context->pinger_grace_until_microseconds = timestamp_microseconds +
+                2U * config->reflector_ping_interval_microseconds;
+            reset_reflector_health(
+                context,
+                config,
+                context->pinger_grace_until_microseconds
+            );
+            context->next_latency_attempt_microseconds = 0U;
+            (void)watch_latency(loop);
+        }
+    }
+    if (output.restart_pingers) {
+        log_message(LOG_LEVEL_DEBUG, "Restarting pingers.");
+        restart_latency(loop, timestamp_microseconds);
+    }
 }
 
 static bool replace_active_reflector(
@@ -1132,6 +1387,7 @@ static bool replace_active_reflector(
 
     /* fping owns all active targets in one process, so rotate them together. */
     close_latency(loop);
+    context->next_latency_attempt_microseconds = 0U;
     (void)watch_latency(loop);
     return true;
 }
@@ -1145,8 +1401,101 @@ static void handle_traffic_timer(
         offsetof(struct event_loop, traffic_timer)
     );
 
+    uint64_t timestamp_microseconds;
+
     observe_traffic_cycle(&loop->observation, loop->config);
-    (void)watch_latency(loop);
+    if (monotonic_microseconds(&timestamp_microseconds)) {
+        update_monitor_state(loop, timestamp_microseconds);
+    }
+    if (loop->observation.activity.state != CONTROLLER_IDLE) {
+        (void)watch_latency(loop);
+    }
+}
+
+static void observe_cpu(
+    struct event_loop *loop,
+    bool emit_records
+)
+{
+    struct cpu_sample sample = { 0 };
+    unsigned int usage[CPU_MAX_COUNT];
+    char error[ERROR_SIZE] = "";
+
+    if (cpu_read_path("/proc/stat", &sample, error, sizeof(error)) != 0) {
+        if (!loop->cpu_observation_failed) {
+            log_message(LOG_LEVEL_WARNING, "CPU observation degraded: %s", error);
+        }
+        loop->cpu_observation_failed = true;
+        return;
+    }
+    if (loop->cpu_observation_failed) {
+        log_message(LOG_LEVEL_NOTICE, "CPU observation recovered");
+        loop->cpu_observation_failed = false;
+    }
+    if (loop->cpu_count != sample.count) {
+        loop->cpu_count = sample.count;
+        cpu_monitor_init(&loop->cpu_monitor);
+        log_message(LOG_LEVEL_DEBUG, "Detected %zu CPU cores.", sample.count - 1U);
+        log_print_cpu_headers(
+            &sample,
+            loop->config->output_cpu_stats,
+            loop->config->output_cpu_raw_stats
+        );
+    }
+    if (!emit_records) {
+        return;
+    }
+    if (loop->config->output_cpu_raw_stats) {
+        log_cpu_raw(&sample);
+    }
+    if (loop->config->output_cpu_stats) {
+        cpu_usage(&loop->cpu_monitor, &sample, usage);
+        log_cpu(&sample, usage);
+    }
+}
+
+static void handle_cpu_timer(struct uloop_interval *timer)
+{
+    struct event_loop *loop = (struct event_loop *)(void *)(
+        (unsigned char *)(void *)timer -
+        offsetof(struct event_loop, cpu_timer)
+    );
+
+    if (loop->observation.activity.state == CONTROLLER_RUNNING) {
+        observe_cpu(loop, true);
+    }
+}
+
+static void handle_log_timer(struct uloop_interval *timer)
+{
+    (void)timer;
+    log_tick();
+}
+
+static void handle_log_export_signal(struct uloop_signal *signal)
+{
+    char export_path[CONFIG_STRING_SIZE + 32U];
+
+    (void)signal;
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "received log file export signal so exporting log file."
+    );
+    if (log_export_file(export_path, sizeof(export_path)) != 0) {
+        log_message(LOG_LEVEL_WARNING, "log file export failed: %s", strerror(errno));
+    }
+}
+
+static void handle_log_reset_signal(struct uloop_signal *signal)
+{
+    (void)signal;
+    log_message(
+        LOG_LEVEL_DEBUG,
+        "received log file reset signal so flushing log and resetting log file."
+    );
+    if (log_reset_file() != 0) {
+        log_message(LOG_LEVEL_WARNING, "log file reset failed: %s", strerror(errno));
+    }
 }
 
 static struct event_loop *event_loop_from_reflector_health_timer(
@@ -1329,6 +1678,10 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
     bool reflector_replaced = false;
     size_t index;
 
+    if (loop->observation.activity.state != CONTROLLER_RUNNING) {
+        return;
+    }
+
     if (!monotonic_microseconds(&timestamp_microseconds)) {
         if (!loop->observation.health_clock_failed) {
             log_message(
@@ -1346,6 +1699,9 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
             "reflector health check recovered: monotonic clock available"
         );
         loop->observation.health_clock_failed = false;
+    }
+    if (timestamp_microseconds < loop->observation.pinger_grace_until_microseconds) {
+        return;
     }
     if (run_scheduled_reflector_work(loop, timestamp_microseconds)) {
         return;
@@ -1520,6 +1876,20 @@ int monitor_run(const struct sqm_mon_config *config)
         .reflector_health_timer = {
             .cb = handle_reflector_health_timer
         },
+        .cpu_timer = {
+            .cb = handle_cpu_timer
+        },
+        .log_timer = {
+            .cb = handle_log_timer
+        },
+        .log_export_signal = {
+            .cb = handle_log_export_signal,
+            .signo = SIGUSR1
+        },
+        .log_reset_signal = {
+            .cb = handle_log_reset_signal,
+            .signo = SIGUSR2
+        },
         .latency_output = {
             .cb = handle_latency_output,
             .fd = -1
@@ -1536,6 +1906,7 @@ int monitor_run(const struct sqm_mon_config *config)
     netlink_init(&loop.observation.netlink);
     traffic_monitor_init(&loop.observation.download.traffic_monitor);
     traffic_monitor_init(&loop.observation.upload.traffic_monitor);
+    cpu_monitor_init(&loop.cpu_monitor);
     if (controller_init(
             &loop.observation.controller,
             &controller_config
@@ -1573,6 +1944,10 @@ int monitor_run(const struct sqm_mon_config *config)
         start_microseconds;
     loop.observation.last_reflector_comparison_microseconds =
         start_microseconds;
+    loop.observation.last_reflector_response_microseconds =
+        start_microseconds;
+    loop.observation.last_pinger_restart_microseconds = start_microseconds;
+    loop.observation.activity.state = CONTROLLER_RUNNING;
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
         if (reflector_health_init(
                 &loop.observation.reflector_health[index],
@@ -1629,6 +2004,27 @@ int monitor_run(const struct sqm_mon_config *config)
     }
 
     observe_traffic_cycle(&loop.observation, config);
+    if (config->output_cpu_stats || config->output_cpu_raw_stats) {
+        observe_cpu(&loop, false);
+        if (uloop_interval_set(
+                &loop.cpu_timer,
+                (unsigned int)(config->monitor_cpu_usage_interval_microseconds / 1000U)
+            ) != 0) {
+            log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
+        }
+    }
+    if (config->log_to_file) {
+        uint64_t buffer_milliseconds = config->log_file_buffer_timeout_microseconds / 1000U;
+
+        if (uloop_interval_set(
+                &loop.log_timer,
+                (unsigned int)(buffer_milliseconds > 0U ? buffer_milliseconds : 1U)
+            ) != 0 ||
+            uloop_signal_add(&loop.log_export_signal) != 0 ||
+            uloop_signal_add(&loop.log_reset_signal) != 0) {
+            log_message(LOG_LEVEL_WARNING, "log maintenance degraded: %s", strerror(errno));
+        }
+    }
     (void)watch_latency(&loop);
     run_status = uloop_run();
     if (run_status == SIGINT || run_status == SIGTERM) {
@@ -1644,6 +2040,10 @@ uloop_done:
     close_latency(&loop);
     (void)uloop_interval_cancel(&loop.traffic_timer);
     (void)uloop_interval_cancel(&loop.reflector_health_timer);
+    (void)uloop_interval_cancel(&loop.cpu_timer);
+    (void)uloop_interval_cancel(&loop.log_timer);
+    (void)uloop_signal_delete(&loop.log_export_signal);
+    (void)uloop_signal_delete(&loop.log_reset_signal);
     uloop_done();
     uloop_handle_sigchld = previous_sigchld_handling;
 

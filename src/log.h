@@ -1,6 +1,8 @@
 #ifndef SQM_MON_LOG_H
 #define SQM_MON_LOG_H
 
+#include "cpu.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -86,9 +88,24 @@ void log_init(
 
 void log_close(void);
 
-int log_set_file(const char *path);
+int log_set_file(
+    const char *path,
+    uint64_t maximum_time_minutes,
+    uint64_t maximum_size_kilobytes,
+    uint64_t buffer_timeout_microseconds,
+    bool compress_exports
+);
 
 int log_set_level(const char *level);
+
+void log_tick(void);
+
+int log_export_file(
+    char *export_path,
+    size_t export_path_size
+);
+
+int log_reset_file(void);
 
 void log_set_debug_syslog(bool enabled);
 
@@ -108,6 +125,19 @@ void log_data(const struct log_data_record *record);
 void log_summary(const struct log_summary_record *record);
 
 void log_reflector(const struct log_reflector_record *record);
+
+void log_print_cpu_headers(
+    const struct cpu_sample *sample,
+    bool output_cpu_stats,
+    bool output_cpu_raw_stats
+);
+
+void log_cpu(
+    const struct cpu_sample *sample,
+    const unsigned int *usage
+);
+
+void log_cpu_raw(const struct cpu_sample *sample);
 
 void log_shaper(
     const char *interface,
