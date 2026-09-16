@@ -583,22 +583,6 @@ static int validate_latency_config(
     return 0;
 }
 
-static struct uci_section *find_main_section(struct uci_package *package)
-{
-    struct uci_element *element;
-
-    uci_foreach_element(&package->sections, element) {
-        struct uci_section *section = uci_to_section(element);
-
-        if (strcmp(section->e.name, UCI_SECTION) == 0 &&
-            strcmp(section->type, UCI_SECTION_TYPE) == 0) {
-            return section;
-        }
-    }
-
-    return NULL;
-}
-
 static int copy_reflector(
     struct sqm_mon_config *config,
     const char *reflector,
@@ -1418,8 +1402,8 @@ int config_load(
         goto done;
     }
 
-    section = find_main_section(package);
-    if (section == NULL) {
+    section = uci_lookup_section(context, package, UCI_SECTION);
+    if (section == NULL || strcmp(section->type, UCI_SECTION_TYPE) != 0) {
         error_set(
             error,
             error_size,

@@ -5,7 +5,6 @@
 
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -82,41 +81,17 @@ static const char cpu_raw_header[] =
     " USER; NICE; SYSTEM; IDLE; IOWAIT; IRQ; SIRQ; STEAL; GUEST;"
     " GUEST_NICE";
 
-static int syslog_priority(enum log_level level)
-{
-    switch (level) {
-    case LOG_LEVEL_ERROR:
-        return LOG_ERR;
-    case LOG_LEVEL_WARNING:
-        return LOG_WARNING;
-    case LOG_LEVEL_NOTICE:
-        return LOG_NOTICE;
-    case LOG_LEVEL_INFO:
-        return LOG_INFO;
-    case LOG_LEVEL_DEBUG:
-        return LOG_DEBUG;
-    }
-
-    return LOG_ERR;
-}
-
-static const char *level_name(enum log_level level)
-{
-    switch (level) {
-    case LOG_LEVEL_ERROR:
-        return "ERROR";
-    case LOG_LEVEL_WARNING:
-        return "WARNING";
-    case LOG_LEVEL_NOTICE:
-        return "INFO";
-    case LOG_LEVEL_INFO:
-        return "INFO";
-    case LOG_LEVEL_DEBUG:
-        return "DEBUG";
-    }
-
-    return "ERROR";
-}
+static const struct {
+    const char *option;
+    const char *record;
+    int priority;
+} levels[] = {
+    [LOG_LEVEL_ERROR] = { "error", "ERROR", LOG_ERR },
+    [LOG_LEVEL_WARNING] = { "warning", "WARNING", LOG_WARNING },
+    [LOG_LEVEL_NOTICE] = { "notice", "INFO", LOG_NOTICE },
+    [LOG_LEVEL_INFO] = { "info", "INFO", LOG_INFO },
+    [LOG_LEVEL_DEBUG] = { "debug", "DEBUG", LOG_DEBUG }
+};
 
 static uint64_t clock_microseconds(clockid_t clock_identifier)
 {
@@ -434,7 +409,6 @@ int log_set_file(
 )
 {
     FILE *file;
-    int descriptor_flags;
 
     if (path == NULL || path[0] == '\0') {
         errno = EINVAL;
@@ -446,20 +420,11 @@ int log_set_file(
         return -1;
     }
     (void)snprintf(log_path, sizeof(log_path), "%s", path);
-    file = fopen(path, "a+");
+    /* Linux libc opens with O_CLOEXEC atomically for the 'e' mode. */
+    file = fopen(path, "a+e");
     if (file == NULL) {
         return -1;
     }
-    descriptor_flags = fcntl(fileno(file), F_GETFD);
-    if (descriptor_flags < 0 ||
-        fcntl(fileno(file), F_SETFD, descriptor_flags | FD_CLOEXEC) != 0) {
-        int saved_errno = errno;
-
-        (void)fclose(file);
-        errno = saved_errno;
-        return -1;
-    }
-
     if (log_file != NULL) {
         (void)fclose(log_file);
     }
@@ -476,21 +441,13 @@ int log_set_file(
 
 int log_set_level(const char *level)
 {
-    if (strcasecmp(level, "error") == 0) {
-        minimum_log_level = LOG_LEVEL_ERROR;
-    } else if (strcasecmp(level, "warning") == 0) {
-        minimum_log_level = LOG_LEVEL_WARNING;
-    } else if (strcasecmp(level, "notice") == 0) {
-        minimum_log_level = LOG_LEVEL_NOTICE;
-    } else if (strcasecmp(level, "info") == 0) {
-        minimum_log_level = LOG_LEVEL_INFO;
-    } else if (strcasecmp(level, "debug") == 0) {
-        minimum_log_level = LOG_LEVEL_DEBUG;
-    } else {
-        return -1;
+    for (size_t index = 0; index < sizeof(levels) / sizeof(levels[0]); ++index) {
+        if (strcasecmp(level, levels[index].option) == 0) {
+            minimum_log_level = (enum log_level)index;
+            return 0;
+        }
     }
-
-    return 0;
+    return -1;
 }
 
 void log_set_debug_syslog(bool enabled)
@@ -808,6 +765,9 @@ void log_message(
     if (level > minimum_log_level) {
         return;
     }
+    if ((unsigned int)level >= sizeof(levels) / sizeof(levels[0])) {
+        level = LOG_LEVEL_ERROR;
+    }
 
     va_start(arguments, format);
     (void)vsnprintf(message, sizeof(message), format, arguments);
@@ -818,13 +778,13 @@ void log_message(
         (level == LOG_LEVEL_ERROR ||
             (level == LOG_LEVEL_DEBUG && debug_to_syslog))) {
         syslog(
-            syslog_priority(level),
+            levels[level].priority,
             "%s: %" PRIu64 ".%06" PRIu64 " %s",
-            level_name(level),
+            levels[level].record,
             timestamp_microseconds / 1000000U,
             timestamp_microseconds % 1000000U,
             message
         );
     }
-    write_record_at(level_name(level), message, timestamp_microseconds);
+    write_record_at(levels[level].record, message, timestamp_microseconds);
 }

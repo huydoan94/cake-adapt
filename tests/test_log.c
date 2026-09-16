@@ -4,6 +4,8 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -126,6 +128,45 @@ static void test_file_logging_respects_level(void)
 static void test_empty_file_path_is_rejected(void)
 {
     assert(log_set_file("", 0U, 0U, 0U, false) != 0);
+}
+
+static void test_log_descriptor_is_close_on_exec(void)
+{
+    char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
+    struct stat expected;
+    struct dirent *entry;
+    DIR *descriptors;
+    bool found = false;
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(fstat(descriptor, &expected) == 0);
+    assert(close(descriptor) == 0);
+    log_init("sqm-mon-test", false);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+    descriptors = opendir("/proc/self/fd");
+    assert(descriptors != NULL);
+    while ((entry = readdir(descriptors)) != NULL) {
+        struct stat current;
+        char *end;
+        long number = strtol(entry->d_name, &end, 10);
+
+        if (*end != '\0') {
+            continue;
+        }
+        descriptor = (int)number;
+        if (fstat(descriptor, &current) == 0 &&
+            current.st_dev == expected.st_dev && current.st_ino == expected.st_ino) {
+            int flags = fcntl(descriptor, F_GETFD);
+
+            assert(flags >= 0 && (flags & FD_CLOEXEC) != 0);
+            found = true;
+        }
+    }
+    assert(closedir(descriptors) == 0);
+    assert(found);
+    log_close();
+    assert(unlink(path) == 0);
 }
 
 static void assert_epoch_realtime_field(
@@ -459,6 +500,7 @@ int main(void)
     test_debug_logging_to_file();
     test_file_logging_respects_level();
     test_empty_file_path_is_rejected();
+    test_log_descriptor_is_close_on_exec();
     test_cake_autorate_headers_and_record_format();
     test_cpu_schema_matches_cake_autorate();
     test_rotation_export_and_reset_preserve_live_inode();

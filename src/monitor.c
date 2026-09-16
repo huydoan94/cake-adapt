@@ -260,8 +260,6 @@ static void observe_cake(
             );
         }
         direction->cake_state = CAKE_OBSERVATION_NOT_FOUND;
-        direction->next_cake_observation_microseconds =
-            timestamp_microseconds + retry_interval_microseconds;
         break;
     case CAKE_READ_ERROR:
         if (direction->cake_state != CAKE_OBSERVATION_FAILED) {
@@ -273,10 +271,10 @@ static void observe_cake(
             );
         }
         direction->cake_state = CAKE_OBSERVATION_FAILED;
-        direction->next_cake_observation_microseconds =
-            timestamp_microseconds + retry_interval_microseconds;
         break;
     }
+    direction->next_cake_observation_microseconds =
+        timestamp_microseconds + retry_interval_microseconds;
 }
 
 struct observation_context {
@@ -1858,6 +1856,14 @@ int monitor_run(const struct sqm_mon_config *config)
         .result = -1
     };
     bool previous_sigchld_handling = uloop_handle_sigchld;
+    const struct {
+        struct uloop_interval *timer;
+        uint64_t interval_microseconds;
+        const char *name;
+    } required_timers[] = {
+        { &loop.traffic_timer, config->monitor_achieved_rates_interval_microseconds, "traffic" },
+        { &loop.reflector_health_timer, config->reflector_health_check_interval_microseconds, "reflector health" }
+    };
     int run_status;
     uint64_t start_microseconds;
     size_t health_count = 0U;
@@ -1937,31 +1943,19 @@ int monitor_run(const struct sqm_mon_config *config)
         goto done;
     }
 
-    if (uloop_interval_set(
-            &loop.traffic_timer,
-            (unsigned int)(
-                config->monitor_achieved_rates_interval_microseconds / 1000U
-            )
-        ) != 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not monitor traffic timer: %s",
-            strerror(errno)
-        );
-        goto uloop_done;
-    }
-    if (uloop_interval_set(
-            &loop.reflector_health_timer,
-            (unsigned int)(
-                config->reflector_health_check_interval_microseconds / 1000U
-            )
-        ) != 0) {
-        log_message(
-            LOG_LEVEL_ERROR,
-            "could not monitor reflector health timer: %s",
-            strerror(errno)
-        );
-        goto uloop_done;
+    for (index = 0; index < sizeof(required_timers) / sizeof(required_timers[0]); ++index) {
+        if (uloop_interval_set(
+                required_timers[index].timer,
+                (unsigned int)(required_timers[index].interval_microseconds / 1000U)
+            ) != 0) {
+            log_message(
+                LOG_LEVEL_ERROR,
+                "could not monitor %s timer: %s",
+                required_timers[index].name,
+                strerror(errno)
+            );
+            goto uloop_done;
+        }
     }
 
     observe_traffic_cycle(&loop.observation, config);

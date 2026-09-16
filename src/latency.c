@@ -350,32 +350,22 @@ static int start_fping(
     int word_result;
     bool interface_configured = false;
 
-    if (target_count == 0U) {
-        error_set(error, error_size, "fping requires at least one target");
-        return -1;
-    }
-    period = reflector_ping_interval_microseconds / 1000U;
-    if (reflector_ping_interval_microseconds % 1000U >= 500U) {
-        period++;
-    }
+    /* latency_open has already validated the count and >= 1 ms per target. */
+    period = rounded_divide(reflector_ping_interval_microseconds, 1000U);
     response_interval =
         reflector_ping_interval_microseconds / target_count / 1000U;
-    if (period == 0U || response_interval == 0U ||
-        snprintf(
-            period_milliseconds,
-            sizeof(period_milliseconds),
-            "%" PRIu64,
-            period
-        ) < 0 ||
-        snprintf(
-            response_interval_milliseconds,
-            sizeof(response_interval_milliseconds),
-            "%" PRIu64,
-            response_interval
-        ) < 0) {
-        error_set(error, error_size, "fping interval is too short");
-        return -1;
-    }
+    (void)snprintf(
+        period_milliseconds,
+        sizeof(period_milliseconds),
+        "%" PRIu64,
+        period
+    );
+    (void)snprintf(
+        response_interval_milliseconds,
+        sizeof(response_interval_milliseconds),
+        "%" PRIu64,
+        response_interval
+    );
 
     if (extra_arguments[0] != '\0') {
         word_result = wordexp(extra_arguments, &extra_words, WRDE_NOCMD);
@@ -447,9 +437,7 @@ static int start_fping(
             "could not create fping pipe: %s",
             strerror(errno)
         );
-        close_pipe(output_pipe);
-        free(arguments);
-        goto failed;
+        goto close_output;
     }
 
     if (spawn_fping(
@@ -460,9 +448,7 @@ static int start_fping(
             error,
             error_size
         ) != 0) {
-        close_pipe(output_pipe);
-        free(arguments);
-        goto failed;
+        goto close_output;
     }
 
     (void)close(output_pipe[1]);
@@ -482,6 +468,9 @@ static int start_fping(
     latency->output_length = 0U;
     return 0;
 
+close_output:
+    close_pipe(output_pipe);
+    free(arguments);
 failed:
     wordfree(&prefix_words);
     wordfree(&extra_words);
@@ -635,20 +624,17 @@ int latency_open(
             return -1;
         }
     }
-    if (start_fping(
-            latency,
-            interface,
-            targets,
-            target_count,
-            reflector_ping_interval_microseconds,
-            extra_arguments,
-            prefix,
-            error,
-            error_size
-        ) != 0) {
-        return -1;
-    }
-    return 0;
+    return start_fping(
+        latency,
+        interface,
+        targets,
+        target_count,
+        reflector_ping_interval_microseconds,
+        extra_arguments,
+        prefix,
+        error,
+        error_size
+    );
 }
 
 void latency_close(struct sqm_mon_latency *latency)

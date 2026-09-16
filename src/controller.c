@@ -406,6 +406,10 @@ static enum controller_rate_reason adjust_rate(
         return CONTROLLER_RATE_UNCHANGED;
     }
 
+    high_load = load_percent(
+        input->traffic_rate_bits_per_second,
+        previous_rate
+    ) > config->high_load_threshold_percent;
     if (direction->congestion == CONTROLLER_CONGESTION_DETECTED &&
         interval_elapsed(
             timestamp_microseconds,
@@ -427,10 +431,6 @@ static enum controller_rate_reason adjust_rate(
         direction->last_decay_adjustment_microseconds =
             timestamp_microseconds;
     } else {
-        high_load = load_percent(
-            input->traffic_rate_bits_per_second,
-            previous_rate
-        ) > config->high_load_threshold_percent;
         if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             high_load &&
             interval_elapsed(
@@ -479,10 +479,7 @@ static enum controller_rate_reason adjust_rate(
     if (direction->congestion == CONTROLLER_CONGESTION_DETECTED) {
         return CONTROLLER_RATE_CONGESTION;
     }
-    if (load_percent(
-            input->traffic_rate_bits_per_second,
-            previous_rate
-        ) > config->high_load_threshold_percent) {
+    if (high_load) {
         return CONTROLLER_RATE_HIGH_LOAD;
     }
     return CONTROLLER_RATE_RETURN_TO_BASE;
