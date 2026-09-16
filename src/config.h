@@ -33,8 +33,6 @@ struct sqm_mon_config {
     bool log_file_export_compress;
     char interface[IF_NAMESIZE];
     char ingress_interface[IF_NAMESIZE];
-    char cake_download_interface[IF_NAMESIZE];
-    char cake_upload_interface[IF_NAMESIZE];
     char latency_target[CONFIG_LATENCY_TARGET_SIZE];
     char log_file[CONFIG_LOG_FILE_SIZE];
     char log_file_path_override[CONFIG_STRING_SIZE];

@@ -42,22 +42,6 @@
 
 extern char **environ;
 
-static const char *const default_reflectors[] = {
-    "1.1.1.1", "1.0.0.1",
-    "8.8.8.8", "8.8.4.4",
-    "9.9.9.9", "9.9.9.10", "9.9.9.11",
-    "94.140.14.15", "94.140.14.140", "94.140.14.141",
-    "94.140.15.15", "94.140.15.16",
-    "64.6.65.6",
-    "156.154.70.1", "156.154.70.2", "156.154.70.3",
-    "156.154.70.4", "156.154.70.5",
-    "156.154.71.1", "156.154.71.2", "156.154.71.3",
-    "156.154.71.4", "156.154.71.5",
-    "208.67.220.2", "208.67.220.123", "208.67.220.220",
-    "208.67.222.2", "208.67.222.123",
-    "185.228.168.9", "185.228.168.10"
-};
-
 struct boolean_option_binding {
     const char *name;
     bool *destination;
@@ -615,29 +599,6 @@ static int copy_reflector(
     return 0;
 }
 
-static int load_default_reflectors(
-    struct sqm_mon_config *config,
-    char *error,
-    size_t error_size
-)
-{
-    size_t index;
-
-    for (index = 0U;
-         index < ARRAY_SIZE(default_reflectors);
-         index++) {
-        if (copy_reflector(
-                config,
-                default_reflectors[index],
-                error,
-                error_size
-            ) != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
 static int load_reflectors(
     struct uci_context *context,
     struct uci_section *section,
@@ -886,16 +847,6 @@ static int load_section(
             "interface",
             config->interface,
             sizeof(config->interface)
-        },
-        {
-            "dl_if",
-            config->cake_download_interface,
-            sizeof(config->cake_download_interface)
-        },
-        {
-            "ul_if",
-            config->cake_upload_interface,
-            sizeof(config->cake_upload_interface)
         },
         {
             "latency_target",
@@ -1208,18 +1159,6 @@ static int load_section(
         return -1;
     }
 
-    if (config->interface[0] == '\0' &&
-        config->cake_upload_interface[0] != '\0' &&
-        copy_option(
-            config->interface,
-            sizeof(config->interface),
-            config->cake_upload_interface,
-            "ul_if",
-            error,
-            error_size
-        ) != 0) {
-        return -1;
-    }
     derive_ingress_interface(config);
 
     if (!reflectors_configured && config->latency_target[0] != '\0') {
@@ -1365,10 +1304,6 @@ int config_load(
         .global_ping_response_timeout_microseconds = 10000000U,
         .interface_up_check_interval_microseconds = 10000000U
     };
-
-    if (load_default_reflectors(config, error, error_size) != 0) {
-        return -1;
-    }
 
     context = uci_alloc_context();
     if (context == NULL) {
