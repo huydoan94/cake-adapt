@@ -32,9 +32,16 @@ struct response_context {
     bool parse_failed;
 };
 
+struct event_context {
+    qdisc_event_handler handler;
+    void *handler_context;
+    bool parse_failed;
+};
+
 void netlink_init(struct sqm_mon_netlink *netlink)
 {
     netlink->socket = NULL;
+    netlink->events = NULL;
 }
 
 int netlink_open(
@@ -86,12 +93,165 @@ int netlink_open(
     return 0;
 }
 
-void netlink_close(struct sqm_mon_netlink *netlink)
+void netlink_close_requests(struct sqm_mon_netlink *netlink)
 {
     if (netlink->socket != NULL) {
         nl_socket_free(netlink->socket);
         netlink->socket = NULL;
     }
+}
+
+void netlink_close(struct sqm_mon_netlink *netlink)
+{
+    netlink_close_requests(netlink);
+    if (netlink->events != NULL) {
+        nl_socket_free(netlink->events);
+        netlink->events = NULL;
+    }
+}
+
+int netlink_subscribe_qdiscs(
+    struct sqm_mon_netlink *netlink,
+    char *error,
+    size_t error_size
+)
+{
+    struct nl_sock *events;
+    int result;
+
+    if (netlink->events != NULL) {
+        return 0;
+    }
+    events = nl_socket_alloc();
+    if (events == NULL) {
+        error_set(error, error_size, "could not allocate qdisc event socket");
+        return -1;
+    }
+    result = nl_connect(events, NETLINK_ROUTE);
+    if (result == 0) {
+        result = nl_socket_add_memberships(events, RTNLGRP_TC, 0);
+    }
+    if (result == 0) {
+        result = nl_socket_set_nonblocking(events);
+    }
+    if (result < 0) {
+        error_set(
+            error,
+            error_size,
+            "could not subscribe to qdisc events: %s",
+            nl_geterror(result)
+        );
+        nl_socket_free(events);
+        return -1;
+    }
+    nl_socket_disable_seq_check(events);
+    netlink->events = events;
+    return 0;
+}
+
+int netlink_event_descriptor(const struct sqm_mon_netlink *netlink)
+{
+    return netlink->events == NULL ? -1 : nl_socket_get_fd(netlink->events);
+}
+
+static int handle_qdisc_event(struct nl_msg *message, void *context_data)
+{
+    struct event_context *context = context_data;
+    const struct nlmsghdr *header = nlmsg_hdr(message);
+    const struct tcmsg *traffic_control;
+    struct qdisc_event event;
+
+    if (header->nlmsg_type != RTM_NEWQDISC &&
+        header->nlmsg_type != RTM_DELQDISC) {
+        return NL_OK;
+    }
+    if (!nlmsg_valid_hdr(header, sizeof(*traffic_control))) {
+        context->parse_failed = true;
+        return NL_OK;
+    }
+    traffic_control = NLMSG_DATA(header);
+    event = (struct qdisc_event) {
+        .type = header->nlmsg_type == RTM_NEWQDISC
+            ? QDISC_CREATED
+            : QDISC_REMOVED,
+        .interface_index = (unsigned int)traffic_control->tcm_ifindex,
+        .handle = traffic_control->tcm_handle,
+        .parent = traffic_control->tcm_parent
+    };
+    if (context->handler(&event, context->handler_context) != 0) {
+        context->parse_failed = true;
+    }
+    return NL_OK;
+}
+
+static int ignore_event_sequence(struct nl_msg *message, void *context_data)
+{
+    (void)message;
+    (void)context_data;
+    return NL_OK;
+}
+
+int netlink_receive_qdisc_events(
+    struct sqm_mon_netlink *netlink,
+    qdisc_event_handler handler,
+    void *handler_context,
+    char *error,
+    size_t error_size
+)
+{
+    struct event_context context = {
+        .handler = handler,
+        .handler_context = handler_context
+    };
+    struct nl_cb *callbacks;
+    int result;
+
+    if (netlink->events == NULL || handler == NULL) {
+        error_set(error, error_size, "qdisc event socket is not open");
+        return -1;
+    }
+    callbacks = nl_cb_alloc(NL_CB_CUSTOM);
+    if (callbacks == NULL) {
+        error_set(error, error_size, "could not allocate qdisc event callbacks");
+        return -1;
+    }
+    result = nl_cb_set(
+        callbacks,
+        NL_CB_VALID,
+        NL_CB_CUSTOM,
+        handle_qdisc_event,
+        &context
+    );
+    if (result == 0) {
+        result = nl_cb_set(
+            callbacks,
+            NL_CB_SEQ_CHECK,
+            NL_CB_CUSTOM,
+            ignore_event_sequence,
+            NULL
+        );
+    }
+    if (result == 0) {
+        result = nl_recvmsgs(netlink->events, callbacks);
+    }
+    nl_cb_put(callbacks);
+    if (context.parse_failed) {
+        error_set(error, error_size, "could not parse qdisc event");
+        return -1;
+    }
+    if (result == -NLE_AGAIN || result == -NLE_INTR) {
+        return 0;
+    }
+    if (result < 0) {
+        error_set(
+            error,
+            error_size,
+            "could not receive qdisc event: %s",
+            nl_geterror(result)
+        );
+        return -1;
+    }
+    return 0;
 }
 
 static int wait_for_response(

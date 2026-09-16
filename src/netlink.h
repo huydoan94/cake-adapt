@@ -10,10 +10,28 @@ struct nl_sock;
 
 struct sqm_mon_netlink {
     struct nl_sock *socket;
+    struct nl_sock *events;
 };
 
 typedef int (*netlink_message_handler)(
     const struct nlmsghdr *message,
+    void *context
+);
+
+enum qdisc_event_type {
+    QDISC_CREATED,
+    QDISC_REMOVED
+};
+
+struct qdisc_event {
+    enum qdisc_event_type type;
+    unsigned int interface_index;
+    uint32_t handle;
+    uint32_t parent;
+};
+
+typedef int (*qdisc_event_handler)(
+    const struct qdisc_event *event,
     void *context
 );
 
@@ -26,6 +44,23 @@ int netlink_open(
 );
 
 void netlink_close(struct sqm_mon_netlink *netlink);
+void netlink_close_requests(struct sqm_mon_netlink *netlink);
+
+int netlink_subscribe_qdiscs(
+    struct sqm_mon_netlink *netlink,
+    char *error,
+    size_t error_size
+);
+
+int netlink_event_descriptor(const struct sqm_mon_netlink *netlink);
+
+int netlink_receive_qdisc_events(
+    struct sqm_mon_netlink *netlink,
+    qdisc_event_handler handler,
+    void *context,
+    char *error,
+    size_t error_size
+);
 
 int netlink_dump_qdiscs(
     struct sqm_mon_netlink *netlink,

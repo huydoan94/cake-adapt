@@ -231,7 +231,7 @@ enum cake_read_result cake_read(
             error,
             error_size
         ) != 0) {
-        netlink_close(netlink);
+        netlink_close_requests(netlink);
         return CAKE_READ_ERROR;
     }
 
@@ -293,7 +293,7 @@ int cake_set_bandwidth(
             error,
             error_size
         ) != 0) {
-        netlink_close(netlink);
+        netlink_close_requests(netlink);
         return -1;
     }
 

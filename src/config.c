@@ -976,7 +976,6 @@ static int load_section(
             &config->sustained_idle_sleep_threshold_microseconds,
             1000000U
         },
-        { "startup_wait_s", &config->startup_wait_microseconds, 1000000U },
         {
             "log_file_buffer_timeout_ms",
             &config->log_file_buffer_timeout_microseconds,
@@ -1271,7 +1270,6 @@ int config_load(
         .maximum_upload_rate_bits_per_second = 35000000U,
         .connection_active_threshold_bits_per_second = 2000000U,
         .sustained_idle_sleep_threshold_microseconds = 60000000U,
-        .startup_wait_microseconds = 0U,
         .log_file_buffer_timeout_microseconds = 500000U,
         .irtt_session_duration_minutes = 10U,
         .monitor_achieved_rates_interval_microseconds = 200000U,

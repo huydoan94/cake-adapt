@@ -59,7 +59,6 @@ struct sqm_mon_config {
     uint64_t maximum_upload_rate_bits_per_second;
     uint64_t connection_active_threshold_bits_per_second;
     uint64_t sustained_idle_sleep_threshold_microseconds;
-    uint64_t startup_wait_microseconds;
     uint64_t log_file_buffer_timeout_microseconds;
     uint64_t irtt_session_duration_minutes;
     uint64_t monitor_achieved_rates_interval_microseconds;

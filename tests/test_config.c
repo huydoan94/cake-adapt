@@ -83,7 +83,6 @@ static void test_fping_only_and_intentional_exclusions(void)
     struct sqm_mon_config config = valid_config();
     char error[256] = "";
 
-    config.startup_wait_microseconds = UINT64_MAX;
     config.irtt_session_duration_minutes = UINT64_MAX;
     assert(validate_latency_config(&config, error, sizeof(error)) == 0);
     (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "irtt");
