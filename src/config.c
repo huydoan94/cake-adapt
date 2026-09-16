@@ -853,7 +853,6 @@ static int load_section(
             config->latency_target,
             sizeof(config->latency_target)
         },
-        { "log_file", config->log_file, sizeof(config->log_file) },
         {
             "log_file_path_override",
             config->log_file_path_override,

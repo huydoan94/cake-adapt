@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <net/if.h>
 
-#define CONFIG_LOG_FILE_SIZE 256U
 #define CONFIG_LATENCY_TARGET_SIZE 256U
 #define CONFIG_STRING_SIZE 512U
 #define CONFIG_REFLECTOR_SIZE 256U
@@ -34,7 +33,6 @@ struct sqm_mon_config {
     char interface[IF_NAMESIZE];
     char ingress_interface[IF_NAMESIZE];
     char latency_target[CONFIG_LATENCY_TARGET_SIZE];
-    char log_file[CONFIG_LOG_FILE_SIZE];
     char log_file_path_override[CONFIG_STRING_SIZE];
     char pinger_method[CONFIG_STRING_SIZE];
     char reflectors[CONFIG_MAX_REFLECTORS][CONFIG_REFLECTOR_SIZE];

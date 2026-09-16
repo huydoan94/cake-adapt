@@ -14,6 +14,8 @@
 #include <unistd.h>
 
 #define ERROR_SIZE 256U
+#define LOG_FILE_NAME "cake-autorate.log"
+#define DEFAULT_LOG_DIRECTORY "/var/log"
 
 static void print_usage(const char *program_name)
 {
@@ -69,9 +71,11 @@ int main(int argc, char **argv)
     struct sqm_mon_config config;
     char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
-    const char *log_path;
+    char log_path[CONFIG_STRING_SIZE + sizeof(LOG_FILE_NAME)] =
+        DEFAULT_LOG_DIRECTORY "/" LOG_FILE_NAME;
     bool foreground = false;
     int option;
+    int path_length;
     int result;
 
     while ((option = getopt(argc, argv, "C:fh")) != -1) {
@@ -122,11 +126,22 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    log_path = config.log_file_path_override[0] != '\0'
-        ? config.log_file_path_override
-        : config.log_file;
+    if (config.log_file_path_override[0] != '\0') {
+        path_length = snprintf(
+            log_path,
+            sizeof(log_path),
+            "%s/%s",
+            config.log_file_path_override,
+            LOG_FILE_NAME
+        );
+        if (path_length < 0 || (size_t)path_length >= sizeof(log_path)) {
+            log_message(LOG_LEVEL_ERROR, "log file path is too long");
+            log_close();
+            return 1;
+        }
+    }
 
-    if (config.log_to_file && log_path[0] != '\0' &&
+    if (config.log_to_file &&
         log_set_file(
             log_path,
             config.log_file_max_time_minutes,
@@ -180,7 +195,7 @@ int main(int argc, char **argv)
         config.reflector_ping_interval_microseconds,
         config.monitor_achieved_rates_interval_microseconds,
         config.debug ? 1U : 0U,
-        !config.log_to_file || log_path[0] == '\0' ? "disabled" : log_path
+        config.log_to_file ? log_path : "disabled"
     );
     if (config.adjust_download) {
         log_message(
