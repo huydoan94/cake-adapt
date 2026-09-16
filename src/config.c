@@ -4,21 +4,14 @@
 #include "error.h"
 #include "helpers.h"
 #include "latency.h"
-#include "log.h"
 
 #include <libubox/utils.h>
 
-#include <errno.h>
-#include <inttypes.h>
 #include <limits.h>
-#include <fcntl.h>
-#include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 /*
  * Current libuci headers contain inline helpers that trigger -Wsign-conversion.
@@ -38,9 +31,6 @@
 #define UCI_SECTION "main"
 #define UCI_SECTION_TYPE "sqm_mon"
 #define IFB_PREFIX "ifb4"
-#define UCLIENT_FETCH_PATH "/bin/uclient-fetch"
-
-extern char **environ;
 
 struct boolean_option_binding {
     const char *name;
@@ -406,9 +396,7 @@ static int validate_latency_config(
         error_set(error, error_size, "option 'no_pingers' must be between 1 and %u", CONFIG_MAX_REFLECTORS);
         return -1;
     }
-    /* URL lists are fetched after logging is configured, not during UCI parsing. */
-    if (config->reflectors_url[0] == '\0' &&
-        validate_reflectors(config, error, error_size) != 0) {
+    if (validate_reflectors(config, error, error_size) != 0) {
         return -1;
     }
     if (config->reflector_ping_interval_microseconds /
@@ -636,165 +624,6 @@ static int load_reflectors(
     return 0;
 }
 
-static int append_remote_reflectors(
-    struct sqm_mon_config *config,
-    char *error,
-    size_t error_size
-)
-{
-    posix_spawn_file_actions_t actions;
-    char *arguments[] = {
-        (char *)UCLIENT_FETCH_PATH,
-        (char *)"-q",
-        (char *)"-O",
-        (char *)"-",
-        (char *)"-T",
-        (char *)"10",
-        config->reflectors_url,
-        NULL
-    };
-    int output_pipe[2];
-    FILE *output;
-    char *line = NULL;
-    size_t capacity = 0U;
-    uint64_t line_number = 0U;
-    pid_t process;
-    int status;
-    int result;
-    bool actions_initialized = false;
-
-    if (config->reflectors_url[0] == '\0') {
-        return 0;
-    }
-    log_message(
-        LOG_LEVEL_DEBUG,
-        "Appending local list of reflectors with remote list of reflectors at: %s.",
-        config->reflectors_url
-    );
-    if (strncmp(config->reflectors_url, "https://", 8U) != 0) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "reflectors_url is not https:// -- the remote reflector list is fetched without TLS and can be tampered with in transit."
-        );
-    }
-    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
-        error_set(error, error_size, "could not create reflector URL pipe");
-        return -1;
-    }
-    result = posix_spawn_file_actions_init(&actions);
-    actions_initialized = result == 0;
-    if (result == 0) {
-        result = posix_spawn_file_actions_addclose(&actions, output_pipe[0]);
-    }
-    if (result == 0) {
-        result = posix_spawn_file_actions_adddup2(
-            &actions,
-            output_pipe[1],
-            STDOUT_FILENO
-        );
-    }
-    if (result == 0) {
-        result = posix_spawn_file_actions_addclose(&actions, output_pipe[1]);
-    }
-    if (result == 0) {
-        result = posix_spawn_file_actions_addopen(
-            &actions,
-            STDERR_FILENO,
-            "/dev/null",
-            O_WRONLY,
-            0
-        );
-    }
-    if (result == 0) {
-        result = posix_spawn(
-            &process,
-            UCLIENT_FETCH_PATH,
-            &actions,
-            NULL,
-            arguments,
-            environ
-        );
-    }
-    if (actions_initialized) {
-        (void)posix_spawn_file_actions_destroy(&actions);
-    }
-    (void)close(output_pipe[1]);
-    if (result != 0) {
-        (void)close(output_pipe[0]);
-        error_set(
-            error,
-            error_size,
-            "could not fetch reflectors_url: %s",
-            strerror(result)
-        );
-        return -1;
-    }
-
-    output = fdopen(output_pipe[0], "r");
-    if (output == NULL) {
-        (void)close(output_pipe[0]);
-        (void)waitpid(process, NULL, 0);
-        error_set(error, error_size, "could not read reflectors_url");
-        return -1;
-    }
-    while (getline(&line, &capacity, output) >= 0) {
-        char *end;
-
-        if (line_number++ < config->reflectors_url_skip_lines) {
-            continue;
-        }
-        end = strpbrk(line, ",\r\n");
-        if (end != NULL) {
-            *end = '\0';
-        }
-        if (line[0] != '\0' &&
-            copy_reflector(config, line, error, error_size) != 0) {
-            free(line);
-            (void)fclose(output);
-            (void)waitpid(process, NULL, 0);
-            return -1;
-        }
-    }
-    free(line);
-    (void)fclose(output);
-    do {
-        result = waitpid(process, &status, 0);
-    } while (result < 0 && errno == EINTR);
-    if (result < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        error_set(error, error_size, "could not fetch reflectors_url");
-        return -1;
-    }
-    return 0;
-}
-
-int config_load_remote_reflectors(
-    struct sqm_mon_config *config,
-    char *error,
-    size_t error_size
-)
-{
-    uint64_t local_count = config->reflector_count;
-
-    if (config->reflectors_url[0] == '\0') {
-        return 0;
-    }
-    if (append_remote_reflectors(config, error, error_size) != 0) {
-        config->reflector_count = local_count;
-        log_message(
-            LOG_LEVEL_WARNING,
-            "remote reflector fetch degraded: %s; retaining local list",
-            error
-        );
-        error[0] = '\0';
-    }
-    log_message(
-        LOG_LEVEL_DEBUG,
-        "Local list of reflectors now contains %" PRIu64 " entries.",
-        config->reflector_count
-    );
-    return validate_reflectors(config, error, error_size);
-}
-
 static int load_section(
     struct uci_context *context,
     struct uci_section *section,
@@ -864,11 +693,6 @@ static int load_section(
             sizeof(config->pinger_method)
         },
         {
-            "reflectors_url",
-            config->reflectors_url,
-            sizeof(config->reflectors_url)
-        },
-        {
             "ping_extra_args",
             config->ping_extra_args,
             sizeof(config->ping_extra_args)
@@ -888,11 +712,6 @@ static int load_section(
         {
             "log_file_max_size_KB",
             &config->log_file_max_size_kilobytes,
-            1U
-        },
-        {
-            "reflectors_url_skip_lines",
-            &config->reflectors_url_skip_lines,
             1U
         },
         { "no_pingers", &config->no_pingers, 1U },
@@ -1253,7 +1072,6 @@ int config_load(
         .pinger_method = "fping",
         .log_file_max_time_minutes = 10U,
         .log_file_max_size_kilobytes = 2000U,
-        .reflectors_url_skip_lines = 1U,
         .no_pingers = 6U,
         .reflector_ping_interval_microseconds = 300000U,
         .download_average_owd_delta_maximum_adjust_up_microseconds = 10000U,

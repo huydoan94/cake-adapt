@@ -170,15 +170,6 @@ int main(int argc, char **argv)
         "Local list of reflectors contains %" PRIu64 " entries.",
         config.reflector_count
     );
-    if (config_load_remote_reflectors(
-            &config,
-            config_error,
-            sizeof(config_error)
-        ) != 0) {
-        log_message(LOG_LEVEL_ERROR, "reflector configuration error: %s", config_error);
-        log_close();
-        return 1;
-    }
     randomize_reflector_list(&config);
 
     log_message(

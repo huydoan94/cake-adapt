@@ -36,13 +36,11 @@ struct sqm_mon_config {
     char log_file_path_override[CONFIG_STRING_SIZE];
     char pinger_method[CONFIG_STRING_SIZE];
     char reflectors[CONFIG_MAX_REFLECTORS][CONFIG_REFLECTOR_SIZE];
-    char reflectors_url[CONFIG_STRING_SIZE];
     char ping_extra_args[CONFIG_STRING_SIZE];
     char ping_prefix_string[CONFIG_STRING_SIZE];
     uint64_t reflector_count;
     uint64_t log_file_max_time_minutes;
     uint64_t log_file_max_size_kilobytes;
-    uint64_t reflectors_url_skip_lines;
     uint64_t no_pingers;
     uint64_t reflector_ping_interval_microseconds;
     uint64_t download_average_owd_delta_maximum_adjust_up_microseconds;
@@ -94,12 +92,6 @@ struct sqm_mon_config {
 int config_load(
     struct sqm_mon_config *config,
     const char *config_directory,
-    char *error,
-    size_t error_size
-);
-
-int config_load_remote_reflectors(
-    struct sqm_mon_config *config,
     char *error,
     size_t error_size
 );

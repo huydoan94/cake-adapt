@@ -11,8 +11,9 @@
 #include "netlink.h"
 #include "traffic.h"
 
-#include <libubox/uloop.h>
 #include <libubox/list.h>
+#include <libubox/uloop.h>
+#include <libubox/utils.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -221,8 +222,10 @@ static void observe_cake(
     char error[ERROR_SIZE] = "";
     enum cake_read_result read_result;
 
-    if (timestamp_microseconds <
-        direction->next_cake_observation_microseconds) {
+    if (
+        timestamp_microseconds <
+        direction->next_cake_observation_microseconds
+    ) {
         direction->cake_valid = false;
         return;
     }
@@ -884,8 +887,10 @@ static bool ensure_latency_open(
     if (latency_is_open(&context->latency)) {
         return true;
     }
-    if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds) ||
-        timestamp_microseconds < context->next_latency_attempt_microseconds) {
+    if (
+        !read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds) ||
+        timestamp_microseconds < context->next_latency_attempt_microseconds
+    ) {
         return false;
     }
     context->next_latency_attempt_microseconds = timestamp_microseconds +
@@ -1074,9 +1079,11 @@ static struct monitored_direction *event_direction(
     if (event->parent != TC_H_ROOT) {
         return NULL;
     }
-    for (index = 0U; index < sizeof(directions) / sizeof(directions[0]); index++) {
-        if (if_nametoindex(directions[index]->interface) ==
-            event->interface_index) {
+    for (index = 0U; index < ARRAY_SIZE(directions); index++) {
+        if (
+            if_nametoindex(directions[index]->interface) ==
+            event->interface_index
+        ) {
             return directions[index];
         }
     }
@@ -1103,8 +1110,10 @@ static int process_qdisc_event(
         return 0;
     }
     if (event->type == QDISC_REMOVED) {
-        if (direction->cake_state != CAKE_OBSERVATION_AVAILABLE ||
-            direction->cake.handle != event->handle) {
+        if (
+            direction->cake_state != CAKE_OBSERVATION_AVAILABLE ||
+            direction->cake.handle != event->handle
+        ) {
             return 0;
         }
         log_message(
@@ -1125,8 +1134,10 @@ static int process_qdisc_event(
     }
 
     /* Bandwidth changes notify RTM_NEWQDISC with the existing handle. */
-    if (direction->cake_state == CAKE_OBSERVATION_AVAILABLE &&
-        direction->cake.handle == event->handle) {
+    if (
+        direction->cake_state == CAKE_OBSERVATION_AVAILABLE &&
+        direction->cake.handle == event->handle
+    ) {
         return 0;
     }
     if (direction->cake_state == CAKE_OBSERVATION_AVAILABLE) {
@@ -1152,13 +1163,13 @@ static void handle_qdisc_events(
     char error[ERROR_SIZE] = "";
 
     (void)events;
-    if (netlink_receive_qdisc_events(
+    if (
+        netlink_receive_qdisc_events(
             &loop->observation.netlink,
-            process_qdisc_event,
-            loop,
             error,
             sizeof(error)
-        ) != 0) {
+        ) != 0
+    ) {
         log_message(LOG_LEVEL_ERROR, "qdisc lifecycle monitoring failed: %s", error);
         loop->result = -1;
         uloop_end();
@@ -1768,8 +1779,10 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
     bool reflector_replaced = false;
     size_t index;
 
-    if (!cake_ready(&loop->observation) ||
-        loop->observation.activity.state != CONTROLLER_RUNNING) {
+    if (
+        !cake_ready(&loop->observation) ||
+        loop->observation.activity.state != CONTROLLER_RUNNING
+    ) {
         return;
     }
 
@@ -2082,22 +2095,28 @@ int monitor_run(const struct sqm_mon_config *config)
     {
         char error[ERROR_SIZE] = "";
 
-        if (netlink_subscribe_qdiscs(
+        if (
+            netlink_subscribe_qdiscs(
                 &loop.observation.netlink,
+                process_qdisc_event,
+                &loop,
                 error,
                 sizeof(error)
-            ) != 0) {
+            ) != 0
+        ) {
             log_message(LOG_LEVEL_ERROR, "%s", error);
             goto uloop_done;
         }
         loop.qdisc_events.fd = netlink_event_descriptor(
             &loop.observation.netlink
         );
-        if (loop.qdisc_events.fd < 0 ||
+        if (
+            loop.qdisc_events.fd < 0 ||
             uloop_fd_add(
                 &loop.qdisc_events,
                 ULOOP_READ | ULOOP_ERROR_CB
-            ) != 0) {
+            ) != 0
+        ) {
             log_message(
                 LOG_LEVEL_ERROR,
                 "could not monitor qdisc lifecycle: %s",
@@ -2107,7 +2126,7 @@ int monitor_run(const struct sqm_mon_config *config)
         }
     }
 
-    for (index = 0; index < sizeof(required_timers) / sizeof(required_timers[0]); ++index) {
+    for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
         if (uloop_interval_set(
                 required_timers[index].timer,
                 (unsigned int)(required_timers[index].interval_microseconds / 1000U)

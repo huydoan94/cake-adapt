@@ -32,16 +32,11 @@ struct response_context {
     bool parse_failed;
 };
 
-struct event_context {
-    qdisc_event_handler handler;
-    void *handler_context;
-    bool parse_failed;
-};
+static int handle_qdisc_event(struct nl_msg *message, void *context_data);
 
 void netlink_init(struct sqm_mon_netlink *netlink)
 {
-    netlink->socket = NULL;
-    netlink->events = NULL;
+    *netlink = (struct sqm_mon_netlink) { 0 };
 }
 
 int netlink_open(
@@ -108,10 +103,15 @@ void netlink_close(struct sqm_mon_netlink *netlink)
         nl_socket_free(netlink->events);
         netlink->events = NULL;
     }
+    netlink->event_handler = NULL;
+    netlink->event_handler_context = NULL;
+    netlink->event_parse_failed = false;
 }
 
 int netlink_subscribe_qdiscs(
     struct sqm_mon_netlink *netlink,
+    qdisc_event_handler handler,
+    void *handler_context,
     char *error,
     size_t error_size
 )
@@ -119,6 +119,10 @@ int netlink_subscribe_qdiscs(
     struct nl_sock *events;
     int result;
 
+    if (handler == NULL) {
+        error_set(error, error_size, "qdisc event handler is null");
+        return -1;
+    }
     if (netlink->events != NULL) {
         return 0;
     }
@@ -134,6 +138,18 @@ int netlink_subscribe_qdiscs(
     if (result == 0) {
         result = nl_socket_set_nonblocking(events);
     }
+    if (result == 0) {
+        netlink->event_handler = handler;
+        netlink->event_handler_context = handler_context;
+        nl_socket_disable_seq_check(events);
+        result = nl_socket_modify_cb(
+            events,
+            NL_CB_VALID,
+            NL_CB_CUSTOM,
+            handle_qdisc_event,
+            netlink
+        );
+    }
     if (result < 0) {
         error_set(
             error,
@@ -142,9 +158,10 @@ int netlink_subscribe_qdiscs(
             nl_geterror(result)
         );
         nl_socket_free(events);
+        netlink->event_handler = NULL;
+        netlink->event_handler_context = NULL;
         return -1;
     }
-    nl_socket_disable_seq_check(events);
     netlink->events = events;
     return 0;
 }
@@ -156,17 +173,19 @@ int netlink_event_descriptor(const struct sqm_mon_netlink *netlink)
 
 static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 {
-    struct event_context *context = context_data;
+    struct sqm_mon_netlink *netlink = context_data;
     const struct nlmsghdr *header = nlmsg_hdr(message);
     const struct tcmsg *traffic_control;
     struct qdisc_event event;
 
-    if (header->nlmsg_type != RTM_NEWQDISC &&
-        header->nlmsg_type != RTM_DELQDISC) {
+    if (
+        header->nlmsg_type != RTM_NEWQDISC &&
+        header->nlmsg_type != RTM_DELQDISC
+    ) {
         return NL_OK;
     }
     if (!nlmsg_valid_hdr(header, sizeof(*traffic_control))) {
-        context->parse_failed = true;
+        netlink->event_parse_failed = true;
         return NL_OK;
     }
     traffic_control = NLMSG_DATA(header);
@@ -178,64 +197,33 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
         .handle = traffic_control->tcm_handle,
         .parent = traffic_control->tcm_parent
     };
-    if (context->handler(&event, context->handler_context) != 0) {
-        context->parse_failed = true;
+    if (netlink->event_handler(
+            &event,
+            netlink->event_handler_context
+        ) != 0) {
+        netlink->event_parse_failed = true;
     }
-    return NL_OK;
-}
-
-static int ignore_event_sequence(struct nl_msg *message, void *context_data)
-{
-    (void)message;
-    (void)context_data;
     return NL_OK;
 }
 
 int netlink_receive_qdisc_events(
     struct sqm_mon_netlink *netlink,
-    qdisc_event_handler handler,
-    void *handler_context,
     char *error,
     size_t error_size
 )
 {
-    struct event_context context = {
-        .handler = handler,
-        .handler_context = handler_context
-    };
-    struct nl_cb *callbacks;
     int result;
 
-    if (netlink->events == NULL || handler == NULL) {
+    if (
+        netlink->events == NULL ||
+        netlink->event_handler == NULL
+    ) {
         error_set(error, error_size, "qdisc event socket is not open");
         return -1;
     }
-    callbacks = nl_cb_alloc(NL_CB_CUSTOM);
-    if (callbacks == NULL) {
-        error_set(error, error_size, "could not allocate qdisc event callbacks");
-        return -1;
-    }
-    result = nl_cb_set(
-        callbacks,
-        NL_CB_VALID,
-        NL_CB_CUSTOM,
-        handle_qdisc_event,
-        &context
-    );
-    if (result == 0) {
-        result = nl_cb_set(
-            callbacks,
-            NL_CB_SEQ_CHECK,
-            NL_CB_CUSTOM,
-            ignore_event_sequence,
-            NULL
-        );
-    }
-    if (result == 0) {
-        result = nl_recvmsgs(netlink->events, callbacks);
-    }
-    nl_cb_put(callbacks);
-    if (context.parse_failed) {
+    netlink->event_parse_failed = false;
+    result = nl_recvmsgs_default(netlink->events);
+    if (netlink->event_parse_failed) {
         error_set(error, error_size, "could not parse qdisc event");
         return -1;
     }
@@ -305,7 +293,10 @@ static int handle_valid_response(struct nl_msg *message, void *context_data)
     struct response_context *context = context_data;
     const struct nlmsghdr *header = nlmsg_hdr(message);
 
-    if (header->nlmsg_type != RTM_NEWQDISC || context->handler == NULL) {
+    if (
+        header->nlmsg_type != RTM_NEWQDISC ||
+        context->handler == NULL
+    ) {
         return NL_OK;
     }
     if (context->handler(header, context->handler_context) != 0) {
@@ -340,7 +331,8 @@ static int handle_error_response(
     return NL_STOP;
 }
 
-static struct nl_cb *create_callbacks(
+static int configure_response_callbacks(
+    struct nl_sock *socket,
     struct response_context *context,
     char *error,
     size_t error_size
@@ -354,17 +346,12 @@ static struct nl_cb *create_callbacks(
         { NL_CB_FINISH, handle_complete_response },
         { NL_CB_ACK, handle_complete_response }
     };
-    struct nl_cb *callbacks = nl_cb_alloc(NL_CB_CUSTOM);
+    struct nl_cb *callbacks;
     int result = 0;
 
-    if (callbacks == NULL) {
-        error_set(error, error_size, "could not allocate rtnetlink callbacks");
-        return NULL;
-    }
-
     for (size_t index = 0; index < sizeof(handlers) / sizeof(handlers[0]); ++index) {
-        result = nl_cb_set(
-            callbacks,
+        result = nl_socket_modify_cb(
+            socket,
             handlers[index].type,
             NL_CB_CUSTOM,
             handlers[index].handler,
@@ -375,12 +362,14 @@ static struct nl_cb *create_callbacks(
         }
     }
     if (result == 0) {
+        callbacks = nl_socket_get_cb(socket);
         result = nl_cb_err(
             callbacks,
             NL_CB_CUSTOM,
             handle_error_response,
             context
         );
+        nl_cb_put(callbacks);
     }
     if (result < 0) {
         error_set(
@@ -389,10 +378,9 @@ static struct nl_cb *create_callbacks(
             "could not configure rtnetlink callbacks: %s",
             nl_geterror(result)
         );
-        nl_cb_put(callbacks);
-        return NULL;
+        return -1;
     }
-    return callbacks;
+    return 0;
 }
 
 static int receive_response(
@@ -402,10 +390,14 @@ static int receive_response(
     size_t error_size
 )
 {
-    struct nl_cb *callbacks = create_callbacks(context, error, error_size);
     int result = -1;
 
-    if (callbacks == NULL) {
+    if (configure_response_callbacks(
+            netlink->socket,
+            context,
+            error,
+            error_size
+        ) != 0) {
         return -1;
     }
 
@@ -414,7 +406,7 @@ static int receive_response(
             goto done;
         }
 
-        result = nl_recvmsgs(netlink->socket, callbacks);
+        result = nl_recvmsgs_default(netlink->socket);
         if (context->parse_failed) {
             error_set(error, error_size, "could not parse qdisc response");
             result = -1;
@@ -452,7 +444,6 @@ static int receive_response(
     result = 0;
 
 done:
-    nl_cb_put(callbacks);
     return result;
 }
 
@@ -591,19 +582,25 @@ int netlink_change_qdisc_option(
         sizeof(traffic_control),
         NLMSG_ALIGNTO
     );
-    if (result < 0 || nla_put_string(message, TCA_KIND, kind) < 0) {
+    if (
+        result < 0 ||
+        nla_put_string(message, TCA_KIND, kind) < 0
+    ) {
         error_set(error, error_size, "could not construct qdisc change request");
         nlmsg_free(message);
         return -1;
     }
 
     options = nla_nest_start(message, TCA_OPTIONS);
-    if (options == NULL || nla_put(
+    if (
+        options == NULL ||
+        nla_put(
             message,
             (int)option_type,
             (int)option_size,
             option_data
-        ) < 0) {
+        ) < 0
+    ) {
         error_set(error, error_size, "qdisc option is too large");
         nlmsg_free(message);
         return -1;

@@ -21,12 +21,18 @@ struct cake_dump_context {
 
 static uint64_t rate_to_bits_per_second(uint64_t bytes_per_second)
 {
-    if (bytes_per_second > UINT64_MAX / 8U) {
+    uint64_t bits_per_second;
+
+    if (
+        __builtin_mul_overflow(
+            bytes_per_second,
+            UINT64_C(8),
+            &bits_per_second
+        )
+    ) {
         return UINT64_MAX;
     }
-
-    /* CAKE's netlink ABI reports rates in bytes/s; sqm-mon uses bits/s. */
-    return bytes_per_second * 8U;
+    return bits_per_second;
 }
 
 static void parse_options(

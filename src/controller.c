@@ -24,6 +24,7 @@ static uint64_t scale_rate(
     uint64_t factor_scale
 )
 {
+    /* cake-autorate performs shaper calculations in whole kbit/s. */
     uint64_t rate_kilobits_per_second =
         rate_bits_per_second / BITS_PER_KILOBIT;
     uint64_t quotient = rate_kilobits_per_second / factor_scale;
@@ -31,23 +32,33 @@ static uint64_t scale_rate(
     uint64_t scaled_kilobits_per_second;
     uint64_t fractional;
 
-    if ((factor != 0U && quotient > UINT64_MAX / factor) ||
-        (factor != 0U && remainder > UINT64_MAX / factor)) {
+    if (
+        __builtin_mul_overflow(
+            quotient,
+            factor,
+            &scaled_kilobits_per_second
+        ) ||
+        __builtin_mul_overflow(remainder, factor, &fractional)
+    ) {
         return UINT64_MAX;
     }
 
-    fractional = remainder * factor / factor_scale;
-    scaled_kilobits_per_second = quotient * factor;
-    if (scaled_kilobits_per_second > UINT64_MAX - fractional) {
+    fractional /= factor_scale;
+    if (
+        __builtin_add_overflow(
+            scaled_kilobits_per_second,
+            fractional,
+            &scaled_kilobits_per_second
+        ) ||
+        __builtin_mul_overflow(
+            scaled_kilobits_per_second,
+            UINT64_C(1000),
+            &scaled_kilobits_per_second
+        )
+    ) {
         return UINT64_MAX;
     }
-    scaled_kilobits_per_second += fractional;
-    if (scaled_kilobits_per_second > UINT64_MAX / BITS_PER_KILOBIT) {
-        return UINT64_MAX;
-    }
-
-    /* cake-autorate performs every shaper calculation in whole kbit/s. */
-    return scaled_kilobits_per_second * BITS_PER_KILOBIT;
+    return scaled_kilobits_per_second;
 }
 
 static uint64_t clamp_rate(

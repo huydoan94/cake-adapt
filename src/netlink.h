@@ -3,15 +3,11 @@
 
 #include <linux/netlink.h>
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 struct nl_sock;
-
-struct sqm_mon_netlink {
-    struct nl_sock *socket;
-    struct nl_sock *events;
-};
 
 typedef int (*netlink_message_handler)(
     const struct nlmsghdr *message,
@@ -35,6 +31,14 @@ typedef int (*qdisc_event_handler)(
     void *context
 );
 
+struct sqm_mon_netlink {
+    struct nl_sock *socket;
+    struct nl_sock *events;
+    qdisc_event_handler event_handler;
+    void *event_handler_context;
+    bool event_parse_failed;
+};
+
 void netlink_init(struct sqm_mon_netlink *netlink);
 
 int netlink_open(
@@ -48,6 +52,8 @@ void netlink_close_requests(struct sqm_mon_netlink *netlink);
 
 int netlink_subscribe_qdiscs(
     struct sqm_mon_netlink *netlink,
+    qdisc_event_handler handler,
+    void *handler_context,
     char *error,
     size_t error_size
 );
@@ -56,8 +62,6 @@ int netlink_event_descriptor(const struct sqm_mon_netlink *netlink);
 
 int netlink_receive_qdisc_events(
     struct sqm_mon_netlink *netlink,
-    qdisc_event_handler handler,
-    void *context,
     char *error,
     size_t error_size
 );
