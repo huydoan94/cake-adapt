@@ -1,5 +1,5 @@
-#ifndef SQM_MON_CAKE_H
-#define SQM_MON_CAKE_H
+#ifndef CAKE_H_INCLUDED
+#define CAKE_H_INCLUDED
 
 #include "netlink.h"
 
@@ -33,7 +33,7 @@ enum cake_read_result {
 };
 
 enum cake_read_result cake_read(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     const char *interface,
     struct cake_observation *observation,
     char *error,
@@ -41,7 +41,7 @@ enum cake_read_result cake_read(
 );
 
 int cake_set_bandwidth(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     const char *interface,
     const struct cake_observation *observation,
     uint64_t bandwidth_bits_per_second,

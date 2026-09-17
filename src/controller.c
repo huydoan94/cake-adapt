@@ -126,7 +126,7 @@ static int initialize_direction(
 }
 
 int controller_init(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_config *config
 )
 {
@@ -170,7 +170,7 @@ int controller_init(
     return 0;
 }
 
-void controller_close(struct sqm_mon_controller *controller)
+void controller_close(struct controller *controller)
 {
     free(controller->download.delay_samples);
     free(controller->upload.delay_samples);
@@ -563,7 +563,7 @@ static void update_direction(
 }
 
 void controller_update(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_input *input,
     struct controller_output *output
 )
@@ -587,7 +587,7 @@ void controller_update(
 }
 
 void controller_set_minimum_rates(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     uint64_t timestamp_microseconds
 )
 {

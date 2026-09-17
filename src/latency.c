@@ -325,7 +325,7 @@ failed:
 }
 
 static int start_fping(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     const char *interface,
     const char *const *targets,
     size_t target_count,
@@ -478,7 +478,7 @@ failed:
 }
 
 static int take_output_line(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     char line[LATENCY_OUTPUT_SIZE]
 )
 {
@@ -512,7 +512,7 @@ static int take_output_line(
 }
 
 static void set_child_exit_error(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     char *error,
     size_t error_size
 )
@@ -546,9 +546,9 @@ static void set_child_exit_error(
     error_set(error, error_size, "fping output closed unexpectedly");
 }
 
-void latency_init(struct sqm_mon_latency *latency)
+void latency_init(struct latency *latency)
 {
-    *latency = (struct sqm_mon_latency) {
+    *latency = (struct latency) {
         .output_descriptor = -1,
         .process_identifier = -1,
         .output_buffer = "",
@@ -576,14 +576,14 @@ bool target_is_valid(const char *target)
     return strspn(target, allowed) == length;
 }
 
-bool latency_is_open(const struct sqm_mon_latency *latency)
+bool latency_is_open(const struct latency *latency)
 {
     return latency->output_descriptor >= 0 &&
         latency->process_identifier > 0;
 }
 
 int latency_open(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     const char *interface,
     const char *const *targets,
     size_t target_count,
@@ -637,7 +637,7 @@ int latency_open(
     );
 }
 
-void latency_close(struct sqm_mon_latency *latency)
+void latency_close(struct latency *latency)
 {
     pid_t process_identifier = latency->process_identifier;
 
@@ -889,7 +889,7 @@ void reflector_rotate(
 }
 
 enum latency_probe_result latency_receive(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     struct latency_sample *sample,
     char *error,
     size_t error_size

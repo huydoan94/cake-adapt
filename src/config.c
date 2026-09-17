@@ -74,7 +74,7 @@ static int copy_option(
     return 0;
 }
 
-static void derive_ingress_interface(struct sqm_mon_config *config)
+static void derive_ingress_interface(struct config *config)
 {
     config->ingress_interface[0] = '\0';
     if (config->interface[0] == '\0') {
@@ -343,7 +343,7 @@ static int validate_rate_range(
 }
 
 static int validate_reflectors(
-    const struct sqm_mon_config *config,
+    const struct config *config,
     char *error,
     size_t error_size
 )
@@ -380,7 +380,7 @@ static int validate_reflectors(
 }
 
 static int validate_latency_config(
-    const struct sqm_mon_config *config,
+    const struct config *config,
     char *error,
     size_t error_size
 )
@@ -556,7 +556,7 @@ static int validate_latency_config(
 }
 
 static int copy_reflector(
-    struct sqm_mon_config *config,
+    struct config *config,
     const char *reflector,
     char *error,
     size_t error_size
@@ -590,7 +590,7 @@ static int copy_reflector(
 static int load_reflectors(
     struct uci_context *context,
     struct uci_section *section,
-    struct sqm_mon_config *config,
+    struct config *config,
     char *error,
     size_t error_size
 )
@@ -627,7 +627,7 @@ static int load_reflectors(
 static int load_section(
     struct uci_context *context,
     struct uci_section *section,
-    struct sqm_mon_config *config,
+    struct config *config,
     char *error,
     size_t error_size
 )
@@ -1043,7 +1043,7 @@ static int load_section(
 }
 
 int config_load(
-    struct sqm_mon_config *config,
+    struct config *config,
     const char *config_directory,
     char *error,
     size_t error_size
@@ -1059,7 +1059,7 @@ int config_load(
         return -1;
     }
 
-    *config = (struct sqm_mon_config) {
+    *config = (struct config) {
         /* Adjustment remains opt-in even though cake-autorate defaults it on. */
         .adjust_download = false,
         .adjust_upload = false,

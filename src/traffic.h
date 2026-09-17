@@ -1,5 +1,5 @@
-#ifndef SQM_MON_TRAFFIC_H
-#define SQM_MON_TRAFFIC_H
+#ifndef TRAFFIC_H_INCLUDED
+#define TRAFFIC_H_INCLUDED
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -12,7 +12,7 @@ struct traffic_sample {
     struct timespec timestamp;
 };
 
-struct sqm_mon_traffic_monitor {
+struct traffic_monitor {
     bool has_previous_sample;
     struct traffic_sample previous_sample;
 };
@@ -25,10 +25,10 @@ enum traffic_update_result {
     TRAFFIC_UPDATE_INVALID_INTERVAL
 };
 
-void traffic_init(struct sqm_mon_traffic_monitor *monitor);
+void traffic_init(struct traffic_monitor *monitor);
 
 enum traffic_update_result traffic_update(
-    struct sqm_mon_traffic_monitor *monitor,
+    struct traffic_monitor *monitor,
     const struct traffic_sample *sample,
     uint64_t *rate_bits_per_second
 );

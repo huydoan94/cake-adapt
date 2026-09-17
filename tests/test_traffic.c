@@ -43,7 +43,7 @@ static struct traffic_sample sample(
 
 static void test_initial_sample_establishes_baseline(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(100U, 10, 0L);
     uint64_t rate = 123U;
 
@@ -59,7 +59,7 @@ static void test_initial_sample_establishes_baseline(void)
 
 static void test_rate_is_calculated_from_cake_bytes(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(100U, 10, 0L);
     struct traffic_sample second = sample(2100U, 11, 0L);
     uint64_t rate;
@@ -77,7 +77,7 @@ static void test_rate_is_calculated_from_cake_bytes(void)
 
 static void test_subsecond_interval_is_supported(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(0U, 10, 250000000L);
     struct traffic_sample second = sample(1000U, 10, 750000000L);
     uint64_t rate;
@@ -91,7 +91,7 @@ static void test_subsecond_interval_is_supported(void)
 
 static void test_counter_reset_creates_new_baseline(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(2000U, 10, 0L);
     struct traffic_sample reset = sample(200U, 11, 0L);
     struct traffic_sample next = sample(1200U, 12, 0L);
@@ -116,7 +116,7 @@ static void test_counter_reset_creates_new_baseline(void)
 
 static void test_qdisc_replacement_creates_new_baseline(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(1000U, 10, 0L);
     struct traffic_sample replacement = sample_with_qdisc(
         2000U,
@@ -153,7 +153,7 @@ static void test_qdisc_replacement_creates_new_baseline(void)
 
 static void test_invalid_interval_creates_new_baseline(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(100U, 10, 0L);
     struct traffic_sample same_time = sample(200U, 10, 0L);
     uint64_t rate;
@@ -171,7 +171,7 @@ static void test_invalid_interval_creates_new_baseline(void)
 
 static void test_large_64_bit_counter_is_supported(void)
 {
-    struct sqm_mon_traffic_monitor monitor;
+    struct traffic_monitor monitor;
     struct traffic_sample first = sample(UINT64_C(1) << 40U, 10, 0L);
     struct traffic_sample second = sample(
         (UINT64_C(1) << 40U) + 125000000U,

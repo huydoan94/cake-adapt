@@ -1,5 +1,5 @@
-#ifndef SQM_MON_NETLINK_H
-#define SQM_MON_NETLINK_H
+#ifndef NETLINK_H_INCLUDED
+#define NETLINK_H_INCLUDED
 
 #include <linux/netlink.h>
 
@@ -31,7 +31,7 @@ typedef int (*qdisc_event_handler)(
     void *context
 );
 
-struct sqm_mon_netlink {
+struct netlink {
     struct nl_sock *socket;
     struct nl_sock *events;
     qdisc_event_handler event_handler;
@@ -39,35 +39,35 @@ struct sqm_mon_netlink {
     bool event_parse_failed;
 };
 
-void netlink_init(struct sqm_mon_netlink *netlink);
+void netlink_init(struct netlink *netlink);
 
 int netlink_open(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     char *error,
     size_t error_size
 );
 
-void netlink_close(struct sqm_mon_netlink *netlink);
-void netlink_close_requests(struct sqm_mon_netlink *netlink);
+void netlink_close(struct netlink *netlink);
+void netlink_close_requests(struct netlink *netlink);
 
 int netlink_subscribe_qdiscs(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     qdisc_event_handler handler,
     void *handler_context,
     char *error,
     size_t error_size
 );
 
-int netlink_event_descriptor(const struct sqm_mon_netlink *netlink);
+int netlink_event_descriptor(const struct netlink *netlink);
 
 int netlink_receive_qdisc_events(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     char *error,
     size_t error_size
 );
 
 int netlink_dump_qdiscs(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     unsigned int interface_index,
     netlink_message_handler handler,
     void *context,
@@ -76,7 +76,7 @@ int netlink_dump_qdiscs(
 );
 
 int netlink_change_qdisc_option(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     unsigned int interface_index,
     uint32_t handle,
     uint32_t parent,

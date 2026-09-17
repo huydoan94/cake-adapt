@@ -199,7 +199,7 @@ static int handle_qdisc(
 }
 
 enum cake_read_result cake_read(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     const char *interface,
     struct cake_observation *observation,
     char *error,
@@ -245,7 +245,7 @@ enum cake_read_result cake_read(
 }
 
 int cake_set_bandwidth(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     const char *interface,
     const struct cake_observation *observation,
     uint64_t bandwidth_bits_per_second,

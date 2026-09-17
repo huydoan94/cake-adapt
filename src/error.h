@@ -1,5 +1,5 @@
-#ifndef SQM_MON_ERROR_H
-#define SQM_MON_ERROR_H
+#ifndef ERROR_H_INCLUDED
+#define ERROR_H_INCLUDED
 
 #include <stddef.h>
 

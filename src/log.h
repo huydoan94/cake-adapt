@@ -1,5 +1,5 @@
-#ifndef SQM_MON_LOG_H
-#define SQM_MON_LOG_H
+#ifndef LOG_H_INCLUDED
+#define LOG_H_INCLUDED
 
 #include "cpu.h"
 

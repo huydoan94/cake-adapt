@@ -3,13 +3,13 @@
 #include "traffic.h"
 #include "helpers.h"
 
-void traffic_init(struct sqm_mon_traffic_monitor *monitor)
+void traffic_init(struct traffic_monitor *monitor)
 {
-    *monitor = (struct sqm_mon_traffic_monitor) { 0 };
+    *monitor = (struct traffic_monitor) { 0 };
 }
 
 enum traffic_update_result traffic_update(
-    struct sqm_mon_traffic_monitor *monitor,
+    struct traffic_monitor *monitor,
     const struct traffic_sample *sample,
     uint64_t *rate_bits_per_second
 )

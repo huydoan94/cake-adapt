@@ -26,7 +26,7 @@ static void print_usage(const char *program_name)
     );
 }
 
-static void randomize_reflector_list(struct sqm_mon_config *config)
+static void randomize_reflector_list(struct config *config)
 {
     uint32_t random_values[CONFIG_MAX_REFLECTORS - 1U];
     size_t count = (size_t)config->reflector_count;
@@ -68,7 +68,7 @@ static void randomize_reflector_list(struct sqm_mon_config *config)
 
 int main(int argc, char **argv)
 {
-    struct sqm_mon_config config;
+    struct config config;
     char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
     char log_path[CONFIG_STRING_SIZE + sizeof(LOG_FILE_NAME)] =

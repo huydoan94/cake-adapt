@@ -1,5 +1,5 @@
-#ifndef SQM_MON_LATENCY_H
-#define SQM_MON_LATENCY_H
+#ifndef LATENCY_H_INCLUDED
+#define LATENCY_H_INCLUDED
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,7 +11,7 @@
 
 bool target_is_valid(const char *target);
 
-struct sqm_mon_latency {
+struct latency {
     int output_descriptor;
     pid_t process_identifier;
     char output_buffer[LATENCY_OUTPUT_SIZE];
@@ -92,12 +92,12 @@ struct reflector_comparison {
     int64_t upload_delta_ewma_delta_microseconds;
 };
 
-void latency_init(struct sqm_mon_latency *latency);
+void latency_init(struct latency *latency);
 
-bool latency_is_open(const struct sqm_mon_latency *latency);
+bool latency_is_open(const struct latency *latency);
 
 int latency_open(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     const char *interface,
     const char *const *targets,
     size_t target_count,
@@ -108,7 +108,7 @@ int latency_open(
     size_t error_size
 );
 
-void latency_close(struct sqm_mon_latency *latency);
+void latency_close(struct latency *latency);
 
 enum latency_fping_line_result parse_fping_line(
     const char *line,
@@ -174,7 +174,7 @@ void reflector_rotate(
 );
 
 enum latency_probe_result latency_receive(
-    struct sqm_mon_latency *latency,
+    struct latency *latency,
     struct latency_sample *sample,
     char *error,
     size_t error_size

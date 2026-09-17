@@ -2,9 +2,9 @@
 
 #include <assert.h>
 
-static struct sqm_mon_config valid_config(void)
+static struct config valid_config(void)
 {
-    return (struct sqm_mon_config) {
+    return (struct config) {
         .enabled = true,
         .pinger_method = "fping",
         .no_pingers = 1U,
@@ -30,7 +30,7 @@ static struct sqm_mon_config valid_config(void)
 
 static void test_fping_only_and_intentional_exclusions(void)
 {
-    struct sqm_mon_config config = valid_config();
+    struct config config = valid_config();
     char error[256] = "";
 
     config.irtt_session_duration_minutes = UINT64_MAX;
@@ -42,7 +42,7 @@ static void test_fping_only_and_intentional_exclusions(void)
 
 static void test_reflector_list_validation(void)
 {
-    struct sqm_mon_config config = valid_config();
+    struct config config = valid_config();
     char error[256] = "";
 
     config.no_pingers = 2U;
@@ -61,7 +61,7 @@ static void test_reflector_list_validation(void)
 
 static void test_new_timer_and_limit_validation(void)
 {
-    struct sqm_mon_config config = valid_config();
+    struct config config = valid_config();
     char error[256] = "";
 
     config.stall_detection_threshold = UINT64_MAX;

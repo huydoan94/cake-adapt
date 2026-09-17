@@ -1,5 +1,5 @@
-#ifndef SQM_MON_CONFIG_H
-#define SQM_MON_CONFIG_H
+#ifndef CONFIG_H_INCLUDED
+#define CONFIG_H_INCLUDED
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,7 +11,7 @@
 #define CONFIG_REFLECTOR_SIZE 256U
 #define CONFIG_MAX_REFLECTORS 64U
 
-struct sqm_mon_config {
+struct config {
     bool enabled;
     bool adjust_download;
     bool adjust_upload;
@@ -90,7 +90,7 @@ struct sqm_mon_config {
 };
 
 int config_load(
-    struct sqm_mon_config *config,
+    struct config *config,
     const char *config_directory,
     char *error,
     size_t error_size

@@ -34,13 +34,13 @@ struct response_context {
 
 static int handle_qdisc_event(struct nl_msg *message, void *context_data);
 
-void netlink_init(struct sqm_mon_netlink *netlink)
+void netlink_init(struct netlink *netlink)
 {
-    *netlink = (struct sqm_mon_netlink) { 0 };
+    *netlink = (struct netlink) { 0 };
 }
 
 int netlink_open(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     char *error,
     size_t error_size
 )
@@ -88,7 +88,7 @@ int netlink_open(
     return 0;
 }
 
-void netlink_close_requests(struct sqm_mon_netlink *netlink)
+void netlink_close_requests(struct netlink *netlink)
 {
     if (netlink->socket != NULL) {
         nl_socket_free(netlink->socket);
@@ -96,7 +96,7 @@ void netlink_close_requests(struct sqm_mon_netlink *netlink)
     }
 }
 
-void netlink_close(struct sqm_mon_netlink *netlink)
+void netlink_close(struct netlink *netlink)
 {
     netlink_close_requests(netlink);
     if (netlink->events != NULL) {
@@ -109,7 +109,7 @@ void netlink_close(struct sqm_mon_netlink *netlink)
 }
 
 int netlink_subscribe_qdiscs(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     qdisc_event_handler handler,
     void *handler_context,
     char *error,
@@ -166,14 +166,14 @@ int netlink_subscribe_qdiscs(
     return 0;
 }
 
-int netlink_event_descriptor(const struct sqm_mon_netlink *netlink)
+int netlink_event_descriptor(const struct netlink *netlink)
 {
     return netlink->events == NULL ? -1 : nl_socket_get_fd(netlink->events);
 }
 
 static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 {
-    struct sqm_mon_netlink *netlink = context_data;
+    struct netlink *netlink = context_data;
     const struct nlmsghdr *header = nlmsg_hdr(message);
     const struct tcmsg *traffic_control;
     struct qdisc_event event;
@@ -207,7 +207,7 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 }
 
 int netlink_receive_qdisc_events(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     char *error,
     size_t error_size
 )
@@ -243,7 +243,7 @@ int netlink_receive_qdisc_events(
 }
 
 static int wait_for_response(
-    const struct sqm_mon_netlink *netlink,
+    const struct netlink *netlink,
     char *error,
     size_t error_size
 )
@@ -384,7 +384,7 @@ static int configure_response_callbacks(
 }
 
 static int receive_response(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     struct response_context *context,
     char *error,
     size_t error_size
@@ -448,7 +448,7 @@ done:
 }
 
 static int send_request(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     struct nl_msg *message,
     enum response_type type,
     char *error,
@@ -472,7 +472,7 @@ static int send_request(
 }
 
 int netlink_dump_qdiscs(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     unsigned int interface_index,
     netlink_message_handler handler,
     void *handler_context,
@@ -535,7 +535,7 @@ int netlink_dump_qdiscs(
 }
 
 int netlink_change_qdisc_option(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     unsigned int interface_index,
     uint32_t handle,
     uint32_t parent,

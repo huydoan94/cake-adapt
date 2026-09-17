@@ -22,7 +22,7 @@ static void init_tracker(struct latency_tracker *tracker)
 
 static void test_initial_state_is_closed(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
 
     latency_init(&latency);
 
@@ -33,7 +33,7 @@ static void test_initial_state_is_closed(void)
 
 static void test_invalid_target_is_rejected_before_starting_fping(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
     const char *targets[] = { "not an endpoint" };
     char error[256] = "";
 
@@ -57,7 +57,7 @@ static void test_invalid_target_is_rejected_before_starting_fping(void)
 
 static void test_empty_target_list_is_rejected(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
     char error[256] = "";
 
     latency_init(&latency);
@@ -78,7 +78,7 @@ static void test_empty_target_list_is_rejected(void)
 
 static void test_sub_millisecond_response_spacing_is_rejected(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
     const char *targets[] = { "1.1.1.1", "9.9.9.9" };
     char error[256] = "";
 
@@ -100,7 +100,7 @@ static void test_sub_millisecond_response_spacing_is_rejected(void)
 
 static void test_close_is_idempotent(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
 
     latency_init(&latency);
     latency_close(&latency);
@@ -410,7 +410,7 @@ static void test_reflector_rotation_uses_first_standby(void)
 
 static void test_pinger_arguments_reject_command_substitution(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
     const char *targets[] = { "1.1.1.1" };
     char error[256] = "";
 
@@ -425,7 +425,7 @@ static void test_pinger_arguments_reject_command_substitution(void)
 
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
-    struct sqm_mon_latency latency;
+    struct latency latency;
     const char *targets[] = { "1.1.1.1", "::1" };
     char error[256] = "";
     char output[1024];

@@ -81,7 +81,7 @@ static struct controller_input input_with_rates(
 }
 
 static void update_repeatedly(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_input *input,
     struct controller_output *output,
     unsigned int count
@@ -106,7 +106,7 @@ static void accept_rates(
 }
 
 static void init_controller(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_config *config
 )
 {
@@ -115,7 +115,7 @@ static void init_controller(
 
 static void test_initial_state_is_unknown(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
 
     init_controller(&controller, &config);
@@ -128,7 +128,7 @@ static void test_initial_state_is_unknown(void)
 
 static void test_low_load_is_below_capacity(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -151,7 +151,7 @@ static void test_low_load_is_below_capacity(void)
 
 static void test_sustained_download_is_saturated(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         7200000U,
@@ -175,7 +175,7 @@ static void test_sustained_download_is_saturated(void)
 
 static void test_brief_burst_does_not_saturate(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input high = input_with_rates(
         8U * MEBABIT,
@@ -200,7 +200,7 @@ static void test_brief_burst_does_not_saturate(void)
 
 static void test_line_hysteresis_and_recovery(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input high = input_with_rates(
         8U * MEBABIT,
@@ -235,7 +235,7 @@ static void test_line_hysteresis_and_recovery(void)
 
 static void test_invalid_direction_returns_to_unknown(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -256,7 +256,7 @@ static void test_invalid_direction_returns_to_unknown(void)
 
 static void test_three_of_six_delays_detect_bufferbloat(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -285,7 +285,7 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
 
 static void test_below_baseline_delay_remains_signed(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -310,7 +310,7 @@ static void test_below_baseline_delay_remains_signed(void)
 
 static void test_delay_window_clears_after_old_delays_expire(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -334,7 +334,7 @@ static void test_delay_window_clears_after_old_delays_expire(void)
 
 static void test_missing_probe_holds_delay_window(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -358,7 +358,7 @@ static void test_missing_probe_holds_delay_window(void)
 
 static void test_configured_delay_window_and_direction_thresholds(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = monitor_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -386,7 +386,7 @@ static void test_configured_delay_window_and_direction_thresholds(void)
 
 static void test_invalid_delay_window_is_rejected(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = monitor_config();
 
     config.bufferbloat_detection_window = 0U;
@@ -399,7 +399,7 @@ static void test_invalid_delay_window_is_rejected(void)
 
 static void test_initial_rate_is_baseline(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -420,7 +420,7 @@ static void test_initial_rate_is_baseline(void)
 
 static void test_initial_rate_waits_for_valid_qdisc_input(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -445,7 +445,7 @@ static void test_initial_rate_waits_for_valid_qdisc_input(void)
 
 static void test_high_load_increases_rate_four_percent(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         6080000U,
@@ -467,7 +467,7 @@ static void test_high_load_increases_rate_four_percent(void)
 
 static void test_high_load_waits_for_congestion_refractory_period(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         6080000U,
@@ -497,7 +497,7 @@ static void test_high_load_waits_for_congestion_refractory_period(void)
 
 static void test_configured_high_load_adjustment_is_used(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         4080000U,
@@ -522,7 +522,7 @@ static void test_configured_high_load_adjustment_is_used(void)
 
 static void test_severe_bufferbloat_reduces_both_rates(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -551,7 +551,7 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
 
 static void test_bufferbloat_reduction_scales_with_average_delay(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -577,7 +577,7 @@ static void test_bufferbloat_reduction_scales_with_average_delay(void)
 
 static void test_bufferbloat_reduction_observes_refractory_period(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -616,7 +616,7 @@ static void test_bufferbloat_reduction_observes_refractory_period(void)
 
 static void test_configured_bufferbloat_adjustment_is_used(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -649,7 +649,7 @@ static void test_configured_bufferbloat_adjustment_is_used(void)
 
 static void test_low_load_returns_rate_toward_baseline(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -675,7 +675,7 @@ static void test_low_load_returns_rate_toward_baseline(void)
 
 static void test_low_load_waits_for_decay_refractory_period(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -709,7 +709,7 @@ static void test_low_load_waits_for_decay_refractory_period(void)
 
 static void test_configured_low_load_adjustment_is_used(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -736,7 +736,7 @@ static void test_configured_low_load_adjustment_is_used(void)
 
 static void test_congestion_restarts_decay_refractory_period(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
@@ -785,7 +785,7 @@ static void test_congestion_restarts_decay_refractory_period(void)
 
 static void test_high_load_restarts_decay_refractory_period(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         7U * MEBABIT,
@@ -823,7 +823,7 @@ static void test_high_load_restarts_decay_refractory_period(void)
 
 static void test_rate_limits_are_hard_bounds(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         9U * MEBABIT,
@@ -857,7 +857,7 @@ static void test_rate_limits_are_hard_bounds(void)
 
 static void test_invalid_sample_does_not_adjust_rate(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     const struct controller_config config = adjusting_config();
     struct controller_input input = input_with_rates(
         8U * MEBABIT,
@@ -880,7 +880,7 @@ static void test_invalid_sample_does_not_adjust_rate(void)
 
 static void test_minimum_rate_enforcement_preserves_opt_out(void)
 {
-    struct sqm_mon_controller controller;
+    struct controller controller;
     struct controller_config config = adjusting_config();
 
     config.upload.adjust = false;

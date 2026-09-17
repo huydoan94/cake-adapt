@@ -1,5 +1,5 @@
-#ifndef SQM_MON_CONTROLLER_H
-#define SQM_MON_CONTROLLER_H
+#ifndef CONTROLLER_H_INCLUDED
+#define CONTROLLER_H_INCLUDED
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -146,27 +146,27 @@ struct controller_direction {
     bool initial_rate_pending;
 };
 
-struct sqm_mon_controller {
+struct controller {
     struct controller_config config;
     struct controller_direction download;
     struct controller_direction upload;
 };
 
 int controller_init(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_config *config
 );
 
-void controller_close(struct sqm_mon_controller *controller);
+void controller_close(struct controller *controller);
 
 void controller_update(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_input *input,
     struct controller_output *output
 );
 
 void controller_set_minimum_rates(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     uint64_t timestamp_microseconds
 );
 

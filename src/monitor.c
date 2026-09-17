@@ -47,7 +47,7 @@ enum traffic_observation_state {
 struct monitored_direction {
     const char *name;
     const char *interface;
-    struct sqm_mon_traffic_monitor traffic_monitor;
+    struct traffic_monitor traffic_monitor;
     struct cake_observation cake;
     enum cake_observation_state cake_state;
     enum traffic_observation_state traffic_state;
@@ -213,7 +213,7 @@ static void log_cake_sample(
 }
 
 static void observe_cake(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     struct monitored_direction *direction,
     uint64_t timestamp_microseconds,
     uint64_t retry_interval_microseconds
@@ -285,12 +285,12 @@ static void observe_cake(
 }
 
 struct observation_context {
-    struct sqm_mon_controller controller;
-    struct sqm_mon_latency latency;
+    struct controller controller;
+    struct latency latency;
     struct latency_tracker latency_trackers[CONFIG_MAX_REFLECTORS];
     struct reflector_health reflector_health[CONFIG_MAX_REFLECTORS];
     size_t reflector_order[CONFIG_MAX_REFLECTORS];
-    struct sqm_mon_netlink netlink;
+    struct netlink netlink;
     struct monitored_direction download;
     struct monitored_direction upload;
     bool latency_observation_failed;
@@ -307,7 +307,7 @@ struct observation_context {
 
 struct event_loop {
     struct observation_context observation;
-    const struct sqm_mon_config *config;
+    const struct config *config;
     struct uloop_interval traffic_timer;
     struct uloop_interval reflector_health_timer;
     struct uloop_interval cpu_timer;
@@ -524,7 +524,7 @@ static void log_load_stats(
 }
 
 static void log_controller_stats(
-    const struct sqm_mon_config *config,
+    const struct config *config,
     const struct controller_input *input,
     const struct controller_output *output,
     const struct latency_observation *latency,
@@ -651,7 +651,7 @@ static void log_controller_stats(
 }
 
 static void apply_bandwidth(
-    struct sqm_mon_netlink *netlink,
+    struct netlink *netlink,
     struct monitored_direction *direction,
     uint64_t desired_rate,
     enum controller_rate_reason reason,
@@ -735,9 +735,9 @@ static struct controller_direction_input direction_input(
 }
 
 static void update_controller(
-    struct sqm_mon_controller *controller,
-    struct sqm_mon_netlink *netlink,
-    const struct sqm_mon_config *config,
+    struct controller *controller,
+    struct netlink *netlink,
+    const struct config *config,
     struct monitored_direction *download,
     struct monitored_direction *upload,
     const struct latency_observation *latency,
@@ -813,7 +813,7 @@ static void update_controller(
 
 static void observe_traffic_cycle(
     struct observation_context *context,
-    const struct sqm_mon_config *config
+    const struct config *config
 )
 {
     struct timespec traffic_timestamp;
@@ -872,7 +872,7 @@ static void observe_traffic_cycle(
 
 static bool ensure_latency_open(
     struct observation_context *context,
-    const struct sqm_mon_config *config
+    const struct config *config
 )
 {
     const char *targets[CONFIG_MAX_REFLECTORS];
@@ -938,7 +938,7 @@ static bool ensure_latency_open(
 
 static size_t find_active_reflector(
     const struct observation_context *context,
-    const struct sqm_mon_config *config,
+    const struct config *config,
     const char *target
 )
 {
@@ -958,7 +958,7 @@ static size_t find_active_reflector(
 
 static bool receive_latency_samples(
     struct observation_context *context,
-    const struct sqm_mon_config *config
+    const struct config *config
 )
 {
     for (;;) {
@@ -1238,7 +1238,7 @@ static bool watch_latency(struct event_loop *loop)
 
 static void enforce_minimum_rates(
     struct observation_context *context,
-    const struct sqm_mon_config *config,
+    const struct config *config,
     uint64_t timestamp_microseconds
 )
 {
@@ -1268,7 +1268,7 @@ static void enforce_minimum_rates(
 
 static void reset_reflector_health(
     struct observation_context *context,
-    const struct sqm_mon_config *config,
+    const struct config *config,
     uint64_t timestamp_microseconds
 )
 {
@@ -1306,7 +1306,7 @@ static void update_monitor_state(
 {
     static const char *const names[] = { "RUNNING", "IDLE", "STALL" };
     struct observation_context *context = &loop->observation;
-    const struct sqm_mon_config *config = loop->config;
+    const struct config *config = loop->config;
     const struct controller_activity_config activity_config = {
         .enable_sleep = config->enable_sleep_function,
         .active_threshold_bits_per_second =
@@ -1436,7 +1436,7 @@ static bool replace_active_reflector(
 )
 {
     struct observation_context *context = &loop->observation;
-    const struct sqm_mon_config *config = loop->config;
+    const struct config *config = loop->config;
     size_t active_count = (size_t)config->no_pingers;
     size_t reflector_count = (size_t)config->reflector_count;
     size_t bad_index = context->reflector_order[pinger];
@@ -1869,7 +1869,7 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
     }
 }
 
-int monitor_run(const struct sqm_mon_config *config)
+int monitor_run(const struct config *config)
 {
     /* Match cake-autorate's startup rounding to per-thousand and percent. */
     const struct controller_config controller_config = {
