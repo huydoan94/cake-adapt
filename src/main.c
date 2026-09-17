@@ -100,7 +100,7 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    log_init("sqm-mon", foreground);
+    log_init("cake-adapt", foreground);
 
     if (config_load(
             &config,
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
     }
 
     log_system_message(
-        "Starting sqm-mon with PID: %ld and config: /etc/config/sqm-mon",
+        "Starting cake-adapt with PID: %ld and config: /etc/config/cake-adapt",
         (long)getpid()
     );
 
@@ -227,7 +227,7 @@ int main(int argc, char **argv)
     result = monitor_run(&config);
 
     log_system_message(
-        "Stopped sqm-mon with PID: %ld and config: /etc/config/sqm-mon",
+        "Stopped cake-adapt with PID: %ld and config: /etc/config/cake-adapt",
         (long)getpid()
     );
     log_close();

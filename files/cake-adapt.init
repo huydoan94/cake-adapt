@@ -7,20 +7,20 @@ STOP=10
 start_service() {
 	local enabled
 
-	config_load 'sqm-mon'
+	config_load 'cake-adapt'
 	config_get_bool enabled 'main' 'enabled' 0
 	[ "$enabled" -eq 1 ] || return 0
 
 	procd_open_instance
-	procd_set_param command /usr/sbin/sqm-mon
+	procd_set_param command /usr/sbin/cake-adapt
 	procd_set_param respawn
 	procd_set_param term_timeout 5
-	procd_set_param file /etc/config/sqm-mon
+	procd_set_param file /etc/config/cake-adapt
 	procd_close_instance
 }
 
 service_triggers() {
-	procd_add_reload_trigger 'sqm-mon'
+	procd_add_reload_trigger 'cake-adapt'
 }
 
 reload_service() {

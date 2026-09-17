@@ -1,0 +1,151 @@
+name: Build cake-adapt for OpenWrt 25.12
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: openwrt-25.12-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENWRT_VERSION: 25.12.2
+  OPENWRT_BASE_URL: https://downloads.openwrt.org/releases/25.12.2/targets
+
+permissions:
+  contents: read
+
+jobs:
+  discover-targets:
+    name: Discover OpenWrt targets
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - id: targets
+        name: Read target index
+        env:
+          TARGET_INDEX: ${{ env.OPENWRT_BASE_URL }}/
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import urllib.request
+          from html.parser import HTMLParser
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links = []
+
+              def handle_starttag(self, tag, attrs):
+                  if tag == "a":
+                      self.links.extend(value for name, value in attrs if name == "href")
+
+          parser = Links()
+          with urllib.request.urlopen(os.environ["TARGET_INDEX"], timeout=30) as response:
+              parser.feed(response.read().decode("utf-8"))
+
+          targets = sorted({
+              link.rstrip("/") for link in parser.links
+              if link.endswith("/") and not link.startswith(("../", "/"))
+          })
+          if not targets:
+              raise SystemExit("OpenWrt target index returned no targets")
+          print("targets=" + json.dumps(targets, separators=(",", ":")))
+          PY
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: discover-targets
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        target: ${{ fromJSON(needs.discover-targets.outputs.targets) }}
+    steps:
+      - name: Check out cake-adapt
+        uses: actions/checkout@v4
+
+      - name: Build every ${{ matrix.target }} SDK
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/sdk" "$RUNNER_TEMP/artifacts"
+
+          python3 - <<'PY'
+          import os
+          import re
+          import urllib.request
+          from html.parser import HTMLParser
+
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.links = []
+
+              def handle_starttag(self, tag, attrs):
+                  if tag == "a":
+                      self.links.extend(value for name, value in attrs if name == "href")
+
+          base = os.environ["OPENWRT_BASE_URL"]
+          target = os.environ["TARGET"]
+          target_url = f"{base}/{target}/"
+          parser = Links()
+          with urllib.request.urlopen(target_url, timeout=30) as response:
+              parser.feed(response.read().decode("utf-8"))
+
+          subtargets = sorted({
+              link.rstrip("/") for link in parser.links
+              if link.endswith("/") and not link.startswith(("../", "/"))
+          })
+          if not subtargets:
+              raise SystemExit(f"{target}: no subtargets found")
+
+          with open(os.environ["RUNNER_TEMP"] + "/sdk-list", "w", encoding="utf-8") as output:
+              for subtarget in subtargets:
+                  subtarget_url = f"{target_url}{subtarget}/"
+                  parser = Links()
+                  with urllib.request.urlopen(subtarget_url, timeout=30) as response:
+                      parser.feed(response.read().decode("utf-8"))
+                  sdk_archives = sorted({
+                      link for link in parser.links
+                      if re.fullmatch(r"openwrt-sdk-.*\.tar\.zst", link)
+                  })
+                  if len(sdk_archives) != 1:
+                      raise SystemExit(
+                          f"{target}/{subtarget}: expected one SDK, found {sdk_archives}"
+                      )
+                  output.write(f"{subtarget}\t{sdk_archives[0]}\n")
+          PY
+
+          while IFS=$'\t' read -r subtarget archive; do
+            sdk="$RUNNER_TEMP/sdk/${TARGET}-${subtarget}"
+            mkdir -p "$sdk"
+            url="$OPENWRT_BASE_URL/$TARGET/$subtarget/$archive"
+            curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
+            curl --fail --location --retry 3 --output "$RUNNER_TEMP/${archive}.sha256" "$OPENWRT_BASE_URL/$TARGET/$subtarget/sha256sums"
+            expected=$(awk -v file="$archive" '{ name = $2; sub(/^\\*?\.\//, "", name); if (name == file) { print $1; exit } }' "$RUNNER_TEMP/${archive}.sha256")
+            test -n "$expected"
+            printf '%s  %s\n' "$expected" "$RUNNER_TEMP/$archive" | sha256sum -c -
+            tar --zstd -xf "$RUNNER_TEMP/$archive" --strip-components=1 -C "$sdk"
+
+            ln -s "$GITHUB_WORKSPACE" "$sdk/package/cake-adapt"
+            make -C "$sdk" package/cake-adapt/compile V=s
+
+            find "$sdk/bin/packages" -type f \( -name 'cake-adapt-*.apk' -o -name 'cake-adapt-*.ipk' \) -print0 |
+              while IFS= read -r -d '' package; do
+                cp -v "$package" "$RUNNER_TEMP/artifacts/${TARGET}-${subtarget}-$(basename "$package")"
+              done
+          done < "$RUNNER_TEMP/sdk-list"
+
+      - name: Publish ${{ matrix.target }} packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: cake-adapt-openwrt-25.12-${{ matrix.target }}
+          path: ${{ runner.temp }}/artifacts/*
+          if-no-files-found: error
+          retention-days: 14

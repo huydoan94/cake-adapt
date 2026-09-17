@@ -1,6 +1,6 @@
 include $(TOPDIR)/rules.mk
 
-PKG_NAME:=sqm-mon
+PKG_NAME:=cake-adapt
 PKG_VERSION:=0.1.2
 PKG_RELEASE:=1
 
@@ -8,14 +8,14 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
 
-define Package/sqm-mon
+define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
   DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping
 endef
 
-define Package/sqm-mon/description
+define Package/cake-adapt/description
  An OpenWrt-native daemon for observing and, after verification, dynamically
  controlling CAKE bandwidth.
 endef
@@ -36,17 +36,17 @@ define Build/Compile
 		OBJECT_DIR="$(PKG_BUILD_DIR)/build"
 endef
 
-define Package/sqm-mon/conffiles
-/etc/config/sqm-mon
+define Package/cake-adapt/conffiles
+/etc/config/cake-adapt
 endef
 
-define Package/sqm-mon/install
+define Package/cake-adapt/install
 	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/sqm-mon $(1)/usr/sbin/sqm-mon
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/cake-adapt $(1)/usr/sbin/cake-adapt
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/sqm-mon.init $(1)/etc/init.d/sqm-mon
+	$(INSTALL_BIN) ./files/cake-adapt.init $(1)/etc/init.d/cake-adapt
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./files/sqm-mon.config $(1)/etc/config/sqm-mon
+	$(INSTALL_CONF) ./files/cake-adapt.config $(1)/etc/config/cake-adapt
 endef
 
-$(eval $(call BuildPackage,sqm-mon))
+$(eval $(call BuildPackage,cake-adapt))

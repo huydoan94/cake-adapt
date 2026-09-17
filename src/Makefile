@@ -16,7 +16,7 @@ WARNINGS := \
 	-Wconversion \
 	-Werror
 
-TARGET := sqm-mon
+TARGET := cake-adapt
 SOURCES := \
 	main.c \
 	cake.c \

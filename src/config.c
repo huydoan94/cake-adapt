@@ -15,7 +15,7 @@
 
 /*
  * Current libuci headers contain inline helpers that trigger -Wsign-conversion.
- * Keep strict conversion warnings for sqm-mon while isolating that external
+ * Keep strict conversion warnings for cake-adapt while isolating that external
  * header warning.
  */
 #if defined(__GNUC__)
@@ -27,9 +27,9 @@
 #pragma GCC diagnostic pop
 #endif
 
-#define UCI_PACKAGE "sqm-mon"
+#define UCI_PACKAGE "cake-adapt"
 #define UCI_SECTION "main"
-#define UCI_SECTION_TYPE "sqm_mon"
+#define UCI_SECTION_TYPE "cake_adapt"
 #define IFB_PREFIX "ifb4"
 
 struct boolean_option_binding {
@@ -231,7 +231,7 @@ static int parse_scaled_decimal(
             error_set(
                 error,
                 error_size,
-                "option '%s' has more precision than sqm-mon stores",
+                "option '%s' has more precision than cake-adapt stores",
                 option_name
             );
             return -1;
@@ -1010,7 +1010,7 @@ static int load_section(
         error_set(
             error,
             error_size,
-            "option 'interface' is required when sqm-mon is enabled"
+            "option 'interface' is required when cake-adapt is enabled"
             " or rate adjustment is configured"
         );
         return -1;
@@ -1157,7 +1157,7 @@ int config_load(
         error_set(
             error,
             error_size,
-            "missing config sqm_mon 'main' section"
+            "missing config cake_adapt 'main' section"
         );
         goto done;
     }

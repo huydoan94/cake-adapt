@@ -1,5 +1,5 @@
 /build/
-src/sqm-mon
+src/cake-adapt
 tests/*.o
 tests/*.d
 tests/test_*
