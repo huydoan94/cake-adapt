@@ -281,10 +281,7 @@ static int spawn_fping(
     if (result != 0) {
         goto destroy_actions;
     }
-    if (sigemptyset(&child_signal_mask) != 0) {
-        result = errno;
-        goto destroy_attributes;
-    }
+    (void)sigemptyset(&child_signal_mask);
 
     result = posix_spawnattr_setsigmask(&attributes, &child_signal_mask);
     if (result == 0) {
@@ -307,7 +304,6 @@ static int spawn_fping(
         );
     }
 
-destroy_attributes:
     (void)posix_spawnattr_destroy(&attributes);
 destroy_actions:
     (void)posix_spawn_file_actions_destroy(&actions);

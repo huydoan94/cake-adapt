@@ -31,11 +31,15 @@ test_config: test_config.c ../src/config.c ../src/config.h ../src/latency.c ../s
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ test_config.c ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c $(LDLIBS) -lz
 
 .PHONY: check-netlink
-check-netlink: test_cake
+check-netlink: test_cake test_netlink
 	./test_cake
+	./test_netlink
 
-test_cake: test_cake.c ../src/cake.c ../src/cake.h ../src/netlink.c ../src/netlink.h ../src/error.c
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cake.c ../src/netlink.c ../src/error.c $(LDLIBS) $(NETLINK_LIBS)
+test_cake: test_cake.c ../src/cake.c ../src/cake.h ../src/netlink.c ../src/netlink.h ../src/error.c ../src/helpers.c
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cake.c ../src/netlink.c ../src/error.c ../src/helpers.c $(LDLIBS) $(NETLINK_LIBS)
+
+test_netlink: test_netlink.c ../src/netlink.c ../src/netlink.h ../src/helpers.h ../src/error.c
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_netlink.c ../src/error.c $(LDLIBS) $(NETLINK_LIBS)
 
 .PHONY: all check clean
 
@@ -48,6 +52,7 @@ check: $(TARGETS)
 	./test_traffic
 	./test_cpu
 	./test_helpers
+	sh ./test_init.sh
 
 test_latency: test_latency.o latency.o error.o helpers.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -59,7 +64,7 @@ test_controller: test_controller.o controller.o helpers.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 test_log: test_log.o log.o helpers_log.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS) -lz
+	$(CC) $(LDFLAGS) -Wl,--wrap=syslog,--wrap=__syslog_chk -o $@ $^ $(LDLIBS) -lz
 
 test_cpu: test_cpu.c ../src/cpu.c ../src/cpu.h ../src/error.c ../src/helpers.c ../src/helpers.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cpu.c ../src/cpu.c ../src/error.c ../src/helpers.c $(LDLIBS)
@@ -101,6 +106,6 @@ traffic.o: ../src/traffic.c ../src/traffic.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/traffic.c
 
 clean:
-	$(RM) $(TARGETS) test_cake test_config *.o *.d
+	$(RM) $(TARGETS) test_cake test_netlink test_config *.o *.d
 
 -include *.d

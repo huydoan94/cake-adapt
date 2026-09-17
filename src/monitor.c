@@ -758,51 +758,38 @@ static void update_controller(
         .timestamp_microseconds = 0U
     };
     struct controller_output output;
+    const struct {
+        struct monitored_direction *direction;
+        const struct controller_direction_input *input;
+        const struct controller_direction_output *output;
+    } directions[] = {
+        { download, &input.download, &output.download },
+        { upload, &input.upload, &output.upload }
+    };
 
     (void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
 
     controller_update(controller, &input, &output);
-    if (output.download.state_changed) {
-        log_line_state(
-            download->name,
-            output.download.state,
-            &input.download
-        );
-    }
-    if (output.upload.state_changed) {
-        log_line_state(upload->name, output.upload.state, &input.upload);
-    }
-    if (output.download.congestion_changed) {
-        log_congestion_state(
-            download->name,
-            output.download.congestion,
-            &input.latency
-        );
-    }
-    if (output.upload.congestion_changed) {
-        log_congestion_state(
-            upload->name,
-            output.upload.congestion,
-            &input.latency
-        );
-    }
-    if (config->adjust_download && output.download.rate_changed) {
-        apply_bandwidth(
-            netlink,
-            download,
-            output.download.rate_bits_per_second,
-            output.download.rate_reason,
-            config->output_cake_changes
-        );
-    }
-    if (config->adjust_upload && output.upload.rate_changed) {
-        apply_bandwidth(
-            netlink,
-            upload,
-            output.upload.rate_bits_per_second,
-            output.upload.rate_reason,
-            config->output_cake_changes
-        );
+    for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
+        struct monitored_direction *direction = directions[index].direction;
+        const struct controller_direction_output *decision = directions[index].output;
+
+        if (decision->state_changed) {
+            log_line_state(direction->name, decision->state, directions[index].input);
+        }
+        if (decision->congestion_changed) {
+            log_congestion_state(direction->name, decision->congestion, &input.latency);
+        }
+        /* The controller never requests changes for an observation-only link. */
+        if (decision->rate_changed) {
+            apply_bandwidth(
+                netlink,
+                direction,
+                decision->rate_bits_per_second,
+                decision->rate_reason,
+                config->output_cake_changes
+            );
+        }
     }
     if (latency_valid) {
         log_controller_stats(config, &input, &output, latency, reflector);

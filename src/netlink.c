@@ -2,6 +2,7 @@
 
 #include "netlink.h"
 #include "error.h"
+#include "helpers.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -244,6 +245,7 @@ int netlink_receive_qdisc_events(
 
 static int wait_for_response(
     const struct netlink *netlink,
+    uint64_t deadline_microseconds,
     char *error,
     size_t error_size
 )
@@ -256,10 +258,20 @@ static int wait_for_response(
     int result;
 
     do {
+        uint64_t now;
+
+        if (!read_clock_microseconds(CLOCK_MONOTONIC, &now)) {
+            error_set(error, error_size, "could not read rtnetlink deadline clock: %s", strerror(errno));
+            return -1;
+        }
+        if (now >= deadline_microseconds) {
+            error_set(error, error_size, "rtnetlink response timed out");
+            return -1;
+        }
         result = poll(
             &descriptor,
             1U,
-            NETLINK_RESPONSE_TIMEOUT_MILLISECONDS
+            (int)((deadline_microseconds - now + 999U) / 1000U)
         );
     } while (result < 0 && errno == EINTR);
 
@@ -390,7 +402,13 @@ static int receive_response(
     size_t error_size
 )
 {
-    int result = -1;
+    uint64_t started;
+    int result;
+
+    if (!read_clock_microseconds(CLOCK_MONOTONIC, &started)) {
+        error_set(error, error_size, "could not read rtnetlink deadline clock: %s", strerror(errno));
+        return -1;
+    }
 
     if (configure_response_callbacks(
             netlink->socket,
@@ -402,15 +420,20 @@ static int receive_response(
     }
 
     while (!context->complete) {
-        if (wait_for_response(netlink, error, error_size) != 0) {
-            goto done;
+        /* One deadline covers the entire multipart response and interruptions. */
+        if (wait_for_response(
+                netlink,
+                started + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS * 1000U,
+                error,
+                error_size
+            ) != 0) {
+            return -1;
         }
 
         result = nl_recvmsgs_default(netlink->socket);
         if (context->parse_failed) {
             error_set(error, error_size, "could not parse qdisc response");
-            result = -1;
-            goto done;
+            return -1;
         }
         if (context->kernel_error != 0) {
             error_set(
@@ -421,8 +444,7 @@ static int receive_response(
                     : "qdisc change failed: %s",
                 strerror(-context->kernel_error)
             );
-            result = -1;
-            goto done;
+            return -1;
         }
         if (result == -NLE_AGAIN || result == -NLE_INTR) {
             continue;
@@ -436,15 +458,11 @@ static int receive_response(
                     : "could not receive rtnetlink acknowledgement: %s",
                 nl_geterror(result)
             );
-            result = -1;
-            goto done;
+            return -1;
         }
     }
 
-    result = 0;
-
-done:
-    return result;
+    return 0;
 }
 
 static int send_request(

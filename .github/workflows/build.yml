@@ -8,14 +8,24 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   PACKAGE_NAME: cake-adapt
-  OPENWRT_REF: v25.12.2
+  OPENWRT_REF: openwrt-25.12
   SDK_VERSION_SUFFIX: "-openwrt-25.12"
 
 jobs:
+  test:
+    name: Host tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install -y libnl-3-dev zlib1g-dev
+      - name: Run unit and netlink tests
+        run: make -C tests check check-netlink
+
   generate-matrix:
     name: Discover OpenWrt architectures
     runs-on: ubuntu-latest
@@ -38,13 +48,13 @@ jobs:
           arches=$(perl scripts/dump-target-info.pl architectures | awk '{print $1}' | sort -u)
           printf '%s\n' "$arches"
           json=$(printf '%s\n' "$arches" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          jq -e 'length > 0' <<< "$json" > /dev/null
           echo "arches=$json" >> "$GITHUB_OUTPUT"
 
   build:
     name: Build ${{ matrix.arch }}
-    needs: generate-matrix
+    needs: [test, generate-matrix]
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -69,15 +79,23 @@ jobs:
           NO_REFRESH_CHECK: true
           IGNORE_ERRORS: n
 
+      - name: Collect cake-adapt packages
+        env:
+          PACKAGE_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          while IFS= read -r -d '' package; do
+            cp "$package" "dist/${PACKAGE_ARCH}_$(basename "$package")"
+          done < <(find "bin/packages/$PACKAGE_ARCH" -type f \( -name 'cake-adapt-*.apk' -o -name 'cake-adapt_*.ipk' \) -print0)
+          test -n "$(find dist -type f -print -quit)"
+
       - name: Upload packages
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ipk-${{ matrix.arch }}
-          path: |
-            bin/packages/${{ matrix.arch }}/**/*.apk
-            bin/packages/${{ matrix.arch }}/**/*.ipk
-          if-no-files-found: warn
+          name: packages-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
 
       - name: Upload build logs on failure
         if: failure()
@@ -91,15 +109,18 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download all built packages
         uses: actions/download-artifact@v4
         with:
-          pattern: ipk-*
+          pattern: packages-*
           path: dist
           merge-multiple: true
 
       - name: Create or update release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/**/*
+          files: dist/*
+          fail_on_unmatched_files: true

@@ -419,7 +419,6 @@ int log_set_file(
         errno = ENAMETOOLONG;
         return -1;
     }
-    (void)snprintf(log_path, sizeof(log_path), "%s", path);
     /* Linux libc opens with O_CLOEXEC atomically for the 'e' mode. */
     file = fopen(path, "a+e");
     if (file == NULL) {
@@ -428,6 +427,7 @@ int log_set_file(
     if (log_file != NULL) {
         (void)fclose(log_file);
     }
+    (void)snprintf(log_path, sizeof(log_path), "%s", path);
     log_file = file;
     log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
     log_last_flush_microseconds = log_opened_microseconds;

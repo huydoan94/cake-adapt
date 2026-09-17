@@ -104,6 +104,12 @@ int main(void)
     assert(parse_scaled_decimal("+1", 1U, &value, "test", error, sizeof(error)) != 0);
     assert(strstr(error, "non-negative decimal") != NULL);
 
+    assert(validate_rate_range(true, 5000000U, 20000000U, 80000000U,
+        "download", error, sizeof(error)) == 0);
+    assert(validate_rate_range(true, 5000001U, 20000000U, 80000000U,
+        "download", error, sizeof(error)) != 0);
+    assert(strstr(error, "whole kbit/s") != NULL);
+
     test_fping_only_and_intentional_exclusions();
     test_reflector_list_validation();
     test_new_timer_and_limit_validation();

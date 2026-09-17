@@ -6,10 +6,12 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <syslog.h>
 #include <time.h>
 #include <unistd.h>
 #include <zlib.h>
@@ -17,6 +19,58 @@
 static bool use_mock_time;
 static struct timespec mock_time;
 static time_t mock_realtime_offset;
+static unsigned int syslog_count;
+static int syslog_priority;
+static char syslog_message[2048];
+
+static void capture_syslog(int priority, const char *format, va_list arguments)
+{
+    syslog_count++;
+    syslog_priority = priority;
+    (void)vsnprintf(syslog_message, sizeof(syslog_message), format, arguments);
+}
+
+void __wrap_syslog(int priority, const char *format, ...)
+{
+    va_list arguments;
+
+    va_start(arguments, format);
+    capture_syslog(priority, format, arguments);
+    va_end(arguments);
+}
+
+/* glibc fortification can route syslog through this checked entry point. */
+void __wrap___syslog_chk(int priority, int flag, const char *format, ...)
+{
+    va_list arguments;
+
+    (void)flag;
+    va_start(arguments, format);
+    capture_syslog(priority, format, arguments);
+    va_end(arguments);
+}
+
+static void test_operational_syslog(void)
+{
+    log_init("cake-adapt-test", false);
+    assert(log_set_level("debug") == 0);
+    syslog_count = 0U;
+    log_message(LOG_LEVEL_ERROR, "configuration failed");
+    assert(syslog_count == 1U && syslog_priority == LOG_ERR);
+    log_message(LOG_LEVEL_WARNING, "could not find interface '%s'", "wan");
+    assert(syslog_count == 2U && syslog_priority == LOG_WARNING);
+    assert(strstr(syslog_message, "could not find interface 'wan'") != NULL);
+    log_message(LOG_LEVEL_INFO, "measurement status");
+    log_message(LOG_LEVEL_DEBUG, "frequent sample");
+    assert(syslog_count == 2U);
+    log_system_message("disabled by configuration; exiting");
+    assert(syslog_count == 3U);
+    assert(strstr(syslog_message, "disabled by configuration") != NULL);
+    log_set_debug_syslog(true);
+    log_message(LOG_LEVEL_DEBUG, "opt-in debug");
+    assert(syslog_count == 4U && syslog_priority == LOG_DEBUG);
+    log_close();
+}
 
 /* Only helpers_log.o redirects the clock; production APIs remain unchanged. */
 int test_log_clock_gettime(
@@ -128,6 +182,30 @@ static void test_file_logging_respects_level(void)
 static void test_empty_file_path_is_rejected(void)
 {
     assert(log_set_file("", 0U, 0U, 0U, false) != 0);
+}
+
+static void test_failed_file_switch_preserves_rotation_path(void)
+{
+    char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
+    char invalid_path[128];
+    char previous_path[128];
+    char contents[2048];
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    log_init("cake-adapt-test", false);
+    assert(log_set_level("info") == 0);
+    assert(log_set_file(path, 0U, 1U, 0U, false) == 0);
+    (void)snprintf(invalid_path, sizeof(invalid_path), "%s/not-a-directory", path);
+    assert(log_set_file(invalid_path, 0U, 1U, 0U, false) == -1);
+    log_message(LOG_LEVEL_INFO, "%01100d", 42);
+    log_close();
+    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", path);
+    read_log(previous_path, contents, sizeof(contents));
+    assert(strstr(contents, "42\n") != NULL);
+    assert(unlink(previous_path) == 0);
+    assert(unlink(path) == 0);
 }
 
 static void test_log_descriptor_is_close_on_exec(void)
@@ -497,6 +575,8 @@ static void test_buffer_timeout_and_time_rotation(void)
 
 int main(void)
 {
+    test_operational_syslog();
+    test_failed_file_switch_preserves_rotation_path();
     test_debug_logging_to_file();
     test_file_logging_respects_level();
     test_empty_file_path_is_rejected();

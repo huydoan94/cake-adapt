@@ -339,6 +339,11 @@ static int validate_rate_range(
         );
         return -1;
     }
+    /* The controller works in whole kbit/s, which CAKE can represent exactly. */
+    if (minimum % 1000U != 0U || base % 1000U != 0U || maximum % 1000U != 0U) {
+        error_set(error, error_size, "%s shaper rates must be whole kbit/s", direction);
+        return -1;
+    }
     return 0;
 }
 
