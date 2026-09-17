@@ -1,746 +1,361 @@
-# sqm-mon — Project Instructions
+# cake-adapt — Agent Guide
 
-## Project purpose
+## Product contract
 
-`sqm-mon` is an OpenWrt-native C program intended to progressively replace:
+`cake-adapt` is an OpenWrt-native C daemon for adapting the bandwidth of
+existing CAKE qdiscs. The package, executable, service, syslog identifier, and
+UCI package are all named `cake-adapt`; the repository directory may still be
+named `sqm-mon` for historical reasons.
 
-1. `cake-autorate`
-2. the relevant orchestration currently provided by `sqm-scripts`
+CAKE remains a Linux kernel qdisc. Never reimplement packet scheduling in
+userspace.
 
-CAKE itself remains a Linux kernel qdisc. We are **not** reimplementing CAKE or packet scheduling in userspace.
-
-The intended progression is:
-
-```text
-observe
-  -> verify
-  -> control
-  -> replace cake-autorate
-  -> replace sqm-scripts
-```
-
-Do not jump directly to later phases before the earlier phase is working and verified.
-
----
-
-## High-level architecture
-
-Keep Linux/OpenWrt-specific machinery separated from the autorate algorithm.
-
-Initial source layout:
+Development proceeds in this order:
 
 ```text
-sqm-mon/
-├── AGENTS.md
-├── Makefile
-├── .gitignore
-├── .vscode/
-│   ├── settings.json
-│   └── tasks.json
-│
-├── src/
-│   ├── Makefile
-│   ├── main.c
-│   ├── config.c
-│   ├── config.h
-│   ├── controller.c
-│   ├── controller.h
-│   ├── cake.c
-│   ├── cake.h
-│   ├── traffic.c
-│   ├── traffic.h
-│   ├── latency.c
-│   ├── latency.h
-│   ├── ingress.c
-│   ├── ingress.h
-│   ├── netlink.c
-│   ├── netlink.h
-│   ├── log.c
-│   └── log.h
-│
-├── files/
-│   ├── sqm-mon.init
-│   └── sqm-mon.config
-│
-└── tests/
-    ├── Makefile
-    ├── test_controller.c
-    ├── test_config.c
-    └── test_helpers.c
+observe -> verify -> control existing CAKE -> replace cake-autorate behavior
+        -> optionally replace the required parts of sqm-scripts
 ```
 
-Keep `src/` flat unless a subsystem genuinely becomes large enough to justify its own directory.
+The current daemon observes and controls CAKE instances created by the existing
+SQM setup. It does not yet own CAKE or IFB creation, ingress redirection,
+`ctinfo`, `mirred`, or cleanup. Do not advance that boundary without an explicit
+user decision and verified behavior at the current stage.
 
-Do not create unnecessary abstraction layers or libraries.
+Replacing all historical `sqm-scripts` behavior is not a goal. If native SQM
+ownership is added later, implement only the deployment's required behavior.
 
----
+## Upstream behavioral reference
 
-## Module responsibilities
+[cake-autorate](https://github.com/lynxthecat/cake-autorate) and its community
+are the source of the controller design and operational behavior being ported.
+Honor that work in user-facing documentation and link upstream when describing
+the origin of the algorithm.
 
-### main.c
+Treat upstream cake-autorate as the reference for:
 
-Only top-level program lifecycle and orchestration.
+- load classification and rate decisions;
+- latency baseline and delta tracking;
+- bufferbloat detection and refractory periods;
+- reflector selection, health, and replacement;
+- idle, sleep, stall, and recovery behavior;
+- defaults and configuration meaning; and
+- profiling/statistics log formats.
 
-Responsibilities may include:
+Port behavior deliberately and verify it. Preserve record names, field order,
+units, headers, and content exactly where cake-autorate log compatibility is
+intended. Document and test intentional differences instead of silently
+diverging or attributing local bugs to upstream.
 
-* startup
-* initialization
-* event loop
-* signal handling
-* orderly shutdown
-* coordinating modules
+Keep every supported cake-autorate option in the typed UCI model. Parsing an
+option does not mean its behavior is implemented; do not claim support until
+the corresponding path is tested. `fping` is the only supported pinger for now,
+and reflector targets come from local UCI configuration rather than a remotely
+retrieved list.
 
-Do not put CAKE implementation, UCI parsing, probing logic, or autorate policy directly in `main.c`.
+One deliberate default difference is safety-related: upload and download rate
+adjustment remain opt-in.
 
-### config.c / config.h
+Do not add `startup_wait_s`. React to interface/qdisc readiness through kernel
+lifecycle state, and let the activity controller idle naturally when no traffic
+is passing.
 
-OpenWrt configuration handling.
+## Architecture and ownership
 
-Use OpenWrt's provided configuration libraries, primarily `libuci`.
-
-Do **not** manually parse `/etc/config/sqm-mon`.
-
-Configuration should provide interface names and other device-specific values. Do not hardcode a WAN interface such as `vlw`.
-
-### controller.c / controller.h
-
-This is the core autorate policy.
-
-It must remain as independent as practical from:
-
-* OpenWrt
-* UCI
-* netlink
-* `tc`
-* sockets
-* IFB
-* CAKE implementation details
-* filesystem state
-
-The controller should accept measured state as input and return decisions as output.
-
-It must be possible to unit-test the controller on a normal development machine with synthetic inputs.
-
-Example conceptual boundary:
-
-```c
-struct controller_input {
-    uint64_t rx_rate;
-    uint64_t tx_rate;
-    uint32_t baseline_rtt;
-    uint32_t current_rtt;
-    uint32_t current_download_rate;
-    uint32_t current_upload_rate;
-};
-
-struct controller_output {
-    uint32_t download_rate;
-    uint32_t upload_rate;
-};
-```
-
-The exact API may evolve, but preserve this architectural separation.
-
-### cake.c / cake.h
-
-CAKE-specific policy and qdisc operations.
-
-Examples:
-
-* find existing CAKE qdisc
-* read CAKE state/statistics
-* set/change bandwidth
-* create/delete CAKE when sqm-mon later takes ownership of setup
-
-Do not put raw low-level netlink message construction here when it can live in `netlink.c`.
-
-### netlink.c / netlink.h
-
-Low-level rtnetlink communication.
-
-Long-term preference is direct netlink rather than repeatedly spawning:
+Keep this pipeline explicit:
 
 ```text
-tc
-ip
+measurement -> controller decision -> desired CAKE state -> kernel update
 ```
 
-However, do not introduce a large custom netlink framework prematurely.
+- Measurement code does not choose rates.
+- The controller does not know about UCI, filesystems, sockets, netlink, `tc`,
+  interfaces, IFB, or OpenWrt.
+- The CAKE layer does not measure traffic or latency.
+- The netlink layer contains transport and message mechanics, not policy.
 
-Use existing supported Linux/OpenWrt APIs or libraries when they are suitable.
+Keep `src/` flat until a subsystem genuinely needs a directory. Do not add
+unnecessary abstraction layers, wrapper libraries, or one-use helpers.
 
-### traffic.c / traffic.h
+### Module boundaries
 
-Traffic/load measurements only.
+- `main.c`: CLI, startup, logging initialization, configuration loading,
+  top-level lifecycle, and orderly shutdown only.
+- `monitor.c`: event-loop orchestration and coordination between measurements,
+  controller decisions, qdisc lifecycle, timers, and signals.
+- `config.c`: typed UCI loading, defaults, conversion, and validation through
+  `libuci`; never parse `/etc/config/cake-adapt` manually.
+- `controller.c`: platform-independent autorate, congestion, and activity
+  policy; keep it directly unit-testable with synthetic inputs.
+- `cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
+- `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
+- `traffic.c`: counter samples and achieved-rate calculations only.
+- `latency.c`: `fping` process ownership, parsing, and latency tracking only.
+- `cpu.c`: CPU sampling and usage calculations only.
+- `log.c`: all logging, cake-autorate-compatible records, rotation, export, and
+  reset behavior.
+- `helpers.c`: small genuinely generic operations shared by modules, such as
+  numeric parsing, percentages, clocks, and safe conversions.
+- `error.c`: shared error-buffer formatting.
 
-Keep measurement separate from controller policy.
+Before adding a function, search for an existing equivalent. Consolidate
+duplicate conversions, parsing, percentage, timing, and bounds logic in the
+appropriate existing module.
 
-### latency.c / latency.h
+## OpenWrt and kernel integration
 
-Latency measurement/probing only.
+Prefer supported libraries and kernel APIs over handwritten or process-based
+substitutes:
 
-Keep probe mechanics separate from controller decisions.
+- `libuci` for configuration;
+- `libubox`/`uloop` for the event loop;
+- rtnetlink/libnl for interface and qdisc operations;
+- `procd` for service lifecycle; and
+- kernel CAKE, IFB, `ctinfo`, and `mirred` facilities.
 
-### ingress.c / ingress.h
+Do not repeatedly spawn `tc` or `ip` from the daemon. Use them only as external
+diagnostic tools. Prefer event subscriptions such as `RTM_NEWQDISC` and
+`RTM_DELQDISC` over periodic existence polling when the kernel already exposes
+the lifecycle.
 
-Own the ingress shaping path once sqm-mon replaces SQM setup.
+Use another OpenWrt feed library when it materially removes correct, maintained
+code. Before adding a dependency, confirm it is available for supported targets
+and that the reduction justifies flash, memory, and maintenance cost. Remove
+dependencies that are no longer used.
 
-The target ingress path is:
+### Interface convention
+
+UCI contains one interface name:
 
 ```text
-WAN ingress
-    |
-    v
-ctinfo zone 0
-    |
-    | restore DSCP from conntrack
-    v
-mirred redirect
-    |
-    v
-IFB
-    |
-    v
-CAKE
+upload   = <interface>
+download = ifb4<interface>
 ```
 
-This is important because the deployment uses restored DSCP before traffic reaches ingress CAKE.
+Derive the IFB name using Linux interface-size limits. Do not restore separate
+upload/download interface options or hardcode a WAN device.
 
----
+### Future ingress ownership
 
-## Existing DSCP design that must be preserved
-
-The network already stores outbound DSCP in the lower six bits of the conntrack mark.
-
-Other conntrack mark bits must remain untouched.
-
-Conceptually:
+If cake-adapt later replaces SQM setup, preserve this ingress path:
 
 ```text
-bits 0-5   = DSCP
-bits 6-31  = preserve existing value
+WAN ingress -> ctinfo zone 0 -> mirred redirect -> IFB -> CAKE
 ```
 
-Existing nftables logic follows the equivalent of:
+Outbound DSCP is stored in conntrack mark bits 0-5. Bits 6-31 belong to other
+uses and must remain unchanged:
 
 ```text
 ct mark = (ct mark & 0xffffffc0) | dscp
 ```
 
-Do not casually reuse other conntrack mark bits.
+Do not replace this with an ingress path that loses DSCP restoration before
+CAKE.
 
-Ingress currently uses a `tc` action sequence equivalent to:
+## Configuration rules
 
-```text
-ctinfo zone 0 pipe
-mirred redirect to IFB
-```
+The shipped UCI file must remain safe and readable:
 
-The restored DSCP must be visible to CAKE.
+- `enabled`, `interface`, both adjustment flags, both min/base/max rate sets,
+  and the reflector list remain explicit in the template.
+- Keep optional settings commented and grouped by purpose.
+- Optional defaults must match cake-autorate unless a deliberate difference is
+  documented in code and user-facing documentation.
+- Require `minimum <= base <= maximum` and values representable by CAKE.
+- Validate configuration before starting control.
+- Never embed developer-specific paths, usernames, SDK locations, or secrets in
+  committed files.
 
-Do not replace this with ordinary SQM ingress redirection and accidentally remove DSCP restoration.
+Use observation-only mode when either the configuration or runtime behavior has
+not yet been verified. Never run rate control concurrently with cake-autorate
+or another process controlling the same qdiscs.
 
----
+## C and naming style
 
-## Relationship with sqm-scripts
+Use C11, simple data flow, and explicit ownership. Prefer standard, libc,
+OpenWrt, and kernel APIs over custom equivalents. Avoid clever macros and
+defensive layers for impossible states already excluded by this program's own
+validated call paths.
 
-`sqm-scripts` is primarily shell orchestration around kernel facilities.
-
-We do not need compatibility with every historical SQM script.
-
-`sqm-mon` only needs to support the configuration and behavior we deliberately choose.
-
-Do not attempt to clone all of `functions.sh` or reproduce every feature of `sqm-scripts`.
-
-The objective is a smaller native implementation for the required use case.
-
----
-
-## Relationship with cake-autorate
-
-The primary target is full behavioral replacement of `cake-autorate` in native
-C. This includes its probing, reflector management, load classification,
-bufferbloat detection, rate adjustment, sleep/stall handling, logging and other
-operational behavior required by its configuration.
-
-Port that behavior incrementally and verify each step. Keep every
-cake-autorate configuration option represented in the typed UCI configuration
-model so the remaining work can be tackled one option or subsystem at a time.
-An option may be parsed and stored before its behavior is implemented, but do
-not describe it as operational until the corresponding code is complete and
-tested.
-
-The first meaningful functional replacement is the continuously running autorate controller.
-
-Initially, existing SQM may continue creating CAKE and IFB while `sqm-mon` only observes or adjusts an already-created CAKE instance.
-
-Only after cake-autorate replacement behavior is verified should sqm-mon assume
-ownership of:
-
-* CAKE creation
-* IFB creation
-* ingress redirect
-* ctinfo action
-* cleanup
-
-Replacing `sqm-scripts` remains a possible later phase, not a committed
-requirement. Proceed with it only when the user decides the native replacement
-is suitable for their deployment.
-
----
-
-## OpenWrt conventions
-
-Prefer OpenWrt-provided libraries and APIs instead of custom parsers or duplicated functionality.
-
-Examples:
-
-* use `libuci` for UCI configuration
-* use procd for service lifecycle
-* use kernel netlink interfaces where appropriate
-* use existing kernel CAKE, IFB, ctinfo and mirred facilities
-
-Avoid adding daemons or external runtime dependencies unless there is a clear reason.
-
-Keep package dependencies minimal.
-
-Before adding a dependency, check whether OpenWrt already provides the needed functionality.
-
----
-
-## Build system
-
-Use plain Make.
-
-There are two distinct Makefiles:
-
-```text
-sqm-mon/Makefile
-```
-
-OpenWrt package definition.
-
-And:
-
-```text
-sqm-mon/src/Makefile
-```
-
-actual program compilation.
-
-The source should remain buildable/testable outside the OpenWrt SDK where practical.
-
-Do not make ordinary host unit tests depend on rebuilding the entire OpenWrt toolchain.
-
-In previous OpenWrt work, unnecessary host-tool builds caused significant wasted work. Avoid broad OpenWrt targets when a narrower package/test build is sufficient.
-
----
-
-## Compiler warnings
-
-Start strict.
-
-Preferred baseline:
-
-```text
--Wall
--Wextra
--Wpedantic
--Wformat=2
--Wshadow
--Wconversion
--Werror
-```
-
-If a warning needs to be disabled, do it for a specific documented reason rather than broadly weakening warning policy.
-
----
-
-## C coding conventions
-
-Use C, not C++.
-
-Prefer standard/library-supported types, constants, enums and APIs instead of creating custom equivalents without need.
-
-Avoid custom wrappers when the platform/library already provides a clear abstraction.
-
-Keep code simple and explicit.
-
-Avoid clever macros unless they genuinely improve correctness or reduce unavoidable repetition.
-
-### Function calls
-
-When a function call has multiple substantial arguments, put the arguments on separate lines.
-
-Preferred:
+Use concise module-oriented identifiers:
 
 ```c
-result = controller_update(
-    controller,
-    &input,
-    &output
-);
+config_load();
+controller_update();
+tracker_update();
+log_message();
 ```
 
-Avoid:
+Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
+`cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
+Move generic names such as `read_u32()` or `percentage_of()` to `helpers` when
+they are shared; keep module-specific helpers local and `static`.
+
+Do not repeat the program name in every log message because the backend already
+identifies the service.
+
+### Formatting
+
+- Use four spaces and no tabs in C.
+- Keep ordinary declarations on one line.
+- Do not impose an arbitrary 80-column limit; wrap for readability.
+- Keep a simple condition on one line.
+- Put genuinely compound conditions in the following form:
 
 ```c
-result = controller_update(controller, &input, &output);
+if (
+    result < 0 ||
+    nla_put_string(message, TCA_KIND, kind) < 0
+) {
+    return -1;
+}
 ```
 
-for non-trivial multi-argument calls.
-
-### Function declarations and definitions
-
-Use the same multiline style.
-
-Preferred:
+- Keep return-only blocks in normal multiline form; do not compress the entire
+  `if` statement onto one line.
+- For declarations, definitions, or calls with several substantial arguments,
+  place one argument on each line:
 
 ```c
 int controller_update(
-    struct sqm_mon_controller *controller,
+    struct controller *controller,
     const struct controller_input *input,
     struct controller_output *output
 )
 {
 ```
 
-Do not force a traditional fixed source width just to wrap lines.
-
-Readability determines wrapping.
-
-### Variable declarations
-
-Do not split ordinary variable declarations unnecessarily.
-
-Preferred:
-
 ```c
-struct sqm_mon_controller controller;
+result = operation(
+    context,
+    &input,
+    &output
+);
 ```
 
-Avoid:
+- Short, obvious calls may remain on one line.
+- Comments should explain formulas, invariants, units, ownership, or non-obvious
+  kernel/upstream behavior. Do not narrate obvious syntax.
+- Do not reformat unrelated working code during a focused change.
 
-```c
-struct sqm_mon_controller
-    controller;
-```
-
-### Formatting
-
-There is no arbitrary strict file-width rule.
-
-Do not reformat working code solely to satisfy an old 80-column convention.
-
-Keep changes focused.
-
----
-
-## Naming
-
-Project/executable/package name:
+Keep strict warnings enabled:
 
 ```text
-sqm-mon
+-Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Wconversion -Werror
 ```
 
-C identifiers should use underscore form.
+Disable a warning only for a narrow, documented reason.
 
-Prefer project-specific names for public/internal structures where ambiguity is possible:
+Generated `.o` and `.d` files belong in `build/`, never in `src/`.
 
-```c
-struct sqm_mon_config;
-struct sqm_mon_controller;
-```
+## Logging and failure behavior
 
-Avoid unnecessarily generic global identifiers.
+All application logging goes through `log.c`.
 
-Do not add a blanket `sqm_mon_` prefix to functions. Prefer concise,
-module-oriented names such as:
+Syslog must make these conditions visible even when detailed file output is
+disabled:
 
-```c
-config_load();
-log_message();
-controller_update();
-```
+- service start and stop;
+- disabled configuration when started by `procd`;
+- invalid or unreadable configuration;
+- missing interfaces or CAKE qdiscs;
+- measurement, `fping`, and netlink failures; and
+- degraded operation or failed kernel changes.
 
-Add a project-specific function prefix only when it prevents a concrete naming
-collision or ambiguity.
+High-frequency measurement records remain optional. When changing kernel state,
+read it back or otherwise verify the effective configuration where practical.
 
-Do not put a redundant `sqm-mon:` prefix into every log message if the logging backend/service already identifies the program.
+One failed optional measurement must not terminate the daemon. Continue with
+the available directions and report degraded state. Fatal errors are reserved
+for states where continued operation would be incorrect. Bound all operations
+that can wait; never wait forever for an interface, qdisc, child process, or
+netlink reply.
 
----
+Preserve log-file inode continuity during reset and rotation so `tail -f`
+remains attached.
 
-## Logging
+## Build and tests
 
-Logging should be centralized in `log.c`.
+Use plain Make:
 
-Do not scatter different logging mechanisms across modules.
+- repository `Makefile`: OpenWrt package definition;
+- `src/Makefile`: daemon build; and
+- `tests/Makefile`: focused host tests.
 
-Logs should provide useful operational information without becoming noisy in normal operation.
+Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
+builds for host-only work. Use `.vscode/tasks.json` for the configured x86 and
+Filogic SDK commands; do not guess SDK locations or rewrite the user's local
+task paths unless asked. OpenWrt 25.12 is the only release target for now.
+Never touch `openwrt-image-builder`.
 
-Important state changes should be observable, especially:
+Do not bump `PKG_VERSION` or `PKG_RELEASE`, copy artifacts, deploy, or publish a
+release unless the user explicitly asks. When asked to build both SDKs, run the
+x86 and Filogic tasks concurrently. Verify the selected artifact and its
+destination with checksums.
 
-* startup
-* configuration loaded
-* interfaces discovered
-* CAKE discovered/created
-* rate change
-* measurement failure
-* netlink failure
-* degraded operation
-* shutdown
+Unit tests are part of every behavioral change. Cover the affected branches,
+especially controller state transitions, min/base/max bounds, congestion and
+recovery, missing/invalid samples, counter reset, reflector failure, activity
+state, and qdisc disappearance/reappearance.
 
-Verbose/high-frequency measurement logging should be optional.
+Do not weaken correct production code to accommodate a host test environment.
+Use a suitable test seam, mock, adapter, dependency, or on-target integration
+test instead.
 
-When setting kernel state, important configuration should be read back or otherwise verified where practical rather than assuming a successful syscall means the resulting configuration is exactly what was intended.
+Before declaring work complete:
 
----
+1. inspect existing behavior and relevant upstream behavior;
+2. make the smallest coherent change;
+3. run focused host tests;
+4. build the affected SDK package when appropriate;
+5. test on the VM when runtime/kernel behavior changed; and
+6. verify actual service, process, log, and qdisc state.
 
-## Failure handling
+## VM testing and delegation
 
-Do not terminate the whole daemon merely because one optional operation or one monitored object failed.
+For testing or deployment, delegate routine build/deploy/verification to one
+`gpt-5.6-luna` subagent with low reasoning effort and minimal context. One agent
+may run independent x86 and Filogic builds concurrently. Keep architecture,
+production changes, ambiguous diagnosis, destructive actions, and final
+acceptance on the primary model.
 
-Where safe, continue operating with the portions that are available and clearly log degraded state.
+Sandbox failures such as `Read-only file system` or `socket: Operation not
+permitted` are not product failures. Use an existing narrow approval or return
+the exact command and justification to the primary agent. Never work around a
+denied approval or request a broad shell/interpreter prefix.
 
-Fatal errors should be reserved for conditions where continued operation would be incorrect or dangerous.
-
-Timeouts should exist around operations that could otherwise wait indefinitely.
-
-Do not "wait and hope" forever for interfaces or kernel objects to appear.
-
----
-
-## Configuration safety
-
-Do not embed machine-specific absolute paths in committed files.
-
-Do not commit developer usernames or home-directory paths.
-
-Do not hardcode SDK paths.
-
-VS Code configuration should use workspace-relative paths, environment variables, or generated configuration where appropriate.
-
-For C language tooling, prefer generating:
-
-```text
-compile_commands.json
-```
-
-rather than maintaining long manual include-path lists.
-
-Do not commit environment-specific generated files unless we intentionally decide they are portable.
-
----
-
-## Testing philosophy
-
-Unit tests are a first-class part of the project.
-
-The controller should receive especially thorough testing, including:
-
-* idle behavior
-* sustained download
-* sustained upload
-* simultaneous upload/download
-* clean low-latency load
-* congestion
-* sudden RTT increase
-* baseline RTT changes
-* recovery after congestion
-* rate increase behavior
-* rate decrease behavior
-* min/max limits
-* invalid samples
-* missing probes
-* counter rollover/reset where relevant
-* startup state
-* transitions between operating states
-
-Prefer testing branches and behavior rather than merely increasing line coverage.
-
-### Important rule
-
-Do not modify correct production logic just because a host-side unit-test environment lacks some OpenWrt/kernel feature.
-
-If a test cannot exercise production code because of an environment or API mismatch, first find a better test strategy, mock, adapter, or appropriate host dependency.
-
-Production code should not be weakened merely to make tests convenient.
-
----
-
-## Dependency review
-
-Before considering a feature complete, review its dependencies.
-
-Remove libraries/packages that are no longer required.
-
-Do not leave dependencies in the OpenWrt package simply because they were useful during development.
-
----
-
-## Troubleshooting convention
-
-Before changing known-working code/configuration in response to a surprising observation, verify the observation once.
-
-This is especially important when:
-
-* logs appear contradictory
-* a package appears missing
-* configuration may not have been reloaded
-* generated output may be stale
-* an issue may be caused by checking the wrong profile/device/build
-
-Do not rush into a "fix" that changes working behavior before confirming the problem exists.
-
----
-
-## Change discipline
-
-Prefer small, reviewable steps.
-
-Do not perform broad unrelated refactors while implementing a targeted feature.
-
-When changing behavior:
-
-1. identify the existing behavior
-2. explain what will change
-3. make the smallest appropriate change
-4. build
-5. test
-6. verify runtime/kernel state where applicable
-
-Do not silently change architectural decisions.
-
-If a proposed implementation conflicts with this file, call out the conflict before changing direction.
-
----
-
-## Cost-aware delegation
-
-When testing or deployment is part of the user's request, delegate routine
-verification and deployment to one subagent using `gpt-5.6-luna` with low
-reasoning effort.
-
-The delegated work may include:
-
-* running the x86 and Filogic SDK tasks from `.vscode/tasks.json` concurrently
-* locating and copying the x86 APK
-* deploying it to an authorized OpenWrt test VM
-* running the prescribed smoke or stress tests
-* collecting logs, exit codes and relevant runtime state
-
-Give the subagent only the context needed for these operations. Use a
-minimal-context fork, preferably `fork_turns: "none"`, rather than copying the
-entire conversation.
-
-### Delegated command permissions
-
-SDK directories and VM network access may be outside the subagent's default
-sandbox even when they are authorized for the task. A delegated verifier must
-not treat errors such as these as build, authentication or runtime failures:
-
-```text
-Read-only file system
-socket: Operation not permitted
-```
-
-Reuse an existing approved command prefix whenever one is available. If no
-matching approval exists, return the exact command and justification to the
-primary agent instead of waiting indefinitely on a subagent approval prompt.
-The primary agent can establish a narrowly scoped approval and then resume the
-delegated verifier. Do not request a broad shell or interpreter prefix.
-
-Only report the operation as blocked when the scoped approval is denied or the
-approved command itself fails. Never work around a denied escalation, and never
-broaden the requested operation while retrying it.
-
-Keep these responsibilities on the primary model:
-
-* architecture and production-code changes
-* diagnosing unexpected or ambiguous failures
-* destructive or otherwise unapproved operations
-* interpreting results and making the final acceptance decision
-
-Use one combined verification subagent where practical. Do not create multiple
-agents merely for individual shell commands. Do not store credentials in this
-file.
-
-### OpenWrt VM test log
-
-Use only this file for deployed runtime test logging:
+The authorized OpenWrt VM test log is always:
 
 ```text
 /tmp/sqm-mon-test.log
 ```
 
-At the start of each test, stop the process that writes the log, then truncate
-the existing file in place:
+At the beginning of a test:
 
-```sh
-: > /tmp/sqm-mon-test.log
-```
+1. stop every process writing that file;
+2. record the file inode;
+3. truncate it in place with `: > /tmp/sqm-mon-test.log`; and
+4. configure cake-adapt to write directly to it.
 
-Do not delete, move or replace this file. Preserving the same file allows the
-user's existing `tail -f /tmp/sqm-mon-test.log` process to remain attached.
-Do not start or terminate that `tail` process. Configure `sqm-mon` to write
-directly to this file; do not use a second log file or `tee`.
+Never delete, move, replace, or pipe through `tee` to this file. Do not start or
+stop the user's `tail -f`. At the end, confirm the inode is unchanged.
 
----
+Before mutating the VM, record its service configuration, running processes,
+and both CAKE qdisc rates. After the test, stop test processes, remove only
+test-created payloads, and restore that exact state. Do not kill an unrelated
+legacy process merely because it owns an `fping` child.
 
-## Initial development milestone
+## Change discipline
 
-The first runnable `sqm-mon` should **not modify CAKE**.
-
-Initial behavior:
-
-```text
-start
-  -> initialize logging
-  -> load /etc/config/sqm-mon with libuci
-  -> validate configuration
-  -> enter event loop
-  -> respond cleanly to SIGTERM/SIGINT
-  -> shut down
-```
-
-Then add observation:
-
-```text
-read traffic
-read latency
-read current CAKE configuration/statistics
-```
-
-Still no modification.
-
-Only after observation is verified should rate adjustment be enabled.
-
----
-
-## Design principle
-
-Keep these four concerns distinct:
-
-```text
-measurement
-    |
-    v
-controller decision
-    |
-    v
-desired CAKE state
-    |
-    v
-kernel/netlink implementation
-```
-
-A measurement module should not decide rates.
-
-The controller should not know how netlink works.
-
-The netlink layer should not contain autorate policy.
-
-The CAKE layer should not implement latency measurement.
-
-Preserve these boundaries unless there is a strong technical reason not to.
+- Treat `AGENTS.md` as user-owned policy; edit it only when explicitly asked.
+- Inspect `git status` first and preserve unrelated user changes.
+- Verify a surprising observation once before changing known-working code.
+- Keep targeted changes reviewable; do not mix an unrelated refactor into a
+  feature or bug fix.
+- During an explicit cleanup pass, remove duplication and unreachable checks,
+  but retain guards for real external failures.
+- Do not silently change architecture, defaults, or compatibility behavior.
+- If a request conflicts with this guide, explain the conflict before changing
+  direction.
+- Do not commit generated or machine-specific files.
