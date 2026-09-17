@@ -96,18 +96,22 @@ static int parse_boolean(
     bool *result
 )
 {
-    if (strcmp(value, "1") == 0 ||
+    if (
+        strcmp(value, "1") == 0 ||
         strcasecmp(value, "true") == 0 ||
         strcasecmp(value, "yes") == 0 ||
-        strcasecmp(value, "on") == 0) {
+        strcasecmp(value, "on") == 0
+    ) {
         *result = true;
         return 0;
     }
 
-    if (strcmp(value, "0") == 0 ||
+    if (
+        strcmp(value, "0") == 0 ||
         strcasecmp(value, "false") == 0 ||
         strcasecmp(value, "no") == 0 ||
-        strcasecmp(value, "off") == 0) {
+        strcasecmp(value, "off") == 0
+    ) {
         *result = false;
         return 0;
     }
@@ -133,8 +137,10 @@ static int load_boolean_options(
             options[index].name
         );
 
-        if (value != NULL &&
-            parse_boolean(value, options[index].destination) != 0) {
+        if (
+            value != NULL &&
+            parse_boolean(value, options[index].destination) != 0
+        ) {
             error_set(
                 error,
                 error_size,
@@ -161,7 +167,7 @@ static int parse_scaled_decimal(
     uint64_t fractional_place;
     size_t integer_digits;
 
-    if (value[0] == '\0' || scale == 0U) {
+    if (value[0] == '\0') {
         error_set(error, error_size, "option '%s' is empty", option_name);
         return -1;
     }
@@ -172,8 +178,10 @@ static int parse_scaled_decimal(
         error_set(error, error_size, "option '%s' is too large", option_name);
         return -1;
     }
-    if (character == value ||
-        (scaled_value > UINT64_MAX / scale)) {
+    if (
+        character == value ||
+        (scaled_value > UINT64_MAX / scale)
+    ) {
         error_set(
             error,
             error_size,
@@ -260,7 +268,8 @@ static int load_scaled_options(
             options[index].name
         );
 
-        if (value != NULL &&
+        if (
+            value != NULL &&
             parse_scaled_decimal(
                 value,
                 options[index].scale,
@@ -268,7 +277,8 @@ static int load_scaled_options(
                 options[index].name,
                 error,
                 error_size
-            ) != 0) {
+            ) != 0
+        ) {
             return -1;
         }
     }
@@ -293,7 +303,8 @@ static int load_string_options(
             options[index].name
         );
 
-        if (value != NULL &&
+        if (
+            value != NULL &&
             copy_option(
                 options[index].destination,
                 options[index].destination_size,
@@ -301,7 +312,8 @@ static int load_string_options(
                 options[index].name,
                 error,
                 error_size
-            ) != 0) {
+            ) != 0
+        ) {
             return -1;
         }
     }
@@ -360,8 +372,10 @@ static int validate_reflectors(
         error_set(error, error_size, "at least one reflector is required");
         return -1;
     }
-    if (config->no_pingers == 0U ||
-        config->no_pingers > config->reflector_count) {
+    if (
+        config->no_pingers == 0U ||
+        config->no_pingers > config->reflector_count
+    ) {
         error_set(
             error,
             error_size,
@@ -404,8 +418,10 @@ static int validate_latency_config(
     if (validate_reflectors(config, error, error_size) != 0) {
         return -1;
     }
-    if (config->reflector_ping_interval_microseconds /
-            config->no_pingers < 1000U) {
+    if (
+        config->reflector_ping_interval_microseconds /
+            config->no_pingers < 1000U
+    ) {
         error_set(
             error,
             error_size,
@@ -431,8 +447,10 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->monitor_achieved_rates_interval_microseconds / 1000U >
-        UINT_MAX) {
+    if (
+        config->monitor_achieved_rates_interval_microseconds / 1000U >
+        UINT_MAX
+    ) {
         error_set(
             error,
             error_size,
@@ -440,8 +458,10 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->bufferbloat_detection_window == 0U ||
-        config->bufferbloat_detection_window > UINT_MAX) {
+    if (
+        config->bufferbloat_detection_window == 0U ||
+        config->bufferbloat_detection_window > UINT_MAX
+    ) {
         error_set(
             error,
             error_size,
@@ -450,8 +470,10 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->bufferbloat_detection_threshold >
-        config->bufferbloat_detection_window) {
+    if (
+        config->bufferbloat_detection_threshold >
+        config->bufferbloat_detection_window
+    ) {
         error_set(
             error,
             error_size,
@@ -460,9 +482,11 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->alpha_baseline_increase_per_million > 1000000U ||
+    if (
+        config->alpha_baseline_increase_per_million > 1000000U ||
         config->alpha_baseline_decrease_per_million > 1000000U ||
-        config->alpha_delta_ewma_per_million > 1000000U) {
+        config->alpha_delta_ewma_per_million > 1000000U
+    ) {
         error_set(
             error,
             error_size,
@@ -470,8 +494,10 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->reflector_health_check_interval_microseconds == 0U ||
-        config->reflector_response_deadline_microseconds == 0U) {
+    if (
+        config->reflector_health_check_interval_microseconds == 0U ||
+        config->reflector_response_deadline_microseconds == 0U
+    ) {
         error_set(
             error,
             error_size,
@@ -479,9 +505,11 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->reflector_health_check_interval_microseconds % 1000U != 0U ||
+    if (
+        config->reflector_health_check_interval_microseconds % 1000U != 0U ||
         config->reflector_health_check_interval_microseconds / 1000U >
-            UINT_MAX) {
+            UINT_MAX
+    ) {
         error_set(
             error,
             error_size,
@@ -491,11 +519,13 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->reflector_misbehaving_detection_window == 0U ||
+    if (
+        config->reflector_misbehaving_detection_window == 0U ||
         config->reflector_misbehaving_detection_window > SIZE_MAX ||
         config->reflector_misbehaving_detection_threshold == 0U ||
         config->reflector_misbehaving_detection_threshold >
-            config->reflector_misbehaving_detection_window) {
+            config->reflector_misbehaving_detection_window
+    ) {
         error_set(
             error,
             error_size,
@@ -503,10 +533,12 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->reflector_replacement_interval_minutes >
+    if (
+        config->reflector_replacement_interval_minutes >
             UINT64_MAX / 60000000U ||
         config->reflector_comparison_interval_minutes >
-            UINT64_MAX / 60000000U) {
+            UINT64_MAX / 60000000U
+    ) {
         error_set(
             error,
             error_size,
@@ -514,13 +546,15 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->stall_detection_threshold == 0U ||
+    if (
+        config->stall_detection_threshold == 0U ||
         config->stall_detection_threshold >
             UINT64_MAX /
                 (config->reflector_ping_interval_microseconds /
                     config->no_pingers) ||
         config->global_ping_response_timeout_microseconds == 0U ||
-        config->interface_up_check_interval_microseconds == 0U) {
+        config->interface_up_check_interval_microseconds == 0U
+    ) {
         error_set(
             error,
             error_size,
@@ -529,10 +563,12 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
+    if (
+        (config->output_cpu_stats || config->output_cpu_raw_stats) &&
         (config->monitor_cpu_usage_interval_microseconds == 0U ||
             config->monitor_cpu_usage_interval_microseconds % 1000U != 0U ||
-            config->monitor_cpu_usage_interval_microseconds / 1000U > UINT_MAX)) {
+            config->monitor_cpu_usage_interval_microseconds / 1000U > UINT_MAX)
+    ) {
         error_set(
             error,
             error_size,
@@ -541,18 +577,22 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->log_file_max_time_minutes > UINT64_MAX / 60000000U ||
+    if (
+        config->log_file_max_time_minutes > UINT64_MAX / 60000000U ||
         config->log_file_max_size_kilobytes > UINT64_MAX / 1024U ||
         config->log_file_buffer_timeout_microseconds / 1000U > UINT_MAX ||
-        config->reflector_ping_interval_microseconds > UINT64_MAX / 2U) {
+        config->reflector_ping_interval_microseconds > UINT64_MAX / 2U
+    ) {
         error_set(error, error_size, "logging or pinger intervals are too large");
         return -1;
     }
-    if (config->enable_sleep_function &&
+    if (
+        config->enable_sleep_function &&
         (config->connection_active_threshold_bits_per_second >
                 config->minimum_download_rate_bits_per_second ||
             config->connection_active_threshold_bits_per_second >
-                config->minimum_upload_rate_bits_per_second)) {
+                config->minimum_upload_rate_bits_per_second)
+    ) {
         error_set(error, error_size, "connection active threshold cannot exceed either minimum shaper rate");
         return -1;
     }
@@ -578,14 +618,16 @@ static int copy_reflector(
         );
         return -1;
     }
-    if (copy_option(
+    if (
+        copy_option(
             config->reflectors[index],
             sizeof(config->reflectors[index]),
             reflector,
             "reflectors",
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         return -1;
     }
     config->reflector_count++;
@@ -617,12 +659,14 @@ static int load_reflectors(
 
     config->reflector_count = 0U;
     uci_foreach_element(&option->v.list, element) {
-        if (copy_reflector(
+        if (
+            copy_reflector(
                 config,
                 element->name,
                 error,
                 error_size
-            ) != 0) {
+            ) != 0
+        ) {
             return -1;
         }
     }
@@ -647,6 +691,8 @@ static int load_section(
         section,
         "no_pingers"
     ) != NULL;
+    /* Legacy single-target input is needed only while loading configuration. */
+    char latency_target[CONFIG_REFLECTOR_SIZE] = "";
     const struct boolean_option_binding boolean_options[] = {
         { "enabled", &config->enabled },
         { "adjust_dl_shaper_rate", &config->adjust_download },
@@ -684,8 +730,8 @@ static int load_section(
         },
         {
             "latency_target",
-            config->latency_target,
-            sizeof(config->latency_target)
+            latency_target,
+            sizeof(latency_target)
         },
         {
             "log_file_path_override",
@@ -947,7 +993,8 @@ static int load_section(
         }
     };
 
-    if (load_boolean_options(
+    if (
+        load_boolean_options(
             context,
             section,
             boolean_options,
@@ -977,41 +1024,35 @@ static int load_section(
             config,
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         return -1;
     }
 
     derive_ingress_interface(config);
 
-    if (!reflectors_configured && config->latency_target[0] != '\0') {
+    if (!reflectors_configured && latency_target[0] != '\0') {
         config->reflector_count = 0U;
-        if (copy_reflector(
+        if (
+            copy_reflector(
                 config,
-                config->latency_target,
+                latency_target,
                 error,
                 error_size
-            ) != 0) {
+            ) != 0
+        ) {
             return -1;
         }
         if (!no_pingers_configured) {
             config->no_pingers = 1U;
         }
-    } else if (config->latency_target[0] == '\0' &&
-        config->reflector_count > 0U &&
-        copy_option(
-            config->latency_target,
-            sizeof(config->latency_target),
-            config->reflectors[0],
-            "reflectors",
-            error,
-            error_size
-        ) != 0) {
-        return -1;
     }
 
-    if ((config->enabled || config->adjust_download ||
+    if (
+        (config->enabled || config->adjust_download ||
             config->adjust_upload) &&
-        config->interface[0] == '\0') {
+        config->interface[0] == '\0'
+    ) {
         error_set(
             error,
             error_size,
@@ -1020,7 +1061,8 @@ static int load_section(
         );
         return -1;
     }
-    if (validate_rate_range(
+    if (
+        validate_rate_range(
             config->adjust_download,
             config->minimum_download_rate_bits_per_second,
             config->base_download_rate_bits_per_second,
@@ -1037,7 +1079,8 @@ static int load_section(
             "upload",
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         return -1;
     }
     if (validate_latency_config(config, error, error_size) != 0) {
@@ -1058,11 +1101,6 @@ int config_load(
     struct uci_package *package = NULL;
     struct uci_section *section;
     int result = -1;
-
-    if (config == NULL) {
-        error_set(error, error_size, "configuration destination is null");
-        return -1;
-    }
 
     *config = (struct config) {
         /* Adjustment remains opt-in even though cake-autorate defaults it on. */
@@ -1176,9 +1214,7 @@ int config_load(
     );
 
 done:
-    if (package != NULL) {
-        uci_unload(context, package);
-    }
+    /* libuci owns and releases every package loaded into this context. */
     uci_free_context(context);
     return result;
 }

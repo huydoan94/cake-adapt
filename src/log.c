@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
@@ -82,15 +81,14 @@ static const char cpu_raw_header[] =
     " GUEST_NICE";
 
 static const struct {
-    const char *option;
     const char *record;
     int priority;
 } levels[] = {
-    [LOG_LEVEL_ERROR] = { "error", "ERROR", LOG_ERR },
-    [LOG_LEVEL_WARNING] = { "warning", "WARNING", LOG_WARNING },
-    [LOG_LEVEL_NOTICE] = { "notice", "INFO", LOG_NOTICE },
-    [LOG_LEVEL_INFO] = { "info", "INFO", LOG_INFO },
-    [LOG_LEVEL_DEBUG] = { "debug", "DEBUG", LOG_DEBUG }
+    [LOG_LEVEL_ERROR] = { "ERROR", LOG_ERR },
+    [LOG_LEVEL_WARNING] = { "WARNING", LOG_WARNING },
+    [LOG_LEVEL_NOTICE] = { "INFO", LOG_NOTICE },
+    [LOG_LEVEL_INFO] = { "INFO", LOG_INFO },
+    [LOG_LEVEL_DEBUG] = { "DEBUG", LOG_DEBUG }
 };
 
 static uint64_t clock_microseconds(clockid_t clock_identifier)
@@ -137,23 +135,15 @@ static bool export_log(
     char buffer[4096];
     char previous_path[LOG_PATH_SIZE + 5U];
     const char *source_paths[] = { previous_path, log_path };
-    FILE *destination = NULL;
-    gzFile compressed_destination = NULL;
+    /* zlib's transparent mode writes plain bytes, without a gzip wrapper. */
+    gzFile destination = gzopen(export_path, compress ? "wb" : "wbT");
     size_t length;
     size_t index;
     bool success = true;
 
     (void)snprintf(previous_path, sizeof(previous_path), "%s.old", log_path);
-    if (compress) {
-        compressed_destination = gzopen(export_path, "wb");
-        if (compressed_destination == NULL) {
-            return false;
-        }
-    } else {
-        destination = fopen(export_path, "w");
-        if (destination == NULL) {
-            return false;
-        }
+    if (destination == NULL) {
+        return false;
     }
     for (index = include_previous ? 0U : 1U; index < 2U; index++) {
         FILE *source = fopen(source_paths[index], "r");
@@ -166,9 +156,7 @@ static bool export_log(
             break;
         }
         while ((length = fread(buffer, 1U, sizeof(buffer), source)) > 0U) {
-            if (compress
-                    ? gzwrite(compressed_destination, buffer, (unsigned int)length) != (int)length
-                    : fwrite(buffer, 1U, length, destination) != length) {
+            if (gzwrite(destination, buffer, (unsigned int)length) != (int)length) {
                 success = false;
                 break;
             }
@@ -179,16 +167,15 @@ static bool export_log(
             break;
         }
     }
-    success = (compress
-        ? gzclose(compressed_destination) == Z_OK
-        : fclose(destination) == 0) && success;
-    return success;
+    return gzclose_w(destination) == Z_OK && success;
 }
 
 static int truncate_log_file(void)
 {
-    if (fflush(log_file) != 0 || ftruncate(fileno(log_file), 0) != 0 ||
-        fseeko(log_file, 0, SEEK_SET) != 0) {
+    if (
+        fflush(log_file) != 0 || ftruncate(fileno(log_file), 0) != 0 ||
+        fseeko(log_file, 0, SEEK_SET) != 0
+    ) {
         return -1;
     }
     write_headers_to_file();
@@ -213,8 +200,10 @@ int log_export_file(
         errno = EBADF;
         return -1;
     }
-    if (localtime_r(&seconds, &local_time) == NULL ||
-        strftime(stamp, sizeof(stamp), "%Y_%m_%d_%H_%M_%S", &local_time) == 0U) {
+    if (
+        localtime_r(&seconds, &local_time) == NULL ||
+        strftime(stamp, sizeof(stamp), "%Y_%m_%d_%H_%M_%S", &local_time) == 0U
+    ) {
         return -1;
     }
     if (path_length >= 4U && strcmp(log_path + path_length - 4U, ".log") == 0) {
@@ -266,9 +255,11 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
     if (log_file == NULL || log_maintenance_active) {
         return;
     }
-    if (log_buffer_timeout_microseconds == 0U ||
+    if (
+        log_buffer_timeout_microseconds == 0U ||
         timestamp_microseconds - log_last_flush_microseconds >=
-            log_buffer_timeout_microseconds) {
+            log_buffer_timeout_microseconds
+    ) {
         (void)fflush(log_file);
         log_last_flush_microseconds = timestamp_microseconds;
     }
@@ -282,9 +273,11 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
         char previous_path[LOG_PATH_SIZE + 5U];
 
         log_maintenance_active = true;
-        if (log_maximum_age_microseconds > 0U &&
+        if (
+            log_maximum_age_microseconds > 0U &&
             timestamp_microseconds - log_opened_microseconds >
-                log_maximum_age_microseconds) {
+                log_maximum_age_microseconds
+        ) {
             log_message(
                 LOG_LEVEL_DEBUG,
                 "log file maximum time: %" PRIu64 " minutes has elapsed so flushing and rotating log file.",
@@ -339,13 +332,15 @@ static void write_record_at(
     struct tm local_time;
     time_t seconds = (time_t)(timestamp_microseconds / 1000000U);
 
-    if (localtime_r(&seconds, &local_time) == NULL ||
+    if (
+        localtime_r(&seconds, &local_time) == NULL ||
         strftime(
             datetime,
             sizeof(datetime),
             "%Y-%m-%d-%H:%M:%S",
             &local_time
-        ) == 0U) {
+        ) == 0U
+    ) {
         (void)snprintf(datetime, sizeof(datetime), "1970-01-01-00:00:00");
     }
 
@@ -439,15 +434,9 @@ int log_set_file(
     return 0;
 }
 
-int log_set_level(const char *level)
+void log_set_level(enum log_level level)
 {
-    for (size_t index = 0; index < sizeof(levels) / sizeof(levels[0]); ++index) {
-        if (strcasecmp(level, levels[index].option) == 0) {
-            minimum_log_level = (enum log_level)index;
-            return 0;
-        }
-    }
-    return -1;
+    minimum_log_level = level;
 }
 
 void log_set_debug_syslog(bool enabled)
@@ -774,9 +763,11 @@ void log_message(
     va_end(arguments);
 
     timestamp_microseconds = log_realtime_microseconds();
-    if (log_to_syslog &&
+    if (
+        log_to_syslog &&
         (level <= LOG_LEVEL_WARNING ||
-            (level == LOG_LEVEL_DEBUG && debug_to_syslog))) {
+            (level == LOG_LEVEL_DEBUG && debug_to_syslog))
+    ) {
         syslog(
             levels[level].priority,
             "%s: %" PRIu64 ".%06" PRIu64 " %s",

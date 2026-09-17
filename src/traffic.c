@@ -25,8 +25,10 @@ enum traffic_update_result traffic_update(
         return TRAFFIC_UPDATE_BASELINE;
     }
 
-    if (sample->qdisc_handle != previous.qdisc_handle ||
-        sample->qdisc_parent != previous.qdisc_parent) {
+    if (
+        sample->qdisc_handle != previous.qdisc_handle ||
+        sample->qdisc_parent != previous.qdisc_parent
+    ) {
         return TRAFFIC_UPDATE_QDISC_REPLACED;
     }
 
@@ -34,11 +36,13 @@ enum traffic_update_result traffic_update(
         return TRAFFIC_UPDATE_COUNTER_RESET;
     }
 
-    if (!elapsed_milliseconds(
+    if (
+        !elapsed_milliseconds(
             &previous.timestamp,
             &sample->timestamp,
             &elapsed
-        )) {
+        )
+    ) {
         return TRAFFIC_UPDATE_INVALID_INTERVAL;
     }
 

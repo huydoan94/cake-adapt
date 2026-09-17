@@ -45,13 +45,15 @@ static void parse_options(
     };
     struct nlattr *attributes[TCA_CAKE_MAX + 1];
 
-    if (options == NULL ||
+    if (
+        options == NULL ||
         nla_parse_nested(
             attributes,
             TCA_CAKE_MAX,
             options,
             policy
-        ) < 0) {
+        ) < 0
+    ) {
         return;
     }
     if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
@@ -73,19 +75,20 @@ static void parse_cake_stats(
     };
     struct nlattr *attributes[TCA_CAKE_STATS_MAX + 1];
 
-    if (application == NULL ||
+    if (
+        application == NULL ||
         nla_parse_nested(
             attributes,
             TCA_CAKE_STATS_MAX,
             application,
             policy
-        ) < 0) {
+        ) < 0
+    ) {
         return;
     }
     if (attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] != NULL) {
         observation->capacity_estimate_bits_per_second =
             rate_to_bits_per_second(nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]));
-        observation->has_capacity_estimate = true;
     }
     if (attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL) {
         observation->memory_limit_bytes = nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_LIMIT]);
@@ -93,9 +96,6 @@ static void parse_cake_stats(
     if (attributes[TCA_CAKE_STATS_MEMORY_USED] != NULL) {
         observation->memory_used_bytes = nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_USED]);
     }
-    observation->has_memory_stats =
-        attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL &&
-        attributes[TCA_CAKE_STATS_MEMORY_USED] != NULL;
 }
 
 static void parse_stats(
@@ -117,13 +117,15 @@ static void parse_stats(
     struct nlattr *attributes[TCA_STATS_MAX + 1];
 
     /* Invalid optional statistics do not prevent discovering the qdisc. */
-    if (stats == NULL ||
+    if (
+        stats == NULL ||
         nla_parse_nested(
             attributes,
             TCA_STATS_MAX,
             stats,
             policy
-        ) < 0) {
+        ) < 0
+    ) {
         return;
     }
     if (attributes[TCA_STATS_BASIC] != NULL) {
@@ -141,7 +143,6 @@ static void parse_stats(
         observation->queue_length = queue.qlen;
         observation->backlog_bytes = queue.backlog;
         observation->drops = queue.drops;
-        observation->has_queue_stats = true;
     }
     parse_cake_stats(attributes[TCA_STATS_APP], observation);
 }
@@ -158,20 +159,25 @@ static int handle_qdisc(
     const struct tcmsg *traffic_control;
     struct nlattr *attributes[TCA_MAX + 1];
 
-    if (!nlmsg_valid_hdr(message, sizeof(struct tcmsg)) ||
-        message->nlmsg_len > INT_MAX) {
+    if (
+        !nlmsg_valid_hdr(message, sizeof(struct tcmsg)) ||
+        message->nlmsg_len > INT_MAX
+    ) {
         return -1;
     }
 
     traffic_control = NLMSG_DATA(message);
     /* Only control the interface's root CAKE, never a nested child qdisc. */
-    if (traffic_control->tcm_ifindex != (int)context->interface_index ||
+    if (
+        traffic_control->tcm_ifindex != (int)context->interface_index ||
         traffic_control->tcm_parent != TC_H_ROOT ||
-        context->found) {
+        context->found
+    ) {
         return 0;
     }
 
-    if (nla_parse(
+    if (
+        nla_parse(
             attributes,
             TCA_MAX,
             nlmsg_attrdata(message, sizeof(*traffic_control)),
@@ -179,7 +185,8 @@ static int handle_qdisc(
             policy
         ) < 0 ||
         attributes[TCA_KIND] == NULL ||
-        nla_strcmp(attributes[TCA_KIND], "cake") != 0) {
+        nla_strcmp(attributes[TCA_KIND], "cake") != 0
+    ) {
         return 0;
     }
 
@@ -198,15 +205,13 @@ static int handle_qdisc(
     return 0;
 }
 
-enum cake_read_result cake_read(
+static unsigned int open_interface(
     struct netlink *netlink,
     const char *interface,
-    struct cake_observation *observation,
     char *error,
     size_t error_size
 )
 {
-    struct cake_dump_context context;
     unsigned int interface_index;
 
     errno = 0;
@@ -219,24 +224,42 @@ enum cake_read_result cake_read(
             interface,
             errno == 0 ? "unknown interface" : strerror(errno)
         );
-        return CAKE_READ_ERROR;
+        return 0U;
     }
 
     if (netlink_open(netlink, error, error_size) != 0) {
+        return 0U;
+    }
+    return interface_index;
+}
+
+enum cake_read_result cake_read(
+    struct netlink *netlink,
+    const char *interface,
+    struct cake_observation *observation,
+    char *error,
+    size_t error_size
+)
+{
+    unsigned int interface_index = open_interface(netlink, interface, error, error_size);
+    struct cake_dump_context context = {
+        .interface_index = interface_index,
+        .observation = observation
+    };
+
+    if (interface_index == 0U) {
         return CAKE_READ_ERROR;
     }
-
-    context.interface_index = interface_index;
-    context.observation = observation;
-    context.found = false;
-    if (netlink_dump_qdiscs(
+    if (
+        netlink_dump_qdiscs(
             netlink,
             interface_index,
             handle_qdisc,
             &context,
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         netlink_close_requests(netlink);
         return CAKE_READ_ERROR;
     }
@@ -256,12 +279,10 @@ int cake_set_bandwidth(
     uint64_t bandwidth_bytes_per_second;
     unsigned int interface_index;
 
-    if (observation == NULL) {
-        error_set(error, error_size, "CAKE observation is null");
-        return -1;
-    }
-    if (bandwidth_bits_per_second < 8U ||
-        bandwidth_bits_per_second % 8U != 0U) {
+    if (
+        bandwidth_bits_per_second < 8U ||
+        bandwidth_bits_per_second % 8U != 0U
+    ) {
         error_set(
             error,
             error_size,
@@ -270,24 +291,14 @@ int cake_set_bandwidth(
         return -1;
     }
 
-    errno = 0;
-    interface_index = if_nametoindex(interface);
+    interface_index = open_interface(netlink, interface, error, error_size);
     if (interface_index == 0U) {
-        error_set(
-            error,
-            error_size,
-            "could not find interface '%s': %s",
-            interface,
-            errno == 0 ? "unknown interface" : strerror(errno)
-        );
-        return -1;
-    }
-    if (netlink_open(netlink, error, error_size) != 0) {
         return -1;
     }
 
     bandwidth_bytes_per_second = bandwidth_bits_per_second / 8U;
-    if (netlink_change_qdisc_option(
+    if (
+        netlink_change_qdisc_option(
             netlink,
             interface_index,
             observation->handle,
@@ -298,7 +309,8 @@ int cake_set_bandwidth(
             sizeof(bandwidth_bytes_per_second),
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         netlink_close_requests(netlink);
         return -1;
     }

@@ -64,7 +64,8 @@ int cpu_read(
         }
         counter = &sample->counters[sample->count];
         memset(counter, 0, sizeof(*counter));
-        if (sscanf(
+        if (
+            sscanf(
                 line,
                 "%15s %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
                 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
@@ -80,7 +81,8 @@ int cpu_read(
                 &counter->steal,
                 &counter->guest,
                 &counter->guest_nice
-            ) < 5) {
+            ) < 5
+        ) {
             error_set(error, error_size, "invalid CPU counters in %s", path);
             goto done;
         }

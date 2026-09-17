@@ -124,6 +124,7 @@ static void test_initial_state_is_unknown(void)
     assert(controller.upload.state == CONTROLLER_LINE_UNKNOWN);
     assert(controller.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
     assert(controller.upload.congestion == CONTROLLER_CONGESTION_UNKNOWN);
+    controller_close(&controller);
 }
 
 static void test_low_load_is_below_capacity(void)
@@ -147,6 +148,7 @@ static void test_low_load_is_below_capacity(void)
     assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
     assert(!output.download.rate_changed);
     assert(!output.upload.rate_changed);
+    controller_close(&controller);
 }
 
 static void test_sustained_download_is_saturated(void)
@@ -171,6 +173,7 @@ static void test_sustained_download_is_saturated(void)
     assert(output.download.state == CONTROLLER_LINE_SATURATED);
     assert(output.download.state_changed);
     assert(output.upload.state == CONTROLLER_LINE_BELOW_CAPACITY);
+    controller_close(&controller);
 }
 
 static void test_brief_burst_does_not_saturate(void)
@@ -196,6 +199,7 @@ static void test_brief_burst_does_not_saturate(void)
     controller_update(&controller, &low, &output);
 
     assert(output.download.state == CONTROLLER_LINE_BELOW_CAPACITY);
+    controller_close(&controller);
 }
 
 static void test_line_hysteresis_and_recovery(void)
@@ -231,6 +235,7 @@ static void test_line_hysteresis_and_recovery(void)
     assert(output.download.state == CONTROLLER_LINE_SATURATED);
     controller_update(&controller, &low, &output);
     assert(output.download.state == CONTROLLER_LINE_BELOW_CAPACITY);
+    controller_close(&controller);
 }
 
 static void test_invalid_direction_returns_to_unknown(void)
@@ -252,6 +257,7 @@ static void test_invalid_direction_returns_to_unknown(void)
 
     assert(output.download.state == CONTROLLER_LINE_UNKNOWN);
     assert(output.download.state_changed);
+    controller_close(&controller);
 }
 
 static void test_three_of_six_delays_detect_bufferbloat(void)
@@ -281,6 +287,7 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
     assert(output.upload.delay_sum_microseconds == 90003U);
     assert(output.download.average_delay_microseconds == 15000U);
     assert(output.upload.average_delay_microseconds == 15000U);
+    controller_close(&controller);
 }
 
 static void test_below_baseline_delay_remains_signed(void)
@@ -306,6 +313,7 @@ static void test_below_baseline_delay_remains_signed(void)
     assert(output.upload.average_delay_microseconds == -500);
     assert(output.download.delayed_sample_count == 0U);
     assert(output.upload.delayed_sample_count == 0U);
+    controller_close(&controller);
 }
 
 static void test_delay_window_clears_after_old_delays_expire(void)
@@ -330,6 +338,7 @@ static void test_delay_window_clears_after_old_delays_expire(void)
 
     assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
     assert(output.download.congestion_changed);
+    controller_close(&controller);
 }
 
 static void test_missing_probe_holds_delay_window(void)
@@ -354,6 +363,7 @@ static void test_missing_probe_holds_delay_window(void)
     controller_update(&controller, &input, &output);
 
     assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    controller_close(&controller);
 }
 
 static void test_configured_delay_window_and_direction_thresholds(void)
@@ -416,6 +426,7 @@ static void test_initial_rate_is_baseline(void)
     assert(output.upload.rate_bits_per_second == 8U * MEBABIT);
     assert(output.download.rate_changed);
     assert(output.download.rate_reason == CONTROLLER_RATE_INITIAL);
+    controller_close(&controller);
 }
 
 static void test_initial_rate_waits_for_valid_qdisc_input(void)
@@ -441,6 +452,7 @@ static void test_initial_rate_waits_for_valid_qdisc_input(void)
     assert(output.download.rate_bits_per_second == 8U * MEBABIT);
     assert(output.download.rate_changed);
     assert(output.download.rate_reason == CONTROLLER_RATE_INITIAL);
+    controller_close(&controller);
 }
 
 static void test_high_load_increases_rate_four_percent(void)
@@ -463,6 +475,7 @@ static void test_high_load_increases_rate_four_percent(void)
     assert(output.download.rate_bits_per_second == 8320000U);
     assert(output.download.rate_changed);
     assert(output.download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
+    controller_close(&controller);
 }
 
 static void test_high_load_waits_for_congestion_refractory_period(void)
@@ -493,6 +506,7 @@ static void test_high_load_waits_for_congestion_refractory_period(void)
     controller_update(&controller, &input, &output);
     assert(output.download.rate_bits_per_second == 8320000U);
     assert(output.download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
+    controller_close(&controller);
 }
 
 static void test_configured_high_load_adjustment_is_used(void)
@@ -547,6 +561,7 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
     assert(output.upload.rate_bits_per_second == 6U * MEBABIT);
     assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
     assert(output.upload.rate_reason == CONTROLLER_RATE_CONGESTION);
+    controller_close(&controller);
 }
 
 static void test_bufferbloat_reduction_scales_with_average_delay(void)
@@ -573,6 +588,7 @@ static void test_bufferbloat_reduction_scales_with_average_delay(void)
 
     assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
     assert(output.download.rate_bits_per_second == 6960000U);
+    controller_close(&controller);
 }
 
 static void test_bufferbloat_reduction_observes_refractory_period(void)
@@ -612,6 +628,7 @@ static void test_bufferbloat_reduction_observes_refractory_period(void)
     controller_update(&controller, &input, &output);
     assert(output.download.rate_bits_per_second == 5U * MEBABIT);
     assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
+    controller_close(&controller);
 }
 
 static void test_configured_bufferbloat_adjustment_is_used(void)
@@ -671,6 +688,7 @@ static void test_low_load_returns_rate_toward_baseline(void)
     assert(output.upload.rate_bits_per_second == 6060000U);
     assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
     assert(output.upload.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    controller_close(&controller);
 }
 
 static void test_low_load_waits_for_decay_refractory_period(void)
@@ -705,6 +723,7 @@ static void test_low_load_waits_for_decay_refractory_period(void)
     controller_update(&controller, &input, &output);
     assert(output.download.rate_bits_per_second == 9900000U);
     assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    controller_close(&controller);
 }
 
 static void test_configured_low_load_adjustment_is_used(void)
@@ -781,6 +800,7 @@ static void test_congestion_restarts_decay_refractory_period(void)
     controller_update(&controller, &input, &output);
     assert(output.download.rate_bits_per_second == 6060000U);
     assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    controller_close(&controller);
 }
 
 static void test_high_load_restarts_decay_refractory_period(void)
@@ -819,6 +839,7 @@ static void test_high_load_restarts_decay_refractory_period(void)
     controller_update(&controller, &input, &output);
     assert(output.download.rate_bits_per_second == 8236000U);
     assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
+    controller_close(&controller);
 }
 
 static void test_rate_limits_are_hard_bounds(void)
@@ -853,6 +874,7 @@ static void test_rate_limits_are_hard_bounds(void)
     input.timestamp_microseconds += 150000U;
     controller_update(&controller, &input, &output);
     assert(output.download.rate_bits_per_second == 7U * MEBABIT);
+    controller_close(&controller);
 }
 
 static void test_invalid_sample_does_not_adjust_rate(void)
@@ -876,6 +898,7 @@ static void test_invalid_sample_does_not_adjust_rate(void)
     assert(output.upload.rate_bits_per_second == 8U * MEBABIT);
     assert(!output.download.rate_changed);
     assert(!output.upload.rate_changed);
+    controller_close(&controller);
 }
 
 static void test_minimum_rate_enforcement_preserves_opt_out(void)

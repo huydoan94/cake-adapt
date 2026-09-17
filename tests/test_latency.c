@@ -3,6 +3,7 @@
 #include "latency.h"
 
 #include <assert.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -29,6 +30,50 @@ static void test_initial_state_is_closed(void)
     assert(latency.output_descriptor == -1);
     assert(latency.process_identifier == -1);
     assert(!latency_is_open(&latency));
+}
+
+static void test_receive_buffered_output(void)
+{
+    struct latency latency;
+    struct latency_sample sample;
+    int descriptors[2];
+    char error[256] = "";
+    const char first[] = "[123.456000] 1.1.1.1 : [1], 64 bytes, ";
+    const char rest[] = "2.50 ms\r\n[123.756000] 1.1.1.1 : [2], timed out\n";
+
+    latency_init(&latency);
+    assert(pipe(descriptors) == 0);
+    assert(fcntl(descriptors[0], F_SETFL, O_NONBLOCK) == 0);
+    latency.output_descriptor = descriptors[0];
+    /* This fixture owns only a pipe, not an fping child. */
+    latency.process_identifier = getpid();
+
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
+    assert(write(descriptors[1], first, sizeof(first) - 1U) == (ssize_t)(sizeof(first) - 1U));
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
+    assert(latency.output_length == sizeof(first) - 1U);
+    assert(write(descriptors[1], rest, sizeof(rest) - 1U) == (ssize_t)(sizeof(rest) - 1U));
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
+    assert(sample.sequence == 1U);
+    assert(sample.round_trip_microseconds == 2500U);
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_TIMEOUT);
+    assert(sample.sequence == 2U);
+    assert(latency.output_length == 0U);
+
+    assert(write(descriptors[1], "bad\n", 4U) == 4);
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(strstr(error, "unexpected fping output") != NULL);
+
+    memset(latency.output_buffer, 'x', sizeof(latency.output_buffer));
+    latency.output_length = sizeof(latency.output_buffer);
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(strstr(error, "too long") != NULL);
+    latency.output_length = 0U;
+
+    assert(close(descriptors[1]) == 0);
+    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(strstr(error, "output closed") != NULL);
+    assert(close(descriptors[0]) == 0);
 }
 
 static void test_invalid_target_is_rejected_before_starting_fping(void)
@@ -138,6 +183,25 @@ static void test_fping_six_digit_timestamp_is_preserved(void)
     assert(strcmp(sample.target, "9.9.9.9") == 0);
     assert(sample.sequence == 7U);
     assert(sample.round_trip_microseconds == 125U);
+}
+
+static void test_fping_byte_count_syntax(void)
+{
+    const char *const invalid[] = {
+        "[123.000001] 1.1.1.1 : [1],  bytes, 1.0 ms",
+        "[123.000001] 1.1.1.1 : [1], -64 bytes, 1.0 ms",
+        "[123.000001] 1.1.1.1 : [1], 64x bytes, 1.0 ms",
+        "[123.000001] 1.1.1.1 : [1], 64 byte, 1.0 ms"
+    };
+    struct latency_sample sample;
+
+    for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); index++) {
+        assert(parse_fping_line(invalid[index], &sample) == LATENCY_FPING_LINE_INVALID);
+    }
+    assert(parse_fping_line(
+        "[123.000001] 1.1.1.1 : [1], 0 bytes, 1.0 ms",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
 }
 
 static void test_fping_timeout_is_recognized(void)
@@ -389,11 +453,13 @@ static void test_reflector_comparison_uses_active_order(void)
     assert(comparisons[0].minimum_sum_owd_baselines_microseconds == 180000U);
     assert(comparisons[0].sum_owd_baselines_microseconds == 200000U);
     assert(comparisons[0].sum_owd_baselines_delta_microseconds == 20000U);
-    assert(comparisons[0].minimum_download_delta_ewma_microseconds == -100);
-    assert(comparisons[0].download_delta_ewma_delta_microseconds == 500);
-    assert(comparisons[0].upload_delta_ewma_delta_microseconds == 500);
+    assert(comparisons[0].minimum_delta_ewma_microseconds == -100);
+    assert(comparisons[0].delta_ewma_microseconds == 400);
+    assert(comparisons[0].delta_ewma_delta_microseconds == 500);
     assert(comparisons[1].sum_owd_baselines_delta_microseconds == 0U);
-    assert(comparisons[1].download_delta_ewma_delta_microseconds == 0);
+    assert(comparisons[1].minimum_delta_ewma_microseconds == -100);
+    assert(comparisons[1].delta_ewma_microseconds == -100);
+    assert(comparisons[1].delta_ewma_delta_microseconds == 0);
 }
 
 static void test_reflector_rotation_uses_first_standby(void)
@@ -472,12 +538,14 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
 int main(void)
 {
     test_initial_state_is_closed();
+    test_receive_buffered_output();
     test_invalid_target_is_rejected_before_starting_fping();
     test_empty_target_list_is_rejected();
     test_sub_millisecond_response_spacing_is_rejected();
     test_close_is_idempotent();
     test_fping_reply_is_parsed();
     test_fping_six_digit_timestamp_is_preserved();
+    test_fping_byte_count_syntax();
     test_fping_timeout_is_recognized();
     test_fping_reply_identifies_each_target();
     test_first_sample_updates_initialized_baseline();

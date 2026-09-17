@@ -58,13 +58,10 @@ static void test_qdisc_message(void)
     assert(observation.has_basic_stats);
     assert(observation.bytes == bytes);
     assert(observation.packets == packets);
-    assert(observation.has_queue_stats);
     assert(observation.queue_length == queue.qlen);
     assert(observation.backlog_bytes == queue.backlog);
     assert(observation.drops == queue.drops);
-    assert(observation.has_capacity_estimate);
     assert(observation.capacity_estimate_bits_per_second == 10000000U);
-    assert(observation.has_memory_stats);
     assert(observation.memory_limit_bytes == 8192U);
     assert(observation.memory_used_bytes == 1024U);
 
@@ -122,10 +119,9 @@ static void test_optional_application_stats(void)
     assert(nla_put_u64(message, TCA_CAKE_STATS_CAPACITY_ESTIMATE64, UINT64_MAX) == 0);
     assert(nla_nest_end(message, application) == 0);
     parse_cake_stats(application, &observation);
-    assert(observation.has_capacity_estimate);
     assert(observation.capacity_estimate_bits_per_second == UINT64_MAX);
-    assert(!observation.has_memory_stats);
     assert(observation.memory_limit_bytes == 8192U);
+    assert(observation.memory_used_bytes == 0U);
     nlmsg_free(message);
 }
 
@@ -164,16 +160,41 @@ static void test_short_queue_and_memory(void)
     assert(nla_put_u32(message, TCA_STATS_QUEUE, 1U) == 0);
     assert(nla_nest_end(message, nested) == 0);
     parse_stats(nested, &observation);
-    assert(!observation.has_queue_stats);
+    assert(observation.queue_length == 0U);
+    assert(observation.backlog_bytes == 0U);
+    assert(observation.drops == 0U);
 
     nested = nla_nest_start(message, TCA_STATS_APP);
     assert(nested != NULL);
     assert(nla_put(message, TCA_CAKE_STATS_MEMORY_USED, 1, "x") == 0);
     assert(nla_nest_end(message, nested) == 0);
     parse_cake_stats(nested, &observation);
-    assert(!observation.has_memory_stats);
+    assert(observation.memory_limit_bytes == 0U);
     assert(observation.memory_used_bytes == 0U);
     nlmsg_free(message);
+}
+
+static void test_missing_interface(void)
+{
+    struct netlink netlink = { 0 };
+    struct cake_observation observation = { 0 };
+    char error[128];
+    /* Longer than IFNAMSIZ, so it cannot accidentally name a host interface. */
+    const char *interface = "missing-interface";
+
+    assert(cake_read(&netlink, interface, &observation, error, sizeof(error)) == CAKE_READ_ERROR);
+    assert(strstr(error, "could not find interface") != NULL);
+    assert(netlink.socket == NULL);
+    assert(cake_set_bandwidth(
+        &netlink,
+        interface,
+        &observation,
+        8000000U,
+        error,
+        sizeof(error)
+    ) == -1);
+    assert(strstr(error, "could not find interface") != NULL);
+    assert(netlink.socket == NULL);
 }
 
 int main(void)
@@ -183,6 +204,7 @@ int main(void)
     test_optional_application_stats();
     test_invalid_message();
     test_short_queue_and_memory();
+    test_missing_interface();
     (void)puts("cake parser tests passed");
     return 0;
 }

@@ -20,10 +20,7 @@ struct cake_observation {
     uint32_t memory_limit_bytes;
     uint32_t memory_used_bytes;
     bool has_bandwidth;
-    bool has_capacity_estimate;
     bool has_basic_stats;
-    bool has_queue_stats;
-    bool has_memory_stats;
 };
 
 enum cake_read_result {

@@ -56,8 +56,10 @@ static bool parse_timestamp(
         '.',
         (size_t)(closing_bracket - (line + 1))
     );
-    if (decimal_point == NULL ||
-        !parse_unsigned(line + 1, decimal_point, &seconds)) {
+    if (
+        decimal_point == NULL ||
+        !parse_unsigned(line + 1, decimal_point, &seconds)
+    ) {
         return false;
     }
 
@@ -106,8 +108,10 @@ enum latency_fping_line_result parse_fping_line(
     double round_trip_microseconds;
     size_t target_length;
 
-    if (line == NULL || sample == NULL ||
-        !parse_timestamp(line, &cursor, &timestamp_microseconds)) {
+    if (
+        line == NULL || sample == NULL ||
+        !parse_timestamp(line, &cursor, &timestamp_microseconds)
+    ) {
         return LATENCY_FPING_LINE_INVALID;
     }
 
@@ -129,8 +133,10 @@ enum latency_fping_line_result parse_fping_line(
 
     cursor = separator + strlen(" : [");
     sequence_end = strchr(cursor, ']');
-    if (sequence_end == NULL ||
-        !parse_unsigned(cursor, sequence_end, &sequence)) {
+    if (
+        sequence_end == NULL ||
+        !parse_unsigned(cursor, sequence_end, &sequence)
+    ) {
         return LATENCY_FPING_LINE_INVALID;
     }
     sample->round_trip_microseconds = 0U;
@@ -146,20 +152,22 @@ enum latency_fping_line_result parse_fping_line(
 
     cursor += 2;
     target_end = cursor;
-    while (*cursor >= '0' && *cursor <= '9') {
-        ++cursor;
-    }
-    if (cursor == target_end ||
-        strncmp(cursor, " bytes, ", strlen(" bytes, ")) != 0) {
+    cursor += strspn(cursor, "0123456789");
+    if (
+        cursor == target_end ||
+        strncmp(cursor, " bytes, ", strlen(" bytes, ")) != 0
+    ) {
         return LATENCY_FPING_LINE_INVALID;
     }
     cursor += strlen(" bytes, ");
     errno = 0;
     round_trip_milliseconds = strtod(cursor, &rtt_end);
-    if (errno == ERANGE || rtt_end == cursor ||
+    if (
+        errno == ERANGE || rtt_end == cursor ||
         !isfinite(round_trip_milliseconds) ||
         round_trip_milliseconds < 0.0 ||
-        strncmp(rtt_end, " ms", strlen(" ms")) != 0) {
+        strncmp(rtt_end, " ms", strlen(" ms")) != 0
+    ) {
         return LATENCY_FPING_LINE_INVALID;
     }
 
@@ -221,8 +229,10 @@ static void stop_child(pid_t process_identifier)
     for (attempt = 0U; attempt < CHILD_STOP_ATTEMPTS; attempt++) {
         pid_t result = waitpid(process_identifier, NULL, WNOHANG);
 
-        if (result == process_identifier ||
-            (result < 0 && errno == ECHILD)) {
+        if (
+            result == process_identifier ||
+            (result < 0 && errno == ECHILD)
+        ) {
             return;
         }
         if (result < 0 && errno != EINTR) {
@@ -254,7 +264,8 @@ static int spawn_fping(
     if (result != 0) {
         goto failed;
     }
-    if ((result = posix_spawn_file_actions_addclose(
+    if (
+        (result = posix_spawn_file_actions_addclose(
             &actions,
             output_pipe[0]
         )) != 0 ||
@@ -273,7 +284,8 @@ static int spawn_fping(
             NULL_PATH,
             O_WRONLY,
             0
-        )) != 0) {
+        )) != 0
+    ) {
         goto destroy_actions;
     }
 
@@ -320,7 +332,7 @@ failed:
     return 0;
 }
 
-static int start_fping(
+int latency_open(
     struct latency *latency,
     const char *interface,
     const char *const *targets,
@@ -346,7 +358,37 @@ static int start_fping(
     int word_result;
     bool interface_configured = false;
 
-    /* latency_open has already validated the count and >= 1 ms per target. */
+    if (interface == NULL || interface[0] == '\0') {
+        error_set(error, error_size, "fping interface is empty");
+        return -1;
+    }
+    if (
+        targets == NULL || target_count == 0U || extra_arguments == NULL ||
+        prefix == NULL
+    ) {
+        error_set(error, error_size, "fping requires at least one target");
+        return -1;
+    }
+    if (reflector_ping_interval_microseconds / target_count < 1000U) {
+        error_set(
+            error,
+            error_size,
+            "reflector ping interval must provide at least 1 ms per target"
+        );
+        return -1;
+    }
+    for (index = 0U; index < target_count; index++) {
+        if (!target_is_valid(targets[index])) {
+            error_set(
+                error,
+                error_size,
+                "latency target '%s' is not a valid IP address or hostname",
+                targets[index] == NULL ? "(null)" : targets[index]
+            );
+            return -1;
+        }
+    }
+
     period = rounded_divide(reflector_ping_interval_microseconds, 1000U);
     response_interval =
         reflector_ping_interval_microseconds / target_count / 1000U;
@@ -403,9 +445,11 @@ static int start_fping(
     arguments[cursor++] = (char *)FPING_PATH;
     for (index = 0U; index < extra_words.we_wordc; index++) {
         arguments[cursor++] = extra_words.we_wordv[index];
-        if (strncmp(extra_words.we_wordv[index], "-I", 2U) == 0 ||
+        if (
+            strncmp(extra_words.we_wordv[index], "-I", 2U) == 0 ||
             strcmp(extra_words.we_wordv[index], "--iface") == 0 ||
-            strncmp(extra_words.we_wordv[index], "--iface=", 8U) == 0) {
+            strncmp(extra_words.we_wordv[index], "--iface=", 8U) == 0
+        ) {
             interface_configured = true;
         }
     }
@@ -436,14 +480,16 @@ static int start_fping(
         goto close_output;
     }
 
-    if (spawn_fping(
+    if (
+        spawn_fping(
             &process_identifier,
             output_pipe,
             arguments[0],
             arguments,
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         goto close_output;
     }
 
@@ -473,7 +519,7 @@ failed:
     return -1;
 }
 
-static int take_output_line(
+static bool take_output_line(
     struct latency *latency,
     char line[LATENCY_OUTPUT_SIZE]
 )
@@ -487,7 +533,7 @@ static int take_output_line(
     size_t consumed;
 
     if (newline == NULL) {
-        return 0;
+        return false;
     }
 
     length = (size_t)(newline - latency->output_buffer);
@@ -504,7 +550,7 @@ static int take_output_line(
         latency->output_length - consumed
     );
     latency->output_length -= consumed;
-    return 1;
+    return true;
 }
 
 static void set_child_exit_error(
@@ -562,10 +608,12 @@ bool target_is_valid(const char *target)
         return false;
     }
     length = strlen(target);
-    if (length >= LATENCY_TARGET_SIZE ||
+    if (
+        length >= LATENCY_TARGET_SIZE ||
         !(target[0] == ':' || (target[0] >= '0' && target[0] <= '9') ||
             (target[0] >= 'A' && target[0] <= 'Z') ||
-            (target[0] >= 'a' && target[0] <= 'z'))) {
+            (target[0] >= 'a' && target[0] <= 'z'))
+    ) {
         return false;
     }
 
@@ -576,61 +624,6 @@ bool latency_is_open(const struct latency *latency)
 {
     return latency->output_descriptor >= 0 &&
         latency->process_identifier > 0;
-}
-
-int latency_open(
-    struct latency *latency,
-    const char *interface,
-    const char *const *targets,
-    size_t target_count,
-    uint64_t reflector_ping_interval_microseconds,
-    const char *extra_arguments,
-    const char *prefix,
-    char *error,
-    size_t error_size
-)
-{
-    size_t index;
-
-    if (interface == NULL || interface[0] == '\0') {
-        error_set(error, error_size, "fping interface is empty");
-        return -1;
-    }
-    if (targets == NULL || target_count == 0U || extra_arguments == NULL ||
-        prefix == NULL) {
-        error_set(error, error_size, "fping requires at least one target");
-        return -1;
-    }
-    if (reflector_ping_interval_microseconds / target_count < 1000U) {
-        error_set(
-            error,
-            error_size,
-            "reflector ping interval must provide at least 1 ms per target"
-        );
-        return -1;
-    }
-    for (index = 0U; index < target_count; index++) {
-        if (!target_is_valid(targets[index])) {
-            error_set(
-                error,
-                error_size,
-                "latency target '%s' is not a valid IP address or hostname",
-                targets[index] == NULL ? "(null)" : targets[index]
-            );
-            return -1;
-        }
-    }
-    return start_fping(
-        latency,
-        interface,
-        targets,
-        target_count,
-        reflector_ping_interval_microseconds,
-        extra_arguments,
-        prefix,
-        error,
-        error_size
-    );
 }
 
 void latency_close(struct latency *latency)
@@ -651,9 +644,11 @@ int tracker_init(
     const struct latency_tracker_config *config
 )
 {
-    if (config->alpha_baseline_increase_per_million > ALPHA_SCALE ||
+    if (
+        config->alpha_baseline_increase_per_million > ALPHA_SCALE ||
         config->alpha_baseline_decrease_per_million > ALPHA_SCALE ||
-        config->alpha_delta_ewma_per_million > ALPHA_SCALE) {
+        config->alpha_delta_ewma_per_million > ALPHA_SCALE
+    ) {
         errno = EINVAL;
         return -1;
     }
@@ -730,9 +725,11 @@ int health_init(
     uint64_t start_microseconds
 )
 {
-    if (health == NULL || config == NULL || config->detection_window == 0U ||
+    if (
+        health == NULL || config == NULL || config->detection_window == 0U ||
         config->detection_threshold == 0U ||
-        config->detection_threshold > config->detection_window) {
+        config->detection_threshold > config->detection_window
+    ) {
         errno = EINVAL;
         return -1;
     }
@@ -853,13 +850,9 @@ void reflector_compare(
             .sum_owd_baselines_microseconds = sum_baselines,
             .sum_owd_baselines_delta_microseconds =
                 sum_baselines - minimum_baseline,
-            .minimum_download_delta_ewma_microseconds = minimum_delta_ewma,
-            .download_delta_ewma_microseconds = delta_ewma,
-            .download_delta_ewma_delta_microseconds =
-                delta_ewma - minimum_delta_ewma,
-            .minimum_upload_delta_ewma_microseconds = minimum_delta_ewma,
-            .upload_delta_ewma_microseconds = delta_ewma,
-            .upload_delta_ewma_delta_microseconds =
+            .minimum_delta_ewma_microseconds = minimum_delta_ewma,
+            .delta_ewma_microseconds = delta_ewma,
+            .delta_ewma_delta_microseconds =
                 delta_ewma - minimum_delta_ewma
         };
     }
@@ -897,33 +890,24 @@ enum latency_probe_result latency_receive(
     }
 
     for (;;) {
-        {
-            char line[LATENCY_OUTPUT_SIZE];
-            int line_result = take_output_line(
-                latency,
-                line
-            );
+        char line[LATENCY_OUTPUT_SIZE];
+        ssize_t received;
 
-            if (line_result > 0) {
-                enum latency_fping_line_result parse_result =
-                    parse_fping_line(
-                        line,
-                        sample
-                    );
+        if (take_output_line(latency, line)) {
+            enum latency_fping_line_result parsed = parse_fping_line(line, sample);
 
-                if (parse_result == LATENCY_FPING_LINE_INVALID) {
-                    error_set(
-                        error,
-                        error_size,
-                        "unexpected fping output: %.160s",
-                        line
-                    );
-                    return LATENCY_PROBE_ERROR;
-                }
-                return parse_result == LATENCY_FPING_LINE_SAMPLE
-                    ? LATENCY_PROBE_SUCCESS
-                    : LATENCY_PROBE_TIMEOUT;
+            if (parsed == LATENCY_FPING_LINE_INVALID) {
+                error_set(
+                    error,
+                    error_size,
+                    "unexpected fping output: %.160s",
+                    line
+                );
+                return LATENCY_PROBE_ERROR;
             }
+            return parsed == LATENCY_FPING_LINE_SAMPLE
+                ? LATENCY_PROBE_SUCCESS
+                : LATENCY_PROBE_TIMEOUT;
         }
 
         if (latency->output_length == sizeof(latency->output_buffer)) {
@@ -931,33 +915,30 @@ enum latency_probe_result latency_receive(
             return LATENCY_PROBE_ERROR;
         }
 
-        {
-            ssize_t received = read(
-                latency->output_descriptor,
-                latency->output_buffer + latency->output_length,
-                sizeof(latency->output_buffer) - latency->output_length
+        received = read(
+            latency->output_descriptor,
+            latency->output_buffer + latency->output_length,
+            sizeof(latency->output_buffer) - latency->output_length
+        );
+        if (received > 0) {
+            latency->output_length += (size_t)received;
+            continue;
+        }
+        if (received == 0) {
+            set_child_exit_error(latency, error, error_size);
+            return LATENCY_PROBE_ERROR;
+        }
+        if (errno == EINTR) {
+            continue;
+        }
+        if (errno != EAGAIN) {
+            error_set(
+                error,
+                error_size,
+                "could not read fping output: %s",
+                strerror(errno)
             );
-
-            if (received > 0) {
-                latency->output_length += (size_t)received;
-                continue;
-            }
-            if (received == 0) {
-                set_child_exit_error(latency, error, error_size);
-                return LATENCY_PROBE_ERROR;
-            }
-            if (errno == EINTR) {
-                continue;
-            }
-            if (errno != EAGAIN) {
-                error_set(
-                    error,
-                    error_size,
-                    "could not read fping output: %s",
-                    strerror(errno)
-                );
-                return LATENCY_PROBE_ERROR;
-            }
+            return LATENCY_PROBE_ERROR;
         }
         return LATENCY_PROBE_PENDING;
     }

@@ -26,7 +26,7 @@ struct qdisc_event {
     uint32_t parent;
 };
 
-typedef int (*qdisc_event_handler)(
+typedef void (*qdisc_event_handler)(
     const struct qdisc_event *event,
     void *context
 );

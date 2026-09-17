@@ -198,12 +198,7 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
         .handle = traffic_control->tcm_handle,
         .parent = traffic_control->tcm_parent
     };
-    if (netlink->event_handler(
-            &event,
-            netlink->event_handler_context
-        ) != 0) {
-        netlink->event_parse_failed = true;
-    }
+    netlink->event_handler(&event, netlink->event_handler_context);
     return NL_OK;
 }
 
@@ -410,23 +405,27 @@ static int receive_response(
         return -1;
     }
 
-    if (configure_response_callbacks(
+    if (
+        configure_response_callbacks(
             netlink->socket,
             context,
             error,
             error_size
-        ) != 0) {
+        ) != 0
+    ) {
         return -1;
     }
 
     while (!context->complete) {
         /* One deadline covers the entire multipart response and interruptions. */
-        if (wait_for_response(
+        if (
+            wait_for_response(
                 netlink,
                 started + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS * 1000U,
                 error,
                 error_size
-            ) != 0) {
+            ) != 0
+        ) {
             return -1;
         }
 
@@ -468,25 +467,27 @@ static int receive_response(
 static int send_request(
     struct netlink *netlink,
     struct nl_msg *message,
-    enum response_type type,
+    struct response_context *response,
     char *error,
     size_t error_size
 )
 {
     int result = nl_send_auto_complete(netlink->socket, message);
 
+    /* Consume the request even when sending fails; replies own no message data. */
+    nlmsg_free(message);
     if (result < 0) {
         error_set(
             error,
             error_size,
-            type == RESPONSE_QDISC_DUMP
+            response->type == RESPONSE_QDISC_DUMP
                 ? "could not request qdisc dump: %s"
                 : "could not send qdisc change: %s",
             nl_geterror(result)
         );
         return -1;
     }
-    return 0;
+    return receive_response(netlink, response, error, error_size);
 }
 
 int netlink_dump_qdiscs(
@@ -537,19 +538,13 @@ int netlink_dump_qdiscs(
         return -1;
     }
 
-    result = send_request(
+    return send_request(
         netlink,
         message,
-        RESPONSE_QDISC_DUMP,
+        &response,
         error,
         error_size
     );
-    nlmsg_free(message);
-    if (result != 0) {
-        return -1;
-    }
-
-    return receive_response(netlink, &response, error, error_size);
 }
 
 int netlink_change_qdisc_option(
@@ -625,17 +620,11 @@ int netlink_change_qdisc_option(
     }
     (void)nla_nest_end(message, options);
 
-    result = send_request(
+    return send_request(
         netlink,
         message,
-        RESPONSE_QDISC_CHANGE,
+        &response,
         error,
         error_size
     );
-    nlmsg_free(message);
-    if (result != 0) {
-        return -1;
-    }
-
-    return receive_response(netlink, &response, error, error_size);
 }

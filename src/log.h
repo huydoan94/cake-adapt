@@ -96,7 +96,7 @@ int log_set_file(
     bool compress_exports
 );
 
-int log_set_level(const char *level);
+void log_set_level(enum log_level level);
 
 void log_tick(void);
 

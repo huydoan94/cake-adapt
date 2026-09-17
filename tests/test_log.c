@@ -53,7 +53,7 @@ void __wrap___syslog_chk(int priority, int flag, const char *format, ...)
 static void test_operational_syslog(void)
 {
     log_init("cake-adapt-test", false);
-    assert(log_set_level("debug") == 0);
+    log_set_level(LOG_LEVEL_DEBUG);
     syslog_count = 0U;
     log_message(LOG_LEVEL_ERROR, "configuration failed");
     assert(syslog_count == 1U && syslog_priority == LOG_ERR);
@@ -144,7 +144,7 @@ static void test_debug_logging_to_file(void)
     assert(close(descriptor) == 0);
 
     log_init("sqm-mon-test", false);
-    assert(log_set_level("debug") == 0);
+    log_set_level(LOG_LEVEL_DEBUG);
     assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
     log_message(LOG_LEVEL_DEBUG, "sample value=%d", 42);
     log_close();
@@ -166,7 +166,7 @@ static void test_file_logging_respects_level(void)
     assert(close(descriptor) == 0);
 
     log_init("sqm-mon-test", false);
-    assert(log_set_level("notice") == 0);
+    log_set_level(LOG_LEVEL_NOTICE);
     assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
     log_message(LOG_LEVEL_DEBUG, "hidden debug message");
     log_message(LOG_LEVEL_NOTICE, "visible notice");
@@ -195,7 +195,7 @@ static void test_failed_file_switch_preserves_rotation_path(void)
     assert(descriptor >= 0);
     assert(close(descriptor) == 0);
     log_init("cake-adapt-test", false);
-    assert(log_set_level("info") == 0);
+    log_set_level(LOG_LEVEL_INFO);
     assert(log_set_file(path, 0U, 1U, 0U, false) == 0);
     (void)snprintf(invalid_path, sizeof(invalid_path), "%s/not-a-directory", path);
     assert(log_set_file(invalid_path, 0U, 1U, 0U, false) == -1);
@@ -468,7 +468,7 @@ static void test_cpu_schema_matches_cake_autorate(void)
     assert(unlink(path) == 0);
 }
 
-static void test_rotation_export_and_reset_preserve_live_inode(void)
+static void test_rotation_export_and_reset_preserve_live_inode(bool compress)
 {
     char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
     char previous_path[128];
@@ -488,8 +488,8 @@ static void test_rotation_export_and_reset_preserve_live_inode(void)
     large_message[sizeof(large_message) - 1U] = '\0';
     memcpy(large_message, "before rotation ", 16U);
     log_init("sqm-mon-test", false);
-    assert(log_set_level("info") == 0);
-    assert(log_set_file(path, 0U, 1U, 0U, true) == 0);
+    log_set_level(LOG_LEVEL_INFO);
+    assert(log_set_file(path, 0U, 1U, 0U, compress) == 0);
     log_print_headers(false, true, false, false);
     log_message(LOG_LEVEL_INFO, "%s", large_message);
     assert(stat(path, &after) == 0);
@@ -499,9 +499,10 @@ static void test_rotation_export_and_reset_preserve_live_inode(void)
     assert(strstr(contents, "before rotation ") != NULL);
     log_message(LOG_LEVEL_INFO, "after rotation");
     assert(log_export_file(export_path, sizeof(export_path)) == 0);
-    assert(strcmp(export_path + strlen(export_path) - 3U, ".gz") == 0);
+    assert((strcmp(export_path + strlen(export_path) - 3U, ".gz") == 0) == compress);
     export_file = gzopen(export_path, "rb");
     assert(export_file != NULL);
+    assert(gzdirect(export_file) == (compress ? 0 : 1));
     length = gzread(export_file, contents, (unsigned int)(sizeof(contents) - 1U));
     assert(length > 0);
     contents[length] = '\0';
@@ -583,7 +584,8 @@ int main(void)
     test_log_descriptor_is_close_on_exec();
     test_cake_autorate_headers_and_record_format();
     test_cpu_schema_matches_cake_autorate();
-    test_rotation_export_and_reset_preserve_live_inode();
+    test_rotation_export_and_reset_preserve_live_inode(false);
+    test_rotation_export_and_reset_preserve_live_inode(true);
     test_buffer_timeout_and_time_rotation();
 
     (void)puts("log tests passed");

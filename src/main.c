@@ -102,12 +102,14 @@ int main(int argc, char **argv)
 
     log_init("cake-adapt", foreground);
 
-    if (config_load(
+    if (
+        config_load(
             &config,
             config_directory,
             config_error,
             sizeof(config_error)
-        ) != 0) {
+        ) != 0
+    ) {
         log_message(
             LOG_LEVEL_ERROR,
             "configuration error: %s",
@@ -117,7 +119,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    (void)log_set_level(config.debug ? "debug" : "info");
+    log_set_level(config.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
     log_set_debug_syslog(config.log_debug_messages_to_syslog);
 
     if (!config.enabled) {
@@ -141,14 +143,16 @@ int main(int argc, char **argv)
         }
     }
 
-    if (config.log_to_file &&
+    if (
+        config.log_to_file &&
         log_set_file(
             log_path,
             config.log_file_max_time_minutes,
             config.log_file_max_size_kilobytes,
             config.log_file_buffer_timeout_microseconds,
             config.log_file_export_compress
-        ) != 0) {
+        ) != 0
+    ) {
         log_message(
             LOG_LEVEL_ERROR,
             "could not open log file '%s': %s",

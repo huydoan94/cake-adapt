@@ -131,7 +131,8 @@ int controller_init(
 )
 {
     memset(controller, 0, sizeof(*controller));
-    if (config->bufferbloat_detection_window == 0U ||
+    if (
+        config->bufferbloat_detection_window == 0U ||
         config->bufferbloat_detection_threshold >
             config->bufferbloat_detection_window ||
         config->rate_minimum_adjust_down_bufferbloat_per_thousand >
@@ -145,24 +146,29 @@ int controller_init(
         config->rate_adjust_down_low_load_per_thousand >
             UINT64_MAX / 1000U ||
         config->rate_adjust_up_low_load_per_thousand >
-            UINT64_MAX / 1000U) {
+            UINT64_MAX / 1000U
+    ) {
         errno = EINVAL;
         return -1;
     }
 
     controller->config = *config;
-    if (initialize_direction(
+    if (
+        initialize_direction(
             &controller->download,
             &config->download,
             config->bufferbloat_detection_window
-        ) != 0) {
+        ) != 0
+    ) {
         return -1;
     }
-    if (initialize_direction(
+    if (
+        initialize_direction(
             &controller->upload,
             &config->upload,
             config->bufferbloat_detection_window
-        ) != 0) {
+        ) != 0
+    ) {
         free(controller->download.delay_samples);
         controller->download.delay_samples = NULL;
         return -1;
@@ -226,8 +232,10 @@ static enum controller_line_state update_line_state(
     direction->recovery_samples = 0U;
     if (input->traffic_rate_bits_per_second >= saturation_threshold) {
         direction->saturation_samples++;
-        if (direction->saturation_samples >=
-            SATURATION_CONFIRMATION_SAMPLES) {
+        if (
+            direction->saturation_samples >=
+            SATURATION_CONFIRMATION_SAMPLES
+        ) {
             direction->state = CONTROLLER_LINE_SATURATED;
             direction->saturation_samples = 0U;
         }
@@ -324,17 +332,23 @@ static uint64_t downward_factor(
     uint64_t delay_above_threshold;
     uint64_t adjustment_range;
 
-    if (config->average_delay_maximum_adjust_down_microseconds <=
-        config->delay_threshold_microseconds) {
+    if (
+        config->average_delay_maximum_adjust_down_microseconds <=
+        config->delay_threshold_microseconds
+    ) {
         adjustment = 1000U;
-    } else if (average_delay_microseconds > 0 &&
+    } else if (
+        average_delay_microseconds > 0 &&
         (uint64_t)average_delay_microseconds >
-            config->delay_threshold_microseconds) {
+            config->delay_threshold_microseconds
+    ) {
         adjustment_range =
             config->average_delay_maximum_adjust_down_microseconds -
             config->delay_threshold_microseconds;
-        if ((uint64_t)average_delay_microseconds >=
-            config->average_delay_maximum_adjust_down_microseconds) {
+        if (
+            (uint64_t)average_delay_microseconds >=
+            config->average_delay_maximum_adjust_down_microseconds
+        ) {
             adjustment = 1000U;
         } else {
             delay_above_threshold = (uint64_t)average_delay_microseconds -
@@ -362,15 +376,18 @@ static uint64_t upward_factor(
     uint64_t delay_below_threshold;
     uint64_t adjustment_range;
 
-    if (config->delay_threshold_microseconds <=
-        config->average_delay_maximum_adjust_up_microseconds) {
-        adjustment = 1000U;
-    } else if (average_delay_microseconds <= 0 ||
+    if (
+        config->delay_threshold_microseconds <=
+            config->average_delay_maximum_adjust_up_microseconds ||
+        average_delay_microseconds <= 0 ||
         (uint64_t)average_delay_microseconds <=
-            config->average_delay_maximum_adjust_up_microseconds) {
+            config->average_delay_maximum_adjust_up_microseconds
+    ) {
         adjustment = 1000U;
-    } else if ((uint64_t)average_delay_microseconds <
-        config->delay_threshold_microseconds) {
+    } else if (
+        (uint64_t)average_delay_microseconds <
+        config->delay_threshold_microseconds
+    ) {
         delay_below_threshold = config->delay_threshold_microseconds -
             (uint64_t)average_delay_microseconds;
         adjustment_range = config->delay_threshold_microseconds -
@@ -421,12 +438,14 @@ static enum controller_rate_reason adjust_rate(
         input->traffic_rate_bits_per_second,
         previous_rate
     ) > config->high_load_threshold_percent;
-    if (direction->congestion == CONTROLLER_CONGESTION_DETECTED &&
+    if (
+        direction->congestion == CONTROLLER_CONGESTION_DETECTED &&
         interval_elapsed(
             timestamp_microseconds,
             direction->last_congestion_adjustment_microseconds,
             config->bufferbloat_refractory_period_microseconds
-        )) {
+        )
+    ) {
         direction->shaper_rate_bits_per_second = scale_rate(
             previous_rate,
             downward_factor(
@@ -442,13 +461,15 @@ static enum controller_rate_reason adjust_rate(
         direction->last_decay_adjustment_microseconds =
             timestamp_microseconds;
     } else {
-        if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
+        if (
+            direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             high_load &&
             interval_elapsed(
                 timestamp_microseconds,
                 direction->last_congestion_adjustment_microseconds,
                 config->bufferbloat_refractory_period_microseconds
-            )) {
+            )
+        ) {
             direction->shaper_rate_bits_per_second = scale_rate(
                 previous_rate,
                 upward_factor(
@@ -461,14 +482,16 @@ static enum controller_rate_reason adjust_rate(
             /* Give the increased rate a full decay interval to be observed. */
             direction->last_decay_adjustment_microseconds =
                 timestamp_microseconds;
-        } else if (direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
+        } else if (
+            direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             !high_load &&
             previous_rate != direction->config.base_rate_bits_per_second &&
             interval_elapsed(
                 timestamp_microseconds,
                 direction->last_decay_adjustment_microseconds,
                 config->decay_refractory_period_microseconds
-            )) {
+            )
+        ) {
             /* With low load, converge by 1% steps instead of jumping to base. */
             direction->shaper_rate_bits_per_second = rate_toward_base(
                 previous_rate,
@@ -658,14 +681,18 @@ void activity_update(
             if (!activity_rates_above(input, config->stall_threshold_bits_per_second, true)) {
                 activity->state = CONTROLLER_STALL;
             }
-        } else if (config->enable_sleep && input->download.valid &&
+        } else if (
+            config->enable_sleep && input->download.valid &&
             input->upload.valid &&
-            !activity_rates_above(input, config->active_threshold_bits_per_second, false)) {
+            !activity_rates_above(input, config->active_threshold_bits_per_second, false)
+        ) {
             /* Only healthy probes and valid counters can establish idle time. */
             if (activity->idle_started_microseconds == 0U) {
                 activity->idle_started_microseconds = input->timestamp_microseconds;
-            } else if (input->timestamp_microseconds - activity->idle_started_microseconds >
-                config->sustained_idle_microseconds) {
+            } else if (
+                input->timestamp_microseconds - activity->idle_started_microseconds >
+                config->sustained_idle_microseconds
+            ) {
                 activity->state = CONTROLLER_IDLE;
                 activity->idle_started_microseconds = 0U;
             }
@@ -679,8 +706,10 @@ void activity_update(
         }
         break;
     case CONTROLLER_STALL:
-        if (response_age <= config->stall_timeout_microseconds ||
-            activity_rates_above(input, config->stall_threshold_bits_per_second, true)) {
+        if (
+            response_age <= config->stall_timeout_microseconds ||
+            activity_rates_above(input, config->stall_threshold_bits_per_second, true)
+        ) {
             activity->state = CONTROLLER_RUNNING;
         }
         check_global_timeout = true;

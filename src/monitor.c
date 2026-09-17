@@ -62,12 +62,7 @@ static void observe_traffic(
     const struct timespec *timestamp
 )
 {
-    struct traffic_sample sample = {
-        .bytes = direction->cake_valid ? direction->cake.bytes : 0U,
-        .qdisc_handle = direction->cake_valid ? direction->cake.handle : 0U,
-        .qdisc_parent = direction->cake_valid ? direction->cake.parent : 0U,
-        .timestamp = *timestamp
-    };
+    struct traffic_sample sample;
     enum traffic_update_result update_result;
 
     direction->traffic_rate_bits_per_second = 0U;
@@ -98,6 +93,12 @@ static void observe_traffic(
     }
     direction->traffic_state = TRAFFIC_OBSERVATION_AVAILABLE;
 
+    sample = (struct traffic_sample) {
+        .bytes = direction->cake.bytes,
+        .qdisc_handle = direction->cake.handle,
+        .qdisc_parent = direction->cake.parent,
+        .timestamp = *timestamp
+    };
     update_result = traffic_update(
         &direction->traffic_monitor,
         &sample,
@@ -155,8 +156,10 @@ static void log_cake_discovery(
 {
     enum log_level level = recovered ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
 
-    if (!observation->has_bandwidth ||
-        observation->bandwidth_bits_per_second == 0U) {
+    if (
+        !observation->has_bandwidth ||
+        observation->bandwidth_bits_per_second == 0U
+    ) {
         log_message(
             level,
             recovered
@@ -483,8 +486,10 @@ static void load_condition(
 {
     const char *state;
 
-    if (load_percent(traffic_rate, cake_rate) >
-        high_load_threshold_percent) {
+    if (
+        load_percent(traffic_rate, cake_rate) >
+        high_load_threshold_percent
+    ) {
         state = "high";
     } else if (traffic_rate > connection_active_threshold) {
         state = "low";
@@ -664,14 +669,16 @@ static void apply_bandwidth(
         log_shaper(direction->interface, desired_rate / 1000U);
     }
 
-    if (cake_set_bandwidth(
+    if (
+        cake_set_bandwidth(
             netlink,
             direction->interface,
             &direction->cake,
             desired_rate,
             error,
             sizeof(error)
-        ) != 0) {
+        ) != 0
+    ) {
         log_message(
             LOG_LEVEL_WARNING,
             "CAKE bandwidth change failed: direction=%s interface=%s"
@@ -694,8 +701,10 @@ static void apply_bandwidth(
         error,
         sizeof(error)
     );
-    if (read_result != CAKE_READ_FOUND || !verified.has_bandwidth ||
-        verified.bandwidth_bits_per_second != desired_rate) {
+    if (
+        read_result != CAKE_READ_FOUND || !verified.has_bandwidth ||
+        verified.bandwidth_bits_per_second != desired_rate
+    ) {
         log_message(
             LOG_LEVEL_WARNING,
             "CAKE bandwidth verification failed: direction=%s interface=%s"
@@ -733,27 +742,19 @@ static struct controller_direction_input direction_input(
 }
 
 static void update_controller(
-    struct controller *controller,
-    struct netlink *netlink,
+    struct observation_context *context,
     const struct config *config,
-    struct monitored_direction *download,
-    struct monitored_direction *upload,
     const struct latency_observation *latency,
-    bool latency_valid,
     const char *reflector
 )
 {
     struct controller_input input = {
-        .download = direction_input(download),
-        .upload = direction_input(upload),
+        .download = direction_input(&context->download),
+        .upload = direction_input(&context->upload),
         .latency = {
-            .valid = latency_valid,
-            .current_rtt_microseconds = latency_valid
-                ? latency->one_way_microseconds * 2U
-                : 0U,
-            .baseline_rtt_microseconds = latency_valid
-                ? latency->one_way_baseline_microseconds * 2U
-                : 0U
+            .valid = true,
+            .current_rtt_microseconds = latency->one_way_microseconds * 2U,
+            .baseline_rtt_microseconds = latency->one_way_baseline_microseconds * 2U
         },
         .timestamp_microseconds = 0U
     };
@@ -763,13 +764,17 @@ static void update_controller(
         const struct controller_direction_input *input;
         const struct controller_direction_output *output;
     } directions[] = {
-        { download, &input.download, &output.download },
-        { upload, &input.upload, &output.upload }
+        { &context->download, &input.download, &output.download },
+        { &context->upload, &input.upload, &output.upload }
     };
 
     (void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
 
-    controller_update(controller, &input, &output);
+    controller_update(
+        &context->controller,
+        &input,
+        &output
+    );
     for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
         struct monitored_direction *direction = directions[index].direction;
         const struct controller_direction_output *decision = directions[index].output;
@@ -783,7 +788,7 @@ static void update_controller(
         /* The controller never requests changes for an observation-only link. */
         if (decision->rate_changed) {
             apply_bandwidth(
-                netlink,
+                &context->netlink,
                 direction,
                 decision->rate_bits_per_second,
                 decision->rate_reason,
@@ -791,9 +796,7 @@ static void update_controller(
             );
         }
     }
-    if (latency_valid) {
-        log_controller_stats(config, &input, &output, latency, reflector);
-    }
+    log_controller_stats(config, &input, &output, latency, reflector);
 }
 
 static void observe_traffic_cycle(
@@ -846,11 +849,13 @@ static void observe_traffic_cycle(
         observe_traffic(&context->upload, &traffic_timestamp);
     }
 
-    if (config->output_load_stats &&
+    if (
+        config->output_load_stats &&
         context->download.traffic_valid && context->upload.traffic_valid &&
         context->download.cake_valid && context->upload.cake_valid &&
         context->download.cake.has_bandwidth &&
-        context->upload.cake.has_bandwidth) {
+        context->upload.cake.has_bandwidth
+    ) {
         log_load_stats(&context->download, &context->upload);
     }
 }
@@ -883,7 +888,8 @@ static bool ensure_latency_open(
     for (index = 0U; index < target_count; index++) {
         targets[index] = config->reflectors[context->reflector_order[index]];
     }
-    if (latency_open(
+    if (
+        latency_open(
             &context->latency,
             config->interface,
             targets,
@@ -893,7 +899,8 @@ static bool ensure_latency_open(
             config->ping_prefix_string,
             error,
             sizeof(error)
-        ) != 0) {
+        ) != 0
+    ) {
         if (!context->latency_observation_failed) {
             log_message(
                 LOG_LEVEL_WARNING,
@@ -931,10 +938,12 @@ static size_t find_active_reflector(
     size_t index;
 
     for (index = 0U; index < target_count; index++) {
-        if (strcmp(
+        if (
+            strcmp(
                 config->reflectors[context->reflector_order[index]],
                 target
-            ) == 0) {
+            ) == 0
+        ) {
             return index;
         }
     }
@@ -1029,13 +1038,9 @@ static bool receive_latency_samples(
             &observation
         );
         update_controller(
-            &context->controller,
-            &context->netlink,
+            context,
             config,
-            &context->download,
-            &context->upload,
             &observation,
-            true,
             sample.target
         );
     }
@@ -1083,7 +1088,7 @@ static void reset_traffic_observation(struct monitored_direction *direction)
     traffic_init(&direction->traffic_monitor);
 }
 
-static int process_qdisc_event(
+static void process_qdisc_event(
     const struct qdisc_event *event,
     void *context
 )
@@ -1092,14 +1097,14 @@ static int process_qdisc_event(
     struct monitored_direction *direction = event_direction(loop, event);
 
     if (direction == NULL) {
-        return 0;
+        return;
     }
     if (event->type == QDISC_REMOVED) {
         if (
             direction->cake_state != CAKE_OBSERVATION_AVAILABLE ||
             direction->cake.handle != event->handle
         ) {
-            return 0;
+            return;
         }
         log_message(
             LOG_LEVEL_NOTICE,
@@ -1115,7 +1120,7 @@ static int process_qdisc_event(
         direction->next_cake_observation_microseconds = UINT64_MAX;
         reset_traffic_observation(direction);
         close_latency(loop);
-        return 0;
+        return;
     }
 
     /* Bandwidth changes notify RTM_NEWQDISC with the existing handle. */
@@ -1123,7 +1128,7 @@ static int process_qdisc_event(
         direction->cake_state == CAKE_OBSERVATION_AVAILABLE &&
         direction->cake.handle == event->handle
     ) {
-        return 0;
+        return;
     }
     if (direction->cake_state == CAKE_OBSERVATION_AVAILABLE) {
         direction->cake_state = CAKE_OBSERVATION_NOT_FOUND;
@@ -1132,7 +1137,6 @@ static int process_qdisc_event(
     direction->next_cake_observation_microseconds = 0U;
     reset_traffic_observation(direction);
     loop->qdisc_refresh = true;
-    return 0;
 }
 
 static void handle_qdisc_events(
@@ -1203,10 +1207,12 @@ static bool watch_latency(struct event_loop *loop)
     }
 
     loop->latency_output.fd = loop->observation.latency.output_descriptor;
-    if (uloop_fd_add(
+    if (
+        uloop_fd_add(
             &loop->latency_output,
             ULOOP_READ | ULOOP_ERROR_CB
-        ) == 0) {
+        ) == 0
+    ) {
         return true;
     }
 
@@ -1414,7 +1420,7 @@ static void update_monitor_state(
     }
 }
 
-static bool replace_active_reflector(
+static void replace_active_reflector(
     struct event_loop *loop,
     size_t pinger,
     uint64_t timestamp_microseconds
@@ -1441,7 +1447,7 @@ static bool replace_active_reflector(
             "Resetting reflector offences associated with reflector: %s.",
             config->reflectors[bad_index]
         );
-        return true;
+        return;
     }
 
     log_message(
@@ -1485,7 +1491,6 @@ static bool replace_active_reflector(
     close_latency(loop);
     context->next_latency_attempt_microseconds = 0U;
     (void)watch_latency(loop);
-    return true;
 }
 
 static void handle_traffic_timer(
@@ -1600,11 +1605,6 @@ static void handle_log_reset_signal(struct uloop_signal *signal)
     }
 }
 
-static bool signed_delta_exceeds(int64_t delta, uint64_t threshold)
-{
-    return delta > 0 && (uint64_t)delta > threshold;
-}
-
 static bool compare_active_reflectors(
     struct event_loop *loop,
     uint64_t timestamp_microseconds
@@ -1628,6 +1628,7 @@ static bool compare_active_reflectors(
         ];
 
         if (loop->config->output_reflector_stats) {
+            /* Keep both upstream columns even though fping shares the delay. */
             const struct log_reflector_record record = {
                 .reflector = reflector,
                 .minimum_sum_owd_baselines_microseconds =
@@ -1640,53 +1641,43 @@ static bool compare_active_reflectors(
                     loop->config
                         ->reflector_sum_owd_baselines_delta_threshold_microseconds,
                 .minimum_download_delta_ewma_microseconds =
-                    comparison->minimum_download_delta_ewma_microseconds,
+                    comparison->minimum_delta_ewma_microseconds,
                 .download_delta_ewma_microseconds =
-                    comparison->download_delta_ewma_microseconds,
+                    comparison->delta_ewma_microseconds,
                 .download_delta_ewma_delta_microseconds =
-                    comparison->download_delta_ewma_delta_microseconds,
+                    comparison->delta_ewma_delta_microseconds,
                 .delta_ewma_delta_threshold_microseconds =
                     loop->config
                         ->reflector_owd_delta_ewma_delta_threshold_microseconds,
                 .minimum_upload_delta_ewma_microseconds =
-                    comparison->minimum_upload_delta_ewma_microseconds,
+                    comparison->minimum_delta_ewma_microseconds,
                 .upload_delta_ewma_microseconds =
-                    comparison->upload_delta_ewma_microseconds,
+                    comparison->delta_ewma_microseconds,
                 .upload_delta_ewma_delta_microseconds =
-                    comparison->upload_delta_ewma_delta_microseconds
+                    comparison->delta_ewma_delta_microseconds
             };
 
             log_reflector(&record);
         }
 
-        if (comparison->sum_owd_baselines_delta_microseconds >
+        if (
+            comparison->sum_owd_baselines_delta_microseconds >
             loop->config
-                ->reflector_sum_owd_baselines_delta_threshold_microseconds) {
+                ->reflector_sum_owd_baselines_delta_threshold_microseconds
+        ) {
             log_message(
                 LOG_LEVEL_DEBUG,
                 "Warning: reflector: %s sum_owd_baselines_us exceeds the"
                 " minimum by set threshold.",
                 reflector
             );
-        } else if (signed_delta_exceeds(
-                comparison->download_delta_ewma_delta_microseconds,
-                loop->config
-                    ->reflector_owd_delta_ewma_delta_threshold_microseconds
-            )) {
+        } else if (
+            (uint64_t)comparison->delta_ewma_delta_microseconds >
+                loop->config->reflector_owd_delta_ewma_delta_threshold_microseconds
+        ) {
             log_message(
                 LOG_LEVEL_DEBUG,
                 "Warning: reflector: %s dl_owd_delta_ewma_us exceeds the"
-                " minimum by set threshold.",
-                reflector
-            );
-        } else if (signed_delta_exceeds(
-                comparison->upload_delta_ewma_delta_microseconds,
-                loop->config
-                    ->reflector_owd_delta_ewma_delta_threshold_microseconds
-            )) {
-            log_message(
-                LOG_LEVEL_DEBUG,
-                "Warning: reflector: %s ul_owd_delta_ewma_us exceeds the"
                 " minimum by set threshold.",
                 reflector
             );
@@ -1694,7 +1685,7 @@ static bool compare_active_reflectors(
             continue;
         }
 
-        (void)replace_active_reflector(loop, index, timestamp_microseconds);
+        replace_active_reflector(loop, index, timestamp_microseconds);
         return true;
     }
     return false;
@@ -1711,11 +1702,13 @@ static bool run_scheduled_reflector_work(
         loop->config->reflector_comparison_interval_minutes * 60000000U;
     size_t pinger;
 
-    if (interval_elapsed(
+    if (
+        interval_elapsed(
             timestamp_microseconds,
             loop->observation.last_reflector_replacement_microseconds,
             replacement_interval_microseconds
-        )) {
+        )
+    ) {
         loop->observation.last_reflector_replacement_microseconds =
             timestamp_microseconds;
         if (!random_index((size_t)loop->config->no_pingers, &pinger)) {
@@ -1733,7 +1726,7 @@ static bool run_scheduled_reflector_work(
                 loop->observation.reflector_order[pinger]
             ]
         );
-        (void)replace_active_reflector(
+        replace_active_reflector(
             loop,
             pinger,
             timestamp_microseconds
@@ -1741,11 +1734,13 @@ static bool run_scheduled_reflector_work(
         return true;
     }
 
-    if (interval_elapsed(
+    if (
+        interval_elapsed(
             timestamp_microseconds,
             loop->observation.last_reflector_comparison_microseconds,
             comparison_interval_microseconds
-        )) {
+        )
+    ) {
         loop->observation.last_reflector_comparison_microseconds =
             timestamp_microseconds;
         return compare_active_reflectors(loop, timestamp_microseconds);
@@ -1834,11 +1829,12 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
                 ]
             );
             if (!reflector_replaced) {
-                reflector_replaced = replace_active_reflector(
+                replace_active_reflector(
                     loop,
                     index,
                     timestamp_microseconds
                 );
+                reflector_replaced = true;
             } else {
                 log_message(
                     LOG_LEVEL_DEBUG,
@@ -2008,10 +2004,12 @@ int monitor_run(const struct config *config)
     traffic_init(&loop.observation.download.traffic_monitor);
     traffic_init(&loop.observation.upload.traffic_monitor);
     cpu_init(&loop.cpu_monitor);
-    if (controller_init(
+    if (
+        controller_init(
             &loop.observation.controller,
             &controller_config
-        ) != 0) {
+        ) != 0
+    ) {
         log_message(
             LOG_LEVEL_ERROR,
             "could not initialize controller: %s",
@@ -2020,10 +2018,12 @@ int monitor_run(const struct config *config)
         goto done;
     }
     for (index = 0U; index < (size_t)config->reflector_count; index++) {
-        if (tracker_init(
+        if (
+            tracker_init(
                 &loop.observation.latency_trackers[index],
                 &latency_tracker_config
-            ) != 0) {
+            ) != 0
+        ) {
             log_message(
                 LOG_LEVEL_ERROR,
                 "could not initialize latency tracker: %s",
@@ -2050,11 +2050,13 @@ int monitor_run(const struct config *config)
     loop.observation.last_pinger_restart_microseconds = start_microseconds;
     loop.observation.activity.state = CONTROLLER_RUNNING;
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
-        if (health_init(
+        if (
+            health_init(
                 &loop.observation.reflector_health[index],
                 &reflector_health_config,
                 start_microseconds
-            ) != 0) {
+            ) != 0
+        ) {
             log_message(
                 LOG_LEVEL_ERROR,
                 "could not initialize reflector health: %s",
@@ -2112,10 +2114,12 @@ int monitor_run(const struct config *config)
     }
 
     for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
-        if (uloop_interval_set(
+        if (
+            uloop_interval_set(
                 required_timers[index].timer,
                 (unsigned int)(required_timers[index].interval_microseconds / 1000U)
-            ) != 0) {
+            ) != 0
+        ) {
             log_message(
                 LOG_LEVEL_ERROR,
                 "could not monitor %s timer: %s",
@@ -2129,22 +2133,26 @@ int monitor_run(const struct config *config)
     observe_traffic_cycle(&loop.observation, config);
     if (config->output_cpu_stats || config->output_cpu_raw_stats) {
         observe_cpu(&loop, false);
-        if (uloop_interval_set(
+        if (
+            uloop_interval_set(
                 &loop.cpu_timer,
                 (unsigned int)(config->monitor_cpu_usage_interval_microseconds / 1000U)
-            ) != 0) {
+            ) != 0
+        ) {
             log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
         }
     }
     if (config->log_to_file) {
         uint64_t buffer_milliseconds = config->log_file_buffer_timeout_microseconds / 1000U;
 
-        if (uloop_interval_set(
+        if (
+            uloop_interval_set(
                 &loop.log_timer,
                 (unsigned int)(buffer_milliseconds > 0U ? buffer_milliseconds : 1U)
             ) != 0 ||
             uloop_signal_add(&loop.log_export_signal) != 0 ||
-            uloop_signal_add(&loop.log_reset_signal) != 0) {
+            uloop_signal_add(&loop.log_reset_signal) != 0
+        ) {
             log_message(LOG_LEVEL_WARNING, "log maintenance degraded: %s", strerror(errno));
         }
     }
