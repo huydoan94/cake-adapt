@@ -255,9 +255,7 @@ static void observe_cake(
     case CAKE_READ_NOT_FOUND:
         if (direction->cake_state != CAKE_OBSERVATION_NOT_FOUND) {
             log_message(
-                direction->cake_state == CAKE_OBSERVATION_AVAILABLE
-                    ? LOG_LEVEL_WARNING
-                    : LOG_LEVEL_INFO,
+                LOG_LEVEL_WARNING,
                 direction->cake_state == CAKE_OBSERVATION_AVAILABLE
                     ? "CAKE observation degraded: no CAKE qdisc found on interface=%s"
                     : "CAKE not found: interface=%s; observation will retry",

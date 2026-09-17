@@ -121,7 +121,7 @@ int main(int argc, char **argv)
     log_set_debug_syslog(config.log_debug_messages_to_syslog);
 
     if (!config.enabled) {
-        log_message(LOG_LEVEL_NOTICE, "disabled by configuration");
+        log_system_message("cake-adapt is disabled by configuration; exiting");
         log_close();
         return 0;
     }

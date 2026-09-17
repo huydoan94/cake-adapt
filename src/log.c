@@ -775,7 +775,7 @@ void log_message(
 
     timestamp_microseconds = log_realtime_microseconds();
     if (log_to_syslog &&
-        (level == LOG_LEVEL_ERROR ||
+        (level <= LOG_LEVEL_WARNING ||
             (level == LOG_LEVEL_DEBUG && debug_to_syslog))) {
         syslog(
             levels[level].priority,
