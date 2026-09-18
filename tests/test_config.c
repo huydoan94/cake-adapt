@@ -2,6 +2,70 @@
 
 #include <assert.h>
 
+/* Use real libuci inline accessors with a controlled single-option lookup. */
+static struct uci_option *lookup_option;
+
+int uci_lookup_next(
+    struct uci_context *context,
+    struct uci_element **element,
+    struct uci_list *list,
+    const char *name
+)
+{
+    (void)context;
+    (void)list;
+    if (
+        lookup_option == NULL ||
+        strcmp(lookup_option->e.name, name) != 0
+    ) {
+        return UCI_ERR_NOTFOUND;
+    }
+    *element = &lookup_option->e;
+    return UCI_OK;
+}
+
+static void test_scalar_option_types(void)
+{
+    struct uci_section section = { 0 };
+    struct uci_option option = {
+        .e = { .type = UCI_TYPE_OPTION, .name = "test" },
+        .type = UCI_TYPE_LIST
+    };
+    bool boolean = false;
+    uint64_t scaled = 7U;
+    char string[16] = "default";
+    char error[128];
+    const struct boolean_option_binding boolean_options[] = { { "test", &boolean } };
+    const struct scaled_option_binding scaled_options[] = { { "test", &scaled, 1000U } };
+    const struct string_option_binding string_options[] = { { "test", string, sizeof(string) } };
+
+    lookup_option = &option;
+    assert(load_boolean_options(NULL, &section, boolean_options, 1U, error, sizeof(error)) == -1);
+    assert(strstr(error, "not a list") != NULL);
+    assert(!boolean);
+    assert(load_scaled_options(NULL, &section, scaled_options, 1U, error, sizeof(error)) == -1);
+    assert(scaled == 7U);
+    assert(load_string_options(NULL, &section, string_options, 1U, error, sizeof(error)) == -1);
+    assert(strcmp(string, "default") == 0);
+
+    lookup_option = NULL;
+    assert(load_boolean_options(NULL, &section, boolean_options, 1U, error, sizeof(error)) == 0);
+    assert(load_scaled_options(NULL, &section, scaled_options, 1U, error, sizeof(error)) == 0);
+    assert(load_string_options(NULL, &section, string_options, 1U, error, sizeof(error)) == 0);
+    assert(!boolean && scaled == 7U && strcmp(string, "default") == 0);
+
+    lookup_option = &option;
+    option.type = UCI_TYPE_STRING;
+    option.v.string = "1";
+    assert(load_boolean_options(NULL, &section, boolean_options, 1U, error, sizeof(error)) == 0);
+    assert(boolean);
+    assert(load_scaled_options(NULL, &section, scaled_options, 1U, error, sizeof(error)) == 0);
+    assert(scaled == 1000U);
+    assert(load_string_options(NULL, &section, string_options, 1U, error, sizeof(error)) == 0);
+    assert(strcmp(string, "1") == 0);
+    lookup_option = NULL;
+}
+
 static struct config valid_config(void)
 {
     return (struct config) {
@@ -111,6 +175,7 @@ int main(void)
     assert(strstr(error, "whole kbit/s") != NULL);
 
     test_fping_only_and_intentional_exclusions();
+    test_scalar_option_types();
     test_reflector_list_validation();
     test_new_timer_and_limit_validation();
     (void)puts("configuration validation tests passed");

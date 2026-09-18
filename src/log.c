@@ -149,7 +149,10 @@ static bool export_log(
         FILE *source = fopen(source_paths[index], "r");
 
         if (source == NULL) {
-            if (index == 0U && errno == ENOENT) {
+            if (
+                index == 0U &&
+                errno == ENOENT
+            ) {
                 continue;
             }
             success = false;
@@ -206,7 +209,10 @@ int log_export_file(
     ) {
         return -1;
     }
-    if (path_length >= 4U && strcmp(log_path + path_length - 4U, ".log") == 0) {
+    if (
+        path_length >= 4U &&
+        strcmp(log_path + path_length - 4U, ".log") == 0
+    ) {
         path_length -= 4U;
     }
     written = snprintf(
@@ -218,7 +224,10 @@ int log_export_file(
         stamp,
         log_compress_exports ? ".gz" : ""
     );
-    if (written < 0 || (size_t)written >= export_path_size) {
+    if (
+        written < 0 ||
+        (size_t)written >= export_path_size
+    ) {
         errno = ENAMETOOLONG;
         return -1;
     }
@@ -252,7 +261,10 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
     off_t size;
     bool rotate;
 
-    if (log_file == NULL || log_maintenance_active) {
+    if (
+        log_file == NULL ||
+        log_maintenance_active
+    ) {
         return;
     }
     if (
@@ -297,7 +309,10 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
             "%s.old",
             log_path
         );
-        if (fflush(log_file) == 0 && export_log(previous_path, false, false)) {
+        if (
+            fflush(log_file) == 0 &&
+            export_log(previous_path, false, false)
+        ) {
             (void)truncate_log_file();
         }
         log_maintenance_active = false;
@@ -405,7 +420,10 @@ int log_set_file(
 {
     FILE *file;
 
-    if (path == NULL || path[0] == '\0') {
+    if (
+        path == NULL ||
+        path[0] == '\0'
+    ) {
         errno = EINVAL;
         return -1;
     }
@@ -478,6 +496,7 @@ void log_print_cpu_headers(
     size_t index;
     size_t size;
     FILE *stream;
+    bool failed;
 
     free(cpu_header);
     cpu_header = NULL;
@@ -485,23 +504,33 @@ void log_print_cpu_headers(
     if (output_cpu_stats) {
         stream = open_memstream(&cpu_header, &size);
         if (stream == NULL) {
-            return;
-        }
-        (void)fputs(
-            "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME",
-            stream
-        );
-        for (index = 0U; index < sample->count; index++) {
-            const char *identifier = sample->counters[index].identifier;
+            log_message(LOG_LEVEL_WARNING, "could not allocate CPU log header");
+        } else {
+            (void)fputs(
+                "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME",
+                stream
+            );
+            for (index = 0U; index < sample->count; index++) {
+                const char *identifier = sample->counters[index].identifier;
 
-            (void)fputs("; ", stream);
-            while (*identifier != '\0') {
-                (void)fputc(toupper((unsigned char)*identifier++), stream);
+                (void)fputs("; ", stream);
+                while (*identifier != '\0') {
+                    (void)fputc(toupper((unsigned char)*identifier++), stream);
+                }
+                (void)fputs("_USAGE", stream);
             }
-            (void)fputs("_USAGE", stream);
+            failed = ferror(stream) != 0;
+            if (fclose(stream) != 0) {
+                failed = true;
+            }
+            if (failed) {
+                free(cpu_header);
+                cpu_header = NULL;
+                log_message(LOG_LEVEL_WARNING, "could not finish CPU log header");
+            } else {
+                write_line(cpu_header);
+            }
         }
-        (void)fclose(stream);
-        write_line(cpu_header);
     }
     if (output_cpu_raw_stats) {
         write_line(cpu_raw_header);
@@ -656,8 +685,10 @@ void log_cpu(
     size_t size;
     size_t index;
     FILE *stream = open_memstream(&message, &size);
+    bool failed;
 
     if (stream == NULL) {
+        log_message(LOG_LEVEL_WARNING, "could not allocate CPU log record");
         return;
     }
     (void)fprintf(
@@ -669,8 +700,15 @@ void log_cpu(
     for (index = 0U; index < sample->count; index++) {
         (void)fprintf(stream, "; %u", usage[index]);
     }
-    (void)fclose(stream);
-    write_record("CPU", message);
+    failed = ferror(stream) != 0;
+    if (fclose(stream) != 0) {
+        failed = true;
+    }
+    if (failed) {
+        log_message(LOG_LEVEL_WARNING, "could not finish CPU log record");
+    } else {
+        write_record("CPU", message);
+    }
     free(message);
 }
 

@@ -88,7 +88,10 @@ int cpu_read(
         }
         sample->count++;
     }
-    if (ferror(file) || sample->count == 0U) {
+    if (
+        ferror(file) ||
+        sample->count == 0U
+    ) {
         error_set(error, error_size, "could not read CPU counters from %s", path);
         goto done;
     }

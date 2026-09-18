@@ -16,12 +16,18 @@ bool parse_unsigned(
     char *tail;
     unsigned long long parsed;
 
-    if (start == end || strspn(start, "0123456789") != (size_t)(end - start)) {
+    if (
+        start == end ||
+        strspn(start, "0123456789") != (size_t)(end - start)
+    ) {
         return false;
     }
     errno = 0;
     parsed = strtoull(start, &tail, 10);
-    if (errno == ERANGE || tail != end) {
+    if (
+        errno == ERANGE ||
+        tail != end
+    ) {
         return false;
     }
     *value = (uint64_t)parsed;
@@ -63,7 +69,10 @@ bool read_clock_microseconds(
 {
     struct timespec value;
 
-    if (clock_gettime(clock_identifier, &value) != 0 || value.tv_sec < 0) {
+    if (
+        clock_gettime(clock_identifier, &value) != 0 ||
+        value.tv_sec < 0
+    ) {
         return false;
     }
     *timestamp = (uint64_t)value.tv_sec * 1000000U +
@@ -109,7 +118,10 @@ bool elapsed_milliseconds(
         --seconds;
         nanoseconds += 1000000000L;
     }
-    if (seconds < 0 || (uint64_t)seconds > UINT64_MAX / 1000U) {
+    if (
+        seconds < 0 ||
+        (uint64_t)seconds > UINT64_MAX / 1000U
+    ) {
         return false;
     }
     *elapsed = (uint64_t)seconds * 1000U + (uint64_t)nanoseconds / 1000000U;

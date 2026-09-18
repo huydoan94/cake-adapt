@@ -38,17 +38,19 @@ static bool parse_timestamp(
 {
     const char *closing_bracket;
     const char *decimal_point;
-    const char *fraction_end;
-    const char *character;
-    uint64_t fraction = 0U;
+    char fraction_digits[7] = "000000";
+    uint64_t fraction;
     uint64_t seconds;
-    size_t retained_digits = 0U;
+    size_t digit_count;
 
     if (line[0] != '[') {
         return false;
     }
     closing_bracket = strchr(line + 1, ']');
-    if (closing_bracket == NULL || closing_bracket[1] != ' ') {
+    if (
+        closing_bracket == NULL ||
+        closing_bracket[1] != ' '
+    ) {
         return false;
     }
     decimal_point = memchr(
@@ -63,26 +65,16 @@ static bool parse_timestamp(
         return false;
     }
 
-    fraction_end = closing_bracket;
-    if (decimal_point + 1 == fraction_end) {
+    digit_count = strspn(decimal_point + 1, "0123456789");
+    if (
+        digit_count == 0U ||
+        decimal_point + 1 + digit_count != closing_bracket
+    ) {
         return false;
     }
-    for (character = decimal_point + 1;
-         character < fraction_end;
-         character++) {
-        if (*character < '0' || *character > '9') {
-            return false;
-        }
-        if (retained_digits < 6U) {
-            fraction = fraction * 10U +
-                (uint64_t)(unsigned int)(*character - '0');
-            ++retained_digits;
-        }
-    }
-    while (retained_digits < 6U) {
-        fraction *= 10U;
-        ++retained_digits;
-    }
+    /* Pad or truncate to six digits without rounding epoch time through float. */
+    memcpy(fraction_digits, decimal_point + 1, digit_count < 6U ? digit_count : 6U);
+    fraction = strtoul(fraction_digits, NULL, 10);
 
     if (seconds > (UINT64_MAX - fraction) / 1000000U) {
         return false;
@@ -125,7 +117,10 @@ enum latency_fping_line_result parse_fping_line(
         target_end--;
     }
     target_length = (size_t)(target_end - cursor);
-    if (target_length == 0U || target_length >= sizeof(sample->target)) {
+    if (
+        target_length == 0U ||
+        target_length >= sizeof(sample->target)
+    ) {
         return LATENCY_FPING_LINE_INVALID;
     }
     memcpy(sample->target, cursor, target_length);
@@ -188,7 +183,10 @@ static int set_nonblocking(
 )
 {
     int flags = fcntl(descriptor, F_GETFL);
-    if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
+    if (
+        flags < 0 ||
+        fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0
+    ) {
         error_set(
             error,
             error_size,
@@ -235,7 +233,10 @@ static void stop_child(pid_t process_identifier)
         ) {
             return;
         }
-        if (result < 0 && errno != EINTR) {
+        if (
+            result < 0 &&
+            errno != EINTR
+        ) {
             return;
         }
         (void)nanosleep(&interval, NULL);
@@ -358,7 +359,10 @@ int latency_open(
     int word_result;
     bool interface_configured = false;
 
-    if (interface == NULL || interface[0] == '\0') {
+    if (
+        interface == NULL ||
+        interface[0] == '\0'
+    ) {
         error_set(error, error_size, "fping interface is empty");
         return -1;
     }
@@ -417,8 +421,14 @@ int latency_open(
     }
     if (prefix[0] != '\0') {
         word_result = wordexp(prefix, &prefix_words, WRDE_NOCMD);
-        if (word_result != 0 || prefix_words.we_wordc == 0U) {
-            if (word_result == WRDE_NOSPACE || word_result == 0) {
+        if (
+            word_result != 0 ||
+            prefix_words.we_wordc == 0U
+        ) {
+            if (
+                word_result == WRDE_NOSPACE ||
+                word_result == 0
+            ) {
                 wordfree(&prefix_words);
             }
             wordfree(&extra_words);
@@ -538,7 +548,10 @@ static bool take_output_line(
 
     length = (size_t)(newline - latency->output_buffer);
     consumed = length + 1U;
-    if (length > 0U && latency->output_buffer[length - 1U] == '\r') {
+    if (
+        length > 0U &&
+        latency->output_buffer[length - 1U] == '\r'
+    ) {
         --length;
     }
     /* The newline occupies a buffer byte, leaving room for the terminator. */
@@ -604,7 +617,10 @@ bool target_is_valid(const char *target)
     static const char allowed[] =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-";
 
-    if (target == NULL || target[0] == '\0') {
+    if (
+        target == NULL ||
+        target[0] == '\0'
+    ) {
         return false;
     }
     length = strlen(target);

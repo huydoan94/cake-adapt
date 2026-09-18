@@ -204,6 +204,35 @@ static void test_fping_byte_count_syntax(void)
     ) == LATENCY_FPING_LINE_SAMPLE);
 }
 
+static void test_fping_timestamp_boundaries(void)
+{
+    const struct {
+        const char *text;
+        uint64_t microseconds;
+    } valid[] = {
+        { "0.1", 100000U },
+        { "12.00000123", 12000001U },
+        { "12.12345678901234567890", 12123456U },
+        { "18446744073709.551615", UINT64_MAX }
+    };
+    const char *const invalid[] = {
+        "12.", "12.1x", "12.-1", ".1", "12. 1",
+        "18446744073709.551616", "18446744073709551616.0"
+    };
+    struct latency_sample sample;
+    char line[128];
+
+    for (size_t index = 0U; index < sizeof(valid) / sizeof(valid[0]); index++) {
+        (void)snprintf(line, sizeof(line), "[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms", valid[index].text);
+        assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_SAMPLE);
+        assert(sample.timestamp_microseconds == valid[index].microseconds);
+    }
+    for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); index++) {
+        (void)snprintf(line, sizeof(line), "[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms", invalid[index]);
+        assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
+    }
+}
+
 static void test_fping_timeout_is_recognized(void)
 {
     struct latency_sample sample;
@@ -484,7 +513,17 @@ static void test_pinger_arguments_reject_command_substitution(void)
     assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "$(id)", "", error, sizeof(error)) != 0);
     assert(strstr(error, "ping_extra_args") != NULL);
     assert(!latency_is_open(&latency));
-    assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "", "'unterminated", error, sizeof(error)) != 0);
+    assert(latency_open(
+        &latency,
+        "lo",
+        targets,
+        1U,
+        1000000U,
+        "",
+        "'unterminated",
+        error,
+        sizeof(error)
+    ) != 0);
     assert(strstr(error, "ping_prefix_string") != NULL);
     assert(!latency_is_open(&latency));
 }
@@ -546,6 +585,7 @@ int main(void)
     test_fping_reply_is_parsed();
     test_fping_six_digit_timestamp_is_preserved();
     test_fping_byte_count_syntax();
+    test_fping_timestamp_boundaries();
     test_fping_timeout_is_recognized();
     test_fping_reply_identifies_each_target();
     test_first_sample_updates_initialized_baseline();

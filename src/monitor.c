@@ -67,7 +67,10 @@ static void observe_traffic(
 
     direction->traffic_rate_bits_per_second = 0U;
     direction->traffic_valid = false;
-    if (!direction->cake_valid || !direction->cake.has_basic_stats) {
+    if (
+        !direction->cake_valid ||
+        !direction->cake.has_basic_stats
+    ) {
         if (direction->traffic_state != TRAFFIC_OBSERVATION_UNAVAILABLE) {
             log_message(
                 LOG_LEVEL_WARNING,
@@ -1237,7 +1240,10 @@ static void enforce_minimum_rates(
         &context->controller,
         timestamp_microseconds
     );
-    if (config->adjust_download && context->download.cake_valid) {
+    if (
+        config->adjust_download &&
+        context->download.cake_valid
+    ) {
         apply_bandwidth(
             &context->netlink,
             &context->download,
@@ -1246,7 +1252,10 @@ static void enforce_minimum_rates(
             config->output_cake_changes
         );
     }
-    if (config->adjust_upload && context->upload.cake_valid) {
+    if (
+        config->adjust_upload &&
+        context->upload.cake_valid
+    ) {
         apply_bandwidth(
             &context->netlink,
             &context->upload,
@@ -2131,7 +2140,10 @@ int monitor_run(const struct config *config)
     }
 
     observe_traffic_cycle(&loop.observation, config);
-    if (config->output_cpu_stats || config->output_cpu_raw_stats) {
+    if (
+        config->output_cpu_stats ||
+        config->output_cpu_raw_stats
+    ) {
         observe_cpu(&loop, false);
         if (
             uloop_interval_set(
@@ -2158,7 +2170,10 @@ int monitor_run(const struct config *config)
     }
     (void)watch_latency(&loop);
     run_status = uloop_run();
-    if (run_status == SIGINT || run_status == SIGTERM) {
+    if (
+        run_status == SIGINT ||
+        run_status == SIGTERM
+    ) {
         log_message(
             LOG_LEVEL_NOTICE,
             "received signal %d; shutting down",

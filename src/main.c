@@ -33,7 +33,10 @@ static void randomize_reflector_list(struct config *config)
     size_t index;
 
     log_message(LOG_LEVEL_DEBUG, "Randomizing reflectors.");
-    if (!config->randomize_reflectors || count < 2U) {
+    if (
+        !config->randomize_reflectors ||
+        count < 2U
+    ) {
         return;
     }
     /* At most 63 words (252 bytes), within getentropy's 256-byte limit. */
@@ -136,7 +139,10 @@ int main(int argc, char **argv)
             config.log_file_path_override,
             LOG_FILE_NAME
         );
-        if (path_length < 0 || (size_t)path_length >= sizeof(log_path)) {
+        if (
+            path_length < 0 ||
+            (size_t)path_length >= sizeof(log_path)
+        ) {
             log_message(LOG_LEVEL_ERROR, "log file path is too long");
             log_close();
             return 1;
@@ -218,7 +224,10 @@ int main(int argc, char **argv)
         (long)getpid()
     );
 
-    if (config.adjust_download || config.adjust_upload) {
+    if (
+        config.adjust_download ||
+        config.adjust_upload
+    ) {
         log_message(
             LOG_LEVEL_NOTICE,
             "started with CAKE bandwidth control: download=%s upload=%s",

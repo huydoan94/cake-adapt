@@ -12,7 +12,10 @@ void error_set(
 {
     va_list arguments;
 
-    if (error == NULL || error_size == 0U) {
+    if (
+        error == NULL ||
+        error_size == 0U
+    ) {
         return;
     }
 

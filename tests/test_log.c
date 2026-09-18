@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -22,6 +23,40 @@ static time_t mock_realtime_offset;
 static unsigned int syslog_count;
 static int syslog_priority;
 static char syslog_message[2048];
+static bool fail_memstream_open;
+static bool fail_memstream_close;
+static FILE *fault_stream;
+
+FILE *__real_open_memstream(char **buffer, size_t *size);
+int __real_fclose(FILE *stream);
+
+FILE *__wrap_open_memstream(char **buffer, size_t *size)
+{
+    FILE *stream;
+
+    if (fail_memstream_open) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    stream = __real_open_memstream(buffer, size);
+    if (fail_memstream_close) {
+        fault_stream = stream;
+    }
+    return stream;
+}
+
+int __wrap_fclose(FILE *stream)
+{
+    bool fail = stream == fault_stream;
+    int result = __real_fclose(stream);
+
+    if (fail) {
+        fault_stream = NULL;
+        errno = ENOMEM;
+        return EOF;
+    }
+    return result;
+}
 
 static void capture_syslog(int priority, const char *format, va_list arguments)
 {
@@ -233,8 +268,11 @@ static void test_log_descriptor_is_close_on_exec(void)
             continue;
         }
         descriptor = (int)number;
-        if (fstat(descriptor, &current) == 0 &&
-            current.st_dev == expected.st_dev && current.st_ino == expected.st_ino) {
+        if (
+            fstat(descriptor, &current) == 0 &&
+            current.st_dev == expected.st_dev &&
+            current.st_ino == expected.st_ino
+        ) {
             int flags = fcntl(descriptor, F_GETFD);
 
             assert(flags >= 0 && (flags & FD_CLOEXEC) != 0);
@@ -521,6 +559,42 @@ static void test_rotation_export_and_reset_preserve_live_inode(bool compress)
     assert(unlink(export_path) == 0);
 }
 
+static void test_cpu_log_allocation_failures(void)
+{
+    char path[] = "/tmp/cake-adapt-log-memory-XXXXXX";
+    char contents[4096];
+    struct cpu_sample sample = { .count = 1U, .counters = { { .identifier = "cpu" } } };
+    const unsigned int usage[] = { 40U };
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    log_init("cake-adapt-test", false);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+    syslog_count = 0U;
+    fail_memstream_open = true;
+    log_print_cpu_headers(&sample, true, true);
+    log_cpu(&sample, usage);
+    fail_memstream_open = false;
+    fail_memstream_close = true;
+    log_print_cpu_headers(&sample, true, true);
+    log_cpu(&sample, usage);
+    fail_memstream_close = false;
+    assert(syslog_count == 4U && syslog_priority == LOG_WARNING);
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "CPU_RAW_HEADER;") != NULL);
+    assert(strstr(contents, "CPU_HEADER;") == NULL);
+    assert(strstr(contents, "\nCPU;") == NULL);
+
+    log_print_cpu_headers(&sample, true, true);
+    log_cpu(&sample, usage);
+    log_close();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(contents, "CPU_HEADER;") != NULL);
+    assert(strstr(contents, "\nCPU;") != NULL);
+    assert(unlink(path) == 0);
+}
+
 static void test_buffer_timeout_and_time_rotation(void)
 {
     char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
@@ -584,6 +658,7 @@ int main(void)
     test_log_descriptor_is_close_on_exec();
     test_cake_autorate_headers_and_record_format();
     test_cpu_schema_matches_cake_autorate();
+    test_cpu_log_allocation_failures();
     test_rotation_export_and_reset_preserve_live_inode(false);
     test_rotation_export_and_reset_preserve_live_inode(true);
     test_buffer_timeout_and_time_rotation();

@@ -16,6 +16,9 @@ WARNINGS := \
 	-Werror
 
 TARGETS := test_controller test_latency test_log test_traffic test_cpu test_helpers
+OBJECT_DIR ?= ../build/tests
+OBJECT_NAMES := $(TARGETS) controller latency log traffic cpu error helpers helpers_log
+OBJECTS := $(addprefix $(OBJECT_DIR)/,$(addsuffix .o,$(OBJECT_NAMES)))
 
 # Optional host integration check using the same libnl API as libnl-tiny.
 NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0))
@@ -54,58 +57,35 @@ check: $(TARGETS)
 	./test_helpers
 	sh ./test_init.sh
 
-test_latency: test_latency.o latency.o error.o helpers.o
+test_latency: $(addprefix $(OBJECT_DIR)/,test_latency.o latency.o error.o helpers.o)
+
+test_traffic: $(addprefix $(OBJECT_DIR)/,test_traffic.o traffic.o helpers.o)
+
+test_controller: $(addprefix $(OBJECT_DIR)/,test_controller.o controller.o helpers.o)
+
+test_log: $(addprefix $(OBJECT_DIR)/,test_log.o log.o helpers_log.o)
+	$(CC) $(LDFLAGS) -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose -o $@ $^ $(LDLIBS) -lz
+
+test_cpu: $(addprefix $(OBJECT_DIR)/,test_cpu.o cpu.o error.o helpers.o)
+
+test_helpers: $(addprefix $(OBJECT_DIR)/,test_helpers.o helpers.o)
+
+$(filter-out test_log,$(TARGETS)):
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-test_traffic: test_traffic.o traffic.o helpers.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+$(OBJECT_DIR):
+	mkdir -p $@
 
-test_controller: test_controller.o controller.o helpers.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-test_log: test_log.o log.o helpers_log.o
-	$(CC) $(LDFLAGS) -Wl,--wrap=syslog,--wrap=__syslog_chk -o $@ $^ $(LDLIBS) -lz
-
-test_cpu: test_cpu.c ../src/cpu.c ../src/cpu.h ../src/error.c ../src/helpers.c ../src/helpers.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cpu.c ../src/cpu.c ../src/error.c ../src/helpers.c $(LDLIBS)
-
-test_helpers: test_helpers.c helpers.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-test_latency.o: test_latency.c
+$(OBJECT_DIR)/%.o: %.c | $(OBJECT_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
-test_traffic.o: test_traffic.c
+$(OBJECT_DIR)/%.o: ../src/%.c | $(OBJECT_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
-test_controller.o: test_controller.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
-
-test_log.o: test_log.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
-
-controller.o: ../src/controller.c ../src/controller.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/controller.c
-
-latency.o: ../src/latency.c ../src/latency.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/latency.c
-
-error.o: ../src/error.c ../src/error.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/error.c
-
-log.o: ../src/log.c ../src/log.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/log.c
-
-helpers.o: ../src/helpers.c ../src/helpers.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/helpers.c
-
-helpers_log.o: ../src/helpers.c ../src/helpers.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -Dclock_gettime=test_log_clock_gettime -std=c11 -MMD -MP -c -o $@ ../src/helpers.c
-
-traffic.o: ../src/traffic.c ../src/traffic.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ ../src/traffic.c
+$(OBJECT_DIR)/helpers_log.o: ../src/helpers.c | $(OBJECT_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -Dclock_gettime=test_log_clock_gettime -std=c11 -MMD -MP -c -o $@ $<
 
 clean:
-	$(RM) $(TARGETS) test_cake test_netlink test_config *.o *.d
+	$(RM) $(TARGETS) test_cake test_netlink test_config $(OBJECTS) $(OBJECTS:.o=.d)
 
--include *.d
+-include $(OBJECTS:.o=.d)

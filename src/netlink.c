@@ -223,7 +223,10 @@ int netlink_receive_qdisc_events(
         error_set(error, error_size, "could not parse qdisc event");
         return -1;
     }
-    if (result == -NLE_AGAIN || result == -NLE_INTR) {
+    if (
+        result == -NLE_AGAIN ||
+        result == -NLE_INTR
+    ) {
         return 0;
     }
     if (result < 0) {
@@ -445,7 +448,10 @@ static int receive_response(
             );
             return -1;
         }
-        if (result == -NLE_AGAIN || result == -NLE_INTR) {
+        if (
+            result == -NLE_AGAIN ||
+            result == -NLE_INTR
+        ) {
             continue;
         }
         if (result < 0) {

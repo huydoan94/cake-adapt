@@ -61,7 +61,10 @@ static int copy_option(
     int result;
 
     result = snprintf(destination, destination_size, "%s", value);
-    if (result < 0 || (size_t)result >= destination_size) {
+    if (
+        result < 0 ||
+        (size_t)result >= destination_size
+    ) {
         error_set(
             error,
             error_size,
@@ -119,6 +122,29 @@ static int parse_boolean(
     return -1;
 }
 
+static int lookup_string_option(
+    struct uci_context *context,
+    struct uci_section *section,
+    const char *name,
+    const char **value,
+    char *error,
+    size_t error_size
+)
+{
+    struct uci_option *option = uci_lookup_option(context, section, name);
+
+    *value = NULL;
+    if (option == NULL) {
+        return 0;
+    }
+    if (option->type != UCI_TYPE_STRING) {
+        error_set(error, error_size, "option '%s' must be a scalar UCI option, not a list", name);
+        return -1;
+    }
+    *value = option->v.string;
+    return 0;
+}
+
 static int load_boolean_options(
     struct uci_context *context,
     struct uci_section *section,
@@ -131,11 +157,20 @@ static int load_boolean_options(
     size_t index;
 
     for (index = 0U; index < option_count; index++) {
-        const char *value = uci_lookup_option_string(
-            context,
-            section,
-            options[index].name
-        );
+        const char *value;
+
+        if (
+            lookup_string_option(
+                context,
+                section,
+                options[index].name,
+                &value,
+                error,
+                error_size
+            ) != 0
+        ) {
+            return -1;
+        }
 
         if (
             value != NULL &&
@@ -174,7 +209,10 @@ static int parse_scaled_decimal(
 
     integer_digits = strspn(value, "0123456789");
     character = value + integer_digits;
-    if (integer_digits != 0U && !parse_unsigned(value, character, &scaled_value)) {
+    if (
+        integer_digits != 0U &&
+        !parse_unsigned(value, character, &scaled_value)
+    ) {
         error_set(error, error_size, "option '%s' is too large", option_name);
         return -1;
     }
@@ -196,7 +234,10 @@ static int parse_scaled_decimal(
         *result = scaled_value;
         return 0;
     }
-    if (*character != '.' || character[1] == '\0') {
+    if (
+        *character != '.' ||
+        character[1] == '\0'
+    ) {
         error_set(
             error,
             error_size,
@@ -210,7 +251,10 @@ static int parse_scaled_decimal(
     for (character++; *character != '\0'; character++) {
         unsigned int digit;
 
-        if (*character < '0' || *character > '9') {
+        if (
+            *character < '0' ||
+            *character > '9'
+        ) {
             error_set(
                 error,
                 error_size,
@@ -262,11 +306,20 @@ static int load_scaled_options(
     size_t index;
 
     for (index = 0U; index < option_count; index++) {
-        const char *value = uci_lookup_option_string(
-            context,
-            section,
-            options[index].name
-        );
+        const char *value;
+
+        if (
+            lookup_string_option(
+                context,
+                section,
+                options[index].name,
+                &value,
+                error,
+                error_size
+            ) != 0
+        ) {
+            return -1;
+        }
 
         if (
             value != NULL &&
@@ -297,11 +350,20 @@ static int load_string_options(
     size_t index;
 
     for (index = 0U; index < option_count; index++) {
-        const char *value = uci_lookup_option_string(
-            context,
-            section,
-            options[index].name
-        );
+        const char *value;
+
+        if (
+            lookup_string_option(
+                context,
+                section,
+                options[index].name,
+                &value,
+                error,
+                error_size
+            ) != 0
+        ) {
+            return -1;
+        }
 
         if (
             value != NULL &&
@@ -330,10 +392,19 @@ static int validate_rate_range(
     size_t error_size
 )
 {
-    if (!adjust && minimum == 0U && base == 0U && maximum == 0U) {
+    if (
+        !adjust &&
+        minimum == 0U &&
+        base == 0U &&
+        maximum == 0U
+    ) {
         return 0;
     }
-    if (minimum == 0U || base == 0U || maximum == 0U) {
+    if (
+        minimum == 0U ||
+        base == 0U ||
+        maximum == 0U
+    ) {
         error_set(
             error,
             error_size,
@@ -342,7 +413,10 @@ static int validate_rate_range(
         );
         return -1;
     }
-    if (minimum > base || base > maximum) {
+    if (
+        minimum > base ||
+        base > maximum
+    ) {
         error_set(
             error,
             error_size,
@@ -352,7 +426,11 @@ static int validate_rate_range(
         return -1;
     }
     /* The controller works in whole kbit/s, which CAKE can represent exactly. */
-    if (minimum % 1000U != 0U || base % 1000U != 0U || maximum % 1000U != 0U) {
+    if (
+        minimum % 1000U != 0U ||
+        base % 1000U != 0U ||
+        maximum % 1000U != 0U
+    ) {
         error_set(error, error_size, "%s shaper rates must be whole kbit/s", direction);
         return -1;
     }
@@ -404,14 +482,21 @@ static int validate_latency_config(
     size_t error_size
 )
 {
-    if (!config->enabled && !config->adjust_download && !config->adjust_upload) {
+    if (
+        !config->enabled &&
+        !config->adjust_download &&
+        !config->adjust_upload
+    ) {
         return 0;
     }
     if (strcmp(config->pinger_method, "fping") != 0) {
         error_set(error, error_size, "option 'pinger_method' must be 'fping'; no other pinger is supported");
         return -1;
     }
-    if (config->no_pingers == 0U || config->no_pingers > CONFIG_MAX_REFLECTORS) {
+    if (
+        config->no_pingers == 0U ||
+        config->no_pingers > CONFIG_MAX_REFLECTORS
+    ) {
         error_set(error, error_size, "option 'no_pingers' must be between 1 and %u", CONFIG_MAX_REFLECTORS);
         return -1;
     }
@@ -1031,7 +1116,10 @@ static int load_section(
 
     derive_ingress_interface(config);
 
-    if (!reflectors_configured && latency_target[0] != '\0') {
+    if (
+        !reflectors_configured &&
+        latency_target[0] != '\0'
+    ) {
         config->reflector_count = 0U;
         if (
             copy_reflector(
@@ -1196,7 +1284,10 @@ int config_load(
     }
 
     section = uci_lookup_section(context, package, UCI_SECTION);
-    if (section == NULL || strcmp(section->type, UCI_SECTION_TYPE) != 0) {
+    if (
+        section == NULL ||
+        strcmp(section->type, UCI_SECTION_TYPE) != 0
+    ) {
         error_set(
             error,
             error_size,

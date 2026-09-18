@@ -199,7 +199,10 @@ static enum controller_line_state update_line_state(
     uint64_t saturation_threshold;
     uint64_t recovery_threshold;
 
-    if (!input->valid || input->cake_rate_bits_per_second == 0U) {
+    if (
+        !input->valid ||
+        input->cake_rate_bits_per_second == 0U
+    ) {
         reset_line_state(direction);
         return direction->state;
     }
@@ -430,7 +433,10 @@ static enum controller_rate_reason adjust_rate(
             timestamp_microseconds;
         return CONTROLLER_RATE_INITIAL;
     }
-    if (!input->valid || !latency_valid) {
+    if (
+        !input->valid ||
+        !latency_valid
+    ) {
         return CONTROLLER_RATE_UNCHANGED;
     }
 
@@ -715,7 +721,10 @@ void activity_update(
         check_global_timeout = true;
         break;
     }
-    if (check_global_timeout && response_age >= config->global_timeout_microseconds) {
+    if (
+        check_global_timeout &&
+        response_age >= config->global_timeout_microseconds
+    ) {
         output->global_timeout_started = !activity->global_timeout_reported;
         activity->global_timeout_reported = true;
         output->restart_pingers = input->timestamp_microseconds >=
