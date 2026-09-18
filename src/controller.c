@@ -470,12 +470,16 @@ static enum controller_rate_reason adjust_rate(
         if (
             direction->congestion != CONTROLLER_CONGESTION_DETECTED &&
             high_load &&
+            input->traffic_sample_id != direction->last_increase_sample_id &&
             interval_elapsed(
                 timestamp_microseconds,
                 direction->last_congestion_adjustment_microseconds,
                 config->bufferbloat_refractory_period_microseconds
             )
         ) {
+            /* Like upstream achieved_rate_updated: one increase per load sample,
+             * even when the factor is one or the maximum rate clips the result. */
+            direction->last_increase_sample_id = input->traffic_sample_id;
             direction->shaper_rate_bits_per_second = scale_rate(
                 previous_rate,
                 upward_factor(

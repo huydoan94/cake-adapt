@@ -53,6 +53,8 @@ struct controller_config {
 
 struct controller_direction_input {
     bool valid;
+    /* Changes only after a new achieved-rate measurement; zero before the first. */
+    uint64_t traffic_sample_id;
     uint64_t traffic_rate_bits_per_second;
     uint64_t cake_rate_bits_per_second;
 };
@@ -143,6 +145,7 @@ struct controller_direction {
     unsigned int recovery_samples;
     uint64_t last_congestion_adjustment_microseconds;
     uint64_t last_decay_adjustment_microseconds;
+    uint64_t last_increase_sample_id;
     bool initial_rate_pending;
 };
 

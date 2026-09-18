@@ -52,6 +52,7 @@ struct monitored_direction {
     enum cake_observation_state cake_state;
     enum traffic_observation_state traffic_state;
     uint64_t traffic_rate_bits_per_second;
+    uint64_t traffic_sample_id;
     bool cake_valid;
     bool traffic_valid;
     uint64_t next_cake_observation_microseconds;
@@ -119,6 +120,7 @@ static void observe_traffic(
         );
         break;
     case TRAFFIC_UPDATE_RATES:
+        direction->traffic_sample_id++;
         direction->traffic_valid = true;
         return;
     case TRAFFIC_UPDATE_COUNTER_RESET:
@@ -730,6 +732,7 @@ static struct controller_direction_input direction_input(
 )
 {
     const struct controller_direction_input input = {
+        .traffic_sample_id = direction->traffic_sample_id,
         .valid = direction->traffic_valid &&
             direction->cake_valid &&
             direction->cake.has_bandwidth &&
@@ -1085,6 +1088,7 @@ static struct monitored_direction *event_direction(
 
 static void reset_traffic_observation(struct monitored_direction *direction)
 {
+    /* Preserve the sample ID: the controller retains its last consumed ID. */
     direction->traffic_valid = false;
     direction->traffic_state = TRAFFIC_OBSERVATION_UNKNOWN;
     direction->traffic_rate_bits_per_second = 0U;

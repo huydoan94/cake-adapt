@@ -63,11 +63,13 @@ static struct controller_input input_with_rates(
     return (struct controller_input) {
         .download = {
             .valid = true,
+            .traffic_sample_id = 1U,
             .traffic_rate_bits_per_second = download_rate,
             .cake_rate_bits_per_second = download_limit
         },
         .upload = {
             .valid = true,
+            .traffic_sample_id = 1U,
             .traffic_rate_bits_per_second = upload_rate,
             .cake_rate_bits_per_second = upload_limit
         },
@@ -475,6 +477,120 @@ static void test_high_load_increases_rate_four_percent(void)
     assert(output.download.rate_bits_per_second == 8320000U);
     assert(output.download.rate_changed);
     assert(output.download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
+    controller_close(&controller);
+}
+
+static void test_high_load_consumes_each_direction_sample_once(void)
+{
+    struct controller controller;
+    const struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        20U * MEBABIT,
+        8U * MEBABIT,
+        20U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    init_controller(&controller, &config);
+    controller_update(&controller, &input, &output);
+    input.timestamp_microseconds += 300001U;
+    controller_update(&controller, &input, &output);
+    assert(output.download.rate_bits_per_second == 8320000U);
+    assert(output.upload.rate_bits_per_second == 8320000U);
+    accept_rates(&input, &output);
+
+    /* Six reflector replies must not multiply one achieved-rate measurement. */
+    for (unsigned int index = 0U; index < 6U; index++) {
+        input.timestamp_microseconds += 50000U;
+        controller_update(&controller, &input, &output);
+        assert(!output.download.rate_changed);
+        assert(!output.upload.rate_changed);
+    }
+    input.download.traffic_sample_id++;
+    controller_update(&controller, &input, &output);
+    assert(output.download.rate_bits_per_second == 8652000U);
+    assert(!output.upload.rate_changed);
+    accept_rates(&input, &output);
+    input.upload.traffic_sample_id++;
+    controller_update(&controller, &input, &output);
+    assert(!output.download.rate_changed);
+    assert(output.upload.rate_bits_per_second == 8652000U);
+    controller_close(&controller);
+}
+
+static void test_invalid_input_preserves_fresh_sample(void)
+{
+    struct controller controller;
+    const struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        20U * MEBABIT,
+        8U * MEBABIT,
+        20U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    init_controller(&controller, &config);
+    controller_update(&controller, &input, &output);
+    input.timestamp_microseconds += 300001U;
+    input.latency.valid = false;
+    controller_update(&controller, &input, &output);
+    assert(controller.download.last_increase_sample_id == 0U);
+    input.latency.valid = true;
+    input.download.valid = false;
+    controller_update(&controller, &input, &output);
+    assert(controller.download.last_increase_sample_id == 0U);
+    assert(output.upload.rate_bits_per_second == 8320000U);
+    accept_rates(&input, &output);
+    input.download.valid = true;
+    controller_update(&controller, &input, &output);
+    assert(output.download.rate_bits_per_second == 8320000U);
+    assert(!output.upload.rate_changed);
+    controller_close(&controller);
+}
+
+static void test_noop_increase_consumes_sample(void)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        20U * MEBABIT,
+        8U * MEBABIT,
+        20U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    /* A factor of one and a maximum-rate clamp both consume the opportunity. */
+    config.rate_maximum_adjust_up_high_load_per_thousand = 1000U;
+    init_controller(&controller, &config);
+    controller_update(&controller, &input, &output);
+    input.timestamp_microseconds += 300001U;
+    controller_update(&controller, &input, &output);
+    assert(!output.download.rate_changed);
+    assert(controller.download.last_increase_sample_id == 1U);
+    controller.config.rate_maximum_adjust_up_high_load_per_thousand = 1040U;
+    controller_update(&controller, &input, &output);
+    assert(!output.download.rate_changed);
+
+    controller.download.shaper_rate_bits_per_second = 12U * MEBABIT;
+    input.download.cake_rate_bits_per_second = 12U * MEBABIT;
+    input.download.traffic_sample_id++;
+    controller_update(&controller, &input, &output);
+    assert(!output.download.rate_changed);
+    assert(controller.download.last_increase_sample_id == 2U);
+
+    /* Consuming the load sample must not suppress subsequent congestion cuts. */
+    input.latency.current_rtt_microseconds = 230000U;
+    update_repeatedly(&controller, &input, &output, 6U);
+    assert(output.download.rate_bits_per_second < 12U * MEBABIT);
+    accept_rates(&input, &output);
+    input.timestamp_microseconds += 300001U;
+    controller_update(&controller, &input, &output);
+    assert(output.download.rate_changed);
+    assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
+    assert(controller.download.last_increase_sample_id == 2U);
     controller_close(&controller);
 }
 
@@ -1081,6 +1197,9 @@ int main(void)
     test_initial_rate_is_baseline();
     test_initial_rate_waits_for_valid_qdisc_input();
     test_high_load_increases_rate_four_percent();
+    test_high_load_consumes_each_direction_sample_once();
+    test_invalid_input_preserves_fresh_sample();
+    test_noop_increase_consumes_sample();
     test_high_load_waits_for_congestion_refractory_period();
     test_configured_high_load_adjustment_is_used();
     test_severe_bufferbloat_reduces_both_rates();
