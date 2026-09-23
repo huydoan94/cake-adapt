@@ -55,6 +55,10 @@ upload and download CAKE qdiscs before cake-adapt can control them.
 Do not run cake-adapt with rate adjustment enabled at the same time as
 cake-autorate or another program that changes the same CAKE qdiscs.
 
+cake-adapt does not source, execute, or depend on files from a cake-autorate
+installation. The upstream project is a behavioral and algorithmic reference,
+not a runtime dependency.
+
 ## Data flow
 
 ```text
@@ -177,6 +181,11 @@ is the primary reference for selecting minimum, base, and maximum rates:
 - base is the low-load steady-state rate; and
 - maximum is the highest rate the controller may explore.
 
+When the sleep function is enabled, `connection_active_thr_kbps` must not
+exceed either minimum shaper rate. Invalid interface pairs, reflector counts,
+rate ranges, or timing values prevent that instance from starting; the error is
+written to syslog.
+
 After validating observation and logging, enable adjustment for either or both
 directions:
 
@@ -186,6 +195,12 @@ uci set cake-adapt.main.adjust_ul_shaper_rate='1'
 uci commit cake-adapt
 /etc/init.d/cake-adapt restart
 ```
+
+Enable one direction at a time for the first live test. Generate sustained
+traffic through that direction and confirm both the structured `SHAPER` records
+and the effective rate reported by `tc qdisc show`. The achieved traffic rate
+and configured CAKE rate are different measurements; controller decisions use
+traffic load together with latency and congestion state.
 
 ### Multiple instances
 
@@ -212,12 +227,12 @@ Runtime UCI and logs are isolated by section name:
 ```text
 /tmp/cake-adapt-config/primary/cake-adapt
 /tmp/cake-adapt-config/secondary/cake-adapt
-/var/log/cake-autorate.primary.log
-/var/log/cake-autorate.secondary.log
+/var/log/cake-adapt.primary.log
+/var/log/cake-adapt.secondary.log
 ```
 
 The historical `main` section remains compatible with the unsuffixed
-`/var/log/cake-autorate.log` filename.
+`/var/log/cake-adapt.log` filename.
 
 ### Standalone shell configuration
 
@@ -330,19 +345,20 @@ tc qdisc show dev ifb4eth1
 The historical `main` instance logs to:
 
 ```text
-/var/log/cake-autorate.log
+/var/log/cake-adapt.log
 ```
 
 Other instances include their UCI section name:
 
 ```text
-/var/log/cake-autorate.primary.log
-/var/log/cake-autorate.secondary.log
+/var/log/cake-adapt.primary.log
+/var/log/cake-adapt.secondary.log
 ```
 
-This filename and the structured record formats intentionally preserve the
-connection to cake-autorate's analysis workflow. `log_file_path_override`
-changes the containing directory, not the filename.
+The structured record names, field order, and units intentionally preserve
+compatibility with cake-autorate analysis workflows. The local filenames use
+the cake-adapt name. `log_file_path_override` changes only the containing
+directory, not the filename.
 
 Useful logging options are documented in the packaged UCI file. High-frequency
 processing, load, reflector, summary, and CPU records are optional because
@@ -363,6 +379,22 @@ kill -USR2 INSTANCE_PID
 
 Automatic rotation retains one `.old` file and truncates the live log in place
 so an existing `tail -f` remains attached.
+
+The daemon subscribes to CAKE qdisc lifecycle events. If a controlled qdisc is
+removed, that direction is suspended and reported as degraded. Monitoring and
+control resume when a matching CAKE qdisc reappears; the daemon does not need a
+fixed startup delay.
+
+For a first end-to-end check:
+
+1. verify both CAKE qdiscs and record their starting bandwidths;
+2. run cake-adapt in observation-only mode and confirm the `fping` child plus
+   `LOAD`, `DATA`, and `REFLECTOR` records;
+3. enable one direction and run a bounded sustained transfer through the
+   corresponding interface;
+4. confirm every applied rate stays within its configured minimum and maximum;
+5. stop the transfer and confirm recovery toward the base rate; and
+6. stop the service and confirm no cake-adapt or `fping` process remains.
 
 ## Building with an OpenWrt SDK
 
@@ -396,7 +428,8 @@ make -C tests check check-netlink
 ```
 
 The host needs a C compiler, `zlib`, and development headers for libnl 3. The
-optional configuration test additionally needs UCI headers:
+optional configuration test additionally needs native `libuci` and `libubox`
+development headers:
 
 ```sh
 make -C tests check-config
