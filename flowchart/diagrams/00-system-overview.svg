@@ -37,7 +37,7 @@
 <polygon fill="#e9f7ff" stroke="#24749c" stroke-width="1.2" points="900.97,-680.16 573.75,-680.16 489.57,-575.04 816.79,-575.04 900.97,-680.16"/>
 <text xml:space="preserve" text-anchor="middle" x="695.27" y="-637.5" font-family="Arial" font-size="11.00">/etc/config/cake&#45;adapt</text>
 <text xml:space="preserve" text-anchor="middle" x="695.27" y="-624.3" font-family="Arial" font-size="11.00">libuci typed configuration</text>
-<text xml:space="preserve" text-anchor="middle" x="695.27" y="-611.1" font-family="Arial" font-size="11.00">+ optional cake&#45;autorate override file</text>
+<text xml:space="preserve" text-anchor="middle" x="695.27" y="-611.1" font-family="Arial" font-size="11.00">+ optional standalone cake&#45;adapt config</text>
 </g>
 <!-- uci&#45;&gt;main -->
 <g id="edge2" class="edge">

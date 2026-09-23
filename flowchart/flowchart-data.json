@@ -48,7 +48,7 @@
       "The daemon adapts CAKE instances that already exist. SQM still creates WAN/IFB, ingress redirect, and qdiscs.",
       "The policy boundary is measurement → controller decision → desired CAKE state → verified kernel update.",
       "Upload is the configured interface; download is derived as ifb4<interface>.",
-      "fping is the only supported pinger. Configuration comes from typed UCI, optionally followed by safely parsed cake-autorate overrides."
+      "fping is the only supported pinger. Configuration comes from typed UCI, optionally followed by validated standalone overrides."
     ],
     "nodes": [
       {
@@ -58,7 +58,7 @@
       },
       {
         "id": "uci",
-        "label": "/etc/config/cake-adapt\nlibuci typed configuration\n+ optional cake-autorate override file",
+        "label": "/etc/config/cake-adapt\nlibuci typed configuration\n+ optional standalone cake-adapt config",
         "kind": "io"
       },
       {
@@ -2194,7 +2194,7 @@
       },
       {
         "id": "log",
-        "label": "If enabled, emit cake-autorate-compatible SHAPER record",
+        "label": "If enabled, emit analyzer-compatible SHAPER record",
         "kind": "process"
       },
       {

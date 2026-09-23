@@ -15,7 +15,7 @@
 
 #define ERROR_SIZE 256U
 #define DEFAULT_SECTION "main"
-#define LOG_FILE_BASE "cake-autorate"
+#define LOG_FILE_BASE "cake-adapt"
 #define DEFAULT_LOG_DIRECTORY "/var/log"
 
 static void print_usage(const char *program_name)
