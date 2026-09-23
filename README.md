@@ -123,6 +123,7 @@ The package installs:
 /usr/sbin/cake-adapt
 /etc/init.d/cake-adapt
 /etc/config/cake-adapt
+/usr/libexec/cake-adapt/import
 ```
 
 ## Configuration
@@ -186,30 +187,91 @@ uci commit cake-adapt
 /etc/init.d/cake-adapt restart
 ```
 
-### Importing an existing cake-autorate configuration
+### Multiple instances
 
-An existing cake-autorate instance configuration can supply the settings that
-cake-adapt already supports:
+Each named `config cake_adapt` section is an independent `procd` instance. This
+allows one service to control separate CAKE pairs, for example two WAN links:
+
+```uci
+config cake_adapt 'primary'
+        option enabled '1'
+        option config_file '/etc/cake-adapt/config.primary.sh'
+
+config cake_adapt 'secondary'
+        option enabled '1'
+        option config_file '/etc/cake-adapt/config.secondary.sh'
+```
+
+The imported files supply the controller, interface, rate, reflector, and
+logging settings, keeping the UCI sections small. Every enabled instance must
+use its own upload and download CAKE qdiscs; do not configure two instances to
+control the same interfaces.
+
+Runtime UCI and logs are isolated by section name:
+
+```text
+/tmp/cake-adapt-config/primary/cake-adapt
+/tmp/cake-adapt-config/secondary/cake-adapt
+/var/log/cake-autorate.primary.log
+/var/log/cake-autorate.secondary.log
+```
+
+The historical `main` section remains compatible with the unsuffixed
+`/var/log/cake-autorate.log` filename.
+
+### Standalone shell configuration
+
+A standalone cake-adapt shell configuration can supply any recognized settings
+without duplicating them in UCI:
 
 ```uci
 config cake_adapt 'main'
         option enabled '1'
-        option cake_autorate_config '/root/cake-autorate/config.primary.sh'
+        option config_file '/etc/cake-adapt/config.main.sh'
 ```
+
+For example, `/etc/cake-adapt/config.main.sh` can contain:
+
+```bash
+ul_if='eth1'
+dl_if='ifb4eth1'
+
+adjust_dl_shaper_rate=1
+min_dl_shaper_rate_kbps=5000
+base_dl_shaper_rate_kbps=20000
+max_dl_shaper_rate_kbps=80000
+
+adjust_ul_shaper_rate=1
+min_ul_shaper_rate_kbps=5000
+base_ul_shaper_rate_kbps=20000
+max_ul_shaper_rate_kbps=35000
+
+reflectors=(
+    1.1.1.1
+    1.0.0.1
+    8.8.8.8
+    8.8.4.4
+    9.9.9.9
+    9.9.9.10
+)
+```
+
+The file only needs to contain values that should override UCI or the daemon's
+built-in defaults. A reflector list must still be supplied by either UCI or the
+standalone file.
 
 Configuration precedence is:
 
 ```text
-cake-adapt defaults < UCI values < cake-autorate defaults.sh
-                    < cake-autorate instance values
+cake-adapt built-in defaults < UCI values < standalone config-file values
 ```
 
-At service start, the init script copies UCI into
-`/tmp/cake-adapt-config/cake-adapt`. When a cake-autorate configuration is
-selected, an isolated Bash helper loads the adjacent `defaults.sh` followed by
-the selected instance configuration and writes supported values into that
-temporary UCI package. The daemon then reads it through `libuci`; it never
-parses shell syntax.
+At service start, the init script creates one temporary UCI directory below
+`/tmp/cake-adapt-config/<section>/` for each enabled instance. When a
+`config_file` is selected, an isolated Bash helper loads that file and writes
+its supported values into the corresponding section of the temporary UCI
+package. Each daemon reads its named section through `libuci`; it never parses
+shell syntax and never loads files from a cake-autorate installation.
 
 The helper checks both shell files with `bash -n`, applies only option names
 advertised by the installed cake-adapt binary, and writes scalar and reflector
@@ -217,29 +279,27 @@ values through the `uci` command. The result is validated by cake-adapt before
 it is atomically published with mode `0600`. Invalid shell syntax, types,
 ranges, interface pairing, or reflector data prevent the service from starting.
 
-Cake-autorate configurations are executable Bash, not passive data. Loading one
-therefore has the same trust requirement as running it with cake-autorate: only
-select a trusted root-owned configuration. The helper runs in a separate Bash
-process so its variables and shell settings cannot modify the OpenWrt init
-shell.
+These configuration files are executable Bash, not passive data. Only select a
+trusted root-owned file. The helper runs in a separate Bash process so its
+variables and shell settings cannot modify the OpenWrt init shell.
 
-Imported `ul_if` and `dl_if` values take effect as a pair and may name any two
+Configured `ul_if` and `dl_if` values take effect as a pair and may name any two
 valid Linux interfaces. When both are absent, cake-adapt retains the UCI
 `interface` value and its derived `ifb4<interface>` download interface.
 
-`enabled` and `cake_autorate_config` remain UCI-owned. Intentional exclusions
+`enabled` and `config_file` remain UCI-owned. Intentional exclusions
 such as `startup_wait_s`, remote reflector retrieval, and unsupported pinger
 methods do not become supported merely by importing a file. A selected file
 must be readable and all recognized values must pass the same typed validation
-as UCI values. `procd` watches UCI, the selected instance configuration, and its
-adjacent `defaults.sh`, then regenerates the effective file when any of them
-changes. The generated file is temporary and must not be edited; change UCI or
-the cake-autorate source instead.
+as UCI values. `procd` watches UCI and each selected configuration file, then
+regenerates the effective file when either changes. The generated file is
+temporary and must not be edited; change UCI or the standalone source file
+instead.
 
-To inspect the exact values used by a running service:
+To inspect the exact values used by an instance:
 
 ```sh
-cat /tmp/cake-adapt-config/cake-adapt
+cat /tmp/cake-adapt-config/primary/cake-adapt
 ```
 
 Do not leave cake-autorate running while cake-adapt rate adjustment is enabled;
@@ -267,10 +327,17 @@ tc qdisc show dev eth1
 tc qdisc show dev ifb4eth1
 ```
 
-File logging defaults to:
+The historical `main` instance logs to:
 
 ```text
 /var/log/cake-autorate.log
+```
+
+Other instances include their UCI section name:
+
+```text
+/var/log/cake-autorate.primary.log
+/var/log/cake-autorate.secondary.log
 ```
 
 This filename and the structured record formats intentionally preserve the
@@ -284,11 +351,14 @@ they increase CPU and storage use.
 When file logging is enabled:
 
 ```sh
+# Find the PID associated with each `-S <section>` argument.
+pgrep -af cake-adapt
+
 # Export a timestamped snapshot, compressed by default.
-kill -USR1 "$(pidof cake-adapt)"
+kill -USR1 INSTANCE_PID
 
 # Reset the live log in place.
-kill -USR2 "$(pidof cake-adapt)"
+kill -USR2 INSTANCE_PID
 ```
 
 Automatic rotation retains one `.old` file and truncates the live log in place

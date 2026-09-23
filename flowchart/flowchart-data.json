@@ -228,20 +228,20 @@
     ],
     "notes": [
       "procd checks enabled before starting. If the daemon is invoked while disabled, it reports that state and exits successfully.",
-      "Precedence is built-in defaults < typed UCI < recognized values in the explicitly selected cake-autorate file. The shell file is parsed as data and never executed.",
-      "The imported ul_if overrides interface; dl_if must match derived ifb4<ul_if>. enabled and the import path remain UCI-owned.",
+      "Precedence is built-in defaults < typed UCI < recognized values in the selected standalone cake-adapt shell file. The daemon never parses shell syntax.",
+      "ul_if and dl_if override interface only as a complete pair. enabled and config_file remain UCI-owned.",
       "Adjustment is independently opt-in for download and upload. Invalid ranges or missing required values prevent control from starting.",
       "Log-file setup happens after configuration so the configured path, rotation, export, and record selections can be honored."
     ],
     "nodes": [
       {
         "id": "start",
-        "label": "procd invokes /usr/sbin/cake-adapt",
+        "label": "procd creates one daemon per named UCI section",
         "kind": "start"
       },
       {
         "id": "initcheck",
-        "label": "UCI enabled?",
+        "label": "Instance enabled?",
         "kind": "decision"
       },
       {
@@ -251,7 +251,7 @@
       },
       {
         "id": "args",
-        "label": "Parse -C UCI directory, -f foreground, -h",
+        "label": "Parse -C UCI directory and -S section",
         "kind": "process"
       },
       {
@@ -266,17 +266,17 @@
       },
       {
         "id": "selected",
-        "label": "cake_autorate_config selected?",
+        "label": "config_file selected?",
         "kind": "decision"
       },
       {
         "id": "import",
-        "label": "Open as data; parse recognized literal assignments\nand reflectors array; override typed values",
+        "label": "Source standalone cake-adapt shell configuration\nwrite recognized values to temporary UCI",
         "kind": "process"
       },
       {
         "id": "interface",
-        "label": "Map ul_if → interface\nrequire dl_if = derived ifb4<ul_if>",
+        "label": "Use ul_if and dl_if when both are set\notherwise derive download from interface",
         "kind": "process"
       },
       {
@@ -306,7 +306,7 @@
       },
       {
         "id": "derive",
-        "label": "Use upload=<interface>\ndownload=ifb4<interface>",
+        "label": "Use resolved upload and download interfaces",
         "kind": "process"
       },
       {

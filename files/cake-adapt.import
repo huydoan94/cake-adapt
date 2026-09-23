@@ -9,31 +9,29 @@ fail()
     exit 1
 }
 
-if (( $# != 3 )); then
-    fail "usage: $0 CAKE_AUTORATE_CONFIG UCI_DIRECTORY CAKE_ADAPT_BINARY"
+if (( $# != 4 )); then
+    fail "usage: $0 CONFIG_FILE UCI_DIRECTORY CAKE_ADAPT_BINARY UCI_SECTION"
 fi
 
 config_path=$1
 uci_directory=$2
 program=$3
-defaults_path=${config_path%/*}/defaults.sh
+section=$4
 uci_command=${UCI:-/sbin/uci}
+section_reference="cake-adapt.$section"
 
 [[ $config_path == /* ]] || fail "configuration path must be absolute"
-[[ -r $defaults_path ]] || fail "cannot read $defaults_path"
+[[ $section =~ ^[A-Za-z0-9_-]+$ ]] || fail "invalid UCI section '$section'"
 [[ -r $config_path ]] || fail "cannot read $config_path"
 [[ -x $program ]] || fail "cannot execute $program"
 [[ -x $uci_command ]] || fail "cannot execute $uci_command"
 [[ -d $uci_directory/.uci ]] || fail "missing UCI staging directory"
 
-"$BASH" -n "$defaults_path" "$config_path" ||
+"$BASH" -n "$config_path" ||
     fail "invalid shell syntax"
 
-# cake-autorate configuration is executable Bash by design. Run it only in
-# this child process so its variables and shell settings cannot alter procd's
-# init shell.
-# shellcheck source=/dev/null
-. "$defaults_path"
+# The imported configuration is executable Bash. Run it only in this child
+# process so its variables and shell settings cannot alter procd's init shell.
 # shellcheck source=/dev/null
 . "$config_path"
 
@@ -48,7 +46,7 @@ supported_option_text=$("$program" -L) ||
 mapfile -t supported_options <<< "$supported_option_text"
 for name in "${supported_options[@]}"; do
     case $name in
-    enabled|interface|cake_autorate_config)
+    enabled|interface|config_file)
         continue
         ;;
     esac
@@ -65,23 +63,23 @@ for name in "${supported_options[@]}"; do
         fail "$name contains a line break"
     fi
     "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-        set "cake-adapt.main.$name=$value"
+        set "$section_reference.$name=$value"
 done
 
-reflector_declaration=$(declare -p reflectors 2>/dev/null) ||
-    fail "reflectors is missing"
-[[ $reflector_declaration == "declare -a "* ]] ||
-    fail "reflectors must be an indexed array"
-(( ${#reflectors[@]} > 0 )) || fail "reflectors is empty"
+if reflector_declaration=$(declare -p reflectors 2>/dev/null); then
+    [[ $reflector_declaration == "declare -a "* ]] ||
+        fail "reflectors must be an indexed array"
+    (( ${#reflectors[@]} > 0 )) || fail "reflectors is empty"
 
-"$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-    delete cake-adapt.main.reflectors || true
-for reflector in "${reflectors[@]}"; do
-    [[ $reflector != *$'\n'* && $reflector != *$'\r'* ]] ||
-        fail "reflector contains a line break"
     "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-        add_list "cake-adapt.main.reflectors=$reflector"
-done
+        delete "$section_reference.reflectors" || true
+    for reflector in "${reflectors[@]}"; do
+        [[ $reflector != *$'\n'* && $reflector != *$'\r'* ]] ||
+            fail "reflector contains a line break"
+        "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
+            add_list "$section_reference.reflectors=$reflector"
+    done
+fi
 
 "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
     commit cake-adapt

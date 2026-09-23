@@ -28,7 +28,6 @@
 #endif
 
 #define UCI_PACKAGE "cake-adapt"
-#define UCI_SECTION "main"
 #define UCI_SECTION_TYPE "cake_adapt"
 #define IFB_PREFIX "ifb4"
 
@@ -86,9 +85,9 @@ static const struct string_option_binding string_options[] = {
     { "ul_if", CONFIG_OFFSET(ul_if), sizeof(((struct config *)0)->ul_if) },
     { "dl_if", CONFIG_OFFSET(dl_if), sizeof(((struct config *)0)->dl_if) },
     {
-        "cake_autorate_config",
-        CONFIG_OFFSET(cake_autorate_config),
-        sizeof(((struct config *)0)->cake_autorate_config)
+        "config_file",
+        CONFIG_OFFSET(config_file),
+        sizeof(((struct config *)0)->config_file)
     },
     {
         "log_file_path_override",
@@ -1260,6 +1259,7 @@ static int load_section(
 int config_load(
     struct config *config,
     const char *config_directory,
+    const char *section_name,
     char *error,
     size_t error_size
 )
@@ -1268,6 +1268,14 @@ int config_load(
     struct uci_package *package = NULL;
     struct uci_section *section;
     int result = -1;
+
+    if (
+        section_name == NULL ||
+        section_name[0] == '\0'
+    ) {
+        error_set(error, error_size, "UCI section name is empty");
+        return -1;
+    }
 
     *config = (struct config) {
         /* Adjustment remains opt-in even though cake-autorate defaults it on. */
@@ -1362,7 +1370,7 @@ int config_load(
         goto done;
     }
 
-    section = uci_lookup_section(context, package, UCI_SECTION);
+    section = uci_lookup_section(context, package, section_name);
     if (
         section == NULL ||
         strcmp(section->type, UCI_SECTION_TYPE) != 0
@@ -1370,7 +1378,8 @@ int config_load(
         error_set(
             error,
             error_size,
-            "missing config cake_adapt 'main' section"
+            "missing config cake_adapt '%s' section",
+            section_name
         );
         goto done;
     }
