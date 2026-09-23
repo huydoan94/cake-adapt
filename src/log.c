@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "log.h"
+#include "constants.h"
 #include "helpers.h"
 
 #include <ctype.h>
@@ -84,11 +85,11 @@ static const struct {
     const char *record;
     int priority;
 } levels[] = {
-    [LOG_LEVEL_ERROR] = { "ERROR", LOG_ERR },
-    [LOG_LEVEL_WARNING] = { "WARNING", LOG_WARNING },
-    [LOG_LEVEL_NOTICE] = { "INFO", LOG_NOTICE },
-    [LOG_LEVEL_INFO] = { "INFO", LOG_INFO },
-    [LOG_LEVEL_DEBUG] = { "DEBUG", LOG_DEBUG }
+    [LOG_LEVEL_ERROR] = { RECORD_ERROR, LOG_ERR },
+    [LOG_LEVEL_WARNING] = { RECORD_WARNING, LOG_WARNING },
+    [LOG_LEVEL_NOTICE] = { RECORD_INFO, LOG_NOTICE },
+    [LOG_LEVEL_INFO] = { RECORD_INFO, LOG_INFO },
+    [LOG_LEVEL_DEBUG] = { RECORD_DEBUG, LOG_DEBUG }
 };
 
 static uint64_t clock_microseconds(clockid_t clock_identifier)
@@ -133,20 +134,29 @@ static bool export_log(
 )
 {
     char buffer[4096];
-    char previous_path[LOG_PATH_SIZE + 5U];
+    char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
     const char *source_paths[] = { previous_path, log_path };
     /* zlib's transparent mode writes plain bytes, without a gzip wrapper. */
-    gzFile destination = gzopen(export_path, compress ? "wb" : "wbT");
+    gzFile destination = gzopen(
+        export_path,
+        compress ? GZIP_MODE_COMPRESSED : GZIP_MODE_TRANSPARENT
+    );
     size_t length;
     size_t index;
     bool success = true;
 
-    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", log_path);
+    (void)snprintf(
+        previous_path,
+        sizeof(previous_path),
+        "%s%s",
+        log_path,
+        LOG_PREVIOUS_SUFFIX
+    );
     if (destination == NULL) {
         return false;
     }
     for (index = include_previous ? 0U : 1U; index < 2U; index++) {
-        FILE *source = fopen(source_paths[index], "r");
+        FILE *source = fopen(source_paths[index], FILE_MODE_READ);
 
         if (source == NULL) {
             if (
@@ -205,24 +215,27 @@ int log_export_file(
     }
     if (
         localtime_r(&seconds, &local_time) == NULL ||
-        strftime(stamp, sizeof(stamp), "%Y_%m_%d_%H_%M_%S", &local_time) == 0U
+        strftime(stamp, sizeof(stamp), EXPORT_TIME_FORMAT, &local_time) == 0U
     ) {
         return -1;
     }
     if (
-        path_length >= 4U &&
-        strcmp(log_path + path_length - 4U, ".log") == 0
+        path_length >= sizeof(LOG_EXTENSION) - 1U &&
+        strcmp(
+            log_path + path_length - (sizeof(LOG_EXTENSION) - 1U),
+            LOG_EXTENSION
+        ) == 0
     ) {
-        path_length -= 4U;
+        path_length -= sizeof(LOG_EXTENSION) - 1U;
     }
     written = snprintf(
         export_path,
         export_path_size,
-        "%.*s_%s.log%s",
+        "%.*s_%s" LOG_EXTENSION "%s",
         (int)path_length,
         log_path,
         stamp,
-        log_compress_exports ? ".gz" : ""
+        log_compress_exports ? GZIP_EXTENSION : EMPTY_STRING
     );
     if (
         written < 0 ||
@@ -240,15 +253,21 @@ int log_export_file(
 
 int log_reset_file(void)
 {
-    char previous_path[LOG_PATH_SIZE + 5U];
+    char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
     FILE *previous;
 
     if (log_file == NULL) {
         errno = EBADF;
         return -1;
     }
-    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", log_path);
-    previous = fopen(previous_path, "w");
+    (void)snprintf(
+        previous_path,
+        sizeof(previous_path),
+        "%s%s",
+        log_path,
+        LOG_PREVIOUS_SUFFIX
+    );
+    previous = fopen(previous_path, FILE_MODE_WRITE);
     if (previous == NULL) {
         return -1;
     }
@@ -282,7 +301,7 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
         (log_maximum_size_bytes > 0U && size >= 0 &&
             (uint64_t)size > log_maximum_size_bytes);
     if (rotate) {
-        char previous_path[LOG_PATH_SIZE + 5U];
+        char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
 
         log_maintenance_active = true;
         if (
@@ -306,8 +325,9 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
         (void)snprintf(
             previous_path,
             sizeof(previous_path),
-            "%s.old",
-            log_path
+            "%s%s",
+            log_path,
+            LOG_PREVIOUS_SUFFIX
         );
         if (
             fflush(log_file) == 0 &&
@@ -352,11 +372,11 @@ static void write_record_at(
         strftime(
             datetime,
             sizeof(datetime),
-            "%Y-%m-%d-%H:%M:%S",
+            LOG_DATETIME_FORMAT,
             &local_time
         ) == 0U
     ) {
-        (void)snprintf(datetime, sizeof(datetime), "1970-01-01-00:00:00");
+        (void)snprintf(datetime, sizeof(datetime), LOG_DATETIME_FALLBACK);
     }
 
     (void)snprintf(
@@ -433,7 +453,7 @@ int log_set_file(
         return -1;
     }
     /* Linux libc opens with O_CLOEXEC atomically for the 'e' mode. */
-    file = fopen(path, "a+e");
+    file = fopen(path, FILE_MODE_APPEND_CLOEXEC);
     if (file == NULL) {
         return -1;
     }
@@ -581,7 +601,7 @@ static void write_timed_record(
 void log_load(const struct log_load_record *record)
 {
     write_timed_record(
-        "LOAD",
+        RECORD_LOAD,
         "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
         record->download_achieved_rate_kbps,
         record->upload_achieved_rate_kbps,
@@ -593,7 +613,7 @@ void log_load(const struct log_load_record *record)
 void log_data(const struct log_data_record *record)
 {
     write_timed_record(
-        "DATA",
+        RECORD_DATA,
         "%" PRIu64 "; %" PRIu64 "; %u; %u;"
         " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 ";"
         " %" PRIu32 "; %" PRIu32 "; %" PRId64 "; %" PRId64
@@ -637,7 +657,7 @@ void log_data(const struct log_data_record *record)
 void log_summary(const struct log_summary_record *record)
 {
     write_formatted_record(
-        "SUMMARY",
+        RECORD_SUMMARY,
         "%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
         " %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
         record->download_achieved_rate_kbps,
@@ -656,7 +676,7 @@ void log_summary(const struct log_summary_record *record)
 void log_reflector(const struct log_reflector_record *record)
 {
     write_timed_record(
-        "REFLECTOR",
+        RECORD_REFLECTOR,
         "%s; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
         "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64
         "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64,
@@ -707,7 +727,7 @@ void log_cpu(
     if (failed) {
         log_message(LOG_LEVEL_WARNING, "could not finish CPU log record");
     } else {
-        write_record("CPU", message);
+        write_record(RECORD_CPU, message);
     }
     free(message);
 }
@@ -720,7 +740,7 @@ void log_cpu_raw(const struct cpu_sample *sample)
         const struct cpu_counter *counter = &sample->counters[index];
 
         write_formatted_record(
-            "CPU_RAW",
+            RECORD_CPU_RAW,
             "%" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 "; %" PRIu64
             "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
             "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
@@ -747,7 +767,7 @@ void log_shaper(
 )
 {
     write_formatted_record(
-        "SHAPER",
+        RECORD_SHAPER,
         "tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
         interface,
         rate_kbps
@@ -776,7 +796,7 @@ void log_system_message(
             message
         );
     }
-    write_record_at("SYSLOG", message, timestamp_microseconds);
+    write_record_at(RECORD_SYSLOG, message, timestamp_microseconds);
 }
 
 void log_message(

@@ -3,6 +3,7 @@
 #include "cpu.h"
 
 #include "error.h"
+#include "constants.h"
 #include "helpers.h"
 
 #include <errno.h>
@@ -46,7 +47,7 @@ int cpu_read(
         );
         return -1;
     }
-    file = fopen(path, "r");
+    file = fopen(path, FILE_MODE_READ);
     if (file == NULL) {
         error_set(error, error_size, "could not open %s: %s", path, strerror(errno));
         return -1;
@@ -55,7 +56,7 @@ int cpu_read(
     while (getline(&line, &capacity, file) >= 0) {
         struct cpu_counter *counter;
 
-        if (strncmp(line, "cpu", 3U) != 0) {
+        if (strncmp(line, CPU_PREFIX, sizeof(CPU_PREFIX) - 1U) != 0) {
             break;
         }
         if (sample->count == CPU_MAX_COUNT) {

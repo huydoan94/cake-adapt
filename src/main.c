@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
 
 #include "config.h"
+#include "constants.h"
+#include "defaults.h"
 #include "log.h"
 #include "monitor.h"
 
@@ -14,10 +16,6 @@
 #include <unistd.h>
 
 #define ERROR_SIZE 256U
-#define DEFAULT_SECTION "main"
-#define LOG_FILE_BASE "cake-adapt"
-#define DEFAULT_LOG_DIRECTORY "/var/log"
-
 static void print_usage(const char *program_name)
 {
     (void)fprintf(
@@ -75,10 +73,10 @@ static void randomize_reflector_list(struct config *config)
 int main(int argc, char **argv)
 {
     struct config config;
-    char config_error[ERROR_SIZE] = "";
+    char config_error[ERROR_SIZE] = { 0 };
     const char *config_directory = NULL;
     const char *section_name = DEFAULT_SECTION;
-    const char *active_config = "/etc/config/cake-adapt";
+    const char *active_config = DEFAULT_CONFIG_PATH;
     const char *log_directory;
     char log_path[(CONFIG_STRING_SIZE * 2U) + 64U];
     bool foreground = false;
@@ -90,7 +88,7 @@ int main(int argc, char **argv)
     int path_length;
     int result;
 
-    while ((option = getopt(argc, argv, "C:LfS:Vh")) != -1) {
+    while ((option = getopt(argc, argv, CLI_OPTIONS)) != -1) {
         switch (option) {
         case 'C':
             config_directory = optarg;
@@ -145,7 +143,7 @@ int main(int argc, char **argv)
         active_config = config_directory;
     }
 
-    log_init("cake-adapt", foreground);
+    log_init(PROGRAM_NAME, foreground);
 
     result = config_load(
         &config,
@@ -192,17 +190,17 @@ int main(int argc, char **argv)
         path_length = snprintf(
             log_path,
             sizeof(log_path),
-            "%s/%s.log",
+            "%s/%s" LOG_EXTENSION,
             log_directory,
-            LOG_FILE_BASE
+            DEFAULT_LOG_FILE_BASE
         );
     } else {
         path_length = snprintf(
             log_path,
             sizeof(log_path),
-            "%s/%s.%s.log",
+            "%s/%s.%s" LOG_EXTENSION,
             log_directory,
-            LOG_FILE_BASE,
+            DEFAULT_LOG_FILE_BASE,
             section_name
         );
     }
@@ -270,7 +268,7 @@ int main(int argc, char **argv)
         config.reflector_ping_interval_microseconds,
         config.monitor_achieved_rates_interval_microseconds,
         config.debug ? 1U : 0U,
-        config.log_to_file ? log_path : "disabled"
+        config.log_to_file ? log_path : STATUS_DISABLED
     );
     if (config.adjust_download) {
         log_message(
@@ -307,8 +305,8 @@ int main(int argc, char **argv)
         log_message(
             LOG_LEVEL_NOTICE,
             "started with CAKE bandwidth control: download=%s upload=%s",
-            config.adjust_download ? "enabled" : "disabled",
-            config.adjust_upload ? "enabled" : "disabled"
+            config.adjust_download ? STATUS_ENABLED : STATUS_DISABLED,
+            config.adjust_upload ? STATUS_ENABLED : STATUS_DISABLED
         );
     } else {
         log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");

@@ -15,9 +15,9 @@ WARNINGS := \
 	-Wconversion \
 	-Werror
 
-TARGETS := test_controller test_latency test_log test_traffic test_cpu test_helpers
+TARGETS := test_controller test_latency test_log test_traffic test_cpu test_helpers test_defaults
 OBJECT_DIR ?= ../build/tests
-OBJECT_NAMES := $(TARGETS) controller latency log traffic cpu error helpers helpers_log
+OBJECT_NAMES := $(TARGETS) controller latency log traffic cpu defaults error helpers helpers_log
 OBJECTS := $(addprefix $(OBJECT_DIR)/,$(addsuffix .o,$(OBJECT_NAMES)))
 
 # Optional host integration check using the same libnl API as libnl-tiny.
@@ -30,8 +30,8 @@ UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 check-config: test_config
 	./test_config
 
-test_config: test_config.c ../src/config.c ../src/config.h ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c ../src/helpers.h
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ test_config.c ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c $(LDLIBS) -lz
+test_config: test_config.c ../src/config.c ../src/config.h ../src/constants.h ../src/defaults.c ../src/defaults.h ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c ../src/helpers.h
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ test_config.c ../src/defaults.c ../src/latency.c ../src/log.c ../src/error.c ../src/helpers.c $(LDLIBS) -lz
 
 .PHONY: check-netlink
 check-netlink: test_cake test_netlink
@@ -55,6 +55,7 @@ check: $(TARGETS)
 	./test_traffic
 	./test_cpu
 	./test_helpers
+	./test_defaults
 	sh ./test_init.sh
 	sh ./test_import.sh
 
@@ -70,6 +71,8 @@ test_log: $(addprefix $(OBJECT_DIR)/,test_log.o log.o helpers_log.o)
 test_cpu: $(addprefix $(OBJECT_DIR)/,test_cpu.o cpu.o error.o helpers.o)
 
 test_helpers: $(addprefix $(OBJECT_DIR)/,test_helpers.o helpers.o)
+
+test_defaults: $(addprefix $(OBJECT_DIR)/,test_defaults.o defaults.o)
 
 $(filter-out test_log,$(TARGETS)):
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
