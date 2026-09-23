@@ -53,6 +53,12 @@ the corresponding path is tested. `fping` is the only supported pinger for now,
 and reflector targets come from local UCI configuration rather than a remotely
 retrieved list.
 
+Upstream may be consulted during implementation, but production code, init
+scripts, and configuration must never source, execute, or read files from an
+installed cake-autorate instance. Use the upstream name for attribution and
+compatibility descriptions, not for local identifiers, filenames, or runtime
+dependencies.
+
 One deliberate default difference is safety-related: upload and download rate
 adjustment remain opt-in.
 
@@ -83,8 +89,12 @@ unnecessary abstraction layers, wrapper libraries, or one-use helpers.
   top-level lifecycle, and orderly shutdown only.
 - `monitor.c`: event-loop orchestration and coordination between measurements,
   controller decisions, qdisc lifecycle, timers, and signals.
-- `config.c`: typed UCI loading, defaults, conversion, and validation through
-  `libuci`; never parse `/etc/config/cake-adapt` manually.
+- `config.c`: typed UCI loading, conversion, and validation through `libuci`;
+  never parse `/etc/config/cake-adapt` manually.
+- `defaults.c` and `defaults.h`: built-in application and configuration
+  defaults.
+- `constants.h`: shared semantic names, paths, modes, and state tokens; keep
+  prose diagnostics, format strings, and module-owned record schemas local.
 - `controller.c`: platform-independent autorate, congestion, and activity
   policy; keep it directly unit-testable with synthetic inputs.
 - `cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
@@ -125,15 +135,17 @@ dependencies that are no longer used.
 
 ### Interface convention
 
-UCI contains one interface name:
+UCI normally contains one interface name:
 
 ```text
 upload   = <interface>
 download = ifb4<interface>
 ```
 
-Derive the IFB name using Linux interface-size limits. Do not restore separate
-upload/download interface options or hardcode a WAN device.
+Derive the IFB name using Linux interface-size limits. A paired `ul_if` and
+`dl_if` setting may override the derived pair for nonstandard deployments. Both
+must be present; reject a partial pair. If `interface` and both overrides are
+set, use the explicit pair and warn through syslog. Never hardcode a WAN device.
 
 ### Future ingress ownership
 
@@ -157,8 +169,9 @@ CAKE.
 
 The shipped UCI file must remain safe and readable:
 
-- `enabled`, `interface`, both adjustment flags, both min/base/max rate sets,
-  and the reflector list remain explicit in the template.
+- `enabled`, `interface` (or a complete `ul_if`/`dl_if` pair), both adjustment
+  flags, both min/base/max rate sets, and the reflector list remain explicit in
+  the template.
 - Keep optional settings commented and grouped by purpose.
 - Optional defaults must match cake-autorate unless a deliberate difference is
   documented in code and user-facing documentation.
@@ -191,6 +204,12 @@ Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
 `cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
 Move generic names such as `read_u32()` or `percentage_of()` to `helpers` when
 they are shared; keep module-specific helpers local and `static`.
+
+Put shared semantic string values in `constants.h` and built-in defaults in
+`defaults.c`/`defaults.h`. Keep complete diagnostics, format strings, and
+module-owned schemas beside the code that uses them. Tests should keep literal
+expected values when importing the production constant would make the check
+tautological.
 
 Do not repeat the program name in every log message because the backend already
 identifies the service.
@@ -275,6 +294,11 @@ netlink reply.
 Preserve log-file inode continuity during reset and rotation so `tail -f`
 remains attached.
 
+Default logs are `/var/log/cake-adapt.log` for the historical `main` section
+and `/var/log/cake-adapt.<section>.log` for named instances. `SIGUSR1` exports
+the active and retained logs; `SIGUSR2` resets them in place. Compatibility with
+cake-autorate analyzers applies to structured records, not local filenames.
+
 ## Build and tests
 
 Use plain Make:
@@ -293,6 +317,11 @@ Do not bump `PKG_VERSION` or `PKG_RELEASE`, copy artifacts, deploy, or publish a
 release unless the user explicitly asks. When asked to build both SDKs, run the
 x86 and Filogic tasks concurrently. Verify the selected artifact and its
 destination with checksums.
+
+When explicitly bumping `PKG_VERSION`, update any versioned artifact path in
+`.vscode/tasks.json` in the same change. The native `check-config` target needs
+both `libuci` and `libubox` development headers; missing host headers are an
+environment limitation, but the production SDK build must still pass.
 
 Unit tests are part of every behavioral change. Cover the affected branches,
 especially controller state transitions, min/base/max bounds, congestion and
@@ -315,10 +344,10 @@ Before declaring work complete:
 ## VM testing and delegation
 
 For testing or deployment, delegate routine build/deploy/verification to one
-`gpt-5.6-luna` subagent with low reasoning effort and minimal context. One agent
-may run independent x86 and Filogic builds concurrently. Keep architecture,
-production changes, ambiguous diagnosis, destructive actions, and final
-acceptance on the primary model.
+available Luna-class lower-cost subagent with low reasoning effort and minimal
+context. One agent may run independent x86 and Filogic builds concurrently.
+Keep architecture, production changes, ambiguous diagnosis, destructive
+actions, and final acceptance on the primary model.
 
 Sandbox failures such as `Read-only file system` or `socket: Operation not
 permitted` are not product failures. Use an existing narrow approval or return
@@ -334,17 +363,35 @@ The authorized OpenWrt VM test log is always:
 At the beginning of a test:
 
 1. stop every process writing that file;
-2. record the file inode;
-3. truncate it in place with `: > /tmp/sqm-mon-test.log`; and
-4. configure cake-adapt to write directly to it.
+2. create it once with `touch` if it does not exist, then record its inode;
+3. truncate it in place with `: > /tmp/sqm-mon-test.log`;
+4. create an isolated log directory and hard-link its expected
+   `cake-adapt[.<section>].log` name to that file; and
+5. point `log_file_path_override` at the isolated directory.
 
 Never delete, move, replace, or pipe through `tee` to this file. Do not start or
 stop the user's `tail -f`. At the end, confirm the inode is unchanged.
 
 Before mutating the VM, record its service configuration, running processes,
-and both CAKE qdisc rates. After the test, stop test processes, remove only
-test-created payloads, and restore that exact state. Do not kill an unrelated
-legacy process merely because it owns an `fping` child.
+installed package/version state, relevant files, and complete CAKE qdisc
+handles, options, and rates. Before replacing an installed package, make sure
+the exact rollback artifact exists. If it does not, extract and run the test
+binary in isolation instead of replacing the package.
+
+Bound every transfer and network operation. Prefer a controlled local endpoint
+when public upload/download services are unreliable, verify that `ip route get`
+selects the intended interface, and confirm the receiver actually got the test
+payload. Exercise sustained download, upload, and bidirectional load; inspect
+`LOAD`, `DATA`, and `SHAPER` records; verify rate bounds and recovery; and test
+qdisc disappearance/reappearance only after capturing enough state to recreate
+the exact original qdisc.
+
+After the test, stop test processes, remove only test-created payloads, and
+restore the exact original service, package, configuration, and qdisc state.
+Confirm the test-log inode is unchanged and no test-owned daemon or `fping`
+child remains. Use exact executable paths or `pidof` for process checks because
+`pgrep -af cake-adapt` can match the audit command itself. Do not kill an
+unrelated legacy process merely because it owns an `fping` child.
 
 ## Change discipline
 
