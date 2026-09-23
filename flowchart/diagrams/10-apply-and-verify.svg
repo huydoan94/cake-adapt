@@ -20,7 +20,7 @@
 <g id="node2" class="node">
 <title>log</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M293.08,-778.32C293.08,-778.32 12,-778.32 12,-778.32 6,-778.32 0,-772.32 0,-766.32 0,-766.32 0,-754.32 0,-754.32 0,-748.32 6,-742.32 12,-742.32 12,-742.32 293.08,-742.32 293.08,-742.32 299.08,-742.32 305.08,-748.32 305.08,-754.32 305.08,-754.32 305.08,-766.32 305.08,-766.32 305.08,-772.32 299.08,-778.32 293.08,-778.32"/>
-<text xml:space="preserve" text-anchor="middle" x="152.54" y="-757.02" font-family="Arial" font-size="11.00">If enabled, emit cake&#45;autorate&#45;compatible SHAPER record</text>
+<text xml:space="preserve" text-anchor="middle" x="152.54" y="-757.02" font-family="Arial" font-size="11.00">If enabled, emit analyzer&#45;compatible SHAPER record</text>
 </g>
 <!-- change&#45;&gt;log -->
 <g id="edge1" class="edge">
