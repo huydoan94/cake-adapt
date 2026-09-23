@@ -1,0 +1,30 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="10 — CAKE update, bounded netlink, and readback verification",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  change [label="Controller output says rate change",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  log [label="If enabled, emit cake-autorate-compatible SHAPER record",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  convert [label="Validate positive kbit/s\nconvert kbit/s → bit/s → bytes/s",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  msg [label="Build RTM_NEWQDISC + NLM_F_ACK\nexisting ifindex, parent, handle, kind=cake\nTCA_CAKE_BASE_RATE64",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  send [label="Send on request netlink socket",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  wait [label="poll/read ACK with absolute 1 s deadline",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  ack [label="Kernel ACK successful?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  fail [label="Log warning; close failed request socket\nkeep desired rate for later reconcile",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
+  read [label="RTM_GETQDISC readback for same qdisc",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  match [label="Readback bandwidth equals requested value?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  cache [label="Update cached effective CAKE rate",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  done [label="Continue daemon",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  change -> log;
+  log -> convert;
+  convert -> msg;
+  msg -> send;
+  send -> wait;
+  wait -> ack;
+  ack -> fail [label="no"];
+  ack -> read [label="yes"];
+  read -> match;
+  match -> cache [label="yes"];
+  match -> fail [label="no"];
+  cache -> done;
+  fail -> done;
+}
