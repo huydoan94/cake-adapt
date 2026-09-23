@@ -74,7 +74,9 @@ static void test_scalar_option_types(void)
 static void test_supported_option_names(void)
 {
     bool found_adjust_download = false;
+    bool found_download_interface = false;
     bool found_ping_arguments = false;
+    bool found_upload_interface = false;
     size_t index;
 
     for (index = 0U; index < config_option_count(); index++) {
@@ -83,12 +85,54 @@ static void test_supported_option_names(void)
         assert(name != NULL);
         found_adjust_download = found_adjust_download ||
             strcmp(name, "adjust_dl_shaper_rate") == 0;
+        found_download_interface = found_download_interface ||
+            strcmp(name, "dl_if") == 0;
         found_ping_arguments = found_ping_arguments ||
             strcmp(name, "ping_extra_args") == 0;
+        found_upload_interface = found_upload_interface ||
+            strcmp(name, "ul_if") == 0;
     }
     assert(found_adjust_download);
+    assert(found_download_interface);
     assert(found_ping_arguments);
+    assert(found_upload_interface);
     assert(config_option_name(config_option_count()) == NULL);
+}
+
+static void test_interface_resolution(void)
+{
+    struct config config = { .interface = "eth0" };
+    char error[128] = "";
+
+    assert(resolve_interfaces(&config, error, sizeof(error)) == 0);
+    assert(strcmp(config.interface, "eth0") == 0);
+    assert(strcmp(config.ingress_interface, "ifb4eth0") == 0);
+    assert(!config.interface_overridden);
+
+    config = (struct config) {
+        .interface = "eth0",
+        .ul_if = "wan",
+        .dl_if = "download"
+    };
+    assert(resolve_interfaces(&config, error, sizeof(error)) == 0);
+    assert(strcmp(config.interface, "wan") == 0);
+    assert(strcmp(config.ingress_interface, "download") == 0);
+    assert(config.interface_overridden);
+
+    config = (struct config) { .ul_if = "wan", .dl_if = "download" };
+    assert(resolve_interfaces(&config, error, sizeof(error)) == 0);
+    assert(strcmp(config.interface, "wan") == 0);
+    assert(strcmp(config.ingress_interface, "download") == 0);
+    assert(!config.interface_overridden);
+
+    config = (struct config) { .interface = "eth0", .ul_if = "wan" };
+    assert(resolve_interfaces(&config, error, sizeof(error)) != 0);
+    assert(strstr(error, "configured together") != NULL);
+
+    config = (struct config) { .enabled = true };
+    assert(resolve_interfaces(&config, error, sizeof(error)) == 0);
+    assert(validate_config(&config, error, sizeof(error)) != 0);
+    assert(strstr(error, "either option 'interface' or both options") != NULL);
 }
 
 static struct config valid_config(void)
@@ -206,6 +250,7 @@ int main(void)
     test_fping_only_and_intentional_exclusions();
     test_scalar_option_types();
     test_supported_option_names();
+    test_interface_resolution();
     test_reflector_list_validation();
     test_new_timer_and_limit_validation();
     (void)puts("configuration validation tests passed");

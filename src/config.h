@@ -29,8 +29,11 @@ struct config {
     bool enable_sleep_function;
     bool minimum_shaper_rates_enforcement;
     bool log_file_export_compress;
+    bool interface_overridden;
     char interface[IF_NAMESIZE];
     char ingress_interface[IF_NAMESIZE];
+    char ul_if[IF_NAMESIZE];
+    char dl_if[IF_NAMESIZE];
     char cake_autorate_config[CONFIG_STRING_SIZE];
     char log_file_path_override[CONFIG_STRING_SIZE];
     char pinger_method[CONFIG_STRING_SIZE];

@@ -37,8 +37,8 @@ cake-adapt currently:
 
 - loads typed configuration through `libuci`;
 - discovers existing CAKE qdiscs through rtnetlink;
-- treats the configured interface as upload and derives download as
-  `ifb4<interface>`;
+- uses the configured `interface` as upload and derives download as
+  `ifb4<interface>`, unless both directional interface options override it;
 - measures traffic rates independently for upload and download;
 - runs one `fping` process against multiple reflectors;
 - tracks latency baselines and reflector health;
@@ -83,8 +83,17 @@ download:  ifb4eth1
 ```
 
 The IFB name follows the convention used by SQM and is truncated when needed
-to fit Linux's interface-name limit. Separate upload and download interface
-options are intentionally not required.
+to fit Linux's interface-name limit. For setups that do not follow this
+convention, set both `ul_if` and `dl_if`:
+
+```uci
+option ul_if 'wan'
+option dl_if 'download'
+```
+
+The directional pair takes precedence over `interface`. Setting only one is a
+configuration error. When all three have values, cake-adapt logs a syslog
+warning that `interface` was overridden.
 
 ## Requirements
 
@@ -214,12 +223,9 @@ select a trusted root-owned configuration. The helper runs in a separate Bash
 process so its variables and shell settings cannot modify the OpenWrt init
 shell.
 
-There are two interface-specific rules:
-
-- `ul_if` overrides the UCI `interface` value.
-- `dl_if` must equal the derived `ifb4<ul_if>` name. cake-adapt intentionally
-  retains its single-interface SQM convention and rejects an incompatible
-  imported download interface.
+Imported `ul_if` and `dl_if` values take effect as a pair and may name any two
+valid Linux interfaces. When both are absent, cake-adapt retains the UCI
+`interface` value and its derived `ifb4<interface>` download interface.
 
 `enabled` and `cake_autorate_config` remain UCI-owned. Intentional exclusions
 such as `startup_wait_s`, remote reflector retrieval, and unsupported pinger
