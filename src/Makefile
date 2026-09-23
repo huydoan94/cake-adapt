@@ -23,6 +23,7 @@ SOURCES := \
 	config.c \
 	controller.c \
 	cpu.c \
+	defaults.c \
 	error.c \
 	helpers.c \
 	latency.c \

@@ -1,6 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "helpers.h"
+#include "constants.h"
+
 
 #include <limits.h>
 #include <errno.h>
@@ -18,7 +20,7 @@ bool parse_unsigned(
 
     if (
         start == end ||
-        strspn(start, "0123456789") != (size_t)(end - start)
+        strspn(start, DECIMAL_DIGITS) != (size_t)(end - start)
     ) {
         return false;
     }

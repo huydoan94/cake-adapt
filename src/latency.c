@@ -2,6 +2,8 @@
 
 #include "latency.h"
 #include "error.h"
+#include "constants.h"
+#include "defaults.h"
 #include "helpers.h"
 
 #include <errno.h>
@@ -20,9 +22,6 @@
 #include <unistd.h>
 #include <wordexp.h>
 
-#define FPING_PATH "/usr/bin/fping"
-#define NULL_PATH "/dev/null"
-#define FPING_TIMEOUT_MILLISECONDS "10000"
 #define CHILD_STOP_ATTEMPTS 50U
 #define CHILD_STOP_INTERVAL_NANOSECONDS 10000000L
 #define ALPHA_SCALE 1000000U
@@ -38,7 +37,7 @@ static bool parse_timestamp(
 {
     const char *closing_bracket;
     const char *decimal_point;
-    char fraction_digits[7] = "000000";
+    char fraction_digits[7] = FRACTION_ZEROES;
     uint64_t fraction;
     uint64_t seconds;
     size_t digit_count;
@@ -65,7 +64,7 @@ static bool parse_timestamp(
         return false;
     }
 
-    digit_count = strspn(decimal_point + 1, "0123456789");
+    digit_count = strspn(decimal_point + 1, DECIMAL_DIGITS);
     if (
         digit_count == 0U ||
         decimal_point + 1 + digit_count != closing_bracket
@@ -107,7 +106,7 @@ enum latency_fping_line_result parse_fping_line(
         return LATENCY_FPING_LINE_INVALID;
     }
 
-    separator = strstr(cursor, " : [");
+    separator = strstr(cursor, FPING_SEQUENCE_SEPARATOR);
     if (separator == NULL) {
         return LATENCY_FPING_LINE_INVALID;
     }
@@ -126,7 +125,7 @@ enum latency_fping_line_result parse_fping_line(
     memcpy(sample->target, cursor, target_length);
     sample->target[target_length] = '\0';
 
-    cursor = separator + strlen(" : [");
+    cursor = separator + strlen(FPING_SEQUENCE_SEPARATOR);
     sequence_end = strchr(cursor, ']');
     if (
         sequence_end == NULL ||
@@ -138,30 +137,30 @@ enum latency_fping_line_result parse_fping_line(
     sample->timestamp_microseconds = timestamp_microseconds;
     sample->sequence = sequence;
     cursor = sequence_end + 1;
-    if (strncmp(cursor, ", timed out", strlen(", timed out")) == 0) {
+    if (strncmp(cursor, FPING_TIMEOUT_SUFFIX, strlen(FPING_TIMEOUT_SUFFIX)) == 0) {
         return LATENCY_FPING_LINE_TIMEOUT;
     }
-    if (strncmp(cursor, ", ", 2U) != 0) {
+    if (strncmp(cursor, FPING_FIELD_SEPARATOR, strlen(FPING_FIELD_SEPARATOR)) != 0) {
         return LATENCY_FPING_LINE_INVALID;
     }
 
-    cursor += 2;
+    cursor += strlen(FPING_FIELD_SEPARATOR);
     target_end = cursor;
-    cursor += strspn(cursor, "0123456789");
+    cursor += strspn(cursor, DECIMAL_DIGITS);
     if (
         cursor == target_end ||
-        strncmp(cursor, " bytes, ", strlen(" bytes, ")) != 0
+        strncmp(cursor, FPING_BYTES_SEPARATOR, strlen(FPING_BYTES_SEPARATOR)) != 0
     ) {
         return LATENCY_FPING_LINE_INVALID;
     }
-    cursor += strlen(" bytes, ");
+    cursor += strlen(FPING_BYTES_SEPARATOR);
     errno = 0;
     round_trip_milliseconds = strtod(cursor, &rtt_end);
     if (
         errno == ERANGE || rtt_end == cursor ||
         !isfinite(round_trip_milliseconds) ||
         round_trip_milliseconds < 0.0 ||
-        strncmp(rtt_end, " ms", strlen(" ms")) != 0
+        strncmp(rtt_end, FPING_MILLISECONDS_SUFFIX, strlen(FPING_MILLISECONDS_SUFFIX)) != 0
     ) {
         return LATENCY_FPING_LINE_INVALID;
     }
@@ -282,7 +281,7 @@ static int spawn_fping(
         (result = posix_spawn_file_actions_addopen(
             &actions,
             STDERR_FILENO,
-            NULL_PATH,
+            NULL_DEVICE_PATH,
             O_WRONLY,
             0
         )) != 0
@@ -387,7 +386,7 @@ int latency_open(
                 error,
                 error_size,
                 "latency target '%s' is not a valid IP address or hostname",
-                targets[index] == NULL ? "(null)" : targets[index]
+                targets[index] == NULL ? NULL_VALUE : targets[index]
             );
             return -1;
         }
@@ -456,26 +455,34 @@ int latency_open(
     for (index = 0U; index < extra_words.we_wordc; index++) {
         arguments[cursor++] = extra_words.we_wordv[index];
         if (
-            strncmp(extra_words.we_wordv[index], "-I", 2U) == 0 ||
-            strcmp(extra_words.we_wordv[index], "--iface") == 0 ||
-            strncmp(extra_words.we_wordv[index], "--iface=", 8U) == 0
+            strncmp(
+                extra_words.we_wordv[index],
+                FPING_INTERFACE_SHORT,
+                strlen(FPING_INTERFACE_SHORT)
+            ) == 0 ||
+            strcmp(extra_words.we_wordv[index], FPING_INTERFACE_LONG) == 0 ||
+            strncmp(
+                extra_words.we_wordv[index],
+                FPING_INTERFACE_LONG_PREFIX,
+                strlen(FPING_INTERFACE_LONG_PREFIX)
+            ) == 0
         ) {
             interface_configured = true;
         }
     }
     /* Keep the SQM interface default, but honor an explicit routing override. */
     if (!interface_configured) {
-        arguments[cursor++] = (char *)"-I";
+        arguments[cursor++] = (char *)FPING_INTERFACE_SHORT;
         arguments[cursor++] = (char *)interface;
     }
-    arguments[cursor++] = (char *)"--timestamp";
-    arguments[cursor++] = (char *)"--loop";
-    arguments[cursor++] = (char *)"--period";
+    arguments[cursor++] = (char *)FPING_TIMESTAMP;
+    arguments[cursor++] = (char *)FPING_LOOP;
+    arguments[cursor++] = (char *)FPING_PERIOD;
     arguments[cursor++] = period_milliseconds;
-    arguments[cursor++] = (char *)"--interval";
+    arguments[cursor++] = (char *)FPING_INTERVAL;
     arguments[cursor++] = response_interval_milliseconds;
-    arguments[cursor++] = (char *)"--timeout";
-    arguments[cursor++] = (char *)FPING_TIMEOUT_MILLISECONDS;
+    arguments[cursor++] = (char *)FPING_TIMEOUT;
+    arguments[cursor++] = (char *)DEFAULT_FPING_TIMEOUT_MILLISECONDS;
     for (index = 0U; index < target_count; index++) {
         arguments[cursor++] = (char *)targets[index];
     }
@@ -606,7 +613,7 @@ void latency_init(struct latency *latency)
     *latency = (struct latency) {
         .output_descriptor = -1,
         .process_identifier = -1,
-        .output_buffer = "",
+        .output_buffer = { 0 },
         .output_length = 0U
     };
 }
@@ -614,8 +621,6 @@ void latency_init(struct latency *latency)
 bool target_is_valid(const char *target)
 {
     size_t length;
-    static const char allowed[] =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-";
 
     if (
         target == NULL ||
@@ -633,7 +638,7 @@ bool target_is_valid(const char *target)
         return false;
     }
 
-    return strspn(target, allowed) == length;
+    return strspn(target, TARGET_CHARACTERS) == length;
 }
 
 bool latency_is_open(const struct latency *latency)

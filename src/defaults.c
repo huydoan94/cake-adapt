@@ -1,0 +1,67 @@
+#include "defaults.h"
+
+#include <string.h>
+
+void defaults_apply(struct config *config)
+{
+    *config = (struct config) {
+        /* Adjustment remains opt-in even though cake-autorate defaults it on. */
+        .adjust_download = false,
+        .adjust_upload = false,
+        .debug = true,
+        .log_to_file = true,
+        .randomize_reflectors = true,
+        .retain_reflector_stats = true,
+        .enable_sleep_function = true,
+        .log_file_export_compress = true,
+        .log_file_max_time_minutes = 10U,
+        .log_file_max_size_kilobytes = 2000U,
+        .no_pingers = 6U,
+        .reflector_ping_interval_microseconds = 300000U,
+        .download_average_owd_delta_maximum_adjust_up_microseconds = 10000U,
+        .upload_average_owd_delta_maximum_adjust_up_microseconds = 10000U,
+        .download_owd_delta_delay_threshold_microseconds = 30000U,
+        .upload_owd_delta_delay_threshold_microseconds = 30000U,
+        .download_average_owd_delta_maximum_adjust_down_microseconds = 60000U,
+        .upload_average_owd_delta_maximum_adjust_down_microseconds = 60000U,
+        .minimum_download_rate_bits_per_second = 5000000U,
+        .base_download_rate_bits_per_second = 20000000U,
+        .maximum_download_rate_bits_per_second = 80000000U,
+        .minimum_upload_rate_bits_per_second = 5000000U,
+        .base_upload_rate_bits_per_second = 20000000U,
+        .maximum_upload_rate_bits_per_second = 35000000U,
+        .connection_active_threshold_bits_per_second = 2000000U,
+        .sustained_idle_sleep_threshold_microseconds = 60000000U,
+        .log_file_buffer_timeout_microseconds = 500000U,
+        .irtt_session_duration_minutes = 10U,
+        .monitor_achieved_rates_interval_microseconds = 200000U,
+        .monitor_cpu_usage_interval_microseconds = 2000000U,
+        .bufferbloat_detection_window = 6U,
+        .bufferbloat_detection_threshold = 3U,
+        .alpha_baseline_increase_per_million = 1000U,
+        .alpha_baseline_decrease_per_million = 900000U,
+        .alpha_delta_ewma_per_million = 95000U,
+        .shaper_rate_minimum_adjust_down_bufferbloat_per_million = 990000U,
+        .shaper_rate_maximum_adjust_down_bufferbloat_per_million = 750000U,
+        .shaper_rate_minimum_adjust_up_load_high_per_million = 1000000U,
+        .shaper_rate_maximum_adjust_up_load_high_per_million = 1040000U,
+        .shaper_rate_adjust_down_load_low_per_million = 990000U,
+        .shaper_rate_adjust_up_load_low_per_million = 1010000U,
+        .high_load_threshold_per_million = 750000U,
+        .bufferbloat_refractory_period_microseconds = 300000U,
+        .decay_refractory_period_microseconds = 1000000U,
+        .reflector_health_check_interval_microseconds = 1000000U,
+        .reflector_response_deadline_microseconds = 1000000U,
+        .reflector_misbehaving_detection_window = 60U,
+        .reflector_misbehaving_detection_threshold = 3U,
+        .reflector_replacement_interval_minutes = 60U,
+        .reflector_comparison_interval_minutes = 1U,
+        .reflector_sum_owd_baselines_delta_threshold_microseconds = 20000U,
+        .reflector_owd_delta_ewma_delta_threshold_microseconds = 10000U,
+        .stall_detection_threshold = 5U,
+        .connection_stall_threshold_bits_per_second = 10000U,
+        .global_ping_response_timeout_microseconds = 10000000U,
+        .interface_up_check_interval_microseconds = 10000000U
+    };
+    (void)strcpy(config->pinger_method, PINGER_METHOD_FPING);
+}

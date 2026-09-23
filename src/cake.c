@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "cake.h"
+#include "constants.h"
 #include "error.h"
 
 #include <errno.h>
@@ -185,7 +186,7 @@ static int handle_qdisc(
             policy
         ) < 0 ||
         attributes[TCA_KIND] == NULL ||
-        nla_strcmp(attributes[TCA_KIND], "cake") != 0
+        nla_strcmp(attributes[TCA_KIND], QDISC_KIND) != 0
     ) {
         return 0;
     }
@@ -303,7 +304,7 @@ int cake_set_bandwidth(
             interface_index,
             observation->handle,
             observation->parent,
-            "cake",
+            QDISC_KIND,
             TCA_CAKE_BASE_RATE64,
             &bandwidth_bytes_per_second,
             sizeof(bandwidth_bytes_per_second),

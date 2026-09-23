@@ -2,6 +2,7 @@
 
 #include "monitor.h"
 
+#include "constants.h"
 #include "cake.h"
 #include "controller.h"
 #include "cpu.h"
@@ -227,7 +228,7 @@ static void observe_cake(
     uint64_t retry_interval_microseconds
 )
 {
-    char error[ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = { 0 };
     enum cake_read_result read_result;
 
     if (
@@ -352,14 +353,14 @@ static const char *line_state_name(enum controller_line_state state)
 {
     switch (state) {
     case CONTROLLER_LINE_UNKNOWN:
-        return "unknown";
+        return STATE_UNKNOWN;
     case CONTROLLER_LINE_BELOW_CAPACITY:
-        return "below-capacity";
+        return STATE_BELOW_CAPACITY;
     case CONTROLLER_LINE_SATURATED:
-        return "saturated";
+        return STATE_SATURATED;
     }
 
-    return "invalid";
+    return STATE_INVALID;
 }
 
 static void log_line_state(
@@ -397,14 +398,14 @@ static const char *congestion_state_name(
 {
     switch (state) {
     case CONTROLLER_CONGESTION_UNKNOWN:
-        return "unknown";
+        return STATE_UNKNOWN;
     case CONTROLLER_CONGESTION_CLEAR:
-        return "clear";
+        return STATE_CLEAR;
     case CONTROLLER_CONGESTION_DETECTED:
-        return "detected";
+        return STATE_DETECTED;
     }
 
-    return "invalid";
+    return STATE_INVALID;
 }
 
 static void log_congestion_state(
@@ -448,20 +449,20 @@ static const char *rate_reason_name(enum controller_rate_reason reason)
 {
     switch (reason) {
     case CONTROLLER_RATE_UNCHANGED:
-        return "unchanged";
+        return STATE_UNCHANGED;
     case CONTROLLER_RATE_INITIAL:
-        return "initial";
+        return STATE_INITIAL;
     case CONTROLLER_RATE_CONGESTION:
-        return "congestion";
+        return STATE_CONGESTION;
     case CONTROLLER_RATE_HIGH_LOAD:
-        return "high-load";
+        return STATE_HIGH_LOAD;
     case CONTROLLER_RATE_RETURN_TO_BASE:
-        return "return-to-base";
+        return STATE_RETURN_TO_BASE;
     case CONTROLLER_RATE_RECONCILE:
-        return "reconcile";
+        return STATE_RECONCILE;
     }
 
-    return "invalid";
+    return STATE_INVALID;
 }
 
 static bool direction_has_low_load(
@@ -495,11 +496,11 @@ static void load_condition(
         load_percent(traffic_rate, cake_rate) >
         high_load_threshold_percent
     ) {
-        state = "high";
+        state = STATE_HIGH;
     } else if (traffic_rate > connection_active_threshold) {
-        state = "low";
+        state = STATE_LOW;
     } else {
-        state = "idle";
+        state = STATE_IDLE;
     }
 
     (void)snprintf(
@@ -508,7 +509,7 @@ static void load_condition(
         "%s_%s%s",
         direction,
         state,
-        congestion == CONTROLLER_CONGESTION_DETECTED ? "_bb" : ""
+        congestion == CONTROLLER_CONGESTION_DETECTED ? BUFFERBLOAT_SUFFIX : EMPTY_STRING
     );
 }
 
@@ -547,7 +548,7 @@ static void log_controller_stats(
     load_condition(
         download_condition,
         sizeof(download_condition),
-        "dl",
+        DIRECTION_DOWNLOAD_SHORT,
         input->download.traffic_rate_bits_per_second,
         input->download.cake_rate_bits_per_second,
         config->connection_active_threshold_bits_per_second,
@@ -560,7 +561,7 @@ static void log_controller_stats(
     load_condition(
         upload_condition,
         sizeof(upload_condition),
-        "ul",
+        DIRECTION_UPLOAD_SHORT,
         input->upload.traffic_rate_bits_per_second,
         input->upload.cake_rate_bits_per_second,
         config->connection_active_threshold_bits_per_second,
@@ -667,7 +668,7 @@ static void apply_bandwidth(
 )
 {
     struct cake_observation verified;
-    char error[ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = { 0 };
     enum cake_read_result read_result;
 
     if (output_cake_changes) {
@@ -719,7 +720,7 @@ static void apply_bandwidth(
             desired_rate,
             read_result == CAKE_READ_ERROR
                 ? error
-                : "readback did not match"
+                : READBACK_MISMATCH
         );
         return;
     }
@@ -872,7 +873,7 @@ static bool ensure_latency_open(
 )
 {
     const char *targets[CONFIG_MAX_REFLECTORS];
-    char error[ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = { 0 };
     size_t target_count = (size_t)config->no_pingers;
     size_t index;
     uint64_t timestamp_microseconds;
@@ -964,7 +965,7 @@ static bool receive_latency_samples(
     for (;;) {
         struct latency_observation observation;
         struct latency_sample sample;
-        char error[ERROR_SIZE] = "";
+        char error[ERROR_SIZE] = { 0 };
         enum latency_probe_result result = latency_receive(
             &context->latency,
             &sample,
@@ -1156,7 +1157,7 @@ static void handle_qdisc_events(
         struct event_loop,
         qdisc_events
     );
-    char error[ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = { 0 };
 
     (void)events;
     if (
@@ -1308,7 +1309,11 @@ static void update_monitor_state(
     uint64_t timestamp_microseconds
 )
 {
-    static const char *const names[] = { "RUNNING", "IDLE", "STALL" };
+    static const char *const names[] = {
+        STATE_RUNNING_UPPER,
+        STATE_IDLE_UPPER,
+        STATE_STALL_UPPER
+    };
     struct observation_context *context = &loop->observation;
     const struct config *config = loop->config;
     const struct controller_activity_config activity_config = {
@@ -1538,9 +1543,9 @@ static void observe_cpu(
 {
     struct cpu_sample sample = { 0 };
     unsigned int usage[CPU_MAX_COUNT];
-    char error[ERROR_SIZE] = "";
+    char error[ERROR_SIZE] = { 0 };
 
-    if (cpu_read("/proc/stat", &sample, error, sizeof(error)) != 0) {
+    if (cpu_read(PROC_STAT_PATH, &sample, error, sizeof(error)) != 0) {
         if (!loop->cpu_observation_failed) {
             log_message(LOG_LEVEL_WARNING, "CPU observation degraded: %s", error);
         }
@@ -1953,13 +1958,13 @@ int monitor_run(const struct config *config)
     struct event_loop loop = {
         .observation = {
             .download = {
-                .name = "download",
+                .name = DIRECTION_DOWNLOAD,
                 .interface = config->ingress_interface,
                 .cake_state = CAKE_OBSERVATION_UNKNOWN,
                 .traffic_state = TRAFFIC_OBSERVATION_UNKNOWN
             },
             .upload = {
-                .name = "upload",
+                .name = DIRECTION_UPLOAD,
                 .interface = config->interface,
                 .cake_state = CAKE_OBSERVATION_UNKNOWN,
                 .traffic_state = TRAFFIC_OBSERVATION_UNKNOWN
@@ -2004,8 +2009,16 @@ int monitor_run(const struct config *config)
         uint64_t interval_microseconds;
         const char *name;
     } required_timers[] = {
-        { &loop.traffic_timer, config->monitor_achieved_rates_interval_microseconds, "traffic" },
-        { &loop.reflector_health_timer, config->reflector_health_check_interval_microseconds, "reflector health" }
+        {
+            &loop.traffic_timer,
+            config->monitor_achieved_rates_interval_microseconds,
+            TIMER_TRAFFIC
+        },
+        {
+            &loop.reflector_health_timer,
+            config->reflector_health_check_interval_microseconds,
+            TIMER_REFLECTOR_HEALTH
+        }
     };
     int run_status;
     uint64_t start_microseconds;
@@ -2093,7 +2106,7 @@ int monitor_run(const struct config *config)
     }
 
     {
-        char error[ERROR_SIZE] = "";
+        char error[ERROR_SIZE] = { 0 };
 
         if (
             netlink_subscribe_qdiscs(
