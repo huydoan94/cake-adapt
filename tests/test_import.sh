@@ -11,7 +11,7 @@ mkdir -p "$temporary_directory/cake/.uci" "$temporary_directory/source"
 cat > "$temporary_directory/options" <<'EOF'
 #!/bin/sh
 printf '%s\n' \
-    enabled interface ul_if dl_if cake_autorate_config adjust_dl_shaper_rate \
+    enabled interface ul_if dl_if config_file adjust_dl_shaper_rate \
     pinger_method ping_extra_args
 EOF
 chmod +x "$temporary_directory/options"
@@ -21,15 +21,6 @@ cat > "$temporary_directory/uci" <<'EOF'
 printf '%s\n' "$*" >> "$CALL_LOG"
 EOF
 chmod +x "$temporary_directory/uci"
-
-cat > "$temporary_directory/source/defaults.sh" <<'EOF'
-ul_if=wan
-dl_if=ifb4wan
-adjust_dl_shaper_rate=0
-pinger_method=fping
-ping_extra_args=""
-reflectors=("1.1.1.1" "8.8.8.8")
-EOF
 
 cat > "$temporary_directory/source/config.primary.sh" <<'EOF'
 ul_if=eth1
@@ -44,18 +35,46 @@ UCI="$temporary_directory/uci" \
 bash ../files/cake-adapt.import \
     "$temporary_directory/source/config.primary.sh" \
     "$temporary_directory/cake" \
-    "$temporary_directory/options"
+    "$temporary_directory/options" \
+    primary
 
-grep -Fq 'set cake-adapt.main.ul_if=eth1' "$temporary_directory/calls"
-grep -Fq 'set cake-adapt.main.dl_if=download' "$temporary_directory/calls"
-if grep -Fq 'set cake-adapt.main.interface=' "$temporary_directory/calls"; then
+grep -Fq 'set cake-adapt.primary.ul_if=eth1' "$temporary_directory/calls"
+grep -Fq 'set cake-adapt.primary.dl_if=download' "$temporary_directory/calls"
+if grep -Fq 'set cake-adapt.primary.interface=' "$temporary_directory/calls"; then
     exit 1
 fi
-grep -Fq 'set cake-adapt.main.adjust_dl_shaper_rate=1' "$temporary_directory/calls"
-grep -Fq 'set cake-adapt.main.ping_extra_args=-I eth1' "$temporary_directory/calls"
-grep -Fq 'add_list cake-adapt.main.reflectors=9.9.9.9' "$temporary_directory/calls"
-grep -Fq 'add_list cake-adapt.main.reflectors=149.112.112.112' "$temporary_directory/calls"
+grep -Fq 'set cake-adapt.primary.adjust_dl_shaper_rate=1' "$temporary_directory/calls"
+grep -Fq 'set cake-adapt.primary.ping_extra_args=-I eth1' "$temporary_directory/calls"
+grep -Fq 'add_list cake-adapt.primary.reflectors=9.9.9.9' "$temporary_directory/calls"
+grep -Fq 'add_list cake-adapt.primary.reflectors=149.112.112.112' "$temporary_directory/calls"
 grep -Fq 'commit cake-adapt' "$temporary_directory/calls"
+
+: > "$temporary_directory/calls"
+cat > "$temporary_directory/source/config.partial.sh" <<'EOF'
+adjust_dl_shaper_rate=0
+EOF
+CALL_LOG="$temporary_directory/calls" \
+UCI="$temporary_directory/uci" \
+bash ../files/cake-adapt.import \
+    "$temporary_directory/source/config.partial.sh" \
+    "$temporary_directory/cake" \
+    "$temporary_directory/options" \
+    primary
+grep -Fq 'set cake-adapt.primary.adjust_dl_shaper_rate=0' \
+    "$temporary_directory/calls"
+if grep -Fq '.reflectors' "$temporary_directory/calls"; then
+    exit 1
+fi
+
+if CALL_LOG="$temporary_directory/calls" \
+    UCI="$temporary_directory/uci" \
+    bash ../files/cake-adapt.import \
+        "$temporary_directory/source/config.primary.sh" \
+        "$temporary_directory/cake" \
+        "$temporary_directory/options" \
+        'bad/name' 2>/dev/null; then
+    exit 1
+fi
 
 cat > "$temporary_directory/options" <<'EOF'
 #!/bin/sh
@@ -66,7 +85,8 @@ if CALL_LOG="$temporary_directory/calls" \
     bash ../files/cake-adapt.import \
         "$temporary_directory/source/config.primary.sh" \
         "$temporary_directory/cake" \
-        "$temporary_directory/options" 2>/dev/null; then
+        "$temporary_directory/options" \
+        primary 2>/dev/null; then
     exit 1
 fi
 
@@ -82,8 +102,9 @@ if CALL_LOG="$temporary_directory/calls" \
     bash ../files/cake-adapt.import \
         "$temporary_directory/source/config.primary.sh" \
         "$temporary_directory/cake" \
-        "$temporary_directory/options" 2>/dev/null; then
+        "$temporary_directory/options" \
+        primary 2>/dev/null; then
     exit 1
 fi
 
-printf '%s\n' 'cake-autorate import tests passed'
+printf '%s\n' 'standalone configuration import tests passed'

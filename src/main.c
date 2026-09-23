@@ -14,14 +14,15 @@
 #include <unistd.h>
 
 #define ERROR_SIZE 256U
-#define LOG_FILE_NAME "cake-autorate.log"
+#define DEFAULT_SECTION "main"
+#define LOG_FILE_BASE "cake-autorate"
 #define DEFAULT_LOG_DIRECTORY "/var/log"
 
 static void print_usage(const char *program_name)
 {
     (void)fprintf(
         stderr,
-        "Usage: %s [-f] [-V] [-C UCI_CONFIG_DIRECTORY]\n"
+        "Usage: %s [-f] [-V] [-C UCI_CONFIG_DIRECTORY] [-S UCI_SECTION]\n"
         "       %s -L\n",
         program_name,
         program_name
@@ -76,18 +77,20 @@ int main(int argc, char **argv)
     struct config config;
     char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
+    const char *section_name = DEFAULT_SECTION;
     const char *active_config = "/etc/config/cake-adapt";
-    char log_path[CONFIG_STRING_SIZE + sizeof(LOG_FILE_NAME)] =
-        DEFAULT_LOG_DIRECTORY "/" LOG_FILE_NAME;
+    const char *log_directory;
+    char log_path[(CONFIG_STRING_SIZE * 2U) + 64U];
     bool foreground = false;
     bool list_options = false;
+    bool section_selected = false;
     bool validate_only = false;
     size_t index;
     int option;
     int path_length;
     int result;
 
-    while ((option = getopt(argc, argv, "C:LfVh")) != -1) {
+    while ((option = getopt(argc, argv, "C:LfS:Vh")) != -1) {
         switch (option) {
         case 'C':
             config_directory = optarg;
@@ -97,6 +100,10 @@ int main(int argc, char **argv)
             break;
         case 'f':
             foreground = true;
+            break;
+        case 'S':
+            section_name = optarg;
+            section_selected = true;
             break;
         case 'V':
             validate_only = true;
@@ -116,7 +123,12 @@ int main(int argc, char **argv)
     }
     if (
         list_options &&
-        (config_directory != NULL || foreground || validate_only)
+        (
+            config_directory != NULL ||
+            foreground ||
+            section_selected ||
+            validate_only
+        )
     ) {
         print_usage(argv[0]);
         return 2;
@@ -138,6 +150,7 @@ int main(int argc, char **argv)
     result = config_load(
         &config,
         config_directory,
+        section_name,
         config_error,
         sizeof(config_error)
     );
@@ -172,22 +185,34 @@ int main(int argc, char **argv)
         );
     }
 
-    if (config.log_file_path_override[0] != '\0') {
+    log_directory = config.log_file_path_override[0] != '\0'
+        ? config.log_file_path_override
+        : DEFAULT_LOG_DIRECTORY;
+    if (strcmp(section_name, DEFAULT_SECTION) == 0) {
         path_length = snprintf(
             log_path,
             sizeof(log_path),
-            "%s/%s",
-            config.log_file_path_override,
-            LOG_FILE_NAME
+            "%s/%s.log",
+            log_directory,
+            LOG_FILE_BASE
         );
-        if (
-            path_length < 0 ||
-            (size_t)path_length >= sizeof(log_path)
-        ) {
-            log_message(LOG_LEVEL_ERROR, "log file path is too long");
-            log_close();
-            return 1;
-        }
+    } else {
+        path_length = snprintf(
+            log_path,
+            sizeof(log_path),
+            "%s/%s.%s.log",
+            log_directory,
+            LOG_FILE_BASE,
+            section_name
+        );
+    }
+    if (
+        path_length < 0 ||
+        (size_t)path_length >= sizeof(log_path)
+    ) {
+        log_message(LOG_LEVEL_ERROR, "log file path is too long");
+        log_close();
+        return 1;
     }
 
     if (
@@ -210,11 +235,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (config.cake_autorate_config[0] != '\0') {
+    if (config.config_file[0] != '\0') {
         log_message(
             LOG_LEVEL_NOTICE,
-            "loaded cake-autorate configuration overrides from '%s'",
-            config.cake_autorate_config
+            "loaded configuration overrides from '%s'",
+            config.config_file
         );
     }
 
@@ -269,9 +294,10 @@ int main(int argc, char **argv)
     }
 
     log_system_message(
-        "Starting cake-adapt with PID: %ld and config: %s",
+        "Starting cake-adapt with PID: %ld, config: %s, section: %s",
         (long)getpid(),
-        active_config
+        active_config,
+        section_name
     );
 
     if (
@@ -290,9 +316,10 @@ int main(int argc, char **argv)
     result = monitor_run(&config);
 
     log_system_message(
-        "Stopped cake-adapt with PID: %ld and config: %s",
+        "Stopped cake-adapt with PID: %ld, config: %s, section: %s",
         (long)getpid(),
-        active_config
+        active_config,
+        section_name
     );
     log_close();
     return result == 0 ? 0 : 1;

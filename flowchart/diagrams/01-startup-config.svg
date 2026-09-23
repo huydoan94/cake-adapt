@@ -14,13 +14,13 @@
 <g id="node1" class="node">
 <title>start</title>
 <ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="134.45" cy="-1241.22" rx="134.45" ry="18.5"/>
-<text xml:space="preserve" text-anchor="middle" x="134.45" y="-1237.92" font-family="Arial" font-size="11.00">procd invokes /usr/sbin/cake&#45;adapt</text>
+<text xml:space="preserve" text-anchor="middle" x="134.45" y="-1237.92" font-family="Arial" font-size="11.00">procd creates one daemon per UCI section</text>
 </g>
 <!-- initcheck -->
 <g id="node2" class="node">
 <title>initcheck</title>
 <polygon fill="#fff0cc" stroke="#b7791f" stroke-width="1.2" points="134.45,-1185.72 47.02,-1159.56 134.45,-1133.4 221.88,-1159.56 134.45,-1185.72"/>
-<text xml:space="preserve" text-anchor="middle" x="134.45" y="-1156.26" font-family="Arial" font-size="11.00">UCI enabled?</text>
+<text xml:space="preserve" text-anchor="middle" x="134.45" y="-1156.26" font-family="Arial" font-size="11.00">Instance enabled?</text>
 </g>
 <!-- start&#45;&gt;initcheck -->
 <g id="edge1" class="edge">
@@ -45,7 +45,7 @@
 <g id="node4" class="node">
 <title>args</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M408.34,-1086.6C408.34,-1086.6 216.56,-1086.6 216.56,-1086.6 210.56,-1086.6 204.56,-1080.6 204.56,-1074.6 204.56,-1074.6 204.56,-1062.6 204.56,-1062.6 204.56,-1056.6 210.56,-1050.6 216.56,-1050.6 216.56,-1050.6 408.34,-1050.6 408.34,-1050.6 414.34,-1050.6 420.34,-1056.6 420.34,-1062.6 420.34,-1062.6 420.34,-1074.6 420.34,-1074.6 420.34,-1080.6 414.34,-1086.6 408.34,-1086.6"/>
-<text xml:space="preserve" text-anchor="middle" x="312.45" y="-1065.3" font-family="Arial" font-size="11.00">Parse &#45;C UCI directory, &#45;f foreground, &#45;h</text>
+<text xml:space="preserve" text-anchor="middle" x="312.45" y="-1065.3" font-family="Arial" font-size="11.00">Parse &#45;C UCI directory and &#45;S section</text>
 </g>
 <!-- initcheck&#45;&gt;args -->
 <g id="edge3" class="edge">
@@ -83,7 +83,7 @@
 <g id="node7" class="node">
 <title>selected</title>
 <polygon fill="#fff0cc" stroke="#b7791f" stroke-width="1.2" points="312.45,-864.24 136.96,-838.08 312.45,-811.92 487.94,-838.08 312.45,-864.24"/>
-<text xml:space="preserve" text-anchor="middle" x="312.45" y="-834.78" font-family="Arial" font-size="11.00">cake_autorate_config selected?</text>
+<text xml:space="preserve" text-anchor="middle" x="312.45" y="-834.78" font-family="Arial" font-size="11.00">config_file selected?</text>
 </g>
 <!-- load&#45;&gt;selected -->
 <g id="edge6" class="edge">
@@ -95,8 +95,8 @@
 <g id="node8" class="node">
 <title>import</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M348.88,-765.12C348.88,-765.12 102.02,-765.12 102.02,-765.12 96.02,-765.12 90.02,-759.12 90.02,-753.12 90.02,-753.12 90.02,-737.76 90.02,-737.76 90.02,-731.76 96.02,-725.76 102.02,-725.76 102.02,-725.76 348.88,-725.76 348.88,-725.76 354.88,-725.76 360.88,-731.76 360.88,-737.76 360.88,-737.76 360.88,-753.12 360.88,-753.12 360.88,-759.12 354.88,-765.12 348.88,-765.12"/>
-<text xml:space="preserve" text-anchor="middle" x="225.45" y="-748.74" font-family="Arial" font-size="11.00">Open as data; parse recognized literal assignments</text>
-<text xml:space="preserve" text-anchor="middle" x="225.45" y="-735.54" font-family="Arial" font-size="11.00">and reflectors array; override typed values</text>
+<text xml:space="preserve" text-anchor="middle" x="225.45" y="-748.74" font-family="Arial" font-size="11.00">Source standalone cake&#45;adapt shell configuration</text>
+<text xml:space="preserve" text-anchor="middle" x="225.45" y="-735.54" font-family="Arial" font-size="11.00">write recognized values to temporary UCI</text>
 </g>
 <!-- selected&#45;&gt;import -->
 <g id="edge7" class="edge">
@@ -122,8 +122,8 @@
 <g id="node9" class="node">
 <title>interface</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M337.48,-678.96C337.48,-678.96 181.41,-678.96 181.41,-678.96 175.41,-678.96 169.41,-672.96 169.41,-666.96 169.41,-666.96 169.41,-651.6 169.41,-651.6 169.41,-645.6 175.41,-639.6 181.41,-639.6 181.41,-639.6 337.48,-639.6 337.48,-639.6 343.48,-639.6 349.48,-645.6 349.48,-651.6 349.48,-651.6 349.48,-666.96 349.48,-666.96 349.48,-672.96 343.48,-678.96 337.48,-678.96"/>
-<text xml:space="preserve" text-anchor="middle" x="259.45" y="-662.58" font-family="Arial" font-size="11.00">Map ul_if → interface</text>
-<text xml:space="preserve" text-anchor="middle" x="259.45" y="-649.38" font-family="Arial" font-size="11.00">require dl_if = derived ifb4&lt;ul_if&gt;</text>
+<text xml:space="preserve" text-anchor="middle" x="259.45" y="-662.58" font-family="Arial" font-size="11.00">Use ul_if and dl_if when both are set</text>
+<text xml:space="preserve" text-anchor="middle" x="259.45" y="-649.38" font-family="Arial" font-size="11.00">otherwise derive download from interface</text>
 </g>
 <!-- import&#45;&gt;interface -->
 <g id="edge9" class="edge">
@@ -192,8 +192,7 @@
 <g id="node15" class="node">
 <title>derive</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M698.67,-331.36C698.67,-331.36 576.22,-331.36 576.22,-331.36 570.22,-331.36 564.22,-325.36 564.22,-319.36 564.22,-319.36 564.22,-304 564.22,-304 564.22,-298 570.22,-292 576.22,-292 576.22,-292 698.67,-292 698.67,-292 704.67,-292 710.67,-298 710.67,-304 710.67,-304 710.67,-319.36 710.67,-319.36 710.67,-325.36 704.67,-331.36 698.67,-331.36"/>
-<text xml:space="preserve" text-anchor="middle" x="637.45" y="-314.98" font-family="Arial" font-size="11.00">Use upload=&lt;interface&gt;</text>
-<text xml:space="preserve" text-anchor="middle" x="637.45" y="-301.78" font-family="Arial" font-size="11.00">download=ifb4&lt;interface&gt;</text>
+<text xml:space="preserve" text-anchor="middle" x="637.45" y="-308.38" font-family="Arial" font-size="11.00">Use resolved upload and download interfaces</text>
 </g>
 <!-- enabled&#45;&gt;derive -->
 <g id="edge15" class="edge">

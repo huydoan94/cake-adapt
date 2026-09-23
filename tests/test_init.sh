@@ -4,64 +4,131 @@ set -eu
 # Exercise the actual procd entry point without starting a daemon.
 PROG=test_program
 RUNTIME_DIR=/tmp/cake-adapt-init-test-runtime
-RUNTIME_CONFIG=$RUNTIME_DIR/cake-adapt
 . ../files/cake-adapt.init
 
 config_status=0
-generate_status=0
-test_enabled=0
-test_cake_autorate_config=''
+sections=''
+primary_enabled=0
+secondary_enabled=0
+primary_config=''
+secondary_config=''
+failed_generation=''
 logged=''
 instances=0
+instance=''
+opened=''
 parameters=''
 generated=''
 
 config_load() { return "$config_status"; }
-config_get_bool() { enabled="$test_enabled"; }
-config_get() { cake_autorate_config="$test_cake_autorate_config"; }
-generate_runtime_config() { generated="$*"; return "$generate_status"; }
+config_foreach() {
+    local callback="$1"
+    local section
+
+    for section in $sections; do
+        "$callback" "$section"
+    done
+}
+config_get_bool() {
+    case "$2" in
+        primary) enabled="$primary_enabled" ;;
+        secondary) enabled="$secondary_enabled" ;;
+        *) enabled=0 ;;
+    esac
+}
+config_get() {
+    case "$2" in
+        primary) config_file="$primary_config" ;;
+        secondary) config_file="$secondary_config" ;;
+        *) config_file='' ;;
+    esac
+}
+generate_runtime_config() {
+    generated="$generated $1:$2:$3"
+    [ "$1" != "$failed_generation" ]
+}
 mkdir() { :; }
 chmod() { :; }
-logger() { logged="$*"; }
-procd_open_instance() { instances=$((instances + 1)); }
+logger() { logged="$logged|$*"; }
+procd_open_instance() {
+    instance="$1"
+    instances=$((instances + 1))
+    opened="$opened $1"
+}
 procd_close_instance() { :; }
-procd_set_param() { parameters="$parameters $*"; }
+procd_set_param() { parameters="$parameters [$instance] $*"; }
 
-start_service
-[ "$instances" -eq 0 ]
+if start_service; then exit 1; fi
 case "$logged" in
-    *daemon.notice*'disabled by configuration'*) ;;
+    *daemon.err*'no cake_adapt instances configured'*) ;;
     *) exit 1 ;;
 esac
 
 config_status=1
 logged=''
 if start_service; then exit 1; fi
-[ "$instances" -eq 0 ]
 case "$logged" in
     *daemon.err*'could not be loaded'*) ;;
     *) exit 1 ;;
 esac
 
 config_status=0
-test_enabled=1
-test_cake_autorate_config='/root/cake-autorate/config.primary.sh'
+sections='primary secondary'
 logged=''
 start_service
-[ "$instances" -eq 1 ]
-[ -z "$logged" ]
-[ "$generated" = "$test_cake_autorate_config" ]
-case "$parameters" in
-    *"command test_program -C $RUNTIME_DIR"*'respawn'*'file /etc/config/cake-adapt /root/cake-autorate/config.primary.sh /root/cake-autorate/defaults.sh'*) ;;
+[ "$instances" -eq 0 ]
+case "$logged" in
+    *"instance 'primary' disabled"*"instance 'secondary' disabled"*'no cake-adapt instances are enabled'*) ;;
     *) exit 1 ;;
 esac
 
-generate_status=1
+primary_enabled=1
+secondary_enabled=1
+primary_config='/etc/cake-adapt/config.primary.sh'
+secondary_config=''
 logged=''
-if start_service; then exit 1; fi
-[ "$instances" -eq 1 ]
-case "$logged" in
-    *daemon.err*"could not generate $RUNTIME_CONFIG"*) ;;
+start_service
+[ "$instances" -eq 2 ]
+[ "$opened" = ' primary secondary' ]
+case "$generated" in
+    *"primary:$primary_config:$RUNTIME_DIR/primary"*"secondary::$RUNTIME_DIR/secondary"*) ;;
     *) exit 1 ;;
 esac
+case "$parameters" in
+    *"[primary] command test_program -C $RUNTIME_DIR/primary -S primary"*) ;;
+    *) exit 1 ;;
+esac
+case "$parameters" in
+    *"[primary] file /etc/config/cake-adapt $primary_config"*) ;;
+    *) exit 1 ;;
+esac
+case "$parameters" in
+    *"[secondary] command test_program -C $RUNTIME_DIR/secondary -S secondary"*) ;;
+    *) exit 1 ;;
+esac
+case "$parameters" in
+    *"[secondary] file /etc/config/cake-adapt"*) ;;
+    *) exit 1 ;;
+esac
+
+instances=0
+opened=''
+parameters=''
+generated=''
+logged=''
+failed_generation=primary
+start_service
+[ "$instances" -eq 1 ]
+[ "$opened" = ' secondary' ]
+case "$logged" in
+    *"not starting instance 'primary'"*) ;;
+    *) exit 1 ;;
+esac
+
+sections='primary'
+instances=0
+logged=''
+if start_service; then exit 1; fi
+[ "$instances" -eq 0 ]
+
 printf '%s\n' 'init service tests passed'

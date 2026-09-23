@@ -34,7 +34,7 @@ struct config {
     char ingress_interface[IF_NAMESIZE];
     char ul_if[IF_NAMESIZE];
     char dl_if[IF_NAMESIZE];
-    char cake_autorate_config[CONFIG_STRING_SIZE];
+    char config_file[CONFIG_STRING_SIZE];
     char log_file_path_override[CONFIG_STRING_SIZE];
     char pinger_method[CONFIG_STRING_SIZE];
     char reflectors[CONFIG_MAX_REFLECTORS][CONFIG_REFLECTOR_SIZE];
@@ -97,6 +97,7 @@ const char *config_option_name(size_t index);
 int config_load(
     struct config *config,
     const char *config_directory,
+    const char *section_name,
     char *error,
     size_t error_size
 );

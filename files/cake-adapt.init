@@ -7,48 +7,101 @@ STOP=10
 PROG=${PROG:-/usr/sbin/cake-adapt}
 IMPORTER=${IMPORTER:-/usr/libexec/cake-adapt/import}
 RUNTIME_DIR=${RUNTIME_DIR:-/tmp/cake-adapt-config}
-RUNTIME_CONFIG=${RUNTIME_CONFIG:-$RUNTIME_DIR/cake-adapt}
 
 generate_runtime_config() {
-	local cake_autorate_config="$1"
+	local section="$1"
+	local config_file="$2"
+	local instance_dir="$3"
+	local runtime_config="$instance_dir/cake-adapt"
 	local stage
 
-	stage="$(mktemp -d "$RUNTIME_DIR/.stage.XXXXXX")" || return 1
+	stage="$(mktemp -d "$RUNTIME_DIR/.stage.$section.XXXXXX")" || return 1
 	if ! mkdir "$stage/.uci" ||
 		! cp /etc/config/cake-adapt "$stage/cake-adapt"; then
 		rm -rf "$stage"
 		return 1
 	fi
-	if [ -n "$cake_autorate_config" ] &&
-		! "$IMPORTER" "$cake_autorate_config" "$stage" "$PROG"; then
+	if [ -n "$config_file" ] &&
+		! "$IMPORTER" "$config_file" "$stage" "$PROG" "$section"; then
 		rm -rf "$stage"
 		return 1
 	fi
-	if ! "$PROG" -C "$stage" -V ||
+	if ! "$PROG" -C "$stage" -S "$section" -V ||
+		! mkdir -p "$instance_dir" ||
+		! chmod 0700 "$instance_dir" ||
 		! chmod 0600 "$stage/cake-adapt" ||
-		! mv -f "$stage/cake-adapt" "$RUNTIME_CONFIG"; then
+		! mv -f "$stage/cake-adapt" "$runtime_config"; then
 		rm -rf "$stage"
 		return 1
 	fi
 	rm -rf "$stage"
 }
 
-start_service() {
-	local cake_autorate_config
-	local cake_autorate_defaults
+start_instance() {
+	local section="$1"
+	local config_file
 	local enabled
+	local instance_dir
+
+	configured_instances=$((configured_instances + 1))
+	config_get_bool enabled "$section" 'enabled' 0
+	config_get config_file "$section" 'config_file' ''
+	if [ "$enabled" -ne 1 ]; then
+		logger -t cake-adapt -p daemon.notice \
+			"instance '$section' disabled by configuration; not starting"
+		return 0
+	fi
+	enabled_instances=$((enabled_instances + 1))
+	case "$section" in
+		''|*[!A-Za-z0-9_-]*)
+			logger -t cake-adapt -p daemon.err \
+				"invalid instance name '$section'; not starting"
+			failed_instances=$((failed_instances + 1))
+			return 0
+			;;
+	esac
+
+	instance_dir="$RUNTIME_DIR/$section"
+	if [ -L "$instance_dir" ] ||
+		{ [ -e "$instance_dir" ] && [ ! -d "$instance_dir" ]; }; then
+		logger -t cake-adapt -p daemon.err \
+			"runtime configuration path $instance_dir is not a directory; not starting instance '$section'"
+		failed_instances=$((failed_instances + 1))
+		return 0
+	fi
+	if ! generate_runtime_config \
+		"$section" "$config_file" "$instance_dir"; then
+		logger -t cake-adapt -p daemon.err \
+			"could not generate $instance_dir/cake-adapt; not starting instance '$section'"
+		failed_instances=$((failed_instances + 1))
+		return 0
+	fi
+
+	procd_open_instance "$section"
+	procd_set_param command "$PROG" -C "$instance_dir" -S "$section"
+	procd_set_param respawn
+	procd_set_param term_timeout 5
+	if [ -n "$config_file" ]; then
+		procd_set_param file /etc/config/cake-adapt \
+			"$config_file"
+	else
+		procd_set_param file /etc/config/cake-adapt
+	fi
+	procd_close_instance
+	started_instances=$((started_instances + 1))
+	return 0
+}
+
+start_service() {
+	local configured_instances=0
+	local enabled_instances=0
+	local failed_instances=0
+	local started_instances=0
 
 	if ! config_load 'cake-adapt'; then
 		logger -t cake-adapt -p daemon.err \
 			"configuration /etc/config/cake-adapt could not be loaded; not starting"
 		return 1
-	fi
-	config_get_bool enabled 'main' 'enabled' 0
-	config_get cake_autorate_config 'main' 'cake_autorate_config' ''
-	if [ "$enabled" -ne 1 ]; then
-		logger -t cake-adapt -p daemon.notice \
-			"disabled by configuration; not starting"
-		return 0
 	fi
 	if [ -L "$RUNTIME_DIR" ] || { [ -e "$RUNTIME_DIR" ] && [ ! -d "$RUNTIME_DIR" ]; }; then
 		logger -t cake-adapt -p daemon.err \
@@ -61,24 +114,22 @@ start_service() {
 			"could not prepare runtime configuration directory $RUNTIME_DIR; not starting"
 		return 1
 	fi
-	if ! generate_runtime_config "$cake_autorate_config"; then
+
+	config_foreach start_instance 'cake_adapt'
+	if [ "$configured_instances" -eq 0 ]; then
 		logger -t cake-adapt -p daemon.err \
-			"could not generate $RUNTIME_CONFIG; not starting"
+			"no cake_adapt instances configured; not starting"
 		return 1
 	fi
-
-	procd_open_instance
-	procd_set_param command "$PROG" -C "$RUNTIME_DIR"
-	procd_set_param respawn
-	procd_set_param term_timeout 5
-	if [ -n "$cake_autorate_config" ]; then
-		cake_autorate_defaults="${cake_autorate_config%/*}/defaults.sh"
-		procd_set_param file /etc/config/cake-adapt \
-			"$cake_autorate_config" "$cake_autorate_defaults"
-	else
-		procd_set_param file /etc/config/cake-adapt
+	if [ "$enabled_instances" -eq 0 ]; then
+		logger -t cake-adapt -p daemon.notice \
+			"no cake-adapt instances are enabled; not starting"
+		return 0
 	fi
-	procd_close_instance
+	if [ "$started_instances" -eq 0 ] && [ "$failed_instances" -ne 0 ]; then
+		return 1
+	fi
+	return 0
 }
 
 service_triggers() {
