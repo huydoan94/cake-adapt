@@ -21,7 +21,9 @@ static void print_usage(const char *program_name)
 {
     (void)fprintf(
         stderr,
-        "Usage: %s [-f] [-C UCI_CONFIG_DIRECTORY]\n",
+        "Usage: %s [-f] [-V] [-C UCI_CONFIG_DIRECTORY]\n"
+        "       %s -L\n",
+        program_name,
         program_name
     );
 }
@@ -74,20 +76,30 @@ int main(int argc, char **argv)
     struct config config;
     char config_error[ERROR_SIZE] = "";
     const char *config_directory = NULL;
+    const char *active_config = "/etc/config/cake-adapt";
     char log_path[CONFIG_STRING_SIZE + sizeof(LOG_FILE_NAME)] =
         DEFAULT_LOG_DIRECTORY "/" LOG_FILE_NAME;
     bool foreground = false;
+    bool list_options = false;
+    bool validate_only = false;
+    size_t index;
     int option;
     int path_length;
     int result;
 
-    while ((option = getopt(argc, argv, "C:fh")) != -1) {
+    while ((option = getopt(argc, argv, "C:LfVh")) != -1) {
         switch (option) {
         case 'C':
             config_directory = optarg;
             break;
+        case 'L':
+            list_options = true;
+            break;
         case 'f':
             foreground = true;
+            break;
+        case 'V':
+            validate_only = true;
             break;
         case 'h':
             print_usage(argv[0]);
@@ -102,17 +114,34 @@ int main(int argc, char **argv)
         print_usage(argv[0]);
         return 2;
     }
+    if (
+        list_options &&
+        (config_directory != NULL || foreground || validate_only)
+    ) {
+        print_usage(argv[0]);
+        return 2;
+    }
+    if (list_options) {
+        for (index = 0U; index < config_option_count(); index++) {
+            if (puts(config_option_name(index)) == EOF) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (config_directory != NULL) {
+        active_config = config_directory;
+    }
 
     log_init("cake-adapt", foreground);
 
-    if (
-        config_load(
-            &config,
-            config_directory,
-            config_error,
-            sizeof(config_error)
-        ) != 0
-    ) {
+    result = config_load(
+        &config,
+        config_directory,
+        config_error,
+        sizeof(config_error)
+    );
+    if (result != 0) {
         log_message(
             LOG_LEVEL_ERROR,
             "configuration error: %s",
@@ -120,6 +149,10 @@ int main(int argc, char **argv)
         );
         log_close();
         return 1;
+    }
+    if (validate_only) {
+        log_close();
+        return 0;
     }
 
     log_set_level(config.debug ? LOG_LEVEL_DEBUG : LOG_LEVEL_INFO);
@@ -167,6 +200,14 @@ int main(int argc, char **argv)
         );
         log_close();
         return 1;
+    }
+
+    if (config.cake_autorate_config[0] != '\0') {
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "loaded cake-autorate configuration overrides from '%s'",
+            config.cake_autorate_config
+        );
     }
 
     log_print_headers(
@@ -220,8 +261,9 @@ int main(int argc, char **argv)
     }
 
     log_system_message(
-        "Starting cake-adapt with PID: %ld and config: /etc/config/cake-adapt",
-        (long)getpid()
+        "Starting cake-adapt with PID: %ld and config: %s",
+        (long)getpid(),
+        active_config
     );
 
     if (
@@ -240,8 +282,9 @@ int main(int argc, char **argv)
     result = monitor_run(&config);
 
     log_system_message(
-        "Stopped cake-adapt with PID: %ld and config: /etc/config/cake-adapt",
-        (long)getpid()
+        "Stopped cake-adapt with PID: %ld and config: %s",
+        (long)getpid(),
+        active_config
     );
     log_close();
     return result == 0 ? 0 : 1;

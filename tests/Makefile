@@ -56,6 +56,7 @@ check: $(TARGETS)
 	./test_cpu
 	./test_helpers
 	sh ./test_init.sh
+	sh ./test_import.sh
 
 test_latency: $(addprefix $(OBJECT_DIR)/,test_latency.o latency.o error.o helpers.o)
 

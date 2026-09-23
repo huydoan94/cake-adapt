@@ -34,20 +34,330 @@
 
 struct boolean_option_binding {
     const char *name;
-    bool *destination;
+    size_t offset;
 };
 
 struct scaled_option_binding {
     const char *name;
-    uint64_t *destination;
+    size_t offset;
     uint64_t scale;
 };
 
 struct string_option_binding {
     const char *name;
-    char *destination;
+    size_t offset;
     size_t destination_size;
 };
+
+#define CONFIG_OFFSET(member) offsetof(struct config, member)
+
+static const struct boolean_option_binding boolean_options[] = {
+    { "enabled", CONFIG_OFFSET(enabled) },
+    { "adjust_dl_shaper_rate", CONFIG_OFFSET(adjust_download) },
+    { "adjust_ul_shaper_rate", CONFIG_OFFSET(adjust_upload) },
+    { "output_processing_stats", CONFIG_OFFSET(output_processing_stats) },
+    { "output_load_stats", CONFIG_OFFSET(output_load_stats) },
+    { "output_reflector_stats", CONFIG_OFFSET(output_reflector_stats) },
+    { "output_summary_stats", CONFIG_OFFSET(output_summary_stats) },
+    { "output_cake_changes", CONFIG_OFFSET(output_cake_changes) },
+    { "output_cpu_stats", CONFIG_OFFSET(output_cpu_stats) },
+    { "output_cpu_raw_stats", CONFIG_OFFSET(output_cpu_raw_stats) },
+    { "debug", CONFIG_OFFSET(debug) },
+    {
+        "log_DEBUG_messages_to_syslog",
+        CONFIG_OFFSET(log_debug_messages_to_syslog)
+    },
+    { "log_to_file", CONFIG_OFFSET(log_to_file) },
+    { "randomize_reflectors", CONFIG_OFFSET(randomize_reflectors) },
+    { "retain_reflector_stats", CONFIG_OFFSET(retain_reflector_stats) },
+    { "enable_sleep_function", CONFIG_OFFSET(enable_sleep_function) },
+    {
+        "min_shaper_rates_enforcement",
+        CONFIG_OFFSET(minimum_shaper_rates_enforcement)
+    },
+    {
+        "log_file_export_compress",
+        CONFIG_OFFSET(log_file_export_compress)
+    }
+};
+
+static const struct string_option_binding string_options[] = {
+    { "interface", CONFIG_OFFSET(interface), sizeof(((struct config *)0)->interface) },
+    {
+        "cake_autorate_config",
+        CONFIG_OFFSET(cake_autorate_config),
+        sizeof(((struct config *)0)->cake_autorate_config)
+    },
+    {
+        "log_file_path_override",
+        CONFIG_OFFSET(log_file_path_override),
+        sizeof(((struct config *)0)->log_file_path_override)
+    },
+    {
+        "pinger_method",
+        CONFIG_OFFSET(pinger_method),
+        sizeof(((struct config *)0)->pinger_method)
+    },
+    {
+        "ping_extra_args",
+        CONFIG_OFFSET(ping_extra_args),
+        sizeof(((struct config *)0)->ping_extra_args)
+    },
+    {
+        "ping_prefix_string",
+        CONFIG_OFFSET(ping_prefix_string),
+        sizeof(((struct config *)0)->ping_prefix_string)
+    }
+};
+
+static const struct scaled_option_binding scaled_options[] = {
+    { "log_file_max_time_mins", CONFIG_OFFSET(log_file_max_time_minutes), 1U },
+    { "log_file_max_size_KB", CONFIG_OFFSET(log_file_max_size_kilobytes), 1U },
+    { "no_pingers", CONFIG_OFFSET(no_pingers), 1U },
+    {
+        "reflector_ping_interval_s",
+        CONFIG_OFFSET(reflector_ping_interval_microseconds),
+        1000000U
+    },
+    {
+        "min_dl_shaper_rate_kbps",
+        CONFIG_OFFSET(minimum_download_rate_bits_per_second),
+        1000U
+    },
+    {
+        "base_dl_shaper_rate_kbps",
+        CONFIG_OFFSET(base_download_rate_bits_per_second),
+        1000U
+    },
+    {
+        "max_dl_shaper_rate_kbps",
+        CONFIG_OFFSET(maximum_download_rate_bits_per_second),
+        1000U
+    },
+    {
+        "min_ul_shaper_rate_kbps",
+        CONFIG_OFFSET(minimum_upload_rate_bits_per_second),
+        1000U
+    },
+    {
+        "base_ul_shaper_rate_kbps",
+        CONFIG_OFFSET(base_upload_rate_bits_per_second),
+        1000U
+    },
+    {
+        "max_ul_shaper_rate_kbps",
+        CONFIG_OFFSET(maximum_upload_rate_bits_per_second),
+        1000U
+    },
+    {
+        "connection_active_thr_kbps",
+        CONFIG_OFFSET(connection_active_threshold_bits_per_second),
+        1000U
+    },
+    {
+        "connection_stall_thr_kbps",
+        CONFIG_OFFSET(connection_stall_threshold_bits_per_second),
+        1000U
+    },
+    {
+        "dl_avg_owd_delta_max_adjust_up_thr_ms",
+        CONFIG_OFFSET(download_average_owd_delta_maximum_adjust_up_microseconds),
+        1000U
+    },
+    {
+        "ul_avg_owd_delta_max_adjust_up_thr_ms",
+        CONFIG_OFFSET(upload_average_owd_delta_maximum_adjust_up_microseconds),
+        1000U
+    },
+    {
+        "dl_owd_delta_delay_thr_ms",
+        CONFIG_OFFSET(download_owd_delta_delay_threshold_microseconds),
+        1000U
+    },
+    {
+        "ul_owd_delta_delay_thr_ms",
+        CONFIG_OFFSET(upload_owd_delta_delay_threshold_microseconds),
+        1000U
+    },
+    {
+        "dl_avg_owd_delta_max_adjust_down_thr_ms",
+        CONFIG_OFFSET(download_average_owd_delta_maximum_adjust_down_microseconds),
+        1000U
+    },
+    {
+        "ul_avg_owd_delta_max_adjust_down_thr_ms",
+        CONFIG_OFFSET(upload_average_owd_delta_maximum_adjust_down_microseconds),
+        1000U
+    },
+    {
+        "sustained_idle_sleep_thr_s",
+        CONFIG_OFFSET(sustained_idle_sleep_threshold_microseconds),
+        1000000U
+    },
+    {
+        "log_file_buffer_timeout_ms",
+        CONFIG_OFFSET(log_file_buffer_timeout_microseconds),
+        1000U
+    },
+    { "irtt_session_duration_m", CONFIG_OFFSET(irtt_session_duration_minutes), 1U },
+    {
+        "monitor_achieved_rates_interval_ms",
+        CONFIG_OFFSET(monitor_achieved_rates_interval_microseconds),
+        1000U
+    },
+    {
+        "monitor_cpu_usage_interval_ms",
+        CONFIG_OFFSET(monitor_cpu_usage_interval_microseconds),
+        1000U
+    },
+    {
+        "bufferbloat_detection_window",
+        CONFIG_OFFSET(bufferbloat_detection_window),
+        1U
+    },
+    {
+        "bufferbloat_detection_thr",
+        CONFIG_OFFSET(bufferbloat_detection_threshold),
+        1U
+    },
+    {
+        "alpha_baseline_increase",
+        CONFIG_OFFSET(alpha_baseline_increase_per_million),
+        1000000U
+    },
+    {
+        "alpha_baseline_decrease",
+        CONFIG_OFFSET(alpha_baseline_decrease_per_million),
+        1000000U
+    },
+    {
+        "alpha_delta_ewma",
+        CONFIG_OFFSET(alpha_delta_ewma_per_million),
+        1000000U
+    },
+    {
+        "shaper_rate_min_adjust_down_bufferbloat",
+        CONFIG_OFFSET(shaper_rate_minimum_adjust_down_bufferbloat_per_million),
+        1000000U
+    },
+    {
+        "shaper_rate_max_adjust_down_bufferbloat",
+        CONFIG_OFFSET(shaper_rate_maximum_adjust_down_bufferbloat_per_million),
+        1000000U
+    },
+    {
+        "shaper_rate_min_adjust_up_load_high",
+        CONFIG_OFFSET(shaper_rate_minimum_adjust_up_load_high_per_million),
+        1000000U
+    },
+    {
+        "shaper_rate_max_adjust_up_load_high",
+        CONFIG_OFFSET(shaper_rate_maximum_adjust_up_load_high_per_million),
+        1000000U
+    },
+    {
+        "shaper_rate_adjust_down_load_low",
+        CONFIG_OFFSET(shaper_rate_adjust_down_load_low_per_million),
+        1000000U
+    },
+    {
+        "shaper_rate_adjust_up_load_low",
+        CONFIG_OFFSET(shaper_rate_adjust_up_load_low_per_million),
+        1000000U
+    },
+    { "high_load_thr", CONFIG_OFFSET(high_load_threshold_per_million), 1000000U },
+    {
+        "bufferbloat_refractory_period_ms",
+        CONFIG_OFFSET(bufferbloat_refractory_period_microseconds),
+        1000U
+    },
+    {
+        "decay_refractory_period_ms",
+        CONFIG_OFFSET(decay_refractory_period_microseconds),
+        1000U
+    },
+    {
+        "reflector_health_check_interval_s",
+        CONFIG_OFFSET(reflector_health_check_interval_microseconds),
+        1000000U
+    },
+    {
+        "reflector_response_deadline_s",
+        CONFIG_OFFSET(reflector_response_deadline_microseconds),
+        1000000U
+    },
+    {
+        "reflector_misbehaving_detection_window",
+        CONFIG_OFFSET(reflector_misbehaving_detection_window),
+        1U
+    },
+    {
+        "reflector_misbehaving_detection_thr",
+        CONFIG_OFFSET(reflector_misbehaving_detection_threshold),
+        1U
+    },
+    {
+        "reflector_replacement_interval_mins",
+        CONFIG_OFFSET(reflector_replacement_interval_minutes),
+        1U
+    },
+    {
+        "reflector_comparison_interval_mins",
+        CONFIG_OFFSET(reflector_comparison_interval_minutes),
+        1U
+    },
+    {
+        "reflector_sum_owd_baselines_delta_thr_ms",
+        CONFIG_OFFSET(reflector_sum_owd_baselines_delta_threshold_microseconds),
+        1000U
+    },
+    {
+        "reflector_owd_delta_ewma_delta_thr_ms",
+        CONFIG_OFFSET(reflector_owd_delta_ewma_delta_threshold_microseconds),
+        1000U
+    },
+    { "stall_detection_thr", CONFIG_OFFSET(stall_detection_threshold), 1U },
+    {
+        "global_ping_response_timeout_s",
+        CONFIG_OFFSET(global_ping_response_timeout_microseconds),
+        1000000U
+    },
+    {
+        "if_up_check_interval_s",
+        CONFIG_OFFSET(interface_up_check_interval_microseconds),
+        1000000U
+    }
+};
+
+size_t config_option_count(void)
+{
+    return ARRAY_SIZE(boolean_options) +
+        ARRAY_SIZE(string_options) +
+        ARRAY_SIZE(scaled_options);
+}
+
+const char *config_option_name(size_t index)
+{
+    if (index < ARRAY_SIZE(boolean_options)) {
+        return boolean_options[index].name;
+    }
+    index -= ARRAY_SIZE(boolean_options);
+    if (index < ARRAY_SIZE(string_options)) {
+        return string_options[index].name;
+    }
+    index -= ARRAY_SIZE(string_options);
+    if (index < ARRAY_SIZE(scaled_options)) {
+        return scaled_options[index].name;
+    }
+    return NULL;
+}
+
+static int copy_reflector(
+    struct config *config,
+    const char *reflector,
+    char *error,
+    size_t error_size
+);
 
 static int copy_option(
     char *destination,
@@ -148,22 +458,24 @@ static int lookup_string_option(
 static int load_boolean_options(
     struct uci_context *context,
     struct uci_section *section,
-    const struct boolean_option_binding *options,
-    size_t option_count,
+    struct config *config,
     char *error,
     size_t error_size
 )
 {
     size_t index;
 
-    for (index = 0U; index < option_count; index++) {
+    for (index = 0U; index < ARRAY_SIZE(boolean_options); index++) {
         const char *value;
+        bool *destination = (bool *)(
+            (char *)config + boolean_options[index].offset
+        );
 
         if (
             lookup_string_option(
                 context,
                 section,
-                options[index].name,
+                boolean_options[index].name,
                 &value,
                 error,
                 error_size
@@ -174,13 +486,13 @@ static int load_boolean_options(
 
         if (
             value != NULL &&
-            parse_boolean(value, options[index].destination) != 0
+            parse_boolean(value, destination) != 0
         ) {
             error_set(
                 error,
                 error_size,
                 "option '%s' is not a boolean",
-                options[index].name
+                boolean_options[index].name
             );
             return -1;
         }
@@ -297,22 +609,24 @@ static int parse_scaled_decimal(
 static int load_scaled_options(
     struct uci_context *context,
     struct uci_section *section,
-    const struct scaled_option_binding *options,
-    size_t option_count,
+    struct config *config,
     char *error,
     size_t error_size
 )
 {
     size_t index;
 
-    for (index = 0U; index < option_count; index++) {
+    for (index = 0U; index < ARRAY_SIZE(scaled_options); index++) {
         const char *value;
+        uint64_t *destination = (uint64_t *)(
+            (char *)config + scaled_options[index].offset
+        );
 
         if (
             lookup_string_option(
                 context,
                 section,
-                options[index].name,
+                scaled_options[index].name,
                 &value,
                 error,
                 error_size
@@ -325,9 +639,9 @@ static int load_scaled_options(
             value != NULL &&
             parse_scaled_decimal(
                 value,
-                options[index].scale,
-                options[index].destination,
-                options[index].name,
+                scaled_options[index].scale,
+                destination,
+                scaled_options[index].name,
                 error,
                 error_size
             ) != 0
@@ -341,22 +655,22 @@ static int load_scaled_options(
 static int load_string_options(
     struct uci_context *context,
     struct uci_section *section,
-    const struct string_option_binding *options,
-    size_t option_count,
+    struct config *config,
     char *error,
     size_t error_size
 )
 {
     size_t index;
 
-    for (index = 0U; index < option_count; index++) {
+    for (index = 0U; index < ARRAY_SIZE(string_options); index++) {
         const char *value;
+        char *destination = (char *)config + string_options[index].offset;
 
         if (
             lookup_string_option(
                 context,
                 section,
-                options[index].name,
+                string_options[index].name,
                 &value,
                 error,
                 error_size
@@ -368,10 +682,10 @@ static int load_string_options(
         if (
             value != NULL &&
             copy_option(
-                options[index].destination,
-                options[index].destination_size,
+                destination,
+                string_options[index].destination_size,
                 value,
-                options[index].name,
+                string_options[index].name,
                 error,
                 error_size
             ) != 0
@@ -381,6 +695,7 @@ static int load_string_options(
     }
     return 0;
 }
+
 
 static int validate_rate_range(
     bool adjust,
@@ -758,6 +1073,50 @@ static int load_reflectors(
     return 0;
 }
 
+static int validate_config(
+    const struct config *config,
+    char *error,
+    size_t error_size
+)
+{
+    if (
+        (config->enabled || config->adjust_download ||
+            config->adjust_upload) &&
+        config->interface[0] == '\0'
+    ) {
+        error_set(
+            error,
+            error_size,
+            "option 'interface' is required when cake-adapt is enabled"
+            " or rate adjustment is configured"
+        );
+        return -1;
+    }
+    if (
+        validate_rate_range(
+            config->adjust_download,
+            config->minimum_download_rate_bits_per_second,
+            config->base_download_rate_bits_per_second,
+            config->maximum_download_rate_bits_per_second,
+            "download",
+            error,
+            error_size
+        ) != 0 ||
+        validate_rate_range(
+            config->adjust_upload,
+            config->minimum_upload_rate_bits_per_second,
+            config->base_upload_rate_bits_per_second,
+            config->maximum_upload_rate_bits_per_second,
+            "upload",
+            error,
+            error_size
+        ) != 0
+    ) {
+        return -1;
+    }
+    return validate_latency_config(config, error, error_size);
+}
+
 static int load_section(
     struct uci_context *context,
     struct uci_section *section,
@@ -778,328 +1137,49 @@ static int load_section(
     ) != NULL;
     /* Legacy single-target input is needed only while loading configuration. */
     char latency_target[CONFIG_REFLECTOR_SIZE] = "";
-    const struct boolean_option_binding boolean_options[] = {
-        { "enabled", &config->enabled },
-        { "adjust_dl_shaper_rate", &config->adjust_download },
-        { "adjust_ul_shaper_rate", &config->adjust_upload },
-        { "output_processing_stats", &config->output_processing_stats },
-        { "output_load_stats", &config->output_load_stats },
-        { "output_reflector_stats", &config->output_reflector_stats },
-        { "output_summary_stats", &config->output_summary_stats },
-        { "output_cake_changes", &config->output_cake_changes },
-        { "output_cpu_stats", &config->output_cpu_stats },
-        { "output_cpu_raw_stats", &config->output_cpu_raw_stats },
-        { "debug", &config->debug },
-        {
-            "log_DEBUG_messages_to_syslog",
-            &config->log_debug_messages_to_syslog
-        },
-        { "log_to_file", &config->log_to_file },
-        { "randomize_reflectors", &config->randomize_reflectors },
-        { "retain_reflector_stats", &config->retain_reflector_stats },
-        { "enable_sleep_function", &config->enable_sleep_function },
-        {
-            "min_shaper_rates_enforcement",
-            &config->minimum_shaper_rates_enforcement
-        },
-        {
-            "log_file_export_compress",
-            &config->log_file_export_compress
-        }
-    };
-    const struct string_option_binding string_options[] = {
-        {
-            "interface",
-            config->interface,
-            sizeof(config->interface)
-        },
-        {
+    const char *latency_target_value;
+
+    if (
+        lookup_string_option(
+            context,
+            section,
             "latency_target",
-            latency_target,
-            sizeof(latency_target)
-        },
-        {
-            "log_file_path_override",
-            config->log_file_path_override,
-            sizeof(config->log_file_path_override)
-        },
-        {
-            "pinger_method",
-            config->pinger_method,
-            sizeof(config->pinger_method)
-        },
-        {
-            "ping_extra_args",
-            config->ping_extra_args,
-            sizeof(config->ping_extra_args)
-        },
-        {
-            "ping_prefix_string",
-            config->ping_prefix_string,
-            sizeof(config->ping_prefix_string)
-        }
-    };
-    const struct scaled_option_binding scaled_options[] = {
-        {
-            "log_file_max_time_mins",
-            &config->log_file_max_time_minutes,
-            1U
-        },
-        {
-            "log_file_max_size_KB",
-            &config->log_file_max_size_kilobytes,
-            1U
-        },
-        { "no_pingers", &config->no_pingers, 1U },
-        {
-            "reflector_ping_interval_s",
-            &config->reflector_ping_interval_microseconds,
-            1000000U
-        },
-        {
-            "min_dl_shaper_rate_kbps",
-            &config->minimum_download_rate_bits_per_second,
-            1000U
-        },
-        {
-            "base_dl_shaper_rate_kbps",
-            &config->base_download_rate_bits_per_second,
-            1000U
-        },
-        {
-            "max_dl_shaper_rate_kbps",
-            &config->maximum_download_rate_bits_per_second,
-            1000U
-        },
-        {
-            "min_ul_shaper_rate_kbps",
-            &config->minimum_upload_rate_bits_per_second,
-            1000U
-        },
-        {
-            "base_ul_shaper_rate_kbps",
-            &config->base_upload_rate_bits_per_second,
-            1000U
-        },
-        {
-            "max_ul_shaper_rate_kbps",
-            &config->maximum_upload_rate_bits_per_second,
-            1000U
-        },
-        {
-            "connection_active_thr_kbps",
-            &config->connection_active_threshold_bits_per_second,
-            1000U
-        },
-        {
-            "connection_stall_thr_kbps",
-            &config->connection_stall_threshold_bits_per_second,
-            1000U
-        },
-        {
-            "dl_avg_owd_delta_max_adjust_up_thr_ms",
-            &config->download_average_owd_delta_maximum_adjust_up_microseconds,
-            1000U
-        },
-        {
-            "ul_avg_owd_delta_max_adjust_up_thr_ms",
-            &config->upload_average_owd_delta_maximum_adjust_up_microseconds,
-            1000U
-        },
-        {
-            "dl_owd_delta_delay_thr_ms",
-            &config->download_owd_delta_delay_threshold_microseconds,
-            1000U
-        },
-        {
-            "ul_owd_delta_delay_thr_ms",
-            &config->upload_owd_delta_delay_threshold_microseconds,
-            1000U
-        },
-        {
-            "dl_avg_owd_delta_max_adjust_down_thr_ms",
-            &config->download_average_owd_delta_maximum_adjust_down_microseconds,
-            1000U
-        },
-        {
-            "ul_avg_owd_delta_max_adjust_down_thr_ms",
-            &config->upload_average_owd_delta_maximum_adjust_down_microseconds,
-            1000U
-        },
-        {
-            "sustained_idle_sleep_thr_s",
-            &config->sustained_idle_sleep_threshold_microseconds,
-            1000000U
-        },
-        {
-            "log_file_buffer_timeout_ms",
-            &config->log_file_buffer_timeout_microseconds,
-            1000U
-        },
-        {
-            "irtt_session_duration_m",
-            &config->irtt_session_duration_minutes,
-            1U
-        },
-        {
-            "monitor_achieved_rates_interval_ms",
-            &config->monitor_achieved_rates_interval_microseconds,
-            1000U
-        },
-        {
-            "monitor_cpu_usage_interval_ms",
-            &config->monitor_cpu_usage_interval_microseconds,
-            1000U
-        },
-        {
-            "bufferbloat_detection_window",
-            &config->bufferbloat_detection_window,
-            1U
-        },
-        {
-            "bufferbloat_detection_thr",
-            &config->bufferbloat_detection_threshold,
-            1U
-        },
-        {
-            "alpha_baseline_increase",
-            &config->alpha_baseline_increase_per_million,
-            1000000U
-        },
-        {
-            "alpha_baseline_decrease",
-            &config->alpha_baseline_decrease_per_million,
-            1000000U
-        },
-        {
-            "alpha_delta_ewma",
-            &config->alpha_delta_ewma_per_million,
-            1000000U
-        },
-        {
-            "shaper_rate_min_adjust_down_bufferbloat",
-            &config->shaper_rate_minimum_adjust_down_bufferbloat_per_million,
-            1000000U
-        },
-        {
-            "shaper_rate_max_adjust_down_bufferbloat",
-            &config->shaper_rate_maximum_adjust_down_bufferbloat_per_million,
-            1000000U
-        },
-        {
-            "shaper_rate_min_adjust_up_load_high",
-            &config->shaper_rate_minimum_adjust_up_load_high_per_million,
-            1000000U
-        },
-        {
-            "shaper_rate_max_adjust_up_load_high",
-            &config->shaper_rate_maximum_adjust_up_load_high_per_million,
-            1000000U
-        },
-        {
-            "shaper_rate_adjust_down_load_low",
-            &config->shaper_rate_adjust_down_load_low_per_million,
-            1000000U
-        },
-        {
-            "shaper_rate_adjust_up_load_low",
-            &config->shaper_rate_adjust_up_load_low_per_million,
-            1000000U
-        },
-        {
-            "high_load_thr",
-            &config->high_load_threshold_per_million,
-            1000000U
-        },
-        {
-            "bufferbloat_refractory_period_ms",
-            &config->bufferbloat_refractory_period_microseconds,
-            1000U
-        },
-        {
-            "decay_refractory_period_ms",
-            &config->decay_refractory_period_microseconds,
-            1000U
-        },
-        {
-            "reflector_health_check_interval_s",
-            &config->reflector_health_check_interval_microseconds,
-            1000000U
-        },
-        {
-            "reflector_response_deadline_s",
-            &config->reflector_response_deadline_microseconds,
-            1000000U
-        },
-        {
-            "reflector_misbehaving_detection_window",
-            &config->reflector_misbehaving_detection_window,
-            1U
-        },
-        {
-            "reflector_misbehaving_detection_thr",
-            &config->reflector_misbehaving_detection_threshold,
-            1U
-        },
-        {
-            "reflector_replacement_interval_mins",
-            &config->reflector_replacement_interval_minutes,
-            1U
-        },
-        {
-            "reflector_comparison_interval_mins",
-            &config->reflector_comparison_interval_minutes,
-            1U
-        },
-        {
-            "reflector_sum_owd_baselines_delta_thr_ms",
-            &config->reflector_sum_owd_baselines_delta_threshold_microseconds,
-            1000U
-        },
-        {
-            "reflector_owd_delta_ewma_delta_thr_ms",
-            &config->reflector_owd_delta_ewma_delta_threshold_microseconds,
-            1000U
-        },
-        {
-            "stall_detection_thr",
-            &config->stall_detection_threshold,
-            1U
-        },
-        {
-            "global_ping_response_timeout_s",
-            &config->global_ping_response_timeout_microseconds,
-            1000000U
-        },
-        {
-            "if_up_check_interval_s",
-            &config->interface_up_check_interval_microseconds,
-            1000000U
-        }
-    };
+            &latency_target_value,
+            error,
+            error_size
+        ) != 0 ||
+        (latency_target_value != NULL &&
+            copy_option(
+                latency_target,
+                sizeof(latency_target),
+                latency_target_value,
+                "latency_target",
+                error,
+                error_size
+            ) != 0)
+    ) {
+        return -1;
+    }
 
     if (
         load_boolean_options(
             context,
             section,
-            boolean_options,
-            ARRAY_SIZE(boolean_options),
+            config,
             error,
             error_size
         ) != 0 ||
         load_string_options(
             context,
             section,
-            string_options,
-            ARRAY_SIZE(string_options),
+            config,
             error,
             error_size
         ) != 0 ||
         load_scaled_options(
             context,
             section,
-            scaled_options,
-            ARRAY_SIZE(scaled_options),
+            config,
             error,
             error_size
         ) != 0 ||
@@ -1136,46 +1216,7 @@ static int load_section(
         }
     }
 
-    if (
-        (config->enabled || config->adjust_download ||
-            config->adjust_upload) &&
-        config->interface[0] == '\0'
-    ) {
-        error_set(
-            error,
-            error_size,
-            "option 'interface' is required when cake-adapt is enabled"
-            " or rate adjustment is configured"
-        );
-        return -1;
-    }
-    if (
-        validate_rate_range(
-            config->adjust_download,
-            config->minimum_download_rate_bits_per_second,
-            config->base_download_rate_bits_per_second,
-            config->maximum_download_rate_bits_per_second,
-            "download",
-            error,
-            error_size
-        ) != 0 ||
-        validate_rate_range(
-            config->adjust_upload,
-            config->minimum_upload_rate_bits_per_second,
-            config->base_upload_rate_bits_per_second,
-            config->maximum_upload_rate_bits_per_second,
-            "upload",
-            error,
-            error_size
-        ) != 0
-    ) {
-        return -1;
-    }
-    if (validate_latency_config(config, error, error_size) != 0) {
-        return -1;
-    }
-
-    return 0;
+    return validate_config(config, error, error_size);
 }
 
 int config_load(

@@ -28,48 +28,74 @@ static void test_scalar_option_types(void)
 {
     struct uci_section section = { 0 };
     struct uci_option option = {
-        .e = { .type = UCI_TYPE_OPTION, .name = "test" },
+        .e = { .type = UCI_TYPE_OPTION, .name = "enabled" },
         .type = UCI_TYPE_LIST
     };
-    bool boolean = false;
-    uint64_t scaled = 7U;
-    char string[16] = "default";
+    struct config config = {
+        .no_pingers = 7U,
+        .interface = "default"
+    };
     char error[128];
-    const struct boolean_option_binding boolean_options[] = { { "test", &boolean } };
-    const struct scaled_option_binding scaled_options[] = { { "test", &scaled, 1000U } };
-    const struct string_option_binding string_options[] = { { "test", string, sizeof(string) } };
 
     lookup_option = &option;
-    assert(load_boolean_options(NULL, &section, boolean_options, 1U, error, sizeof(error)) == -1);
+    assert(load_boolean_options(NULL, &section, &config, error, sizeof(error)) == -1);
     assert(strstr(error, "not a list") != NULL);
-    assert(!boolean);
-    assert(load_scaled_options(NULL, &section, scaled_options, 1U, error, sizeof(error)) == -1);
-    assert(scaled == 7U);
-    assert(load_string_options(NULL, &section, string_options, 1U, error, sizeof(error)) == -1);
-    assert(strcmp(string, "default") == 0);
+    assert(!config.enabled);
+    option.e.name = "no_pingers";
+    assert(load_scaled_options(NULL, &section, &config, error, sizeof(error)) == -1);
+    assert(config.no_pingers == 7U);
+    option.e.name = "interface";
+    assert(load_string_options(NULL, &section, &config, error, sizeof(error)) == -1);
+    assert(strcmp(config.interface, "default") == 0);
 
     lookup_option = NULL;
-    assert(load_boolean_options(NULL, &section, boolean_options, 1U, error, sizeof(error)) == 0);
-    assert(load_scaled_options(NULL, &section, scaled_options, 1U, error, sizeof(error)) == 0);
-    assert(load_string_options(NULL, &section, string_options, 1U, error, sizeof(error)) == 0);
-    assert(!boolean && scaled == 7U && strcmp(string, "default") == 0);
+    assert(load_boolean_options(NULL, &section, &config, error, sizeof(error)) == 0);
+    assert(load_scaled_options(NULL, &section, &config, error, sizeof(error)) == 0);
+    assert(load_string_options(NULL, &section, &config, error, sizeof(error)) == 0);
+    assert(!config.enabled);
+    assert(config.no_pingers == 7U);
+    assert(strcmp(config.interface, "default") == 0);
 
     lookup_option = &option;
     option.type = UCI_TYPE_STRING;
     option.v.string = "1";
-    assert(load_boolean_options(NULL, &section, boolean_options, 1U, error, sizeof(error)) == 0);
-    assert(boolean);
-    assert(load_scaled_options(NULL, &section, scaled_options, 1U, error, sizeof(error)) == 0);
-    assert(scaled == 1000U);
-    assert(load_string_options(NULL, &section, string_options, 1U, error, sizeof(error)) == 0);
-    assert(strcmp(string, "1") == 0);
+    option.e.name = "enabled";
+    assert(load_boolean_options(NULL, &section, &config, error, sizeof(error)) == 0);
+    assert(config.enabled);
+    option.e.name = "no_pingers";
+    assert(load_scaled_options(NULL, &section, &config, error, sizeof(error)) == 0);
+    assert(config.no_pingers == 1U);
+    option.e.name = "interface";
+    assert(load_string_options(NULL, &section, &config, error, sizeof(error)) == 0);
+    assert(strcmp(config.interface, "1") == 0);
     lookup_option = NULL;
+}
+
+static void test_supported_option_names(void)
+{
+    bool found_adjust_download = false;
+    bool found_ping_arguments = false;
+    size_t index;
+
+    for (index = 0U; index < config_option_count(); index++) {
+        const char *name = config_option_name(index);
+
+        assert(name != NULL);
+        found_adjust_download = found_adjust_download ||
+            strcmp(name, "adjust_dl_shaper_rate") == 0;
+        found_ping_arguments = found_ping_arguments ||
+            strcmp(name, "ping_extra_args") == 0;
+    }
+    assert(found_adjust_download);
+    assert(found_ping_arguments);
+    assert(config_option_name(config_option_count()) == NULL);
 }
 
 static struct config valid_config(void)
 {
     return (struct config) {
         .enabled = true,
+        .interface = "eth0",
         .pinger_method = "fping",
         .no_pingers = 1U,
         .reflector_count = 1U,
@@ -87,7 +113,11 @@ static struct config valid_config(void)
         .global_ping_response_timeout_microseconds = 10000000U,
         .interface_up_check_interval_microseconds = 10000000U,
         .minimum_download_rate_bits_per_second = 5000000U,
+        .base_download_rate_bits_per_second = 20000000U,
+        .maximum_download_rate_bits_per_second = 80000000U,
         .minimum_upload_rate_bits_per_second = 5000000U,
+        .base_upload_rate_bits_per_second = 20000000U,
+        .maximum_upload_rate_bits_per_second = 35000000U,
         .connection_active_threshold_bits_per_second = 2000000U
     };
 }
@@ -151,7 +181,6 @@ static void test_new_timer_and_limit_validation(void)
     config.connection_active_threshold_bits_per_second = 5000001U;
     assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 }
-
 int main(void)
 {
     uint64_t value = 0U;
@@ -176,6 +205,7 @@ int main(void)
 
     test_fping_only_and_intentional_exclusions();
     test_scalar_option_types();
+    test_supported_option_names();
     test_reflector_list_validation();
     test_new_timer_and_limit_validation();
     (void)puts("configuration validation tests passed");
