@@ -1,0 +1,34 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="01 — Service, CLI, configuration, and startup",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  start [label="procd invokes /usr/sbin/cake-adapt",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  initcheck [label="UCI enabled?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  skip [label="Do not launch daemon",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  args [label="Parse -C UCI directory, -f foreground, -h",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  loginit [label="Initialize logging backend",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  load [label="config_load(): defaults → libuci package\n→ typed scalar/list options → validate",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  ok [label="Configuration valid?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  fatal [label="Log configuration failure; exit 1",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
+  enabled [label="config.enabled?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  disabled [label="Log disabled service; exit 0",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  derive [label="Derive upload=<interface>\ndownload=ifb4<interface>",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  file [label="Open configured log file and write headers",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  rng [label="Randomization requested? seed with getentropy",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  announce [label="Log effective configuration and mode",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  run [label="monitor_run(config)",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  start -> initcheck;
+  initcheck -> skip [label="no"];
+  initcheck -> args [label="yes"];
+  args -> loginit;
+  loginit -> load;
+  load -> ok;
+  ok -> fatal [label="no"];
+  ok -> enabled [label="yes"];
+  enabled -> disabled [label="no"];
+  enabled -> derive [label="yes"];
+  derive -> file;
+  file -> rng;
+  rng -> announce;
+  announce -> run;
+}

@@ -1,0 +1,29 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="14 — Shutdown, failure severity, and cleanup ownership",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  event [label="Termination condition",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  kind [label="Cause?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  signal [label="SIGINT/SIGTERM: set success result; end uloop",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  fatal [label="Fatal event-loop/netlink condition: set failure; end uloop",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
+  degraded [label="Optional CPU/log/measurement failure",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  continue [label="Warn and continue with available capability",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  fping [label="Unregister fd; close pipe\nterminate/reap owned fping process group",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  timers [label="Cancel uloop timers and signal handlers",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  fds [label="Close qdisc event and request netlink sockets",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  state [label="Free reflector health, trackers, controller state",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  log [label="Flush/close structured log; log service stop",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  exit [label="main exits 0 for orderly stop, 1 for fatal failure",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  event -> kind;
+  kind -> signal [label="termination signal"];
+  kind -> fatal [label="fatal"];
+  kind -> degraded [label="optional failure"];
+  degraded -> continue;
+  signal -> fping;
+  fatal -> fping;
+  fping -> timers;
+  timers -> fds;
+  fds -> state;
+  state -> log;
+  log -> exit;
+}

@@ -1,0 +1,32 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="00 — System and ownership overview",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  procd [label="procd service lifecycle",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
+  uci [label="/etc/config/cake-adapt\nlibuci typed configuration",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
+  main [label="main.c\nstartup + shutdown",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  monitor [label="monitor.c\nuloop coordinator",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  kernel [label="Linux kernel\ninterfaces + CAKE qdiscs",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
+  traffic [label="traffic.c\nCAKE byte deltas → achieved rates",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  fping [label="fping child process\nmultiple local reflectors",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
+  latency [label="latency.c\nparse replies + per-reflector tracking",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  controller [label="controller.c\npure autorate/activity policy",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  cake [label="cake.c + netlink.c\ndiscover/read/set/verify CAKE",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  logging [label="log.c + cpu.c\ncompatible records + rotation",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  result [label="Running adaptive shaper\nor observation-only mode",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  procd -> main [label="start/stop"];
+  uci -> main [label="load + validate"];
+  main -> monitor [label="monitor_run()"];
+  kernel -> traffic [label="CAKE counters"];
+  monitor -> traffic [label="periodic sample"];
+  monitor -> fping [label="spawn/stop"];
+  fping -> latency [label="timestamped RTT lines"];
+  latency -> controller [label="latency observation"];
+  traffic -> controller [label="rates + fresh sample IDs"];
+  controller -> monitor [label="desired DL/UL rates"];
+  monitor -> cake [label="apply when desired ≠ observed"];
+  cake -> kernel [label="rtnetlink SET + readback"];
+  monitor -> logging [label="DATA/LOAD/SUMMARY/SHAPER"];
+  monitor -> result;
+  kernel -> monitor [label="RTM_NEWQDISC / RTM_DELQDISC"];
+}

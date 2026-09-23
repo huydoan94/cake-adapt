@@ -1,0 +1,35 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="06 — Per-reflector baseline and delay tracking",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  reply [label="Valid fping reply: target, RTT, timestamp, sequence",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  owd [label="one_way_delay_us = floor(RTT_us / 2)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  first [label="Tracker initialized?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  seed [label="Seed baseline=100 ms internal default\nthen apply EWMA update",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  direction [label="OWD <= baseline?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  fall [label="baseline += 0.9 × (OWD − baseline)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  rise [label="baseline += 0.001 × (OWD − baseline)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  delta [label="signed delta_us = OWD − updated baseline",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  loads [label="Both direction loads <= high-load threshold?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  ewma [label="delta_ewma += 0.095 × (delta − delta_ewma)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  retain [label="Retain previous reflector delta EWMA",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  health [label="Update target response timestamp and slot health",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  input [label="Build controller input for DL and UL\nlatency current/baseline, rates, sample IDs",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  controller [label="controller_update()",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  reply -> owd;
+  owd -> first;
+  first -> seed [label="no"];
+  first -> direction [label="yes"];
+  seed -> direction;
+  direction -> fall [label="yes"];
+  direction -> rise [label="no"];
+  fall -> delta;
+  rise -> delta;
+  delta -> loads;
+  loads -> ewma [label="yes"];
+  loads -> retain [label="no"];
+  ewma -> health;
+  retain -> health;
+  health -> input;
+  input -> controller;
+}

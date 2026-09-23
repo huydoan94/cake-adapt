@@ -1,0 +1,35 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="02 — Monitor initialization and uloop event topology",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  enter [label="monitor_run(config)",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  map [label="Convert ms/s/scaled factors to integer internal units",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  state [label="Initialize DL/UL desired=base\ninitial_pending for enabled direction",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  refs [label="Allocate trackers and active health rings",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  uloop [label="uloop_init(); latency owns SIGCHLD reaping",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  nl [label="Open separate rtnetlink request and event sockets",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  sub [label="Subscribe qdisc multicast; register qdisc fd",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  discover [label="Initial CAKE observation on upload and download",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  timers [label="Register traffic timer + reflector health timer",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  optional [label="Register optional log flush/rotation and CPU timers",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  signals [label="Register SIGINT, SIGTERM, SIGUSR1, SIGUSR2",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  first [label="Take initial traffic observation / establish counters",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  ping [label="If both CAKE qdiscs available, start fping",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  loop [label="uloop_run()",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  enter -> map;
+  map -> state;
+  state -> refs;
+  refs -> uloop;
+  uloop -> nl;
+  nl -> sub;
+  sub -> discover;
+  discover -> timers;
+  timers -> optional;
+  optional -> signals;
+  signals -> first;
+  first -> ping;
+  ping -> loop;
+  loop -> first [label="traffic timer",style=dashed,color="#64748b"];
+  loop -> ping [label="latency fd/retry",style=dashed,color="#64748b"];
+  loop -> discover [label="qdisc event/retry",style=dashed,color="#64748b"];
+}

@@ -1,0 +1,35 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="13 — Structured logging, CPU sampling, rotation, export, and reset",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  events [label="Monitor/controller/kernel events",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  select [label="Record enabled?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  records [label="Write compatible DATA / LOAD / REFLECTOR\nSUMMARY / SHAPER / CPU records",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  message [label="System message: apply severity\nnormal backend sends warnings/errors to syslog\ndebug syslog only when configured",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  flush [label="Periodic flush/rotation timer",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  limit [label="File age > max minutes OR size > max KiB?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  rotate [label="Copy live → .old\ntruncate live in place; rewrite headers",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  usr1 [label="SIGUSR1?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  export [label="Export .old + live to timestamped file\noptionally gzip",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  usr2 [label="SIGUSR2?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  reset [label="Truncate .old and live in place\nrewrite headers",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  cpu [label="CPU timer while RUNNING",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  proc [label="Read /proc/stat; compute usage deltas",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  out [label="Continue uloop",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  events -> select;
+  select -> records [label="yes"];
+  select -> message [label="system/error"];
+  select -> out [label="disabled"];
+  records -> out;
+  message -> out;
+  flush -> limit;
+  limit -> rotate [label="yes"];
+  limit -> out [label="no"];
+  rotate -> out;
+  usr1 -> export [label="yes"];
+  export -> out;
+  usr2 -> reset [label="yes"];
+  reset -> out;
+  cpu -> proc;
+  proc -> records;
+}

@@ -1,0 +1,30 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="09 — Rate factors, thresholds, rounding, and bounds",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  input [label="Current desired rate R (kbit/s)\nAverage delay A; thresholds U,D,L",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  upregion [label="Clear congestion + high load",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  ux [label="x = clamp((D − A)/(D − U), 0..1)\nquantized to thousandths",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  uf [label="up_factor = min_up + (max_up − min_up) × x\nA<=U gives ×1.04; A>=D gives ×1.00",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  downregion [label="Congestion detected",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  dx [label="x = clamp((A − D)/(L − D), 0..1)\nquantized to thousandths",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  df [label="down_factor = 0.99 − 0.24 × x\nA<=D gives ×0.99; A>=L gives ×0.75",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  lowregion [label="Clear congestion + low load + decay due",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  low [label="If R>base: scale ×0.99, floor at base\nIf R<base: scale ×1.01, cap at base",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  scale [label="scale_rate: checked integer multiply/divide\nwhole-kbit/s result with overflow guards",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  bounds [label="Clamp final rate to minimum <= R <= maximum",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  output [label="Desired CAKE bandwidth in kbit/s",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  input -> upregion;
+  input -> downregion;
+  input -> lowregion;
+  upregion -> ux;
+  ux -> uf;
+  uf -> scale;
+  downregion -> dx;
+  dx -> df;
+  df -> scale;
+  lowregion -> low;
+  low -> bounds;
+  scale -> bounds;
+  bounds -> output;
+}

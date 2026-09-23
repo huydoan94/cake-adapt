@@ -1,0 +1,31 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="15 — Worked example: why a 200 Mbps shaper currently stays at 200",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  input [label="Observed example\nR=200,000 kbit/s; achieved=153,199 kbit/s\nA=13.608 ms; U=10, D=30; delayed_count=0",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  load [label="load = floor(153199/200000 × 100) ≈76%",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  high [label="76% > 75% → HIGH LOAD",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  cong [label="delayed_count >= 3?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  clear [label="No → congestion clear",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  fresh [label="Fresh traffic sample and refractory elapsed?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  hold [label="Hold 200,000 kbit/s",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  factor [label="x=(30−13.608)/(30−10)≈0.819\nup factor ≈1 + 0.04×0.819 ≈1.03276",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  scaled [label="scaled desired ≈206,552 kbit/s",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  clamp [label="Clamp to configured max=200,000 kbit/s",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  compare [label="Desired equals observed kernel rate",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  result [label="No CAKE update; remains 200 Mbps",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  missing [label="NOT IN CURRENT POLICY\ncapacity learning / fixed 5 Mbps reserve\n/ automatic 170 Mbps ceiling",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
+  input -> load;
+  load -> high;
+  high -> cong;
+  cong -> clear [label="no"];
+  clear -> fresh;
+  fresh -> hold [label="no"];
+  fresh -> factor [label="yes"];
+  factor -> scaled;
+  scaled -> clamp;
+  hold -> compare;
+  clamp -> compare;
+  compare -> result;
+  missing -> result [label="would require a new design",style=dashed,color="#64748b"];
+}

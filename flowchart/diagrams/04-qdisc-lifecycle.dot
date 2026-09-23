@@ -1,0 +1,34 @@
+digraph G {
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="04 — Kernel qdisc lifecycle events",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
+  edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
+  event [label="Netlink qdisc fd readable",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  recv [label="Receive bounded batch of qdisc events",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  ok [label="Receive/decode successful?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  fatal [label="Log netlink failure; end uloop",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
+  match [label="Map ifindex to configured upload/download",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  type [label="Event type?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  delmatch [label="DEL matches cached available handle?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  clear [label="Clear cached CAKE\nstate=NOT_FOUND; retry=never\nreset traffic baseline; stop fping",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  newmatch [label="NEW is same cached available handle?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  ignore [label="Ignore own/duplicate qdisc update",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  invalidate [label="Invalidate cached CAKE\nretry immediately; reset traffic baseline",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  more [label="More events in batch?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  refresh [label="If state changed, invoke traffic callback immediately",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  event -> recv;
+  recv -> ok;
+  ok -> fatal [label="no"];
+  ok -> match [label="yes"];
+  match -> type;
+  type -> delmatch [label="RTM_DELQDISC"];
+  type -> newmatch [label="RTM_NEWQDISC"];
+  delmatch -> clear [label="yes"];
+  delmatch -> more [label="no"];
+  newmatch -> ignore [label="yes"];
+  newmatch -> invalidate [label="no"];
+  clear -> more;
+  ignore -> more;
+  invalidate -> more;
+  more -> match [label="yes"];
+  more -> refresh [label="no"];
+}
