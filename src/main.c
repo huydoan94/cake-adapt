@@ -163,6 +163,14 @@ int main(int argc, char **argv)
         log_close();
         return 0;
     }
+    if (config.interface_overridden) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "option 'interface' was overridden by ul_if='%s' and dl_if='%s'",
+            config.ul_if,
+            config.dl_if
+        );
+    }
 
     if (config.log_file_path_override[0] != '\0') {
         path_length = snprintf(

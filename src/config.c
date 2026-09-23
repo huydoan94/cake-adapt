@@ -83,6 +83,8 @@ static const struct boolean_option_binding boolean_options[] = {
 
 static const struct string_option_binding string_options[] = {
     { "interface", CONFIG_OFFSET(interface), sizeof(((struct config *)0)->interface) },
+    { "ul_if", CONFIG_OFFSET(ul_if), sizeof(((struct config *)0)->ul_if) },
+    { "dl_if", CONFIG_OFFSET(dl_if), sizeof(((struct config *)0)->dl_if) },
     {
         "cake_autorate_config",
         CONFIG_OFFSET(cake_autorate_config),
@@ -387,11 +389,43 @@ static int copy_option(
     return 0;
 }
 
-static void derive_ingress_interface(struct config *config)
+static int resolve_interfaces(
+    struct config *config,
+    char *error,
+    size_t error_size
+)
 {
+    bool upload_configured = config->ul_if[0] != '\0';
+    bool download_configured = config->dl_if[0] != '\0';
+
+    config->interface_overridden = false;
+    if (upload_configured != download_configured) {
+        error_set(
+            error,
+            error_size,
+            "options 'ul_if' and 'dl_if' must be configured together"
+        );
+        return -1;
+    }
+    /* The mismatch check above guarantees dl_if is configured here too. */
+    if (upload_configured) {
+        config->interface_overridden = config->interface[0] != '\0';
+        memcpy(
+            config->interface,
+            config->ul_if,
+            sizeof(config->interface)
+        );
+        memcpy(
+            config->ingress_interface,
+            config->dl_if,
+            sizeof(config->ingress_interface)
+        );
+        return 0;
+    }
+
     config->ingress_interface[0] = '\0';
     if (config->interface[0] == '\0') {
-        return;
+        return 0;
     }
 
     /* SQM names its ingress IFB "ifb4<interface>", truncated to IFNAMSIZ. */
@@ -402,6 +436,7 @@ static void derive_ingress_interface(struct config *config)
         (int)(sizeof(config->ingress_interface) - sizeof(IFB_PREFIX)),
         config->interface
     );
+    return 0;
 }
 
 static int parse_boolean(
@@ -1087,8 +1122,9 @@ static int validate_config(
         error_set(
             error,
             error_size,
-            "option 'interface' is required when cake-adapt is enabled"
-            " or rate adjustment is configured"
+            "set either option 'interface' or both options 'ul_if' and"
+            " 'dl_if' when cake-adapt is enabled or rate adjustment is"
+            " configured"
         );
         return -1;
     }
@@ -1194,7 +1230,9 @@ static int load_section(
         return -1;
     }
 
-    derive_ingress_interface(config);
+    if (resolve_interfaces(config, error, error_size) != 0) {
+        return -1;
+    }
 
     if (
         !reflectors_configured &&

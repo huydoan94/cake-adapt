@@ -11,7 +11,7 @@ mkdir -p "$temporary_directory/cake/.uci" "$temporary_directory/source"
 cat > "$temporary_directory/options" <<'EOF'
 #!/bin/sh
 printf '%s\n' \
-    enabled interface cake_autorate_config adjust_dl_shaper_rate \
+    enabled interface ul_if dl_if cake_autorate_config adjust_dl_shaper_rate \
     pinger_method ping_extra_args
 EOF
 chmod +x "$temporary_directory/options"
@@ -33,7 +33,7 @@ EOF
 
 cat > "$temporary_directory/source/config.primary.sh" <<'EOF'
 ul_if=eth1
-dl_if=ifb4eth1
+dl_if=download
 adjust_dl_shaper_rate=1
 ping_extra_args="-I eth1"
 reflectors=("9.9.9.9" "149.112.112.112")
@@ -46,7 +46,11 @@ bash ../files/cake-adapt.import \
     "$temporary_directory/cake" \
     "$temporary_directory/options"
 
-grep -Fq 'set cake-adapt.main.interface=eth1' "$temporary_directory/calls"
+grep -Fq 'set cake-adapt.main.ul_if=eth1' "$temporary_directory/calls"
+grep -Fq 'set cake-adapt.main.dl_if=download' "$temporary_directory/calls"
+if grep -Fq 'set cake-adapt.main.interface=' "$temporary_directory/calls"; then
+    exit 1
+fi
 grep -Fq 'set cake-adapt.main.adjust_dl_shaper_rate=1' "$temporary_directory/calls"
 grep -Fq 'set cake-adapt.main.ping_extra_args=-I eth1' "$temporary_directory/calls"
 grep -Fq 'add_list cake-adapt.main.reflectors=9.9.9.9' "$temporary_directory/calls"
@@ -73,19 +77,6 @@ EOF
 
 printf '%s\n' 'adjust_dl_shaper_rate=(' > \
     "$temporary_directory/source/config.primary.sh"
-if CALL_LOG="$temporary_directory/calls" \
-    UCI="$temporary_directory/uci" \
-    bash ../files/cake-adapt.import \
-        "$temporary_directory/source/config.primary.sh" \
-        "$temporary_directory/cake" \
-        "$temporary_directory/options" 2>/dev/null; then
-    exit 1
-fi
-
-cat > "$temporary_directory/source/config.primary.sh" <<'EOF'
-ul_if=eth1
-dl_if=ifb4wrong
-EOF
 if CALL_LOG="$temporary_directory/calls" \
     UCI="$temporary_directory/uci" \
     bash ../files/cake-adapt.import \

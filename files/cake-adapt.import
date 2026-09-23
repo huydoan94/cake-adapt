@@ -41,18 +41,6 @@ set -euo pipefail
 set -f
 IFS=$' \t\n'
 
-[[ -v ul_if && -n $ul_if ]] || fail "ul_if is missing or empty"
-[[ -v dl_if && -n $dl_if ]] || fail "dl_if is missing or empty"
-
-expected_download_interface="ifb4${ul_if}"
-expected_download_interface=${expected_download_interface:0:15}
-if [[ $dl_if != "$expected_download_interface" ]]; then
-    fail "dl_if '$dl_if' must equal '$expected_download_interface'"
-fi
-
-"$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-    set "cake-adapt.main.interface=$ul_if"
-
 supported_option_text=$("$program" -L) ||
     fail "could not query supported cake-adapt options"
 [[ -n $supported_option_text ]] ||
