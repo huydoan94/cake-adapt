@@ -31,6 +31,7 @@ struct config {
     bool log_file_export_compress;
     char interface[IF_NAMESIZE];
     char ingress_interface[IF_NAMESIZE];
+    char cake_autorate_config[CONFIG_STRING_SIZE];
     char log_file_path_override[CONFIG_STRING_SIZE];
     char pinger_method[CONFIG_STRING_SIZE];
     char reflectors[CONFIG_MAX_REFLECTORS][CONFIG_REFLECTOR_SIZE];
@@ -86,6 +87,9 @@ struct config {
     uint64_t global_ping_response_timeout_microseconds;
     uint64_t interface_up_check_interval_microseconds;
 };
+
+size_t config_option_count(void);
+const char *config_option_name(size_t index);
 
 int config_load(
     struct config *config,

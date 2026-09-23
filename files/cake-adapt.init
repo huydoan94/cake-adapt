@@ -4,7 +4,38 @@ USE_PROCD=1
 START=95
 STOP=10
 
+PROG=${PROG:-/usr/sbin/cake-adapt}
+IMPORTER=${IMPORTER:-/usr/libexec/cake-adapt/import}
+RUNTIME_DIR=${RUNTIME_DIR:-/tmp/cake-adapt-config}
+RUNTIME_CONFIG=${RUNTIME_CONFIG:-$RUNTIME_DIR/cake-adapt}
+
+generate_runtime_config() {
+	local cake_autorate_config="$1"
+	local stage
+
+	stage="$(mktemp -d "$RUNTIME_DIR/.stage.XXXXXX")" || return 1
+	if ! mkdir "$stage/.uci" ||
+		! cp /etc/config/cake-adapt "$stage/cake-adapt"; then
+		rm -rf "$stage"
+		return 1
+	fi
+	if [ -n "$cake_autorate_config" ] &&
+		! "$IMPORTER" "$cake_autorate_config" "$stage" "$PROG"; then
+		rm -rf "$stage"
+		return 1
+	fi
+	if ! "$PROG" -C "$stage" -V ||
+		! chmod 0600 "$stage/cake-adapt" ||
+		! mv -f "$stage/cake-adapt" "$RUNTIME_CONFIG"; then
+		rm -rf "$stage"
+		return 1
+	fi
+	rm -rf "$stage"
+}
+
 start_service() {
+	local cake_autorate_config
+	local cake_autorate_defaults
 	local enabled
 
 	if ! config_load 'cake-adapt'; then
@@ -13,17 +44,40 @@ start_service() {
 		return 1
 	fi
 	config_get_bool enabled 'main' 'enabled' 0
+	config_get cake_autorate_config 'main' 'cake_autorate_config' ''
 	if [ "$enabled" -ne 1 ]; then
 		logger -t cake-adapt -p daemon.notice \
 			"disabled by configuration; not starting"
 		return 0
 	fi
+	if [ -L "$RUNTIME_DIR" ] || { [ -e "$RUNTIME_DIR" ] && [ ! -d "$RUNTIME_DIR" ]; }; then
+		logger -t cake-adapt -p daemon.err \
+			"runtime configuration path $RUNTIME_DIR is not a directory; not starting"
+		return 1
+	fi
+	umask 077
+	if ! mkdir -p "$RUNTIME_DIR" || ! chmod 0700 "$RUNTIME_DIR"; then
+		logger -t cake-adapt -p daemon.err \
+			"could not prepare runtime configuration directory $RUNTIME_DIR; not starting"
+		return 1
+	fi
+	if ! generate_runtime_config "$cake_autorate_config"; then
+		logger -t cake-adapt -p daemon.err \
+			"could not generate $RUNTIME_CONFIG; not starting"
+		return 1
+	fi
 
 	procd_open_instance
-	procd_set_param command /usr/sbin/cake-adapt
+	procd_set_param command "$PROG" -C "$RUNTIME_DIR"
 	procd_set_param respawn
 	procd_set_param term_timeout 5
-	procd_set_param file /etc/config/cake-adapt
+	if [ -n "$cake_autorate_config" ]; then
+		cake_autorate_defaults="${cake_autorate_config%/*}/defaults.sh"
+		procd_set_param file /etc/config/cake-adapt \
+			"$cake_autorate_config" "$cake_autorate_defaults"
+	else
+		procd_set_param file /etc/config/cake-adapt
+	fi
 	procd_close_instance
 }
 

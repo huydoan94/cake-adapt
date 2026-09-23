@@ -3,7 +3,7 @@ digraph G {
   node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
   procd [label="procd service lifecycle",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
-  uci [label="/etc/config/cake-adapt\nlibuci typed configuration",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
+  uci [label="/etc/config/cake-adapt\nlibuci typed configuration\n+ optional cake-autorate override file",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   main [label="main.c\nstartup + shutdown",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   monitor [label="monitor.c\nuloop coordinator",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   kernel [label="Linux kernel\ninterfaces + CAKE qdiscs",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];

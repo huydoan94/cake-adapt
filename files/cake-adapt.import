@@ -1,0 +1,99 @@
+#!/bin/bash
+
+set -euo pipefail
+set -f
+
+fail()
+{
+    printf 'cake-adapt configuration import: %s\n' "$1" >&2
+    exit 1
+}
+
+if (( $# != 3 )); then
+    fail "usage: $0 CAKE_AUTORATE_CONFIG UCI_DIRECTORY CAKE_ADAPT_BINARY"
+fi
+
+config_path=$1
+uci_directory=$2
+program=$3
+defaults_path=${config_path%/*}/defaults.sh
+uci_command=${UCI:-/sbin/uci}
+
+[[ $config_path == /* ]] || fail "configuration path must be absolute"
+[[ -r $defaults_path ]] || fail "cannot read $defaults_path"
+[[ -r $config_path ]] || fail "cannot read $config_path"
+[[ -x $program ]] || fail "cannot execute $program"
+[[ -x $uci_command ]] || fail "cannot execute $uci_command"
+[[ -d $uci_directory/.uci ]] || fail "missing UCI staging directory"
+
+"$BASH" -n "$defaults_path" "$config_path" ||
+    fail "invalid shell syntax"
+
+# cake-autorate configuration is executable Bash by design. Run it only in
+# this child process so its variables and shell settings cannot alter procd's
+# init shell.
+# shellcheck source=/dev/null
+. "$defaults_path"
+# shellcheck source=/dev/null
+. "$config_path"
+
+set -euo pipefail
+set -f
+IFS=$' \t\n'
+
+[[ -v ul_if && -n $ul_if ]] || fail "ul_if is missing or empty"
+[[ -v dl_if && -n $dl_if ]] || fail "dl_if is missing or empty"
+
+expected_download_interface="ifb4${ul_if}"
+expected_download_interface=${expected_download_interface:0:15}
+if [[ $dl_if != "$expected_download_interface" ]]; then
+    fail "dl_if '$dl_if' must equal '$expected_download_interface'"
+fi
+
+"$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
+    set "cake-adapt.main.interface=$ul_if"
+
+supported_option_text=$("$program" -L) ||
+    fail "could not query supported cake-adapt options"
+[[ -n $supported_option_text ]] ||
+    fail "cake-adapt returned no supported options"
+mapfile -t supported_options <<< "$supported_option_text"
+for name in "${supported_options[@]}"; do
+    case $name in
+    enabled|interface|cake_autorate_config)
+        continue
+        ;;
+    esac
+    [[ -v $name ]] || continue
+
+    declaration=$(declare -p "$name")
+    case $declaration in
+    "declare -a "*|"declare -A "*)
+        fail "$name must be a scalar value"
+        ;;
+    esac
+    value=${!name}
+    if [[ $value == *$'\n'* || $value == *$'\r'* ]]; then
+        fail "$name contains a line break"
+    fi
+    "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
+        set "cake-adapt.main.$name=$value"
+done
+
+reflector_declaration=$(declare -p reflectors 2>/dev/null) ||
+    fail "reflectors is missing"
+[[ $reflector_declaration == "declare -a "* ]] ||
+    fail "reflectors must be an indexed array"
+(( ${#reflectors[@]} > 0 )) || fail "reflectors is empty"
+
+"$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
+    delete cake-adapt.main.reflectors || true
+for reflector in "${reflectors[@]}"; do
+    [[ $reflector != *$'\n'* && $reflector != *$'\r'* ]] ||
+        fail "reflector contains a line break"
+    "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
+        add_list "cake-adapt.main.reflectors=$reflector"
+done
+
+"$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
+    commit cake-adapt

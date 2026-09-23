@@ -177,6 +177,68 @@ uci commit cake-adapt
 /etc/init.d/cake-adapt restart
 ```
 
+### Importing an existing cake-autorate configuration
+
+An existing cake-autorate instance configuration can supply the settings that
+cake-adapt already supports:
+
+```uci
+config cake_adapt 'main'
+        option enabled '1'
+        option cake_autorate_config '/root/cake-autorate/config.primary.sh'
+```
+
+Configuration precedence is:
+
+```text
+cake-adapt defaults < UCI values < cake-autorate defaults.sh
+                    < cake-autorate instance values
+```
+
+At service start, the init script copies UCI into
+`/tmp/cake-adapt-config/cake-adapt`. When a cake-autorate configuration is
+selected, an isolated Bash helper loads the adjacent `defaults.sh` followed by
+the selected instance configuration and writes supported values into that
+temporary UCI package. The daemon then reads it through `libuci`; it never
+parses shell syntax.
+
+The helper checks both shell files with `bash -n`, applies only option names
+advertised by the installed cake-adapt binary, and writes scalar and reflector
+values through the `uci` command. The result is validated by cake-adapt before
+it is atomically published with mode `0600`. Invalid shell syntax, types,
+ranges, interface pairing, or reflector data prevent the service from starting.
+
+Cake-autorate configurations are executable Bash, not passive data. Loading one
+therefore has the same trust requirement as running it with cake-autorate: only
+select a trusted root-owned configuration. The helper runs in a separate Bash
+process so its variables and shell settings cannot modify the OpenWrt init
+shell.
+
+There are two interface-specific rules:
+
+- `ul_if` overrides the UCI `interface` value.
+- `dl_if` must equal the derived `ifb4<ul_if>` name. cake-adapt intentionally
+  retains its single-interface SQM convention and rejects an incompatible
+  imported download interface.
+
+`enabled` and `cake_autorate_config` remain UCI-owned. Intentional exclusions
+such as `startup_wait_s`, remote reflector retrieval, and unsupported pinger
+methods do not become supported merely by importing a file. A selected file
+must be readable and all recognized values must pass the same typed validation
+as UCI values. `procd` watches UCI, the selected instance configuration, and its
+adjacent `defaults.sh`, then regenerates the effective file when any of them
+changes. The generated file is temporary and must not be edited; change UCI or
+the cake-autorate source instead.
+
+To inspect the exact values used by a running service:
+
+```sh
+cat /tmp/cake-adapt-config/cake-adapt
+```
+
+Do not leave cake-autorate running while cake-adapt rate adjustment is enabled;
+the two programs must not control the same CAKE qdiscs concurrently.
+
 Enable the service at boot with:
 
 ```sh

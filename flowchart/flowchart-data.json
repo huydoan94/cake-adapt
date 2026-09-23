@@ -48,7 +48,7 @@
       "The daemon adapts CAKE instances that already exist. SQM still creates WAN/IFB, ingress redirect, and qdiscs.",
       "The policy boundary is measurement → controller decision → desired CAKE state → verified kernel update.",
       "Upload is the configured interface; download is derived as ifb4<interface>.",
-      "fping is the only supported pinger. Configuration comes from typed UCI through libuci."
+      "fping is the only supported pinger. Configuration comes from typed UCI, optionally followed by safely parsed cake-autorate overrides."
     ],
     "nodes": [
       {
@@ -58,7 +58,7 @@
       },
       {
         "id": "uci",
-        "label": "/etc/config/cake-adapt\nlibuci typed configuration",
+        "label": "/etc/config/cake-adapt\nlibuci typed configuration\n+ optional cake-autorate override file",
         "kind": "io"
       },
       {
@@ -219,15 +219,17 @@
       },
       {
         "ref": "src/config.c:config_load",
-        "line": 1181
+        "line": 1880
       },
       {
         "ref": "src/config.c:load_section",
-        "line": 761
+        "line": 1417
       }
     ],
     "notes": [
       "procd checks enabled before starting. If the daemon is invoked while disabled, it reports that state and exits successfully.",
+      "Precedence is built-in defaults < typed UCI < recognized values in the explicitly selected cake-autorate file. The shell file is parsed as data and never executed.",
+      "The imported ul_if overrides interface; dl_if must match derived ifb4<ul_if>. enabled and the import path remain UCI-owned.",
       "Adjustment is independently opt-in for download and upload. Invalid ranges or missing required values prevent control from starting.",
       "Log-file setup happens after configuration so the configured path, rotation, export, and record selections can be honored."
     ],
@@ -259,7 +261,27 @@
       },
       {
         "id": "load",
-        "label": "config_load(): defaults → libuci package\n→ typed scalar/list options → validate",
+        "label": "config_load(): initialize defaults\nload typed scalar/list values through libuci",
+        "kind": "process"
+      },
+      {
+        "id": "selected",
+        "label": "cake_autorate_config selected?",
+        "kind": "decision"
+      },
+      {
+        "id": "import",
+        "label": "Open as data; parse recognized literal assignments\nand reflectors array; override typed values",
+        "kind": "process"
+      },
+      {
+        "id": "interface",
+        "label": "Map ul_if → interface\nrequire dl_if = derived ifb4<ul_if>",
+        "kind": "process"
+      },
+      {
+        "id": "validate",
+        "label": "Validate merged types, ranges, timers, pinger, reflectors",
         "kind": "process"
       },
       {
@@ -284,7 +306,7 @@
       },
       {
         "id": "derive",
-        "label": "Derive upload=<interface>\ndownload=ifb4<interface>",
+        "label": "Use upload=<interface>\ndownload=ifb4<interface>",
         "kind": "process"
       },
       {
@@ -341,6 +363,36 @@
       },
       {
         "from": "load",
+        "to": "selected",
+        "label": "",
+        "style": ""
+      },
+      {
+        "from": "selected",
+        "to": "import",
+        "label": "yes",
+        "style": ""
+      },
+      {
+        "from": "selected",
+        "to": "validate",
+        "label": "no",
+        "style": ""
+      },
+      {
+        "from": "import",
+        "to": "interface",
+        "label": "",
+        "style": ""
+      },
+      {
+        "from": "interface",
+        "to": "validate",
+        "label": "",
+        "style": ""
+      },
+      {
+        "from": "validate",
         "to": "ok",
         "label": "",
         "style": ""

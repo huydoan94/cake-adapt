@@ -14,7 +14,7 @@ define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping
+  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +bash
 endef
 
 define Package/cake-adapt/description
@@ -47,6 +47,8 @@ define Package/cake-adapt/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/cake-adapt $(1)/usr/sbin/cake-adapt
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/cake-adapt.init $(1)/etc/init.d/cake-adapt
+	$(INSTALL_DIR) $(1)/usr/libexec/cake-adapt
+	$(INSTALL_BIN) ./files/cake-adapt.import $(1)/usr/libexec/cake-adapt/import
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/cake-adapt.config $(1)/etc/config/cake-adapt
 endef
