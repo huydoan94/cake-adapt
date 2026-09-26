@@ -139,6 +139,10 @@ uint64_t bits_per_second(
     uint64_t scaled;
     long double rate;
 
+    /* Preserve saturation for an interval that cannot represent a rate. */
+    if (elapsed_ms == 0U) {
+        return UINT64_MAX;
+    }
     /* Normal counters need only integer arithmetic, including on soft-float CPUs. */
     if (!__builtin_mul_overflow(byte_delta, scale, &scaled)) {
         return scaled / elapsed_ms;

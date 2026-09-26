@@ -72,6 +72,7 @@ static void test_clock_failure_preserves_output(void)
 
 static void test_rate_conversion_boundaries(void)
 {
+    assert(bits_per_second(1U, 0U) == UINT64_MAX);
     assert(bits_per_second(0U, 1U) == 0U);
     assert(bits_per_second(1U, 3U) == 2666U);
     assert(bits_per_second(125000000U, 1000U) == 1000000000U);
