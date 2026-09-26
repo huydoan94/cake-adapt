@@ -1,6 +1,11 @@
 # cake-adapt current-code flowcharts
 
-Open **index.html** in a browser. It is an offline viewer containing 16 linked diagrams.
+[View the rendered flowchart viewer](https://html-preview.github.io/?url=https://github.com/huydoan94/cake-adapt/blob/main/flowchart/index.html),
+or open `index.html` locally. The viewer contains 16 linked diagrams and works
+without a build step.
+
+The hosted link reads the `main` branch and therefore reflects the latest
+version pushed to GitHub.
 
 - Standalone vector images: `diagrams/*.svg`
 - Editable Graphviz sources: `diagrams/*.dot`

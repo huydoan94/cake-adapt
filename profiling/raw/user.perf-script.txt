@@ -1,0 +1,407 @@
+cake-adapt   15049  4672.795690:    1001001 cpu-clock:u: 
+	        b7e3ec2d [unknown] (/usr/lib/libnl-tiny.so.1)
+	        b7e3f44f [unknown] (/usr/lib/libnl-tiny.so.1)
+	         8052f99 send_request+0x257 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805334d netlink_dump_qdiscs+0xc0 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804aa54 cake_read+0x48 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         80502e9 observe_cake+0x86 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805076b observe_traffic_cycle+0x114 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b88 handle_traffic_timer+0x23 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5d970 [unknown] (/lib/libubox.so.20260213)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4674.243495:    1001001 cpu-clock:u: 
+	         8052c89 handle_qdisc_event+0x0 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e3f61c [unknown] (/usr/lib/libnl-tiny.so.1)
+	         8053239 netlink_receive_qdisc_events+0x37 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8052061 handle_qdisc_events+0x36 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4691.934924:    1001001 cpu-clock:u: 
+	        b7e9a4d4 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4698.995632:    1001001 cpu-clock:u: 
+	        b7ee28c3 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4699.995079:    1001001 cpu-clock:u: 
+	        b7ec051f [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4702.333758:    1001001 cpu-clock:u: 
+	        b7ee133c [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4702.734690:    1001001 cpu-clock:u: 
+	         804fb3f log_data+0x1ae (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051a05 receive_latency_samples+0x8ec (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4705.594923:    1001001 cpu-clock:u: 
+	        b7ed3f10 [unknown] (/lib/libc.so)
+	         804aa28 cake_read+0x1c (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         80502e9 observe_cake+0x86 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8050746 observe_traffic_cycle+0xef (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b88 handle_traffic_timer+0x23 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5d970 [unknown] (/lib/libubox.so.20260213)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4707.727128:    1001001 cpu-clock:u: 
+	        b7eb17a1 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4707.825720:    1001001 cpu-clock:u: 
+	        b7ee8d29 [unknown] (/lib/libc.so)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4718.320348:    1001001 cpu-clock:u: 
+	        b7e996d5 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4723.002465:    1001001 cpu-clock:u: 
+	         804d9a2 load_percent+0x9c (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804be88 update_direction+0x27d (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804cd89 controller_update+0x2b (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         80514dc receive_latency_samples+0x3c3 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4723.595342:    1001001 cpu-clock:u: 
+	         8052d42 send_request+0x0 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804aa54 cake_read+0x48 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         80502e9 observe_cake+0x86 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8050746 observe_traffic_cycle+0xef (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b88 handle_traffic_timer+0x23 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5d970 [unknown] (/lib/libubox.so.20260213)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4723.981723:    1001001 cpu-clock:u: 
+	        b7e5e693 [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4724.595232:    1001001 cpu-clock:u: 
+	        b7ee1336 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4725.596099:    1001001 cpu-clock:u: 
+	         8050730 observe_traffic_cycle+0xd9 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b88 handle_traffic_timer+0x23 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5d970 [unknown] (/lib/libubox.so.20260213)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4738.789454:    1001001 cpu-clock:u: 
+	        b7e995e9 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4741.594472:    1001001 cpu-clock:u: 
+	        b7ee133f [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4746.803905:    1001001 cpu-clock:u: 
+	        b7e5e6e8 [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4747.794142:    1001001 cpu-clock:u: 
+	         8051b65 handle_traffic_timer+0x0 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4747.923241:    1001001 cpu-clock:u: 
+	        b7e9bff3 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4748.574751:    1001001 cpu-clock:u: 
+	        b7e5e5e1 [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4749.139709:    1001001 cpu-clock:u: 
+	        b7ee1587 [unknown] (/lib/libc.so)
+	         804ec5c latency_receive+0x114 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4749.327583:    1001001 cpu-clock:u: 
+	        b7ee1336 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4750.918231:    1001001 cpu-clock:u: 
+	        b7ee28c2 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4751.014492:    1001001 cpu-clock:u: 
+	        b7eaacad [unknown] (/lib/libc.so)
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4751.222365:    1001001 cpu-clock:u: 
+	        b7eb1755 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4757.806955:    1001001 cpu-clock:u: 
+	        b7ee28c2 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4761.412350:    1001001 cpu-clock:u: 
+	        b7ec2b1d [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4761.720235:    1001001 cpu-clock:u: 
+	        b7e8e480 [unknown] (/lib/libc.so)
+	        bfde8453 [unknown] ([unknown])
+	         804ec5c latency_receive+0x114 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4773.993825:    1001001 cpu-clock:u: 
+	         804dd81 parse_fping_line+0x125 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804ec5c latency_receive+0x114 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4774.552168:    1001001 cpu-clock:u: 
+	        b7e9c04c [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4775.163877:    1001001 cpu-clock:u: 
+	         804f992 log_data+0x1 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4775.912175:    1001001 cpu-clock:u: 
+	        b7e7a56a __kernel_vsyscall+0xa ([vdso])
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4778.008878:    1001001 cpu-clock:u: 
+	        b7e9c380 [unknown] (/lib/libc.so)
+	         804aad4 cake_set_bandwidth+0x55 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8050181 apply_bandwidth+0x9d (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051652 receive_latency_samples+0x539 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4786.425756:    1001001 cpu-clock:u: 
+	        b7e9965b [unknown] (/lib/libc.so)
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4797.355257:    1001001 cpu-clock:u: 
+	        b7e9bfc1 [unknown] (/lib/libc.so)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4797.404450:    1001001 cpu-clock:u: 
+	        b7e9a445 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4797.793901:    1001001 cpu-clock:u: 
+	         8052ce3 handle_valid_response+0x0 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e3f61c [unknown] (/usr/lib/libnl-tiny.so.1)
+	         8052f99 send_request+0x257 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805334d netlink_dump_qdiscs+0xc0 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804aa54 cake_read+0x48 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         80502e9 observe_cake+0x86 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805076b observe_traffic_cycle+0x114 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b88 handle_traffic_timer+0x23 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5d970 [unknown] (/lib/libubox.so.20260213)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4799.196614:    1001001 cpu-clock:u: 
+	        b7e7a569 __kernel_vsyscall+0x9 ([vdso])
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4799.498657:    1001001 cpu-clock:u: 
+	        b7e9c050 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4799.860243:    1001001 cpu-clock:u: 
+	        b7ee3298 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4800.172625:    1001001 cpu-clock:u: 
+	        b7eaacaa [unknown] (/lib/libc.so)
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4800.322467:    1001001 cpu-clock:u: 
+	        b7e5e5c7 [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4800.562013:    1001001 cpu-clock:u: 
+	        b7e8e27b [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4801.655031:    1001001 cpu-clock:u: 
+	        b7ee3247 [unknown] (/lib/libc.so)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4801.705902:    1001001 cpu-clock:u: 
+	        b7ee1342 [unknown] (/lib/libc.so)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4801.763022:    1001001 cpu-clock:u: 
+	        b7e7a569 __kernel_vsyscall+0x9 ([vdso])
+
+cake-adapt   15049  4802.169403:    1001001 cpu-clock:u: 
+	        b7eb17a9 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4803.080609:    1001001 cpu-clock:u: 
+	        b7e9a088 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4803.282575:    1001001 cpu-clock:u: 
+	        b7edfce6 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4804.495883:    1001001 cpu-clock:u: 
+	        b7e7a569 __kernel_vsyscall+0x9 ([vdso])
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4804.741220:    1001001 cpu-clock:u: 
+	        b7e99b91 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4814.793233:    1001001 cpu-clock:u: 
+	        b7ea1d60 [unknown] (/lib/libc.so)
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4817.193909:    1001001 cpu-clock:u: 
+	        b7e9c4a6 [unknown] (/lib/libc.so)
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4819.394490:    1001001 cpu-clock:u: 
+	         80507ae observe_traffic_cycle+0x157 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b88 handle_traffic_timer+0x23 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5d970 [unknown] (/lib/libubox.so.20260213)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4820.394658:    1001001 cpu-clock:u: 
+	        b7e7a569 __kernel_vsyscall+0x9 ([vdso])
+	               0 [unknown] ([unknown])
+
+cake-adapt   15049  4820.891376:    1001001 cpu-clock:u: 
+	        b7ee1336 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4827.084477:    1001001 cpu-clock:u: 
+	        b7eaa1c6 [unknown] (/lib/libc.so)
+	         804dcdd parse_fping_line+0x81 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804ec5c latency_receive+0x114 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         805115c receive_latency_samples+0x43 (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         8051b1f handle_latency_output+0x1e (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7e5e6cc [unknown] (/lib/libubox.so.20260213)
+	         8052b79 monitor_run+0x79a (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	         804a5c5 main+0x5be (/tmp/cake-adapt-profile-20260926-1635/cake-adapt)
+	        b7eb94d5 [unknown] (/lib/libc.so)
+	        bfdf1ebc [unknown] ([unknown])
+	        6f6f723d [unknown] ([unknown])
+
+cake-adapt   15049  4828.596631:    1001001 cpu-clock:u: 
+	        b7eb06ef [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4828.597101:    1001001 cpu-clock:u: 
+	        b7eb06ef [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4840.993479:    1001001 cpu-clock:u: 
+	        b7ee28c2 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4842.994771:    1001001 cpu-clock:u: 
+	        b7ee28c2 [unknown] (/lib/libc.so)
+
+cake-adapt   15049  4842.995260:    1001001 cpu-clock:u: 
+	        b7ee28c2 [unknown] (/lib/libc.so)
+
