@@ -59,6 +59,15 @@ cake-adapt does not source, execute, or depend on files from a cake-autorate
 installation. The upstream project is a behavioral and algorithmic reference,
 not a runtime dependency.
 
+## Documentation
+
+- [Current-code flowcharts](flowchart/README.md) — architecture, event flow,
+  controller decisions, CAKE updates, and lifecycle behavior.
+  [Open the rendered viewer](https://html-preview.github.io/?url=https://github.com/huydoan94/cake-adapt/blob/main/flowchart/index.html).
+- [VM profiling results](profiling/README.md) — interactive flame graphs,
+  raw `perf` stacks, and the separately identified profiling conclusion.
+  [Open the rendered viewer](https://html-preview.github.io/?url=https://github.com/huydoan94/cake-adapt/blob/main/profiling/index.html).
+
 ## Data flow
 
 ```text
