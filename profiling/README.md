@@ -1,6 +1,6 @@
 # Raw VM flame graphs
 
-[View the rendered profiling dashboard](https://html-preview.github.io/?url=https://github.com/huydoan94/cake-adapt/blob/main/profiling/index.html),
+[View the rendered profiling dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html),
 or open `index.html` locally. The hosted link reads the `main` branch and
 therefore reflects the latest version pushed to GitHub.
 
@@ -8,12 +8,17 @@ These are standard interactive flame graphs generated directly from `perf
 script` stacks. Frame width is proportional to sampled `cpu-clock` time. Hover
 over a frame for its value and click it to zoom.
 
-- [Userspace CPU flame graph](flamegraph-user.svg): 180-second `cpu-clock:u`
-  capture, 64 samples.
-- [Mixed user/kernel flame graph](flamegraph-mixed.svg): 60-second `cpu-clock`
-  capture, 408 samples.
-- [Conclusion graph](conclusion.svg): interpretation derived from the two raw
-  captures, kept separate from the flame graphs.
+- [Userspace CPU flame graph](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/flamegraph-user.svg):
+  180-second `cpu-clock:u` capture, 64 samples.
+- [Mixed user/kernel flame graph](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/flamegraph-mixed.svg):
+  60-second `cpu-clock` capture, 408 samples.
+- [Conclusion graph](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/conclusion.svg):
+  interpretation derived from the two raw captures, kept separate from the
+  flame graphs.
+
+GitHub's raw-file host applies a sandbox policy that disables the JavaScript
+inside FlameGraph SVGs. The hosted links use raw.githack so hover, search, and
+click-to-zoom remain available.
 
 No interpretation or manually assigned call relationships are added to either
 graph.
