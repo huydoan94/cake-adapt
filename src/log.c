@@ -18,9 +18,7 @@
 #include <zlib.h>
 
 #define LOG_MESSAGE_SIZE 2048U
-#define TIMED_PAYLOAD_SIZE 2000U
-#define LOG_DATETIME_SIZE 20U
-#define LOG_PATH_SIZE 512U
+#define LOG_COPY_BUFFER_SIZE 4096U
 
 static bool log_to_stdout;
 static bool log_to_syslog;
@@ -133,7 +131,7 @@ static bool export_log(
     bool include_previous
 )
 {
-    char buffer[4096];
+    char buffer[LOG_COPY_BUFFER_SIZE];
     char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
     const char *source_paths[] = { previous_path, log_path };
     /* zlib's transparent mode writes plain bytes, without a gzip wrapper. */
@@ -205,7 +203,7 @@ int log_export_file(
 {
     struct tm local_time;
     time_t seconds = time(NULL);
-    char stamp[20];
+    char stamp[LOG_DATETIME_SIZE];
     size_t path_length = strlen(log_path);
     int written;
 
@@ -312,14 +310,14 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
             log_message(
                 LOG_LEVEL_DEBUG,
                 "log file maximum time: %" PRIu64 " minutes has elapsed so flushing and rotating log file.",
-                log_maximum_age_microseconds / 60000000U
+                log_maximum_age_microseconds / MICROSECONDS_PER_MINUTE
             );
         } else {
             log_message(
                 LOG_LEVEL_DEBUG,
                 "log file size: %" PRIu64 " KB has exceeded configured maximum: %" PRIu64 " KB so flushing and rotating log file.",
-                (uint64_t)size / 1024U,
-                log_maximum_size_bytes / 1024U
+                (uint64_t)size / KIBIBYTE,
+                log_maximum_size_bytes / KIBIBYTE
             );
         }
         (void)snprintf(
@@ -341,7 +339,9 @@ static void maintain_log_file(uint64_t timestamp_microseconds)
 
 void log_tick(void)
 {
-    maintain_log_file(clock_microseconds(CLOCK_MONOTONIC));
+    if (log_file != NULL) {
+        maintain_log_file(clock_microseconds(CLOCK_MONOTONIC));
+    }
 }
 
 static void write_line(const char *line)
@@ -365,7 +365,7 @@ static void write_record_at(
     char datetime[LOG_DATETIME_SIZE];
     char line[LOG_MESSAGE_SIZE];
     struct tm local_time;
-    time_t seconds = (time_t)(timestamp_microseconds / 1000000U);
+    time_t seconds = (time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND);
 
     if (
         localtime_r(&seconds, &local_time) == NULL ||
@@ -385,8 +385,8 @@ static void write_record_at(
         "%s; %s; %" PRIu64 ".%06" PRIu64 "; %s",
         type,
         datetime,
-        timestamp_microseconds / 1000000U,
-        timestamp_microseconds % 1000000U,
+        timestamp_microseconds / MICROSECONDS_PER_SECOND,
+        timestamp_microseconds % MICROSECONDS_PER_SECOND,
         message
     );
     write_line(line);
@@ -464,8 +464,8 @@ int log_set_file(
     log_file = file;
     log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
     log_last_flush_microseconds = log_opened_microseconds;
-    log_maximum_age_microseconds = maximum_time_minutes * 60000000U;
-    log_maximum_size_bytes = maximum_size_kilobytes * 1024U;
+    log_maximum_age_microseconds = maximum_time_minutes * MICROSECONDS_PER_MINUTE;
+    log_maximum_size_bytes = maximum_size_kilobytes * KIBIBYTE;
     log_buffer_timeout_microseconds = buffer_timeout_microseconds;
     log_compress_exports = compress_exports;
 
@@ -566,6 +566,12 @@ static void write_formatted_record(
     char message[LOG_MESSAGE_SIZE];
     va_list arguments;
 
+    if (
+        !log_to_stdout &&
+        log_file == NULL
+    ) {
+        return;
+    }
     va_start(arguments, format);
     (void)vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
@@ -578,23 +584,39 @@ static void write_timed_record(
     ...
 )
 {
-    char payload[TIMED_PAYLOAD_SIZE];
     char message[LOG_MESSAGE_SIZE];
-    uint64_t processing_time_microseconds = log_realtime_microseconds();
+    uint64_t processing_time_microseconds;
+    int prefix_length;
     va_list arguments;
 
-    va_start(arguments, format);
-    (void)vsnprintf(payload, sizeof(payload), format, arguments);
-    va_end(arguments);
-
-    (void)snprintf(
+    if (
+        !log_to_stdout &&
+        log_file == NULL
+    ) {
+        return;
+    }
+    processing_time_microseconds = log_realtime_microseconds();
+    prefix_length = snprintf(
         message,
         sizeof(message),
-        "%" PRIu64 ".%06" PRIu64 "; %s",
-        processing_time_microseconds / 1000000U,
-        processing_time_microseconds % 1000000U,
-        payload
+        "%" PRIu64 ".%06" PRIu64 "; ",
+        processing_time_microseconds / MICROSECONDS_PER_SECOND,
+        processing_time_microseconds % MICROSECONDS_PER_SECOND
     );
+    if (
+        prefix_length < 0 ||
+        (size_t)prefix_length >= sizeof(message)
+    ) {
+        return;
+    }
+    va_start(arguments, format);
+    (void)vsnprintf(
+        message + prefix_length,
+        sizeof(message) - (size_t)prefix_length,
+        format,
+        arguments
+    );
+    va_end(arguments);
     write_record(type, message);
 }
 
@@ -625,8 +647,8 @@ void log_data(const struct log_data_record *record)
         record->upload_achieved_rate_kbps,
         record->download_load_percent,
         record->upload_load_percent,
-        record->icmp_timestamp_microseconds / 1000000U,
-        record->icmp_timestamp_microseconds % 1000000U,
+        record->icmp_timestamp_microseconds / MICROSECONDS_PER_SECOND,
+        record->icmp_timestamp_microseconds % MICROSECONDS_PER_SECOND,
         record->reflector,
         record->sequence,
         record->download_owd_baseline_microseconds,
@@ -714,8 +736,8 @@ void log_cpu(
     (void)fprintf(
         stream,
         "%" PRIu64 ".%06" PRIu64,
-        sample->timestamp_microseconds / 1000000U,
-        sample->timestamp_microseconds % 1000000U
+        sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
+        sample->timestamp_microseconds % MICROSECONDS_PER_SECOND
     );
     for (index = 0U; index < sample->count; index++) {
         (void)fprintf(stream, "; %u", usage[index]);
@@ -744,8 +766,8 @@ void log_cpu_raw(const struct cpu_sample *sample)
             "%" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 "; %" PRIu64
             "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
             "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-            sample->timestamp_microseconds / 1000000U,
-            sample->timestamp_microseconds % 1000000U,
+            sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
+            sample->timestamp_microseconds % MICROSECONDS_PER_SECOND,
             counter->identifier,
             counter->user,
             counter->nice,
@@ -791,8 +813,8 @@ void log_system_message(
         syslog(
             LOG_INFO,
             "INFO: %" PRIu64 ".%06" PRIu64 " %s",
-            timestamp_microseconds / 1000000U,
-            timestamp_microseconds % 1000000U,
+            timestamp_microseconds / MICROSECONDS_PER_SECOND,
+            timestamp_microseconds % MICROSECONDS_PER_SECOND,
             message
         );
     }
@@ -808,6 +830,7 @@ void log_message(
     char message[LOG_MESSAGE_SIZE];
     va_list arguments;
     uint64_t timestamp_microseconds;
+    bool send_syslog;
 
     if (level > minimum_log_level) {
         return;
@@ -815,25 +838,36 @@ void log_message(
     if ((unsigned int)level >= sizeof(levels) / sizeof(levels[0])) {
         level = LOG_LEVEL_ERROR;
     }
+    send_syslog = log_to_syslog &&
+        (level <= LOG_LEVEL_WARNING ||
+            (level == LOG_LEVEL_DEBUG && debug_to_syslog));
+    if (
+        !send_syslog &&
+        !log_to_stdout &&
+        log_file == NULL
+    ) {
+        return;
+    }
 
     va_start(arguments, format);
     (void)vsnprintf(message, sizeof(message), format, arguments);
     va_end(arguments);
 
     timestamp_microseconds = log_realtime_microseconds();
-    if (
-        log_to_syslog &&
-        (level <= LOG_LEVEL_WARNING ||
-            (level == LOG_LEVEL_DEBUG && debug_to_syslog))
-    ) {
+    if (send_syslog) {
         syslog(
             levels[level].priority,
             "%s: %" PRIu64 ".%06" PRIu64 " %s",
             levels[level].record,
-            timestamp_microseconds / 1000000U,
-            timestamp_microseconds % 1000000U,
+            timestamp_microseconds / MICROSECONDS_PER_SECOND,
+            timestamp_microseconds % MICROSECONDS_PER_SECOND,
             message
         );
     }
-    write_record_at(levels[level].record, message, timestamp_microseconds);
+    if (
+        log_to_stdout ||
+        log_file != NULL
+    ) {
+        write_record_at(levels[level].record, message, timestamp_microseconds);
+    }
 }

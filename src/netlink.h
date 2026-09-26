@@ -39,8 +39,6 @@ struct netlink {
     bool event_parse_failed;
 };
 
-void netlink_init(struct netlink *netlink);
-
 int netlink_open(
     struct netlink *netlink,
     char *error,

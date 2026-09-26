@@ -1,4 +1,5 @@
 #include "defaults.h"
+#include "config.h"
 
 #include <assert.h>
 #include <stdio.h>

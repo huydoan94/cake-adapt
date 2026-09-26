@@ -127,16 +127,11 @@ struct controller_activity_output {
     bool restart_pingers;
 };
 
-struct controller_delay_sample {
-    int64_t delay_microseconds;
-    bool delayed;
-};
-
 struct controller_direction {
     struct controller_direction_config config;
     enum controller_line_state state;
     enum controller_congestion_state congestion;
-    struct controller_delay_sample *delay_samples;
+    int32_t *delay_samples;
     int64_t delay_sum_microseconds;
     uint64_t shaper_rate_bits_per_second;
     unsigned int delay_next_sample;

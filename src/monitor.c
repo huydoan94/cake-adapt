@@ -6,6 +6,7 @@
 #include "cake.h"
 #include "controller.h"
 #include "cpu.h"
+#include "error.h"
 #include "helpers.h"
 #include "latency.h"
 #include "log.h"
@@ -29,7 +30,6 @@
 #include <unistd.h>
 #include <time.h>
 
-#define ERROR_SIZE 256U
 #define LOAD_CONDITION_SIZE 16U
 
 enum cake_observation_state {
@@ -484,7 +484,7 @@ static void load_condition(
     size_t condition_size,
     const char *direction,
     uint64_t traffic_rate,
-    uint64_t cake_rate,
+    unsigned int load,
     uint64_t connection_active_threshold,
     uint64_t high_load_threshold_percent,
     enum controller_congestion_state congestion
@@ -492,10 +492,7 @@ static void load_condition(
 {
     const char *state;
 
-    if (
-        load_percent(traffic_rate, cake_rate) >
-        high_load_threshold_percent
-    ) {
+    if (load > high_load_threshold_percent) {
         state = STATE_HIGH;
     } else if (traffic_rate > connection_active_threshold) {
         state = STATE_LOW;
@@ -520,13 +517,13 @@ static void log_load_stats(
 {
     const struct log_load_record record = {
         .download_achieved_rate_kbps =
-            download->traffic_rate_bits_per_second / 1000U,
+            download->traffic_rate_bits_per_second / KILOBIT,
         .upload_achieved_rate_kbps =
-            upload->traffic_rate_bits_per_second / 1000U,
+            upload->traffic_rate_bits_per_second / KILOBIT,
         .cake_download_rate_kbps =
-            download->cake.bandwidth_bits_per_second / 1000U,
+            download->cake.bandwidth_bits_per_second / KILOBIT,
         .cake_upload_rate_kbps =
-            upload->cake.bandwidth_bits_per_second / 1000U
+            upload->cake.bandwidth_bits_per_second / KILOBIT
     };
 
     log_load(&record);
@@ -534,6 +531,7 @@ static void log_load_stats(
 
 static void log_controller_stats(
     const struct config *config,
+    uint64_t high_load_threshold_percent,
     const struct controller_input *input,
     const struct controller_output *output,
     const struct latency_observation *latency,
@@ -542,20 +540,36 @@ static void log_controller_stats(
 {
     char download_condition[LOAD_CONDITION_SIZE];
     char upload_condition[LOAD_CONDITION_SIZE];
-    uint64_t download_rate = output->download.rate_bits_per_second / 1000U;
-    uint64_t upload_rate = output->upload.rate_bits_per_second / 1000U;
+    uint64_t download_rate =
+        output->download.rate_bits_per_second / KILOBIT;
+    uint64_t upload_rate =
+        output->upload.rate_bits_per_second / KILOBIT;
+    unsigned int download_load;
+    unsigned int upload_load;
+
+    if (
+        !config->output_processing_stats &&
+        !config->output_summary_stats
+    ) {
+        return;
+    }
+    download_load = load_percent(
+        input->download.traffic_rate_bits_per_second,
+        input->download.cake_rate_bits_per_second
+    );
+    upload_load = load_percent(
+        input->upload.traffic_rate_bits_per_second,
+        input->upload.cake_rate_bits_per_second
+    );
 
     load_condition(
         download_condition,
         sizeof(download_condition),
         DIRECTION_DOWNLOAD_SHORT,
         input->download.traffic_rate_bits_per_second,
-        input->download.cake_rate_bits_per_second,
+        download_load,
         config->connection_active_threshold_bits_per_second,
-        rounded_divide(
-            config->high_load_threshold_per_million,
-            10000U
-        ),
+        high_load_threshold_percent,
         output->download.congestion
     );
     load_condition(
@@ -563,12 +577,9 @@ static void log_controller_stats(
         sizeof(upload_condition),
         DIRECTION_UPLOAD_SHORT,
         input->upload.traffic_rate_bits_per_second,
-        input->upload.cake_rate_bits_per_second,
+        upload_load,
         config->connection_active_threshold_bits_per_second,
-        rounded_divide(
-            config->high_load_threshold_per_million,
-            10000U
-        ),
+        high_load_threshold_percent,
         output->upload.congestion
     );
 
@@ -580,17 +591,11 @@ static void log_controller_stats(
          */
         const struct log_data_record record = {
             .download_achieved_rate_kbps =
-                input->download.traffic_rate_bits_per_second / 1000U,
+                input->download.traffic_rate_bits_per_second / KILOBIT,
             .upload_achieved_rate_kbps =
-                input->upload.traffic_rate_bits_per_second / 1000U,
-            .download_load_percent = load_percent(
-                input->download.traffic_rate_bits_per_second,
-                input->download.cake_rate_bits_per_second
-            ),
-            .upload_load_percent = load_percent(
-                input->upload.traffic_rate_bits_per_second,
-                input->upload.cake_rate_bits_per_second
-            ),
+                input->upload.traffic_rate_bits_per_second / KILOBIT,
+            .download_load_percent = download_load,
+            .upload_load_percent = upload_load,
             .icmp_timestamp_microseconds = latency->timestamp_microseconds,
             .reflector = reflector,
             .sequence = latency->sequence,
@@ -639,9 +644,9 @@ static void log_controller_stats(
     if (config->output_summary_stats) {
         const struct log_summary_record record = {
             .download_achieved_rate_kbps =
-                input->download.traffic_rate_bits_per_second / 1000U,
+                input->download.traffic_rate_bits_per_second / KILOBIT,
             .upload_achieved_rate_kbps =
-                input->upload.traffic_rate_bits_per_second / 1000U,
+                input->upload.traffic_rate_bits_per_second / KILOBIT,
             .download_sum_delays =
                 output->download.delayed_sample_count,
             .upload_sum_delays = output->upload.delayed_sample_count,
@@ -672,7 +677,7 @@ static void apply_bandwidth(
     enum cake_read_result read_result;
 
     if (output_cake_changes) {
-        log_shaper(direction->interface, desired_rate / 1000U);
+        log_shaper(direction->interface, desired_rate / KILOBIT);
     }
 
     if (
@@ -803,7 +808,14 @@ static void update_controller(
             );
         }
     }
-    log_controller_stats(config, &input, &output, latency, reflector);
+    log_controller_stats(
+        config,
+        context->controller.config.high_load_threshold_percent,
+        &input,
+        &output,
+        latency,
+        reflector
+    );
 }
 
 static void observe_traffic_cycle(
@@ -831,8 +843,8 @@ static void observe_traffic_cycle(
         traffic_init(&context->upload.traffic_monitor);
     } else {
         timestamp_microseconds =
-            (uint64_t)traffic_timestamp.tv_sec * 1000000U +
-            (uint64_t)traffic_timestamp.tv_nsec / 1000U;
+            (uint64_t)traffic_timestamp.tv_sec * MICROSECONDS_PER_SECOND +
+            (uint64_t)traffic_timestamp.tv_nsec / NANOSECONDS_PER_MICROSECOND;
         observe_cake(
             &context->netlink,
             &context->upload,
@@ -1025,16 +1037,10 @@ static bool receive_latency_samples(
         }
         low_load = direction_has_low_load(
             &context->download,
-            rounded_divide(
-                config->high_load_threshold_per_million,
-                10000U
-            )
+            context->controller.config.high_load_threshold_percent
         ) && direction_has_low_load(
             &context->upload,
-            rounded_divide(
-                config->high_load_threshold_per_million,
-                10000U
-            )
+            context->controller.config.high_load_threshold_percent
         );
 
         tracker_update_delta_ewma(
@@ -1360,17 +1366,18 @@ static void update_monitor_state(
         log_message(
             LOG_LEVEL_DEBUG,
             "Warning: no reflector response within: %.2f seconds. Checking loads.",
-            (double)activity_config.stall_timeout_microseconds / 1000000.0
+            (double)activity_config.stall_timeout_microseconds /
+            (double)MICROSECONDS_PER_SECOND
         );
         log_message(
             LOG_LEVEL_DEBUG,
             "load check is: (( %" PRIu64 " kbps > %" PRIu64
             " kbps for download && %" PRIu64 " kbps > %" PRIu64
             " kbps for upload ))",
-            context->download.traffic_rate_bits_per_second / 1000U,
-            config->connection_stall_threshold_bits_per_second / 1000U,
-            context->upload.traffic_rate_bits_per_second / 1000U,
-            config->connection_stall_threshold_bits_per_second / 1000U
+            context->download.traffic_rate_bits_per_second / KILOBIT,
+            config->connection_stall_threshold_bits_per_second / KILOBIT,
+            context->upload.traffic_rate_bits_per_second / KILOBIT,
+            config->connection_stall_threshold_bits_per_second / KILOBIT
         );
         if (context->activity.state == CONTROLLER_RUNNING) {
             log_message(
@@ -1389,7 +1396,8 @@ static void update_monitor_state(
         }
         log_system_message(
             "Warning: Configured global ping response timeout: %.3f seconds exceeded.",
-            (double)activity_config.global_timeout_microseconds / 1000000.0
+            (double)activity_config.global_timeout_microseconds /
+            (double)MICROSECONDS_PER_SECOND
         );
     }
     if (output.state_changed) {
@@ -1541,7 +1549,8 @@ static void observe_cpu(
     bool emit_records
 )
 {
-    struct cpu_sample sample = { 0 };
+    /* cpu_read initializes only the counters actually returned by the kernel. */
+    struct cpu_sample sample;
     unsigned int usage[CPU_MAX_COUNT];
     char error[ERROR_SIZE] = { 0 };
 
@@ -1599,7 +1608,7 @@ static void handle_log_timer(struct uloop_interval *timer)
 
 static void handle_log_export_signal(struct uloop_signal *signal)
 {
-    char export_path[CONFIG_STRING_SIZE + 32U];
+    char export_path[LOG_EXPORT_PATH_SIZE];
 
     (void)signal;
     log_message(
@@ -1715,9 +1724,11 @@ static bool run_scheduled_reflector_work(
 )
 {
     uint64_t replacement_interval_microseconds =
-        loop->config->reflector_replacement_interval_minutes * 60000000U;
+        loop->config->reflector_replacement_interval_minutes *
+            MICROSECONDS_PER_MINUTE;
     uint64_t comparison_interval_microseconds =
-        loop->config->reflector_comparison_interval_minutes * 60000000U;
+        loop->config->reflector_comparison_interval_minutes *
+            MICROSECONDS_PER_MINUTE;
     size_t pinger;
 
     if (
@@ -1826,7 +1837,7 @@ static void handle_reflector_health_timer(struct uloop_interval *timer)
                 loop->observation.reflector_order[index]
             ],
             (double)loop->config->reflector_response_deadline_microseconds /
-                1000000.0
+                (double)MICROSECONDS_PER_SECOND
         );
         log_message(
             LOG_LEVEL_DEBUG,
@@ -1908,31 +1919,31 @@ int monitor_run(const struct config *config)
             (unsigned int)config->bufferbloat_detection_threshold,
         .rate_minimum_adjust_down_bufferbloat_per_thousand = rounded_divide(
             config->shaper_rate_minimum_adjust_down_bufferbloat_per_million,
-            1000U
+            THOUSAND
         ),
         .rate_maximum_adjust_down_bufferbloat_per_thousand = rounded_divide(
             config->shaper_rate_maximum_adjust_down_bufferbloat_per_million,
-            1000U
+            THOUSAND
         ),
         .rate_minimum_adjust_up_high_load_per_thousand = rounded_divide(
             config->shaper_rate_minimum_adjust_up_load_high_per_million,
-            1000U
+            THOUSAND
         ),
         .rate_maximum_adjust_up_high_load_per_thousand = rounded_divide(
             config->shaper_rate_maximum_adjust_up_load_high_per_million,
-            1000U
+            THOUSAND
         ),
         .rate_adjust_down_low_load_per_thousand = rounded_divide(
             config->shaper_rate_adjust_down_load_low_per_million,
-            1000U
+            THOUSAND
         ),
         .rate_adjust_up_low_load_per_thousand = rounded_divide(
             config->shaper_rate_adjust_up_load_low_per_million,
-            1000U
+            THOUSAND
         ),
         .high_load_threshold_percent = rounded_divide(
             config->high_load_threshold_per_million,
-            10000U
+            FACTOR_PER_PERCENT
         ),
         .bufferbloat_refractory_period_microseconds =
             config->bufferbloat_refractory_period_microseconds,
@@ -2026,10 +2037,7 @@ int monitor_run(const struct config *config)
     size_t index;
 
     latency_init(&loop.observation.latency);
-    netlink_init(&loop.observation.netlink);
-    traffic_init(&loop.observation.download.traffic_monitor);
-    traffic_init(&loop.observation.upload.traffic_monitor);
-    cpu_init(&loop.cpu_monitor);
+    /* The aggregate initializer has zeroed the remaining monitor state. */
     if (
         controller_init(
             &loop.observation.controller,
@@ -2143,7 +2151,10 @@ int monitor_run(const struct config *config)
         if (
             uloop_interval_set(
                 required_timers[index].timer,
-                (unsigned int)(required_timers[index].interval_microseconds / 1000U)
+                (unsigned int)(
+                    required_timers[index].interval_microseconds /
+                    MICROSECONDS_PER_MILLISECOND
+                )
             ) != 0
         ) {
             log_message(
@@ -2165,14 +2176,19 @@ int monitor_run(const struct config *config)
         if (
             uloop_interval_set(
                 &loop.cpu_timer,
-                (unsigned int)(config->monitor_cpu_usage_interval_microseconds / 1000U)
+                (unsigned int)(
+                    config->monitor_cpu_usage_interval_microseconds /
+                    MICROSECONDS_PER_MILLISECOND
+                )
             ) != 0
         ) {
             log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
         }
     }
     if (config->log_to_file) {
-        uint64_t buffer_milliseconds = config->log_file_buffer_timeout_microseconds / 1000U;
+        uint64_t buffer_milliseconds =
+            config->log_file_buffer_timeout_microseconds /
+            MICROSECONDS_PER_MILLISECOND;
 
         if (
             uloop_interval_set(

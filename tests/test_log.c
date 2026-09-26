@@ -21,6 +21,7 @@ static bool use_mock_time;
 static struct timespec mock_time;
 static time_t mock_realtime_offset;
 static unsigned int syslog_count;
+static unsigned int clock_reads;
 static int syslog_priority;
 static char syslog_message[2048];
 static bool fail_memstream_open;
@@ -113,6 +114,7 @@ int test_log_clock_gettime(
     struct timespec *timestamp
 )
 {
+    clock_reads++;
     if (use_mock_time) {
         *timestamp = mock_time;
         if (clock_identifier == CLOCK_REALTIME) {
@@ -648,9 +650,32 @@ static void test_buffer_timeout_and_time_rotation(void)
     assert(unlink(previous_path) == 0);
 }
 
+static void test_disabled_output_skips_formatting_clocks(void)
+{
+    const struct log_load_record load = { 0 };
+
+    log_init("cake-adapt-test", false);
+    log_set_level(LOG_LEVEL_DEBUG);
+    clock_reads = 0U;
+    syslog_count = 0U;
+    log_load(&load);
+    log_shaper("wan", 1000U);
+    log_message(LOG_LEVEL_DEBUG, "unused debug sample");
+    log_message(LOG_LEVEL_INFO, "unused information");
+    log_tick();
+    assert(clock_reads == 0U);
+    assert(syslog_count == 0U);
+
+    log_message(LOG_LEVEL_WARNING, "operational warning remains visible");
+    assert(clock_reads == 1U);
+    assert(syslog_count == 1U);
+    log_close();
+}
+
 int main(void)
 {
     test_operational_syslog();
+    test_disabled_output_skips_formatting_clocks();
     test_failed_file_switch_preserves_rotation_path();
     test_debug_logging_to_file();
     test_file_logging_respects_level();

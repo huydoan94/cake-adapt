@@ -3,7 +3,6 @@
 #include "helpers.h"
 #include "constants.h"
 
-
 #include <limits.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -42,8 +41,8 @@ uint64_t percentage_of(
 )
 {
     /* Split before multiplying to avoid overflowing the full-width value. */
-    return value / 100U * percentage +
-        (value % 100U * percentage + 99U) / 100U;
+    return value / PERCENT * percentage +
+        (value % PERCENT * percentage + PERCENT - 1U) / PERCENT;
 }
 
 uint64_t rounded_divide(
@@ -77,8 +76,8 @@ bool read_clock_microseconds(
     ) {
         return false;
     }
-    *timestamp = (uint64_t)value.tv_sec * 1000000U +
-        (uint64_t)value.tv_nsec / 1000U;
+    *timestamp = (uint64_t)value.tv_sec * MICROSECONDS_PER_SECOND +
+        (uint64_t)value.tv_nsec / NANOSECONDS_PER_MICROSECOND;
     return true;
 }
 
@@ -87,8 +86,8 @@ unsigned int load_percent(
     uint64_t shaper_rate
 )
 {
-    uint64_t traffic_kbps = traffic_rate / 1000U;
-    uint64_t shaper_kbps = shaper_rate / 1000U;
+    uint64_t traffic_kbps = traffic_rate / KILOBIT;
+    uint64_t shaper_kbps = shaper_rate / KILOBIT;
     uint64_t quotient;
     uint64_t remainder;
     uint64_t percentage;
@@ -97,13 +96,13 @@ unsigned int load_percent(
         return 0U;
     }
     quotient = traffic_kbps / shaper_kbps;
-    if (quotient > UINT_MAX / 100U) {
+    if (quotient > UINT_MAX / PERCENT) {
         return UINT_MAX;
     }
     remainder = traffic_kbps % shaper_kbps;
-    percentage = quotient * 100U;
-    /* Whole kbit/s bounds remainder by UINT64_MAX / 1000: no overflow here. */
-    percentage += remainder * 100U / shaper_kbps;
+    percentage = quotient * PERCENT;
+    /* Whole kbit/s bounds remainder by UINT64_MAX / KILOBIT. */
+    percentage += remainder * PERCENT / shaper_kbps;
     return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
 }
 
@@ -118,15 +117,16 @@ bool elapsed_milliseconds(
 
     if (nanoseconds < 0L) {
         --seconds;
-        nanoseconds += 1000000000L;
+        nanoseconds += NANOSECONDS_PER_SECOND;
     }
     if (
         seconds < 0 ||
-        (uint64_t)seconds > UINT64_MAX / 1000U
+        (uint64_t)seconds > UINT64_MAX / MILLISECONDS_PER_SECOND
     ) {
         return false;
     }
-    *elapsed = (uint64_t)seconds * 1000U + (uint64_t)nanoseconds / 1000000U;
+    *elapsed = (uint64_t)seconds * MILLISECONDS_PER_SECOND +
+        (uint64_t)nanoseconds / NANOSECONDS_PER_MILLISECOND;
     return *elapsed > 0U;
 }
 
@@ -135,8 +135,16 @@ uint64_t bits_per_second(
     uint64_t elapsed_ms
 )
 {
-    /* 8,000 converts a byte delta over milliseconds to bits per second. */
-    long double rate = (long double)byte_delta * 8000.0L /
+    const uint64_t scale = BITS_PER_BYTE * MILLISECONDS_PER_SECOND;
+    uint64_t scaled;
+    long double rate;
+
+    /* Normal counters need only integer arithmetic, including on soft-float CPUs. */
+    if (!__builtin_mul_overflow(byte_delta, scale, &scaled)) {
+        return scaled / elapsed_ms;
+    }
+    /* Keep the full-width fallback for exceptional counter jumps. */
+    rate = (long double)byte_delta * (long double)scale /
         (long double)elapsed_ms;
 
     return rate >= (long double)UINT64_MAX ? UINT64_MAX : (uint64_t)rate;

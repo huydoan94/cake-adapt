@@ -3,6 +3,7 @@
 #include "latency.h"
 
 #include <assert.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <stdint.h>
@@ -528,6 +529,43 @@ static void test_pinger_arguments_reject_command_substitution(void)
     assert(!latency_is_open(&latency));
 }
 
+static size_t open_descriptor_count(void)
+{
+    DIR *directory = opendir("/proc/self/fd");
+    size_t count = 0U;
+
+    assert(directory != NULL);
+    while (readdir(directory) != NULL) {
+        count++;
+    }
+    assert(closedir(directory) == 0);
+    return count;
+}
+
+static void test_failed_spawn_closes_pipe(void)
+{
+    struct latency latency;
+    const char *targets[] = { "127.0.0.1" };
+    char error[256];
+    size_t descriptors = open_descriptor_count();
+
+    latency_init(&latency);
+    assert(latency_open(
+        &latency,
+        "lo",
+        targets,
+        1U,
+        1000000U,
+        "",
+        "/nonexistent-cake-adapt-test/fping",
+        error,
+        sizeof(error)
+    ) != 0);
+    assert(strstr(error, "could not start fping") != NULL);
+    assert(!latency_is_open(&latency));
+    assert(open_descriptor_count() == descriptors);
+}
+
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
     struct latency latency;
@@ -603,6 +641,7 @@ int main(void)
     test_reflector_comparison_uses_active_order();
     test_reflector_rotation_uses_first_standby();
     test_pinger_arguments_reject_command_substitution();
+    test_failed_spawn_closes_pipe();
     test_prefix_and_extra_args_reach_owned_process();
 
     (void)puts("latency tests passed");

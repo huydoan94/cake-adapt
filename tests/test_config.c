@@ -225,6 +225,20 @@ static void test_new_timer_and_limit_validation(void)
     config.connection_active_threshold_bits_per_second = 5000001U;
     assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 }
+static void test_option_copy_boundaries(void)
+{
+    char value[4] = "old";
+    char error[128];
+
+    assert(copy_option(value, sizeof(value), "abc", "test", error, sizeof(error)) == 0);
+    assert(strcmp(value, "abc") == 0);
+    assert(copy_option(value, sizeof(value), "abcd", "test", error, sizeof(error)) == -1);
+    assert(strcmp(value, "abc") == 0);
+    assert(strstr(error, "too long") != NULL);
+    assert(copy_option(value, sizeof(value), "", "test", error, sizeof(error)) == 0);
+    assert(value[0] == '\0');
+}
+
 int main(void)
 {
     uint64_t value = 0U;
@@ -248,6 +262,7 @@ int main(void)
     assert(strstr(error, "whole kbit/s") != NULL);
 
     test_fping_only_and_intentional_exclusions();
+    test_option_copy_boundaries();
     test_scalar_option_types();
     test_supported_option_names();
     test_interface_resolution();

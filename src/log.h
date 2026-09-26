@@ -2,9 +2,15 @@
 #define LOG_H_INCLUDED
 
 #include "cpu.h"
+#include "constants.h"
 
 #include <stdbool.h>
 #include <stdint.h>
+
+#define LOG_PATH_SIZE 512U
+#define LOG_DATETIME_SIZE 20U
+#define LOG_EXPORT_PATH_SIZE \
+    (LOG_PATH_SIZE + LOG_DATETIME_SIZE + sizeof(LOG_EXTENSION) + sizeof(GZIP_EXTENSION))
 
 enum log_level {
     LOG_LEVEL_ERROR,
