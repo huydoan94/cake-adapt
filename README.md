@@ -63,10 +63,10 @@ not a runtime dependency.
 
 - [Current-code flowcharts](flowchart/README.md) — architecture, event flow,
   controller decisions, CAKE updates, and lifecycle behavior.
-  [Open the rendered viewer](https://html-preview.github.io/?url=https://github.com/huydoan94/cake-adapt/blob/main/flowchart/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
 - [VM profiling results](profiling/README.md) — interactive flame graphs,
   raw `perf` stacks, and the separately identified profiling conclusion.
-  [Open the rendered viewer](https://html-preview.github.io/?url=https://github.com/huydoan94/cake-adapt/blob/main/profiling/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
 
 ## Data flow
 
