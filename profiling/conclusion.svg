@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040" role="img" aria-labelledby="title desc">
+  <title id="title">cake-adapt profiling conclusion</title>
+  <desc id="desc">A derived summary of the mixed and userspace flame graph measurements, with inclusive stack shares and interpretation.</desc>
+  <style>
+    .background { fill: #0b1120; }
+    .panel { fill: #111b2e; stroke: #334155; stroke-width: 1.5; }
+    .title { fill: #f8fafc; font: 700 30px sans-serif; }
+    .heading { fill: #f8fafc; font: 700 20px sans-serif; }
+    .label { fill: #e2e8f0; font: 600 14px sans-serif; }
+    .text { fill: #cbd5e1; font: 14px sans-serif; }
+    .small { fill: #94a3b8; font: 12px sans-serif; }
+    .metric { fill: #f8fafc; font: 700 24px sans-serif; }
+    .code { fill: #e2e8f0; font: 13px monospace; }
+    .track { fill: #26334b; }
+    .wait { fill: #60a5fa; }
+    .kernel { fill: #fb7185; }
+    .event { fill: #f59e0b; }
+    .latency { fill: #34d399; }
+    .control { fill: #c084fc; }
+    .good { fill: #16352f; stroke: #34d399; stroke-width: 1.5; }
+    .focus { fill: #382a18; stroke: #f59e0b; stroke-width: 1.5; }
+    .quiet { fill: #2f2340; stroke: #c084fc; stroke-width: 1.5; }
+  </style>
+
+  <rect class="background" width="1600" height="1040"/>
+  <text class="title" x="45" y="52">cake-adapt profiling conclusion</text>
+  <text class="text" x="45" y="80">Derived from the repository's raw flame graphs; percentages are inclusive stack shares and may overlap.</text>
+
+  <rect class="panel" x="40" y="108" width="1520" height="112" rx="12"/>
+  <text class="small" x="75" y="142">Measured process CPU</text>
+  <text class="metric" x="75" y="182">0.32% of one CPU</text>
+  <text class="small" x="480" y="142">Userspace capture</text>
+  <text class="metric" x="480" y="182">64 samples / 180 s</text>
+  <text class="small" x="925" y="142">Mixed capture</text>
+  <text class="metric" x="925" y="182">408 samples / 60 s</text>
+  <text class="small" x="1300" y="142">Lost samples</text>
+  <text class="metric" x="1300" y="182">0</text>
+
+  <rect class="panel" x="40" y="245" width="740" height="470" rx="12"/>
+  <text class="heading" x="70" y="283">Mixed user/kernel capture</text>
+  <text class="small" x="70" y="306">Inclusive share of 408 samples · 0–100% scale</text>
+
+  <text class="code" x="70" y="354">epoll wait chain</text>
+  <rect class="track" x="300" y="338" width="400" height="20" rx="3"/>
+  <rect class="wait" x="300" y="338" width="266" height="20" rx="3"/>
+  <text class="label" x="710" y="354">66.42%</text>
+
+  <text class="code" x="70" y="410">softirq handling</text>
+  <rect class="track" x="300" y="394" width="400" height="20" rx="3"/>
+  <rect class="kernel" x="300" y="394" width="120" height="20" rx="3"/>
+  <text class="label" x="710" y="410">29.90%</text>
+
+  <text class="code" x="70" y="466">monitor_run</text>
+  <rect class="track" x="300" y="450" width="400" height="20" rx="3"/>
+  <rect class="event" x="300" y="450" width="29" height="20" rx="3"/>
+  <text class="label" x="710" y="466">7.35%</text>
+
+  <text class="code" x="70" y="522">tc_dump_qdisc</text>
+  <rect class="track" x="300" y="506" width="400" height="20" rx="3"/>
+  <rect class="event" x="300" y="506" width="10" height="20" rx="3"/>
+  <text class="label" x="710" y="522">2.45%</text>
+
+  <text class="code" x="70" y="578">cake_dequeue</text>
+  <rect class="track" x="300" y="562" width="400" height="20" rx="3"/>
+  <rect class="kernel" x="300" y="562" width="8" height="20" rx="3"/>
+  <text class="label" x="710" y="578">1.96%</text>
+
+  <text class="text" x="70" y="633">The dominant sampled stack is the event-loop wait chain.</text>
+  <text class="small" x="70" y="660">Softirq, qdisc, and CAKE frames are kernel network work observed</text>
+  <text class="small" x="70" y="680">during the download workload, not controller arithmetic.</text>
+
+  <rect class="panel" x="805" y="245" width="755" height="470" rx="12"/>
+  <text class="heading" x="835" y="283">Userspace capture</text>
+  <text class="small" x="835" y="306">Inclusive share of 64 samples · 0–40% scale</text>
+
+  <text class="code" x="835" y="354">monitor_run</text>
+  <rect class="track" x="1085" y="338" width="380" height="20" rx="3"/>
+  <rect class="event" x="1085" y="338" width="356" height="20" rx="3"/>
+  <text class="label" x="1477" y="354">37.50%</text>
+
+  <text class="code" x="835" y="398">handle_latency_output</text>
+  <rect class="track" x="1085" y="382" width="380" height="20" rx="3"/>
+  <rect class="latency" x="1085" y="382" width="178" height="20" rx="3"/>
+  <text class="label" x="1477" y="398">18.75%</text>
+
+  <text class="code" x="835" y="442">receive_latency_samples</text>
+  <rect class="track" x="1085" y="426" width="380" height="20" rx="3"/>
+  <rect class="latency" x="1085" y="426" width="163" height="20" rx="3"/>
+  <text class="label" x="1477" y="442">17.19%</text>
+
+  <text class="code" x="835" y="486">handle_traffic_timer</text>
+  <rect class="track" x="1085" y="470" width="380" height="20" rx="3"/>
+  <rect class="event" x="1085" y="470" width="104" height="20" rx="3"/>
+  <text class="label" x="1477" y="486">10.94%</text>
+
+  <text class="code" x="835" y="530">observe_traffic_cycle</text>
+  <rect class="track" x="1085" y="514" width="380" height="20" rx="3"/>
+  <rect class="event" x="1085" y="514" width="89" height="20" rx="3"/>
+  <text class="label" x="1477" y="530">9.38%</text>
+
+  <text class="code" x="835" y="574">cake_read</text>
+  <rect class="track" x="1085" y="558" width="380" height="20" rx="3"/>
+  <rect class="event" x="1085" y="558" width="59" height="20" rx="3"/>
+  <text class="label" x="1477" y="574">6.25%</text>
+
+  <text class="code" x="835" y="618">controller_update</text>
+  <rect class="track" x="1085" y="602" width="380" height="20" rx="3"/>
+  <rect class="control" x="1085" y="602" width="15" height="20" rx="3"/>
+  <text class="label" x="1477" y="618">1.56%</text>
+
+  <text class="small" x="835" y="660">One userspace sample equals 1.56%; small differences are not precise.</text>
+  <text class="small" x="835" y="680">Parent and child rows overlap and must not be added together.</text>
+
+  <rect class="panel" x="40" y="740" width="1520" height="250" rx="12"/>
+  <text class="heading" x="70" y="780">Interpretation</text>
+
+  <rect class="good" x="70" y="808" width="455" height="125" rx="10"/>
+  <text class="label" x="95" y="840">No measured CPU bottleneck</text>
+  <text class="text" x="95" y="871">Most mixed samples are event-loop waiting.</text>
+  <text class="text" x="95" y="897">Absolute process CPU use was about 0.32%.</text>
+
+  <rect class="focus" x="572" y="808" width="455" height="125" rx="10"/>
+  <text class="label" x="597" y="840">Largest active application paths</text>
+  <text class="text" x="597" y="871">Latency-sample handling and periodic CAKE</text>
+  <text class="text" x="597" y="897">observation dominate resolved userspace stacks.</text>
+
+  <rect class="quiet" x="1075" y="808" width="455" height="125" rx="10"/>
+  <text class="label" x="1100" y="840">Controller arithmetic is not hot</text>
+  <text class="text" x="1100" y="871">controller_update appeared once among 64</text>
+  <text class="text" x="1100" y="897">userspace samples: 1.56% inclusive.</text>
+
+  <text class="small" x="70" y="966">Source: flamegraph-user.svg, flamegraph-mixed.svg, and their folded stacks in profiling/raw.</text>
+</svg>

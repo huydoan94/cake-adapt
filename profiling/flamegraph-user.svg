@@ -1,0 +1,619 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1800" height="366" onload="init(evt)" viewBox="0 0 1800 366" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1800.0" height="366.0" fill="url(#background)"  />
+<text id="title" x="900.00" y="24" >cake-adapt userspace CPU flame graph</text>
+<text id="subtitle" x="900.00" y="48" >180 seconds under repeated download; width is sampled on-CPU time</text>
+<text id="details" x="10.00" y="349" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1690.00" y="24" >Search</text>
+<text id="ignorecase" x="1774.00" y="24" >ic</text>
+<text id="matched" x="1690.00" y="349" > </text>
+<g id="frames">
+<g >
+<title>handle_traffic_timer (1,001,001 nanoseconds, 1.56%)</title><rect x="1623.1" y="189" width="27.8" height="15.0" fill="rgb(245,146,44)" rx="2" ry="2" />
+<text  x="1626.12" y="199.5" >h..</text>
+</g>
+<g >
+<title>send_request (1,001,001 nanoseconds, 1.56%)</title><rect x="1233.8" y="109" width="27.8" height="15.0" fill="rgb(235,173,33)" rx="2" ry="2" />
+<text  x="1236.75" y="119.5" >s..</text>
+</g>
+<g >
+<title>receive_latency_samples (11,011,011 nanoseconds, 17.19%)</title><rect x="1289.4" y="173" width="305.9" height="15.0" fill="rgb(244,178,43)" rx="2" ry="2" />
+<text  x="1292.38" y="183.5" >receive_latency_samples</text>
+</g>
+<g >
+<title>[libubox.so.20260213] (24,024,024 nanoseconds, 37.50%)</title><rect x="983.4" y="205" width="667.5" height="15.0" fill="rgb(241,147,40)" rx="2" ry="2" />
+<text  x="986.44" y="215.5" >[libubox.so.20260213]</text>
+</g>
+<g >
+<title>[unknown] (33,033,033 nanoseconds, 51.56%)</title><rect x="844.4" y="285" width="917.8" height="15.0" fill="rgb(242,180,40)" rx="2" ry="2" />
+<text  x="847.38" y="295.5" >[unknown]</text>
+</g>
+<g >
+<title>apply_bandwidth (1,001,001 nanoseconds, 1.56%)</title><rect x="1400.6" y="157" width="27.8" height="15.0" fill="rgb(238,150,37)" rx="2" ry="2" />
+<text  x="1403.62" y="167.5" >a..</text>
+</g>
+<g >
+<title>handle_latency_output (12,012,012 nanoseconds, 18.75%)</title><rect x="1261.6" y="189" width="333.7" height="15.0" fill="rgb(234,146,31)" rx="2" ry="2" />
+<text  x="1264.56" y="199.5" >handle_latency_output</text>
+</g>
+<g >
+<title>parse_fping_line (2,002,002 nanoseconds, 3.12%)</title><rect x="1511.9" y="141" width="55.6" height="15.0" fill="rgb(246,149,46)" rx="2" ry="2" />
+<text  x="1514.88" y="151.5" >parse..</text>
+</g>
+<g >
+<title>monitor_run (24,024,024 nanoseconds, 37.50%)</title><rect x="983.4" y="221" width="667.5" height="15.0" fill="rgb(243,146,41)" rx="2" ry="2" />
+<text  x="986.44" y="231.5" >monitor_run</text>
+</g>
+<g >
+<title>[libc.so] (1,001,001 nanoseconds, 1.56%)</title><rect x="1539.7" y="125" width="27.8" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="1542.69" y="135.5" >[..</text>
+</g>
+<g >
+<title>cake_read (4,004,004 nanoseconds, 6.25%)</title><rect x="1150.3" y="125" width="111.3" height="15.0" fill="rgb(241,77,40)" rx="2" ry="2" />
+<text  x="1153.31" y="135.5" >cake_read</text>
+</g>
+<g >
+<title>[libc.so] (1,001,001 nanoseconds, 1.56%)</title><rect x="1456.2" y="141" width="27.9" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="1459.25" y="151.5" >[..</text>
+</g>
+<g >
+<title>cake_set_bandwidth (1,001,001 nanoseconds, 1.56%)</title><rect x="1400.6" y="141" width="27.8" height="15.0" fill="rgb(238,77,37)" rx="2" ry="2" />
+<text  x="1403.62" y="151.5" >c..</text>
+</g>
+<g >
+<title>__kernel_vsyscall (4,004,004 nanoseconds, 6.25%)</title><rect x="1650.9" y="269" width="111.3" height="15.0" fill="rgb(236,119,34)" rx="2" ry="2" />
+<text  x="1653.94" y="279.5" >__kernel_vsys..</text>
+</g>
+<g >
+<title>handle_traffic_timer (6,006,006 nanoseconds, 9.38%)</title><rect x="1094.7" y="173" width="166.9" height="15.0" fill="rgb(245,146,44)" rx="2" ry="2" />
+<text  x="1097.69" y="183.5" >handle_traffic_timer</text>
+</g>
+<g >
+<title>netlink_receive_qdisc_events (1,001,001 nanoseconds, 1.56%)</title><rect x="1595.3" y="173" width="27.8" height="15.0" fill="rgb(238,194,36)" rx="2" ry="2" />
+<text  x="1598.31" y="183.5" >n..</text>
+</g>
+<g >
+<title>[libc.so] (1,001,001 nanoseconds, 1.56%)</title><rect x="1400.6" y="125" width="27.8" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="1403.62" y="135.5" >[..</text>
+</g>
+<g >
+<title>[libnl-tiny.so.1] (1,001,001 nanoseconds, 1.56%)</title><rect x="1595.3" y="157" width="27.8" height="15.0" fill="rgb(237,147,35)" rx="2" ry="2" />
+<text  x="1598.31" y="167.5" >[..</text>
+</g>
+<g >
+<title>send_request (2,002,002 nanoseconds, 3.12%)</title><rect x="1178.1" y="93" width="55.7" height="15.0" fill="rgb(235,173,33)" rx="2" ry="2" />
+<text  x="1181.12" y="103.5" >send_..</text>
+</g>
+<g >
+<title>[libnl-tiny.so.1] (1,001,001 nanoseconds, 1.56%)</title><rect x="1178.1" y="61" width="27.8" height="15.0" fill="rgb(237,147,35)" rx="2" ry="2" />
+<text  x="1181.12" y="71.5" >[..</text>
+</g>
+<g >
+<title>[libnl-tiny.so.1] (2,002,002 nanoseconds, 3.12%)</title><rect x="1178.1" y="77" width="55.7" height="15.0" fill="rgb(237,147,35)" rx="2" ry="2" />
+<text  x="1181.12" y="87.5" >[libn..</text>
+</g>
+<g >
+<title>handle_qdisc_event (1,001,001 nanoseconds, 1.56%)</title><rect x="1595.3" y="141" width="27.8" height="15.0" fill="rgb(241,146,39)" rx="2" ry="2" />
+<text  x="1598.31" y="151.5" >h..</text>
+</g>
+<g >
+<title>handle_qdisc_events (1,001,001 nanoseconds, 1.56%)</title><rect x="1595.3" y="189" width="27.8" height="15.0" fill="rgb(238,146,36)" rx="2" ry="2" />
+<text  x="1598.31" y="199.5" >h..</text>
+</g>
+<g >
+<title>[libc.so] (5,005,005 nanoseconds, 7.81%)</title><rect x="844.4" y="269" width="139.0" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="847.38" y="279.5" >[libc.so]</text>
+</g>
+<g >
+<title>log_data (1,001,001 nanoseconds, 1.56%)</title><rect x="1567.5" y="157" width="27.8" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="1570.50" y="167.5" >l..</text>
+</g>
+<g >
+<title>all (64,064,064 nanoseconds, 100%)</title><rect x="10.0" y="317" width="1780.0" height="15.0" fill="rgb(255,230,55)" rx="2" ry="2" />
+<text  x="13.00" y="327.5" ></text>
+</g>
+<g >
+<title>observe_traffic_cycle (6,006,006 nanoseconds, 9.38%)</title><rect x="1094.7" y="157" width="166.9" height="15.0" fill="rgb(241,149,39)" rx="2" ry="2" />
+<text  x="1097.69" y="167.5" >observe_traffic_cycle</text>
+</g>
+<g >
+<title>__kernel_vsyscall (1,001,001 nanoseconds, 1.56%)</title><rect x="1762.2" y="285" width="27.8" height="15.0" fill="rgb(236,119,34)" rx="2" ry="2" />
+<text  x="1765.19" y="295.5" >_..</text>
+</g>
+<g >
+<title>[libc.so] (1,001,001 nanoseconds, 1.56%)</title><rect x="1150.3" y="109" width="27.8" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="1153.31" y="119.5" >[..</text>
+</g>
+<g >
+<title>[unknown] (1,001,001 nanoseconds, 1.56%)</title><rect x="1484.1" y="141" width="27.8" height="15.0" fill="rgb(242,180,40)" rx="2" ry="2" />
+<text  x="1487.06" y="151.5" >[..</text>
+</g>
+<g >
+<title>[unknown] (24,024,024 nanoseconds, 37.50%)</title><rect x="983.4" y="269" width="667.5" height="15.0" fill="rgb(242,180,40)" rx="2" ry="2" />
+<text  x="986.44" y="279.5" >[unknown]</text>
+</g>
+<g >
+<title>cake-adapt (64,064,064 nanoseconds, 100.00%)</title><rect x="10.0" y="301" width="1780.0" height="15.0" fill="rgb(241,77,40)" rx="2" ry="2" />
+<text  x="13.00" y="311.5" >cake-adapt</text>
+</g>
+<g >
+<title>latency_receive (4,004,004 nanoseconds, 6.25%)</title><rect x="1456.2" y="157" width="111.3" height="15.0" fill="rgb(238,94,36)" rx="2" ry="2" />
+<text  x="1459.25" y="167.5" >latency_receive</text>
+</g>
+<g >
+<title>netlink_dump_qdiscs (2,002,002 nanoseconds, 3.12%)</title><rect x="1178.1" y="109" width="55.7" height="15.0" fill="rgb(241,194,40)" rx="2" ry="2" />
+<text  x="1181.12" y="119.5" >netli..</text>
+</g>
+<g >
+<title>[libc.so] (1,001,001 nanoseconds, 1.56%)</title><rect x="1484.1" y="125" width="27.8" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="1487.06" y="135.5" >[..</text>
+</g>
+<g >
+<title>[libc.so] (4,004,004 nanoseconds, 6.25%)</title><rect x="1289.4" y="157" width="111.2" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="1292.38" y="167.5" >[libc.so]</text>
+</g>
+<g >
+<title>handle_valid_response (1,001,001 nanoseconds, 1.56%)</title><rect x="1205.9" y="61" width="27.9" height="15.0" fill="rgb(246,146,45)" rx="2" ry="2" />
+<text  x="1208.94" y="71.5" >h..</text>
+</g>
+<g >
+<title>load_percent (1,001,001 nanoseconds, 1.56%)</title><rect x="1428.4" y="125" width="27.8" height="15.0" fill="rgb(241,157,39)" rx="2" ry="2" />
+<text  x="1431.44" y="135.5" >l..</text>
+</g>
+<g >
+<title>[libc.so] (30,030,030 nanoseconds, 46.88%)</title><rect x="10.0" y="285" width="834.4" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="13.00" y="295.5" >[libc.so]</text>
+</g>
+<g >
+<title>controller_update (1,001,001 nanoseconds, 1.56%)</title><rect x="1428.4" y="157" width="27.8" height="15.0" fill="rgb(245,146,45)" rx="2" ry="2" />
+<text  x="1431.44" y="167.5" >c..</text>
+</g>
+<g >
+<title>update_direction (1,001,001 nanoseconds, 1.56%)</title><rect x="1428.4" y="141" width="27.8" height="15.0" fill="rgb(247,150,46)" rx="2" ry="2" />
+<text  x="1431.44" y="151.5" >u..</text>
+</g>
+<g >
+<title>observe_cake (4,004,004 nanoseconds, 6.25%)</title><rect x="1150.3" y="141" width="111.3" height="15.0" fill="rgb(243,149,42)" rx="2" ry="2" />
+<text  x="1153.31" y="151.5" >observe_cake</text>
+</g>
+<g >
+<title>[libubox.so.20260213] (6,006,006 nanoseconds, 9.38%)</title><rect x="1094.7" y="189" width="166.9" height="15.0" fill="rgb(241,147,40)" rx="2" ry="2" />
+<text  x="1097.69" y="199.5" >[libubox.so.20260213]</text>
+</g>
+<g >
+<title>[libc.so] (24,024,024 nanoseconds, 37.50%)</title><rect x="983.4" y="253" width="667.5" height="15.0" fill="rgb(243,147,42)" rx="2" ry="2" />
+<text  x="986.44" y="263.5" >[libc.so]</text>
+</g>
+<g >
+<title>main (24,024,024 nanoseconds, 37.50%)</title><rect x="983.4" y="237" width="667.5" height="15.0" fill="rgb(247,83,46)" rx="2" ry="2" />
+<text  x="986.44" y="247.5" >main</text>
+</g>
+<g >
+<title>log_data (1,001,001 nanoseconds, 1.56%)</title><rect x="1261.6" y="173" width="27.8" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="1264.56" y="183.5" >l..</text>
+</g>
+</g>
+</svg>

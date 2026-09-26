@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cake-adapt profiling results</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #080e1a;
+      --panel: #111b2e;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --link: #7dd3fc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 32px max(24px, 5vw);
+      background: linear-gradient(135deg, #082f49, #312e81);
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
+    header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
+    nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    a { color: var(--link); }
+    nav a, .actions a {
+      padding: 7px 11px;
+      border: 1px solid #64748b;
+      border-radius: 7px;
+      background: #0f172a;
+      text-decoration: none;
+    }
+    main { max-width: 1760px; margin: auto; padding: 24px; }
+    section {
+      margin-bottom: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+    section > header {
+      padding: 18px 22px;
+      background: #17233a;
+    }
+    section h2 { margin: 0 0 6px; }
+    section p { margin: 0; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px; }
+    object {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: #0b1120;
+    }
+    .conclusion { height: min(65vw, 1040px); min-height: 680px; }
+    .user { height: min(24vw, 366px); min-height: 300px; }
+    .mixed { height: min(65vw, 1038px); min-height: 680px; }
+    .raw { padding: 4px 22px 22px; }
+    .raw li { margin: 7px 0; }
+    footer { padding: 0 24px 28px; color: var(--muted); text-align: center; }
+    @media (max-width: 700px) {
+      .conclusion, .mixed { min-height: 560px; }
+      .user { min-height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>cake-adapt profiling results</h1>
+    <p>OpenWrt 25.12 x86 VM profiling under repeated validated downloads.</p>
+    <p>The flame graphs are generated directly from the stored perf stacks. Hover over frames for values and click frames to zoom.</p>
+    <nav>
+      <a href="#conclusion">Conclusion</a>
+      <a href="#userspace">Userspace flame graph</a>
+      <a href="#mixed">Mixed flame graph</a>
+      <a href="#raw">Raw inputs</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="conclusion">
+      <header>
+        <h2>Derived conclusion</h2>
+        <p>Interpretation is kept separate from the raw flame graphs below.</p>
+      </header>
+      <div class="actions">
+        <a href="conclusion.svg" target="_blank">Open SVG</a>
+      </div>
+      <object class="conclusion" data="conclusion.svg" type="image/svg+xml">
+        <a href="conclusion.svg">Open the profiling conclusion SVG</a>
+      </object>
+    </section>
+
+    <section id="userspace">
+      <header>
+        <h2>Userspace CPU flame graph</h2>
+        <p>180-second cpu-clock:u capture · 64 samples.</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-user.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/user.folded">Open folded stacks</a>
+        <a href="raw/user.perf-script.txt">Open perf script output</a>
+      </div>
+      <object class="user" data="flamegraph-user.svg" type="image/svg+xml">
+        <a href="flamegraph-user.svg">Open the userspace flame graph</a>
+      </object>
+    </section>
+
+    <section id="mixed">
+      <header>
+        <h2>Mixed user/kernel CPU flame graph</h2>
+        <p>60-second cpu-clock capture · 408 samples.</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-mixed.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/mixed.folded">Open folded stacks</a>
+        <a href="raw/mixed.perf-script.txt">Open perf script output</a>
+      </div>
+      <object class="mixed" data="flamegraph-mixed.svg" type="image/svg+xml">
+        <a href="flamegraph-mixed.svg">Open the mixed flame graph</a>
+      </object>
+    </section>
+
+    <section id="raw">
+      <header>
+        <h2>Raw profiling inputs</h2>
+        <p>These files reproduce the flame graphs without relying on the conclusion diagram.</p>
+      </header>
+      <ul class="raw">
+        <li><a href="raw/user.perf-script.txt">Userspace perf script output</a></li>
+        <li><a href="raw/mixed.perf-script.txt">Mixed perf script output</a></li>
+        <li><a href="raw/user.folded">Userspace folded stacks</a></li>
+        <li><a href="raw/mixed.folded">Mixed folded stacks</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>Generated profiling artifacts are stored with this repository.</footer>
+</body>
+</html>
