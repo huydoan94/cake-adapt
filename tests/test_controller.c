@@ -33,11 +33,6 @@ static struct controller_config default_config(void)
     };
 }
 
-static struct controller_config monitor_config(void)
-{
-    return default_config();
-}
-
 static struct controller_config adjusting_config(void)
 {
     struct controller_config config = default_config();
@@ -118,7 +113,7 @@ static void init_controller(
 static void test_initial_state_is_unknown(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
 
     init_controller(&controller, &config);
 
@@ -132,7 +127,7 @@ static void test_initial_state_is_unknown(void)
 static void test_low_load_is_below_capacity(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -156,7 +151,7 @@ static void test_low_load_is_below_capacity(void)
 static void test_sustained_download_is_saturated(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         7200000U,
         8U * MEBABIT,
@@ -181,7 +176,7 @@ static void test_sustained_download_is_saturated(void)
 static void test_brief_burst_does_not_saturate(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input high = input_with_rates(
         8U * MEBABIT,
         8U * MEBABIT,
@@ -207,7 +202,7 @@ static void test_brief_burst_does_not_saturate(void)
 static void test_line_hysteresis_and_recovery(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input high = input_with_rates(
         8U * MEBABIT,
         8U * MEBABIT,
@@ -243,7 +238,7 @@ static void test_line_hysteresis_and_recovery(void)
 static void test_invalid_direction_returns_to_unknown(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -265,7 +260,7 @@ static void test_invalid_direction_returns_to_unknown(void)
 static void test_three_of_six_delays_detect_bufferbloat(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -295,7 +290,7 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
 static void test_below_baseline_delay_remains_signed(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -321,7 +316,7 @@ static void test_below_baseline_delay_remains_signed(void)
 static void test_delay_window_clears_after_old_delays_expire(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -346,7 +341,7 @@ static void test_delay_window_clears_after_old_delays_expire(void)
 static void test_missing_probe_holds_delay_window(void)
 {
     struct controller controller;
-    const struct controller_config config = monitor_config();
+    const struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -371,7 +366,7 @@ static void test_missing_probe_holds_delay_window(void)
 static void test_configured_delay_window_and_direction_thresholds(void)
 {
     struct controller controller;
-    struct controller_config config = monitor_config();
+    struct controller_config config = default_config();
     struct controller_input input = input_with_rates(
         1U * MEBABIT,
         8U * MEBABIT,
@@ -399,7 +394,7 @@ static void test_configured_delay_window_and_direction_thresholds(void)
 static void test_invalid_delay_window_is_rejected(void)
 {
     struct controller controller;
-    struct controller_config config = monitor_config();
+    struct controller_config config = default_config();
 
     config.bufferbloat_detection_window = 0U;
     assert(controller_init(&controller, &config) != 0);
@@ -1180,9 +1175,87 @@ static void test_wakeup_grace_prevents_false_stall(void)
     assert(activity.state == CONTROLLER_STALL);
 }
 
+static void test_compact_delay_window_boundaries(void)
+{
+    struct controller controller;
+    struct controller_config config = default_config();
+    struct controller_input input = input_with_rates(0U, 1U, 0U, 1U);
+    struct controller_output output;
+
+    config.bufferbloat_detection_window = 1U;
+    config.bufferbloat_detection_threshold = 1U;
+    config.download.delay_threshold_microseconds = 0U;
+    config.upload.delay_threshold_microseconds = UINT64_MAX;
+    init_controller(&controller, &config);
+    input.latency.current_rtt_microseconds = UINT32_MAX;
+    input.latency.baseline_rtt_microseconds = 0U;
+    controller_update(&controller, &input, &output);
+    assert(output.download.average_delay_microseconds == INT32_MAX);
+    assert(output.download.delayed_sample_count == 1U);
+    assert(output.upload.delayed_sample_count == 0U);
+
+    input.latency.current_rtt_microseconds = 0U;
+    input.latency.baseline_rtt_microseconds = UINT32_MAX;
+    controller_update(&controller, &input, &output);
+    assert(output.download.average_delay_microseconds == -INT64_C(2147483647));
+    assert(output.download.delayed_sample_count == 0U);
+    assert(output.upload.delayed_sample_count == 0U);
+
+    input.latency.baseline_rtt_microseconds = 0U;
+    controller_update(&controller, &input, &output);
+    assert(output.download.delay_sum_microseconds == 0);
+    assert(output.download.delayed_sample_count == 0U);
+    controller_close(&controller);
+}
+
+static void test_delay_window_matches_rescanned_history(void)
+{
+    enum { WINDOW_SIZE = 17, SAMPLE_COUNT = 4096 };
+    struct controller controller;
+    struct controller_config config = default_config();
+    struct controller_input input = input_with_rates(0U, 1U, 0U, 1U);
+    struct controller_output output;
+    int64_t history[WINDOW_SIZE] = { 0 };
+    uint32_t random = 1U;
+
+    config.bufferbloat_detection_window = WINDOW_SIZE;
+    config.bufferbloat_detection_threshold = 5U;
+    config.download.delay_threshold_microseconds = 30000U;
+    config.upload.delay_threshold_microseconds = 1000000000U;
+    init_controller(&controller, &config);
+    for (unsigned int index = 0U; index < SAMPLE_COUNT; index++) {
+        int64_t sum = 0;
+        unsigned int download_delays = 0U;
+        unsigned int upload_delays = 0U;
+
+        random = random * 1664525U + 1013904223U;
+        input.latency.current_rtt_microseconds = random;
+        random = random * 1664525U + 1013904223U;
+        input.latency.baseline_rtt_microseconds = random;
+        history[index % WINDOW_SIZE] =
+            ((int64_t)input.latency.current_rtt_microseconds -
+                (int64_t)input.latency.baseline_rtt_microseconds) / 2;
+        for (unsigned int slot = 0U; slot < WINDOW_SIZE; slot++) {
+            sum += history[slot];
+            download_delays += history[slot] > 30000 ? 1U : 0U;
+            upload_delays += history[slot] > 1000000000 ? 1U : 0U;
+        }
+        controller_update(&controller, &input, &output);
+        assert(output.download.delay_sum_microseconds == sum);
+        assert(output.upload.delay_sum_microseconds == sum);
+        assert(output.download.average_delay_microseconds == sum / WINDOW_SIZE);
+        assert(output.upload.average_delay_microseconds == sum / WINDOW_SIZE);
+        assert(output.download.delayed_sample_count == download_delays);
+        assert(output.upload.delayed_sample_count == upload_delays);
+    }
+    controller_close(&controller);
+}
+
 int main(void)
 {
     test_initial_state_is_unknown();
+    test_compact_delay_window_boundaries();
+    test_delay_window_matches_rescanned_history();
     test_low_load_is_below_capacity();
     test_sustained_download_is_saturated();
     test_brief_burst_does_not_saturate();

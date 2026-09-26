@@ -3,6 +3,7 @@
 #include "config.h"
 #include "constants.h"
 #include "defaults.h"
+#include "error.h"
 #include "log.h"
 #include "monitor.h"
 
@@ -15,7 +16,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define ERROR_SIZE 256U
 static void print_usage(const char *program_name)
 {
     (void)fprintf(
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     const char *section_name = DEFAULT_SECTION;
     const char *active_config = DEFAULT_CONFIG_PATH;
     const char *log_directory;
-    char log_path[(CONFIG_STRING_SIZE * 2U) + 64U];
+    char log_path[LOG_PATH_SIZE];
     bool foreground = false;
     bool list_options = false;
     bool section_selected = false;

@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "controller.h"
+#include "defaults.h"
 #include "helpers.h"
 
 #include <errno.h>
@@ -8,15 +9,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define SATURATION_ENTER_PERCENT 90U
-#define SATURATION_EXIT_PERCENT 80U
-#define SATURATION_CONFIRMATION_SAMPLES 3U
-#define RECOVERY_CONFIRMATION_SAMPLES 3U
-
-#define BITS_PER_KILOBIT 1000U
-#define FACTOR_PER_THOUSAND 1000U
-#define FACTOR_PER_MILLION 1000000U
 
 static uint64_t scale_rate(
     uint64_t rate_bits_per_second,
@@ -26,7 +18,7 @@ static uint64_t scale_rate(
 {
     /* cake-autorate performs shaper calculations in whole kbit/s. */
     uint64_t rate_kilobits_per_second =
-        rate_bits_per_second / BITS_PER_KILOBIT;
+        rate_bits_per_second / KILOBIT;
     uint64_t quotient = rate_kilobits_per_second / factor_scale;
     uint64_t remainder = rate_kilobits_per_second % factor_scale;
     uint64_t scaled_kilobits_per_second;
@@ -52,7 +44,7 @@ static uint64_t scale_rate(
         ) ||
         __builtin_mul_overflow(
             scaled_kilobits_per_second,
-            UINT64_C(1000),
+            KILOBIT,
             &scaled_kilobits_per_second
         )
     ) {
@@ -87,7 +79,7 @@ static uint64_t rate_toward_base(
         adjusted_rate = scale_rate(
             rate,
             config->rate_adjust_down_low_load_per_thousand,
-            FACTOR_PER_THOUSAND
+            THOUSAND
         );
         return adjusted_rate < base_rate ? base_rate : adjusted_rate;
     }
@@ -95,7 +87,7 @@ static uint64_t rate_toward_base(
         adjusted_rate = scale_rate(
             rate,
             config->rate_adjust_up_low_load_per_thousand,
-            FACTOR_PER_THOUSAND
+            THOUSAND
         );
         return adjusted_rate > base_rate ? base_rate : adjusted_rate;
     }
@@ -108,7 +100,7 @@ static int initialize_direction(
     unsigned int delay_window
 )
 {
-    memset(direction, 0, sizeof(*direction));
+    /* controller_init has already zeroed both directions. */
     direction->config = *config;
     direction->delay_samples = calloc(
         delay_window,
@@ -136,17 +128,17 @@ int controller_init(
         config->bufferbloat_detection_threshold >
             config->bufferbloat_detection_window ||
         config->rate_minimum_adjust_down_bufferbloat_per_thousand >
-            UINT64_MAX / 1000U ||
+            UINT64_MAX / THOUSAND ||
         config->rate_maximum_adjust_down_bufferbloat_per_thousand >
-            UINT64_MAX / 1000U ||
+            UINT64_MAX / THOUSAND ||
         config->rate_minimum_adjust_up_high_load_per_thousand >
-            UINT64_MAX / 1000U ||
+            UINT64_MAX / THOUSAND ||
         config->rate_maximum_adjust_up_high_load_per_thousand >
-            UINT64_MAX / 1000U ||
+            UINT64_MAX / THOUSAND ||
         config->rate_adjust_down_low_load_per_thousand >
-            UINT64_MAX / 1000U ||
+            UINT64_MAX / THOUSAND ||
         config->rate_adjust_up_low_load_per_thousand >
-            UINT64_MAX / 1000U
+            UINT64_MAX / THOUSAND
     ) {
         errno = EINVAL;
         return -1;
@@ -196,9 +188,6 @@ static enum controller_line_state update_line_state(
     const struct controller_direction_input *input
 )
 {
-    uint64_t saturation_threshold;
-    uint64_t recovery_threshold;
-
     if (
         !input->valid ||
         input->cake_rate_bits_per_second == 0U
@@ -207,17 +196,12 @@ static enum controller_line_state update_line_state(
         return direction->state;
     }
 
-    /* Separate enter/exit thresholds provide hysteresis around line load. */
-    saturation_threshold = percentage_of(
-        input->cake_rate_bits_per_second,
-        SATURATION_ENTER_PERCENT
-    );
-    recovery_threshold = percentage_of(
-        input->cake_rate_bits_per_second,
-        SATURATION_EXIT_PERCENT
-    );
-
     if (direction->state == CONTROLLER_LINE_SATURATED) {
+        uint64_t recovery_threshold = percentage_of(
+            input->cake_rate_bits_per_second,
+            SATURATION_EXIT_PERCENT
+        );
+
         direction->saturation_samples = 0U;
         if (input->traffic_rate_bits_per_second <= recovery_threshold) {
             direction->recovery_samples++;
@@ -233,7 +217,11 @@ static enum controller_line_state update_line_state(
     }
 
     direction->recovery_samples = 0U;
-    if (input->traffic_rate_bits_per_second >= saturation_threshold) {
+    /* Only the threshold for the current hysteresis state is needed. */
+    if (
+        input->traffic_rate_bits_per_second >=
+        percentage_of(input->cake_rate_bits_per_second, SATURATION_ENTER_PERCENT)
+    ) {
         direction->saturation_samples++;
         if (
             direction->saturation_samples >=
@@ -257,7 +245,7 @@ static enum controller_congestion_state update_congestion(
     int64_t *average_delay_microseconds
 )
 {
-    struct controller_delay_sample *sample;
+    int32_t *sample;
     int64_t rtt_delta;
     int64_t owd_delta;
     unsigned int index;
@@ -276,21 +264,29 @@ static enum controller_congestion_state update_congestion(
     sample = &direction->delay_samples[index];
 
     /* Maintain a fixed rolling window without rescanning every sample. */
-    direction->delay_sum_microseconds -= sample->delay_microseconds;
+    direction->delay_sum_microseconds -= *sample;
     direction->delay_sum_microseconds += owd_delta;
-    sample->delay_microseconds = owd_delta;
 
-    if (sample->delayed) {
+    /* Thresholds are immutable for this window: derive the outgoing flag. */
+    if (
+        *sample > 0 &&
+        (uint64_t)*sample > direction->config.delay_threshold_microseconds
+    ) {
         direction->delayed_sample_count--;
     }
-    sample->delayed = owd_delta > 0 &&
-        (uint64_t)owd_delta > direction->config.delay_threshold_microseconds;
-    if (sample->delayed) {
+    if (
+        owd_delta > 0 &&
+        (uint64_t)owd_delta > direction->config.delay_threshold_microseconds
+    ) {
         direction->delayed_sample_count++;
     }
+    /* Half the difference of two uint32 RTTs fits in int32, including negatives. */
+    *sample = (int32_t)owd_delta;
 
-    direction->delay_next_sample =
-        (index + 1U) % config->bufferbloat_detection_window;
+    direction->delay_next_sample = index + 1U;
+    if (direction->delay_next_sample == config->bufferbloat_detection_window) {
+        direction->delay_next_sample = 0U;
+    }
     *average_delay_microseconds = direction->delay_sum_microseconds /
         (int64_t)config->bufferbloat_detection_window;
     direction->congestion =
@@ -308,7 +304,7 @@ static uint64_t interpolate_factor(
 )
 {
     uint64_t difference;
-    uint64_t base = minimum_factor_per_thousand * 1000U;
+    uint64_t base = minimum_factor_per_thousand * THOUSAND;
 
     /*
      * cake-autorate keeps the configured endpoints per-thousand, then keeps
@@ -339,7 +335,7 @@ static uint64_t downward_factor(
         config->average_delay_maximum_adjust_down_microseconds <=
         config->delay_threshold_microseconds
     ) {
-        adjustment = 1000U;
+        adjustment = THOUSAND;
     } else if (
         average_delay_microseconds > 0 &&
         (uint64_t)average_delay_microseconds >
@@ -352,11 +348,11 @@ static uint64_t downward_factor(
             (uint64_t)average_delay_microseconds >=
             config->average_delay_maximum_adjust_down_microseconds
         ) {
-            adjustment = 1000U;
+            adjustment = THOUSAND;
         } else {
             delay_above_threshold = (uint64_t)average_delay_microseconds -
                 config->delay_threshold_microseconds;
-            adjustment = 1000U * delay_above_threshold / adjustment_range;
+            adjustment = THOUSAND * delay_above_threshold / adjustment_range;
         }
     } else {
         adjustment = 0U;
@@ -386,7 +382,7 @@ static uint64_t upward_factor(
         (uint64_t)average_delay_microseconds <=
             config->average_delay_maximum_adjust_up_microseconds
     ) {
-        adjustment = 1000U;
+        adjustment = THOUSAND;
     } else if (
         (uint64_t)average_delay_microseconds <
         config->delay_threshold_microseconds
@@ -395,7 +391,7 @@ static uint64_t upward_factor(
             (uint64_t)average_delay_microseconds;
         adjustment_range = config->delay_threshold_microseconds -
             config->average_delay_maximum_adjust_up_microseconds;
-        adjustment = 1000U * delay_below_threshold / adjustment_range;
+        adjustment = THOUSAND * delay_below_threshold / adjustment_range;
     } else {
         adjustment = 0U;
     }
@@ -419,13 +415,13 @@ static enum controller_rate_reason adjust_rate(
     uint64_t previous_rate = direction->shaper_rate_bits_per_second;
     bool high_load;
 
-    if (!direction->config.adjust) {
+    if (
+        !direction->config.adjust ||
+        !input->valid
+    ) {
         return CONTROLLER_RATE_UNCHANGED;
     }
     if (direction->initial_rate_pending) {
-        if (!input->valid) {
-            return CONTROLLER_RATE_UNCHANGED;
-        }
         direction->initial_rate_pending = false;
         direction->last_congestion_adjustment_microseconds =
             timestamp_microseconds;
@@ -433,10 +429,7 @@ static enum controller_rate_reason adjust_rate(
             timestamp_microseconds;
         return CONTROLLER_RATE_INITIAL;
     }
-    if (
-        !input->valid ||
-        !latency_valid
-    ) {
+    if (!latency_valid) {
         return CONTROLLER_RATE_UNCHANGED;
     }
 
@@ -459,7 +452,7 @@ static enum controller_rate_reason adjust_rate(
                 config,
                 average_delay_microseconds
             ),
-            FACTOR_PER_MILLION
+            MILLION
         );
         direction->last_congestion_adjustment_microseconds =
             timestamp_microseconds;
@@ -487,7 +480,7 @@ static enum controller_rate_reason adjust_rate(
                     config,
                     average_delay_microseconds
                 ),
-                FACTOR_PER_MILLION
+                MILLION
             );
             /* Give the increased rate a full decay interval to be observed. */
             direction->last_decay_adjustment_microseconds =
@@ -652,11 +645,11 @@ static bool activity_rates_above(
 )
 {
     bool download = input->download.valid &&
-        input->download.traffic_rate_bits_per_second / BITS_PER_KILOBIT >
-            threshold / BITS_PER_KILOBIT;
+        input->download.traffic_rate_bits_per_second / KILOBIT >
+            threshold / KILOBIT;
     bool upload = input->upload.valid &&
-        input->upload.traffic_rate_bits_per_second / BITS_PER_KILOBIT >
-            threshold / BITS_PER_KILOBIT;
+        input->upload.traffic_rate_bits_per_second / KILOBIT >
+            threshold / KILOBIT;
 
     return require_both ? download && upload : download || upload;
 }

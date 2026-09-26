@@ -128,87 +128,87 @@ static const struct scaled_option_binding scaled_options[] = {
     {
         OPTION_REFLECTOR_PING_INTERVAL,
         CONFIG_OFFSET(reflector_ping_interval_microseconds),
-        1000000U
+        SECOND
     },
     {
         OPTION_MIN_DOWNLOAD_RATE,
         CONFIG_OFFSET(minimum_download_rate_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_BASE_DOWNLOAD_RATE,
         CONFIG_OFFSET(base_download_rate_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_MAX_DOWNLOAD_RATE,
         CONFIG_OFFSET(maximum_download_rate_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_MIN_UPLOAD_RATE,
         CONFIG_OFFSET(minimum_upload_rate_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_BASE_UPLOAD_RATE,
         CONFIG_OFFSET(base_upload_rate_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_MAX_UPLOAD_RATE,
         CONFIG_OFFSET(maximum_upload_rate_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_CONNECTION_ACTIVE_THRESHOLD,
         CONFIG_OFFSET(connection_active_threshold_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_CONNECTION_STALL_THRESHOLD,
         CONFIG_OFFSET(connection_stall_threshold_bits_per_second),
-        1000U
+        KILOBIT
     },
     {
         OPTION_DOWNLOAD_AVG_ADJUST_UP,
         CONFIG_OFFSET(download_average_owd_delta_maximum_adjust_up_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_UPLOAD_AVG_ADJUST_UP,
         CONFIG_OFFSET(upload_average_owd_delta_maximum_adjust_up_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_DOWNLOAD_DELAY_THRESHOLD,
         CONFIG_OFFSET(download_owd_delta_delay_threshold_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_UPLOAD_DELAY_THRESHOLD,
         CONFIG_OFFSET(upload_owd_delta_delay_threshold_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_DOWNLOAD_AVG_ADJUST_DOWN,
         CONFIG_OFFSET(download_average_owd_delta_maximum_adjust_down_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_UPLOAD_AVG_ADJUST_DOWN,
         CONFIG_OFFSET(upload_average_owd_delta_maximum_adjust_down_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_SUSTAINED_IDLE_SLEEP,
         CONFIG_OFFSET(sustained_idle_sleep_threshold_microseconds),
-        1000000U
+        SECOND
     },
     {
         OPTION_LOG_FILE_BUFFER_TIMEOUT,
         CONFIG_OFFSET(log_file_buffer_timeout_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_IRTT_SESSION_DURATION,
@@ -218,12 +218,12 @@ static const struct scaled_option_binding scaled_options[] = {
     {
         OPTION_TRAFFIC_MONITOR_INTERVAL,
         CONFIG_OFFSET(monitor_achieved_rates_interval_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_CPU_MONITOR_INTERVAL,
         CONFIG_OFFSET(monitor_cpu_usage_interval_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_BUFFERBLOAT_WINDOW,
@@ -238,72 +238,72 @@ static const struct scaled_option_binding scaled_options[] = {
     {
         OPTION_ALPHA_BASELINE_INCREASE,
         CONFIG_OFFSET(alpha_baseline_increase_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_ALPHA_BASELINE_DECREASE,
         CONFIG_OFFSET(alpha_baseline_decrease_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_ALPHA_DELTA_EWMA,
         CONFIG_OFFSET(alpha_delta_ewma_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_RATE_MIN_DOWN_BUFFERBLOAT,
         CONFIG_OFFSET(shaper_rate_minimum_adjust_down_bufferbloat_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_RATE_MAX_DOWN_BUFFERBLOAT,
         CONFIG_OFFSET(shaper_rate_maximum_adjust_down_bufferbloat_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_RATE_MIN_UP_HIGH_LOAD,
         CONFIG_OFFSET(shaper_rate_minimum_adjust_up_load_high_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_RATE_MAX_UP_HIGH_LOAD,
         CONFIG_OFFSET(shaper_rate_maximum_adjust_up_load_high_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_RATE_DOWN_LOW_LOAD,
         CONFIG_OFFSET(shaper_rate_adjust_down_load_low_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_RATE_UP_LOW_LOAD,
         CONFIG_OFFSET(shaper_rate_adjust_up_load_low_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_HIGH_LOAD_THRESHOLD,
         CONFIG_OFFSET(high_load_threshold_per_million),
-        1000000U
+        MILLION
     },
     {
         OPTION_BUFFERBLOAT_REFRACTORY,
         CONFIG_OFFSET(bufferbloat_refractory_period_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_DECAY_REFRACTORY,
         CONFIG_OFFSET(decay_refractory_period_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_REFLECTOR_HEALTH_INTERVAL,
         CONFIG_OFFSET(reflector_health_check_interval_microseconds),
-        1000000U
+        SECOND
     },
     {
         OPTION_REFLECTOR_RESPONSE_DEADLINE,
         CONFIG_OFFSET(reflector_response_deadline_microseconds),
-        1000000U
+        SECOND
     },
     {
         OPTION_REFLECTOR_MISBEHAVING_WINDOW,
@@ -328,12 +328,12 @@ static const struct scaled_option_binding scaled_options[] = {
     {
         OPTION_REFLECTOR_BASELINE_DELTA,
         CONFIG_OFFSET(reflector_sum_owd_baselines_delta_threshold_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_REFLECTOR_EWMA_DELTA,
         CONFIG_OFFSET(reflector_owd_delta_ewma_delta_threshold_microseconds),
-        1000U
+        MILLISECOND
     },
     {
         OPTION_STALL_DETECTION_THRESHOLD,
@@ -343,12 +343,12 @@ static const struct scaled_option_binding scaled_options[] = {
     {
         OPTION_GLOBAL_PING_TIMEOUT,
         CONFIG_OFFSET(global_ping_response_timeout_microseconds),
-        1000000U
+        SECOND
     },
     {
         OPTION_INTERFACE_UP_INTERVAL,
         CONFIG_OFFSET(interface_up_check_interval_microseconds),
-        1000000U
+        SECOND
     }
 };
 
@@ -391,13 +391,9 @@ static int copy_option(
     size_t error_size
 )
 {
-    int result;
+    size_t length = strlen(value);
 
-    result = snprintf(destination, destination_size, "%s", value);
-    if (
-        result < 0 ||
-        (size_t)result >= destination_size
-    ) {
+    if (length >= destination_size) {
         error_set(
             error,
             error_size,
@@ -407,6 +403,7 @@ static int copy_option(
         return -1;
     }
 
+    memcpy(destination, value, length + 1U);
     return 0;
 }
 
@@ -798,9 +795,9 @@ static int validate_rate_range(
     }
     /* The controller works in whole kbit/s, which CAKE can represent exactly. */
     if (
-        minimum % 1000U != 0U ||
-        base % 1000U != 0U ||
-        maximum % 1000U != 0U
+        minimum % KILOBIT != 0U ||
+        base % KILOBIT != 0U ||
+        maximum % KILOBIT != 0U
     ) {
         error_set(error, error_size, "%s shaper rates must be whole kbit/s", direction);
         return -1;
@@ -864,19 +861,13 @@ static int validate_latency_config(
         error_set(error, error_size, "option 'pinger_method' must be 'fping'; no other pinger is supported");
         return -1;
     }
-    if (
-        config->no_pingers == 0U ||
-        config->no_pingers > CONFIG_MAX_REFLECTORS
-    ) {
-        error_set(error, error_size, "option 'no_pingers' must be between 1 and %u", CONFIG_MAX_REFLECTORS);
-        return -1;
-    }
+    /* Loading bounds the reflector list; validation bounds no_pingers by it. */
     if (validate_reflectors(config, error, error_size) != 0) {
         return -1;
     }
     if (
         config->reflector_ping_interval_microseconds /
-            config->no_pingers < 1000U
+            config->no_pingers < MILLISECOND
     ) {
         error_set(
             error,
@@ -894,7 +885,9 @@ static int validate_latency_config(
         );
         return -1;
     }
-    if (config->monitor_achieved_rates_interval_microseconds % 1000U != 0U) {
+    if (
+        config->monitor_achieved_rates_interval_microseconds % MILLISECOND != 0U
+    ) {
         error_set(
             error,
             error_size,
@@ -904,7 +897,7 @@ static int validate_latency_config(
         return -1;
     }
     if (
-        config->monitor_achieved_rates_interval_microseconds / 1000U >
+        config->monitor_achieved_rates_interval_microseconds / MILLISECOND >
         UINT_MAX
     ) {
         error_set(
@@ -939,9 +932,9 @@ static int validate_latency_config(
         return -1;
     }
     if (
-        config->alpha_baseline_increase_per_million > 1000000U ||
-        config->alpha_baseline_decrease_per_million > 1000000U ||
-        config->alpha_delta_ewma_per_million > 1000000U
+        config->alpha_baseline_increase_per_million > MILLION ||
+        config->alpha_baseline_decrease_per_million > MILLION ||
+        config->alpha_delta_ewma_per_million > MILLION
     ) {
         error_set(
             error,
@@ -962,8 +955,8 @@ static int validate_latency_config(
         return -1;
     }
     if (
-        config->reflector_health_check_interval_microseconds % 1000U != 0U ||
-        config->reflector_health_check_interval_microseconds / 1000U >
+        config->reflector_health_check_interval_microseconds % MILLISECOND != 0U ||
+        config->reflector_health_check_interval_microseconds / MILLISECOND >
             UINT_MAX
     ) {
         error_set(
@@ -991,9 +984,9 @@ static int validate_latency_config(
     }
     if (
         config->reflector_replacement_interval_minutes >
-            UINT64_MAX / 60000000U ||
+            UINT64_MAX / MICROSECONDS_PER_MINUTE ||
         config->reflector_comparison_interval_minutes >
-            UINT64_MAX / 60000000U
+            UINT64_MAX / MICROSECONDS_PER_MINUTE
     ) {
         error_set(
             error,
@@ -1022,8 +1015,8 @@ static int validate_latency_config(
     if (
         (config->output_cpu_stats || config->output_cpu_raw_stats) &&
         (config->monitor_cpu_usage_interval_microseconds == 0U ||
-            config->monitor_cpu_usage_interval_microseconds % 1000U != 0U ||
-            config->monitor_cpu_usage_interval_microseconds / 1000U > UINT_MAX)
+            config->monitor_cpu_usage_interval_microseconds % MILLISECOND != 0U ||
+            config->monitor_cpu_usage_interval_microseconds / MILLISECOND > UINT_MAX)
     ) {
         error_set(
             error,
@@ -1034,9 +1027,9 @@ static int validate_latency_config(
         return -1;
     }
     if (
-        config->log_file_max_time_minutes > UINT64_MAX / 60000000U ||
-        config->log_file_max_size_kilobytes > UINT64_MAX / 1024U ||
-        config->log_file_buffer_timeout_microseconds / 1000U > UINT_MAX ||
+        config->log_file_max_time_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE ||
+        config->log_file_max_size_kilobytes > UINT64_MAX / KIBIBYTE ||
+        config->log_file_buffer_timeout_microseconds / MILLISECOND > UINT_MAX ||
         config->reflector_ping_interval_microseconds > UINT64_MAX / 2U
     ) {
         error_set(error, error_size, "logging or pinger intervals are too large");

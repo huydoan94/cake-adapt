@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "netlink.h"
+#include "defaults.h"
 #include "error.h"
 #include "helpers.h"
 
@@ -17,8 +18,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define NETLINK_RESPONSE_TIMEOUT_MILLISECONDS 1000
-
 enum response_type {
     RESPONSE_QDISC_DUMP,
     RESPONSE_QDISC_CHANGE
@@ -34,11 +33,6 @@ struct response_context {
 };
 
 static int handle_qdisc_event(struct nl_msg *message, void *context_data);
-
-void netlink_init(struct netlink *netlink)
-{
-    *netlink = (struct netlink) { 0 };
-}
 
 int netlink_open(
     struct netlink *netlink,
@@ -269,7 +263,8 @@ static int wait_for_response(
         result = poll(
             &descriptor,
             1U,
-            (int)((deadline_microseconds - now + 999U) / 1000U)
+            (int)((deadline_microseconds - now + MICROSECONDS_PER_MILLISECOND - 1U) /
+                MICROSECONDS_PER_MILLISECOND)
         );
     } while (result < 0 && errno == EINTR);
 
@@ -424,7 +419,7 @@ static int receive_response(
         if (
             wait_for_response(
                 netlink,
-                started + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS * 1000U,
+                started + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS * MICROSECONDS_PER_MILLISECOND,
                 error,
                 error_size
             ) != 0

@@ -70,6 +70,16 @@ static void test_clock_failure_preserves_output(void)
     assert(timestamp > 0U);
 }
 
+static void test_rate_conversion_boundaries(void)
+{
+    assert(bits_per_second(0U, 1U) == 0U);
+    assert(bits_per_second(1U, 3U) == 2666U);
+    assert(bits_per_second(125000000U, 1000U) == 1000000000U);
+    assert(bits_per_second(UINT64_MAX / 8000U, 1U) == UINT64_MAX / 8000U * 8000U);
+    assert(bits_per_second(UINT64_MAX / 8000U + 1U, 1U) == UINT64_MAX);
+    assert(bits_per_second(UINT64_MAX, UINT64_MAX) == 8000U);
+}
+
 int main(void)
 {
     test_percentages_and_rounding();
@@ -77,6 +87,7 @@ int main(void)
     test_elapsed_interval_boundaries();
     test_load_rounding_and_limits();
     test_clock_failure_preserves_output();
+    test_rate_conversion_boundaries();
     (void)puts("helper tests passed");
     return 0;
 }

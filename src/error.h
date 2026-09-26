@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+#define ERROR_SIZE 256U
+
 void error_set(
     char *error,
     size_t error_size,

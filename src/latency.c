@@ -22,11 +22,6 @@
 #include <unistd.h>
 #include <wordexp.h>
 
-#define CHILD_STOP_ATTEMPTS 50U
-#define CHILD_STOP_INTERVAL_NANOSECONDS 10000000L
-#define ALPHA_SCALE 1000000U
-#define INITIAL_ONE_WAY_BASELINE_MICROSECONDS 100000U
-
 extern char **environ;
 
 static bool parse_timestamp(
@@ -75,10 +70,10 @@ static bool parse_timestamp(
     memcpy(fraction_digits, decimal_point + 1, digit_count < 6U ? digit_count : 6U);
     fraction = strtoul(fraction_digits, NULL, 10);
 
-    if (seconds > (UINT64_MAX - fraction) / 1000000U) {
+    if (seconds > (UINT64_MAX - fraction) / MICROSECONDS_PER_SECOND) {
         return false;
     }
-    *timestamp_microseconds = seconds * 1000000U + fraction;
+    *timestamp_microseconds = seconds * MICROSECONDS_PER_SECOND + fraction;
     *remainder = closing_bracket + 2;
     return true;
 }
@@ -165,7 +160,8 @@ enum latency_fping_line_result parse_fping_line(
         return LATENCY_FPING_LINE_INVALID;
     }
 
-    round_trip_microseconds = round_trip_milliseconds * 1000.0;
+    round_trip_microseconds =
+        round_trip_milliseconds * (double)MICROSECONDS_PER_MILLISECOND;
     if (round_trip_microseconds > (double)UINT32_MAX) {
         sample->round_trip_microseconds = UINT32_MAX;
     } else {
@@ -195,18 +191,6 @@ static int set_nonblocking(
         return -1;
     }
     return 0;
-}
-
-static void close_pipe(int descriptors[2])
-{
-    if (descriptors[0] >= 0) {
-        (void)close(descriptors[0]);
-        descriptors[0] = -1;
-    }
-    if (descriptors[1] >= 0) {
-        (void)close(descriptors[1]);
-        descriptors[1] = -1;
-    }
 }
 
 static void stop_child(pid_t process_identifier)
@@ -349,7 +333,7 @@ int latency_open(
     char **arguments;
     wordexp_t extra_words = { 0 };
     wordexp_t prefix_words = { 0 };
-    int output_pipe[2] = { -1, -1 };
+    int output_pipe[2];
     pid_t process_identifier;
     uint64_t period;
     uint64_t response_interval;
@@ -372,7 +356,10 @@ int latency_open(
         error_set(error, error_size, "fping requires at least one target");
         return -1;
     }
-    if (reflector_ping_interval_microseconds / target_count < 1000U) {
+    if (
+        reflector_ping_interval_microseconds / target_count <
+        MICROSECONDS_PER_MILLISECOND
+    ) {
         error_set(
             error,
             error_size,
@@ -392,9 +379,13 @@ int latency_open(
         }
     }
 
-    period = rounded_divide(reflector_ping_interval_microseconds, 1000U);
+    period = rounded_divide(
+        reflector_ping_interval_microseconds,
+        MICROSECONDS_PER_MILLISECOND
+    );
     response_interval =
-        reflector_ping_interval_microseconds / target_count / 1000U;
+        reflector_ping_interval_microseconds / target_count /
+        MICROSECONDS_PER_MILLISECOND;
     (void)snprintf(
         period_milliseconds,
         sizeof(period_milliseconds),
@@ -494,7 +485,7 @@ int latency_open(
             "could not create fping pipe: %s",
             strerror(errno)
         );
-        goto close_output;
+        goto free_arguments;
     }
 
     if (
@@ -511,13 +502,12 @@ int latency_open(
     }
 
     (void)close(output_pipe[1]);
-    output_pipe[1] = -1;
     free(arguments);
     wordfree(&prefix_words);
     wordfree(&extra_words);
 
     if (set_nonblocking(output_pipe[0], error, error_size) != 0) {
-        close_pipe(output_pipe);
+        (void)close(output_pipe[0]);
         stop_child(process_identifier);
         return -1;
     }
@@ -528,7 +518,9 @@ int latency_open(
     return 0;
 
 close_output:
-    close_pipe(output_pipe);
+    (void)close(output_pipe[0]);
+    (void)close(output_pipe[1]);
+free_arguments:
     free(arguments);
 failed:
     wordfree(&prefix_words);
@@ -666,9 +658,9 @@ int tracker_init(
 )
 {
     if (
-        config->alpha_baseline_increase_per_million > ALPHA_SCALE ||
-        config->alpha_baseline_decrease_per_million > ALPHA_SCALE ||
-        config->alpha_delta_ewma_per_million > ALPHA_SCALE
+        config->alpha_baseline_increase_per_million > MILLION ||
+        config->alpha_baseline_decrease_per_million > MILLION ||
+        config->alpha_delta_ewma_per_million > MILLION
     ) {
         errno = EINVAL;
         return -1;
@@ -701,9 +693,9 @@ void tracker_update(
     /* This is cake-autorate's integer one-way baseline EWMA. */
     tracker->one_way_baseline_microseconds = (uint32_t)(
         (alpha * one_way_microseconds +
-            (ALPHA_SCALE - alpha) *
+            (MILLION - alpha) *
                 tracker->one_way_baseline_microseconds) /
-            ALPHA_SCALE
+            MILLION
     );
 
     observation->round_trip_microseconds =
@@ -732,9 +724,9 @@ void tracker_update_delta_ewma(
     if (low_load) {
         tracker->one_way_delta_ewma_microseconds =
             (alpha * observation->one_way_delta_microseconds +
-                ((int64_t)ALPHA_SCALE - alpha) *
+                ((int64_t)MILLION - alpha) *
                     tracker->one_way_delta_ewma_microseconds) /
-            (int64_t)ALPHA_SCALE;
+            (int64_t)MILLION;
     }
     observation->one_way_delta_ewma_microseconds =
         tracker->one_way_delta_ewma_microseconds;
