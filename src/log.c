@@ -638,8 +638,8 @@ void log_data(const struct log_data_record *record)
         RECORD_DATA,
         "%" PRIu64 "; %" PRIu64 "; %u; %u;"
         " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 ";"
-        " %" PRIu32 "; %" PRIu32 "; %" PRId64 "; %" PRId64
-        "; %" PRIu64 "; %" PRIu32 "; %" PRIu32 "; %" PRId64 ";"
+        " %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRId64
+        "; %" PRIu64 "; %" PRId64 "; %" PRId64 "; %" PRId64 ";"
         " %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64
         "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64 "; %" PRIu64
         "; %s; %s; %" PRIu64 "; %" PRIu64,
@@ -699,7 +699,7 @@ void log_reflector(const struct log_reflector_record *record)
 {
     write_timed_record(
         RECORD_REFLECTOR,
-        "%s; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+        "%s; %" PRId64 "; %" PRId64 "; %" PRIu64 "; %" PRIu64
         "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64
         "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64,
         record->reflector,

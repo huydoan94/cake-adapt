@@ -128,7 +128,8 @@ enum latency_fping_line_result parse_fping_line(
     ) {
         return LATENCY_FPING_LINE_INVALID;
     }
-    sample->round_trip_microseconds = 0U;
+    sample->download_owd_microseconds = 0U;
+    sample->upload_owd_microseconds = 0U;
     sample->timestamp_microseconds = timestamp_microseconds;
     sample->sequence = sequence;
     cursor = sequence_end + 1;
@@ -163,11 +164,13 @@ enum latency_fping_line_result parse_fping_line(
     round_trip_microseconds =
         round_trip_milliseconds * (double)MICROSECONDS_PER_MILLISECOND;
     if (round_trip_microseconds > (double)UINT32_MAX) {
-        sample->round_trip_microseconds = UINT32_MAX;
+        sample->download_owd_microseconds = (int64_t)(UINT32_MAX / 2U);
     } else {
-        sample->round_trip_microseconds =
-            (uint32_t)(round_trip_microseconds + 0.5);
+        sample->download_owd_microseconds = (int64_t)(
+            (uint32_t)(round_trip_microseconds + 0.5) / 2U
+        );
     }
+    sample->upload_owd_microseconds = sample->download_owd_microseconds;
     return LATENCY_FPING_LINE_SAMPLE;
 }
 
@@ -673,9 +676,31 @@ int tracker_init(
 
 void tracker_reset(struct latency_tracker *tracker)
 {
-    tracker->one_way_baseline_microseconds =
-        INITIAL_ONE_WAY_BASELINE_MICROSECONDS;
-    tracker->one_way_delta_ewma_microseconds = 0;
+    tracker->download.baseline_microseconds =
+        (int64_t)INITIAL_ONE_WAY_BASELINE_MICROSECONDS;
+    tracker->download.delta_ewma_microseconds = 0;
+    tracker->upload = tracker->download;
+}
+
+static void tracker_update_direction(
+    const struct latency_tracker_config *config,
+    struct latency_direction_tracker *state,
+    int64_t value_microseconds,
+    int64_t *baseline_microseconds,
+    int64_t *delta_microseconds
+)
+{
+    int64_t alpha = value_microseconds >= state->baseline_microseconds
+        ? (int64_t)config->alpha_baseline_increase_per_million
+        : (int64_t)config->alpha_baseline_decrease_per_million;
+
+    state->baseline_microseconds =
+        (alpha * value_microseconds +
+            ((int64_t)MILLION - alpha) * state->baseline_microseconds) /
+        (int64_t)MILLION;
+    *baseline_microseconds = state->baseline_microseconds;
+    *delta_microseconds =
+        value_microseconds - state->baseline_microseconds;
 }
 
 void tracker_update(
@@ -684,30 +709,26 @@ void tracker_update(
     struct latency_observation *observation
 )
 {
-    uint32_t one_way_microseconds = sample->round_trip_microseconds / 2U;
-    uint64_t alpha = one_way_microseconds >=
-        tracker->one_way_baseline_microseconds
-        ? tracker->config.alpha_baseline_increase_per_million
-        : tracker->config.alpha_baseline_decrease_per_million;
-
-    /* This is cake-autorate's integer one-way baseline EWMA. */
-    tracker->one_way_baseline_microseconds = (uint32_t)(
-        (alpha * one_way_microseconds +
-            (MILLION - alpha) *
-                tracker->one_way_baseline_microseconds) /
-            MILLION
+    observation->download_owd_microseconds = sample->download_owd_microseconds;
+    observation->upload_owd_microseconds = sample->upload_owd_microseconds;
+    tracker_update_direction(
+        &tracker->config,
+        &tracker->download,
+        sample->download_owd_microseconds,
+        &observation->download_owd_baseline_microseconds,
+        &observation->download_owd_delta_microseconds
     );
-
-    observation->round_trip_microseconds =
-        sample->round_trip_microseconds;
-    observation->one_way_microseconds = one_way_microseconds;
-    observation->one_way_baseline_microseconds =
-        tracker->one_way_baseline_microseconds;
-    observation->one_way_delta_microseconds =
-        (int64_t)one_way_microseconds -
-        (int64_t)tracker->one_way_baseline_microseconds;
-    observation->one_way_delta_ewma_microseconds =
-        tracker->one_way_delta_ewma_microseconds;
+    tracker_update_direction(
+        &tracker->config,
+        &tracker->upload,
+        sample->upload_owd_microseconds,
+        &observation->upload_owd_baseline_microseconds,
+        &observation->upload_owd_delta_microseconds
+    );
+    observation->download_owd_delta_ewma_microseconds =
+        tracker->download.delta_ewma_microseconds;
+    observation->upload_owd_delta_ewma_microseconds =
+        tracker->upload.delta_ewma_microseconds;
     observation->timestamp_microseconds = sample->timestamp_microseconds;
     observation->sequence = sample->sequence;
 }
@@ -722,14 +743,21 @@ void tracker_update_delta_ewma(
 
     /* cake-autorate freezes reflector delay EWMA while either link is busy. */
     if (low_load) {
-        tracker->one_way_delta_ewma_microseconds =
-            (alpha * observation->one_way_delta_microseconds +
+        tracker->download.delta_ewma_microseconds =
+            (alpha * observation->download_owd_delta_microseconds +
                 ((int64_t)MILLION - alpha) *
-                    tracker->one_way_delta_ewma_microseconds) /
+                    tracker->download.delta_ewma_microseconds) /
+            (int64_t)MILLION;
+        tracker->upload.delta_ewma_microseconds =
+            (alpha * observation->upload_owd_delta_microseconds +
+                ((int64_t)MILLION - alpha) *
+                    tracker->upload.delta_ewma_microseconds) /
             (int64_t)MILLION;
     }
-    observation->one_way_delta_ewma_microseconds =
-        tracker->one_way_delta_ewma_microseconds;
+    observation->download_owd_delta_ewma_microseconds =
+        tracker->download.delta_ewma_microseconds;
+    observation->upload_owd_delta_ewma_microseconds =
+        tracker->upload.delta_ewma_microseconds;
 }
 
 int health_init(
@@ -828,45 +856,70 @@ void reflector_compare(
     struct reflector_comparison *comparisons
 )
 {
-    uint64_t minimum_baseline;
-    int64_t minimum_delta_ewma;
+    int64_t minimum_baseline;
+    int64_t minimum_download_delta_ewma;
+    int64_t minimum_upload_delta_ewma;
     size_t index;
 
     minimum_baseline =
-        (uint64_t)trackers[reflector_order[0]].one_way_baseline_microseconds *
-        2U;
-    minimum_delta_ewma =
-        trackers[reflector_order[0]].one_way_delta_ewma_microseconds;
+        trackers[reflector_order[0]].download.baseline_microseconds +
+        trackers[reflector_order[0]].upload.baseline_microseconds;
+    minimum_download_delta_ewma =
+        trackers[reflector_order[0]].download.delta_ewma_microseconds;
+    minimum_upload_delta_ewma =
+        trackers[reflector_order[0]].upload.delta_ewma_microseconds;
     for (index = 1U; index < active_count; index++) {
         const struct latency_tracker *tracker =
             &trackers[reflector_order[index]];
-        uint64_t sum_baselines =
-            (uint64_t)tracker->one_way_baseline_microseconds * 2U;
+        int64_t sum_baselines =
+            tracker->download.baseline_microseconds +
+            tracker->upload.baseline_microseconds;
 
         if (sum_baselines < minimum_baseline) {
             minimum_baseline = sum_baselines;
         }
-        if (tracker->one_way_delta_ewma_microseconds < minimum_delta_ewma) {
-            minimum_delta_ewma = tracker->one_way_delta_ewma_microseconds;
+        if (
+            tracker->download.delta_ewma_microseconds <
+            minimum_download_delta_ewma
+        ) {
+            minimum_download_delta_ewma =
+                tracker->download.delta_ewma_microseconds;
+        }
+        if (
+            tracker->upload.delta_ewma_microseconds <
+            minimum_upload_delta_ewma
+        ) {
+            minimum_upload_delta_ewma =
+                tracker->upload.delta_ewma_microseconds;
         }
     }
 
     for (index = 0U; index < active_count; index++) {
         const struct latency_tracker *tracker =
             &trackers[reflector_order[index]];
-        uint64_t sum_baselines =
-            (uint64_t)tracker->one_way_baseline_microseconds * 2U;
-        int64_t delta_ewma = tracker->one_way_delta_ewma_microseconds;
+        int64_t sum_baselines =
+            tracker->download.baseline_microseconds +
+            tracker->upload.baseline_microseconds;
+        int64_t download_delta_ewma =
+            tracker->download.delta_ewma_microseconds;
+        int64_t upload_delta_ewma =
+            tracker->upload.delta_ewma_microseconds;
 
         comparisons[index] = (struct reflector_comparison) {
             .minimum_sum_owd_baselines_microseconds = minimum_baseline,
             .sum_owd_baselines_microseconds = sum_baselines,
             .sum_owd_baselines_delta_microseconds =
-                sum_baselines - minimum_baseline,
-            .minimum_delta_ewma_microseconds = minimum_delta_ewma,
-            .delta_ewma_microseconds = delta_ewma,
-            .delta_ewma_delta_microseconds =
-                delta_ewma - minimum_delta_ewma
+                (uint64_t)(sum_baselines - minimum_baseline),
+            .minimum_download_delta_ewma_microseconds =
+                minimum_download_delta_ewma,
+            .download_delta_ewma_microseconds = download_delta_ewma,
+            .download_delta_ewma_delta_microseconds =
+                download_delta_ewma - minimum_download_delta_ewma,
+            .minimum_upload_delta_ewma_microseconds =
+                minimum_upload_delta_ewma,
+            .upload_delta_ewma_microseconds = upload_delta_ewma,
+            .upload_delta_ewma_delta_microseconds =
+                upload_delta_ewma - minimum_upload_delta_ewma
         };
     }
 }

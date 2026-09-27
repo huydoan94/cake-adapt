@@ -341,13 +341,13 @@ static void test_cake_autorate_headers_and_record_format(void)
         .icmp_timestamp_microseconds = 50000060U,
         .reflector = "1.1.1.1",
         .sequence = 70U,
-        .download_owd_baseline_microseconds = 80U,
-        .download_owd_microseconds = 90U,
+        .download_owd_baseline_microseconds = -80,
+        .download_owd_microseconds = -90,
         .download_owd_delta_ewma_microseconds = -100,
         .download_owd_delta_microseconds = -110,
         .download_adjust_delay_threshold_microseconds = 120U,
-        .upload_owd_baseline_microseconds = 130U,
-        .upload_owd_microseconds = 140U,
+        .upload_owd_baseline_microseconds = -130,
+        .upload_owd_microseconds = -140,
         .upload_owd_delta_ewma_microseconds = -150,
         .upload_owd_delta_microseconds = -160,
         .upload_adjust_delay_threshold_microseconds = 170U,
@@ -384,8 +384,8 @@ static void test_cake_autorate_headers_and_record_format(void)
     };
     const struct log_reflector_record reflector_record = {
         .reflector = "1.0.0.1",
-        .minimum_sum_owd_baselines_microseconds = 100U,
-        .sum_owd_baselines_microseconds = 110U,
+        .minimum_sum_owd_baselines_microseconds = -100,
+        .sum_owd_baselines_microseconds = -110,
         .sum_owd_baselines_delta_microseconds = 10U,
         .sum_owd_baselines_delta_threshold_microseconds = 20000U,
         .minimum_download_delta_ewma_microseconds = -5,
@@ -451,8 +451,8 @@ static void test_cake_autorate_headers_and_record_format(void)
     assert(strstr(field_end, "; 10; 20; 30; 40\n") == field_end);
     assert(strstr(
         contents,
-        "; 10; 20; 30; 40; 50.000060; 1.1.1.1; 70; 80; 90;"
-        " -100; -110; 120; 130; 140; -150; -160; 170; 180; -190;"
+        "; 10; 20; 30; 40; 50.000060; 1.1.1.1; 70; -80; -90;"
+        " -100; -110; 120; -130; -140; -150; -160; 170; 180; -190;"
         " 200; 210; 220; -230; 240; 250; dl_low; ul_high_bb; 260; 270\n"
     ) != NULL);
     assert(strstr(
@@ -465,7 +465,7 @@ static void test_cake_autorate_headers_and_record_format(void)
     ) != NULL);
     assert(strstr(
         contents,
-        "; 1.0.0.1; 100; 110; 10; 20000; -5; 7; 12; 10000;"
+        "; 1.0.0.1; -100; -110; 10; 20000; -5; 7; 12; 10000;"
         " -6; 8; 14; 10000\n"
     ) != NULL);
     assert(strstr(contents, "SYSLOG; 20") != NULL);
