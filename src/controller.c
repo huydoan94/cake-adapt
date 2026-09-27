@@ -109,6 +109,15 @@ static int initialize_direction(
     if (direction->delay_samples == NULL) {
         return -1;
     }
+    direction->delayed_samples = calloc(
+        delay_window,
+        sizeof(*direction->delayed_samples)
+    );
+    if (direction->delayed_samples == NULL) {
+        free(direction->delay_samples);
+        direction->delay_samples = NULL;
+        return -1;
+    }
     direction->state = CONTROLLER_LINE_UNKNOWN;
     direction->congestion = CONTROLLER_CONGESTION_UNKNOWN;
     direction->shaper_rate_bits_per_second =
@@ -162,7 +171,9 @@ int controller_init(
         ) != 0
     ) {
         free(controller->download.delay_samples);
+        free(controller->download.delayed_samples);
         controller->download.delay_samples = NULL;
+        controller->download.delayed_samples = NULL;
         return -1;
     }
     return 0;
@@ -172,8 +183,12 @@ void controller_close(struct controller *controller)
 {
     free(controller->download.delay_samples);
     free(controller->upload.delay_samples);
+    free(controller->download.delayed_samples);
+    free(controller->upload.delayed_samples);
     controller->download.delay_samples = NULL;
     controller->upload.delay_samples = NULL;
+    controller->download.delayed_samples = NULL;
+    controller->upload.delayed_samples = NULL;
 }
 
 static void reset_line_state(struct controller_direction *direction)
@@ -245,9 +260,8 @@ static enum controller_congestion_state update_congestion(
     int64_t *average_delay_microseconds
 )
 {
-    int32_t *sample;
-    int64_t rtt_delta;
-    int64_t owd_delta;
+    int64_t *sample;
+    unsigned char *delayed;
     unsigned int index;
 
     if (!latency->valid) {
@@ -256,32 +270,29 @@ static enum controller_congestion_state update_congestion(
         return direction->congestion;
     }
 
-    /* A round-trip delta approximates twice the one-way queueing delay. */
-    rtt_delta = (int64_t)latency->current_rtt_microseconds -
-        (int64_t)latency->baseline_rtt_microseconds;
-    owd_delta = rtt_delta / 2;
     index = direction->delay_next_sample;
     sample = &direction->delay_samples[index];
+    delayed = &direction->delayed_samples[index];
 
     /* Maintain a fixed rolling window without rescanning every sample. */
     direction->delay_sum_microseconds -= *sample;
-    direction->delay_sum_microseconds += owd_delta;
+    direction->delay_sum_microseconds += latency->owd_delta_microseconds;
 
-    /* Thresholds are immutable for this window: derive the outgoing flag. */
-    if (
-        *sample > 0 &&
-        (uint64_t)*sample > direction->config.delay_threshold_microseconds
-    ) {
+    /* Preserve the classification made when this sample entered the window. */
+    if (*delayed != 0U) {
         direction->delayed_sample_count--;
     }
     if (
-        owd_delta > 0 &&
-        (uint64_t)owd_delta > direction->config.delay_threshold_microseconds
+        latency->owd_delta_microseconds > 0 &&
+        (uint64_t)latency->owd_delta_microseconds >
+            direction->config.delay_threshold_microseconds
     ) {
         direction->delayed_sample_count++;
+        *delayed = 1U;
+    } else {
+        *delayed = 0U;
     }
-    /* Half the difference of two uint32 RTTs fits in int32, including negatives. */
-    *sample = (int32_t)owd_delta;
+    *sample = latency->owd_delta_microseconds;
 
     direction->delay_next_sample = index + 1U;
     if (direction->delay_next_sample == config->bufferbloat_detection_window) {
@@ -598,7 +609,7 @@ void controller_update(
         &controller->download,
         &controller->config,
         &input->download,
-        &input->latency,
+        &input->download_latency,
         input->timestamp_microseconds,
         &output->download
     );
@@ -606,7 +617,7 @@ void controller_update(
         &controller->upload,
         &controller->config,
         &input->upload,
-        &input->latency,
+        &input->upload_latency,
         input->timestamp_microseconds,
         &output->upload
     );

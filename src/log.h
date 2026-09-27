@@ -35,13 +35,13 @@ struct log_data_record {
     uint64_t icmp_timestamp_microseconds;
     const char *reflector;
     uint64_t sequence;
-    uint32_t download_owd_baseline_microseconds;
-    uint32_t download_owd_microseconds;
+    int64_t download_owd_baseline_microseconds;
+    int64_t download_owd_microseconds;
     int64_t download_owd_delta_ewma_microseconds;
     int64_t download_owd_delta_microseconds;
     uint64_t download_adjust_delay_threshold_microseconds;
-    uint32_t upload_owd_baseline_microseconds;
-    uint32_t upload_owd_microseconds;
+    int64_t upload_owd_baseline_microseconds;
+    int64_t upload_owd_microseconds;
     int64_t upload_owd_delta_ewma_microseconds;
     int64_t upload_owd_delta_microseconds;
     uint64_t upload_adjust_delay_threshold_microseconds;
@@ -74,8 +74,8 @@ struct log_summary_record {
 
 struct log_reflector_record {
     const char *reflector;
-    uint64_t minimum_sum_owd_baselines_microseconds;
-    uint64_t sum_owd_baselines_microseconds;
+    int64_t minimum_sum_owd_baselines_microseconds;
+    int64_t sum_owd_baselines_microseconds;
     uint64_t sum_owd_baselines_delta_microseconds;
     uint64_t sum_owd_baselines_delta_threshold_microseconds;
     int64_t minimum_download_delta_ewma_microseconds;
