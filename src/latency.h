@@ -27,17 +27,21 @@ enum latency_probe_result {
 
 struct latency_sample {
     char target[LATENCY_TARGET_SIZE];
-    uint32_t round_trip_microseconds;
+    int64_t download_owd_microseconds;
+    int64_t upload_owd_microseconds;
     uint64_t timestamp_microseconds;
     uint64_t sequence;
 };
 
 struct latency_observation {
-    uint32_t round_trip_microseconds;
-    uint32_t one_way_microseconds;
-    uint32_t one_way_baseline_microseconds;
-    int64_t one_way_delta_microseconds;
-    int64_t one_way_delta_ewma_microseconds;
+    int64_t download_owd_microseconds;
+    int64_t download_owd_baseline_microseconds;
+    int64_t download_owd_delta_microseconds;
+    int64_t download_owd_delta_ewma_microseconds;
+    int64_t upload_owd_microseconds;
+    int64_t upload_owd_baseline_microseconds;
+    int64_t upload_owd_delta_microseconds;
+    int64_t upload_owd_delta_ewma_microseconds;
     uint64_t timestamp_microseconds;
     uint64_t sequence;
 };
@@ -54,10 +58,15 @@ struct latency_tracker_config {
     uint64_t alpha_delta_ewma_per_million;
 };
 
+struct latency_direction_tracker {
+    int64_t baseline_microseconds;
+    int64_t delta_ewma_microseconds;
+};
+
 struct latency_tracker {
     struct latency_tracker_config config;
-    uint32_t one_way_baseline_microseconds;
-    int64_t one_way_delta_ewma_microseconds;
+    struct latency_direction_tracker download;
+    struct latency_direction_tracker upload;
 };
 
 struct reflector_health_config {
@@ -81,14 +90,15 @@ enum reflector_health_result {
 };
 
 struct reflector_comparison {
-    uint64_t minimum_sum_owd_baselines_microseconds;
-    uint64_t sum_owd_baselines_microseconds;
+    int64_t minimum_sum_owd_baselines_microseconds;
+    int64_t sum_owd_baselines_microseconds;
     uint64_t sum_owd_baselines_delta_microseconds;
-    /* fping estimates the same one-way delay (RTT / 2) in both directions. */
-    int64_t minimum_delta_ewma_microseconds;
-    int64_t delta_ewma_microseconds;
-    /* Difference from the active minimum is always nonnegative. */
-    int64_t delta_ewma_delta_microseconds;
+    int64_t minimum_download_delta_ewma_microseconds;
+    int64_t download_delta_ewma_microseconds;
+    int64_t download_delta_ewma_delta_microseconds;
+    int64_t minimum_upload_delta_ewma_microseconds;
+    int64_t upload_delta_ewma_microseconds;
+    int64_t upload_delta_ewma_delta_microseconds;
 };
 
 void latency_init(struct latency *latency);

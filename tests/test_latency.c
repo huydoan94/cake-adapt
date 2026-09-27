@@ -56,7 +56,8 @@ static void test_receive_buffered_output(void)
     assert(write(descriptors[1], rest, sizeof(rest) - 1U) == (ssize_t)(sizeof(rest) - 1U));
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
     assert(sample.sequence == 1U);
-    assert(sample.round_trip_microseconds == 2500U);
+    assert(sample.download_owd_microseconds == 1250U);
+    assert(sample.upload_owd_microseconds == 1250U);
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_TIMEOUT);
     assert(sample.sequence == 2U);
     assert(latency.output_length == 0U);
@@ -168,7 +169,8 @@ static void test_fping_reply_is_parsed(void)
     assert(sample.timestamp_microseconds == UINT64_C(1789284242096160));
     assert(strcmp(sample.target, "1.1.1.1") == 0);
     assert(sample.sequence == UINT64_C(65536));
-    assert(sample.round_trip_microseconds == 31900U);
+    assert(sample.download_owd_microseconds == 15950U);
+    assert(sample.upload_owd_microseconds == 15950U);
 }
 
 static void test_fping_six_digit_timestamp_is_preserved(void)
@@ -183,7 +185,27 @@ static void test_fping_six_digit_timestamp_is_preserved(void)
     assert(sample.timestamp_microseconds == UINT64_C(1789284242000123));
     assert(strcmp(sample.target, "9.9.9.9") == 0);
     assert(sample.sequence == 7U);
-    assert(sample.round_trip_microseconds == 125U);
+    assert(sample.download_owd_microseconds == 62U);
+    assert(sample.upload_owd_microseconds == 62U);
+}
+
+static void test_fping_odd_and_extreme_rtt_use_equal_owd_halves(void)
+{
+    struct latency_sample sample;
+
+    assert(parse_fping_line(
+        "[1.000001] 1.1.1.1 : [1], 64 bytes, 1.001 ms",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.download_owd_microseconds == 500U);
+    assert(sample.upload_owd_microseconds == 500U);
+
+    assert(parse_fping_line(
+        "[1.000001] 1.1.1.1 : [2], 64 bytes, 4294967.296 ms",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.download_owd_microseconds == UINT32_MAX / 2U);
+    assert(sample.upload_owd_microseconds == UINT32_MAX / 2U);
 }
 
 static void test_fping_byte_count_syntax(void)
@@ -265,7 +287,8 @@ static struct latency_observation track(
 )
 {
     struct latency_sample sample = {
-        .round_trip_microseconds = round_trip_microseconds
+        .download_owd_microseconds = round_trip_microseconds / 2U,
+        .upload_owd_microseconds = round_trip_microseconds / 2U
     };
     struct latency_observation observation;
 
@@ -286,11 +309,11 @@ static void test_first_sample_updates_initialized_baseline(void)
     init_tracker(&tracker);
     observation = track(&tracker, 30000U);
 
-    assert(observation.round_trip_microseconds == 30000U);
-    assert(observation.one_way_microseconds == 15000U);
-    assert(observation.one_way_baseline_microseconds == 23500U);
-    assert(observation.one_way_delta_microseconds == -8500);
-    assert(observation.one_way_delta_ewma_microseconds == -807);
+    assert(observation.download_owd_microseconds + observation.upload_owd_microseconds == 30000U);
+    assert(observation.download_owd_microseconds == 15000U);
+    assert(observation.download_owd_baseline_microseconds == 23500U);
+    assert(observation.download_owd_delta_microseconds == -8500);
+    assert(observation.download_owd_delta_ewma_microseconds == -807);
 }
 
 static void test_configured_alpha_values_are_used(void)
@@ -305,21 +328,22 @@ static void test_configured_alpha_values_are_used(void)
 
     assert(tracker_init(&tracker, &config) == 0);
     observation = track(&tracker, 300000U);
-    assert(observation.one_way_baseline_microseconds == 110000U);
-    assert(observation.one_way_delta_microseconds == 40000);
-    assert(observation.one_way_delta_ewma_microseconds == 20000);
+    assert(observation.download_owd_baseline_microseconds == 110000U);
+    assert(observation.download_owd_delta_microseconds == 40000);
+    assert(observation.download_owd_delta_ewma_microseconds == 20000);
 
     observation = track(&tracker, 100000U);
-    assert(observation.one_way_baseline_microseconds == 80000U);
-    assert(observation.one_way_delta_microseconds == -30000);
-    assert(observation.one_way_delta_ewma_microseconds == -5000);
+    assert(observation.download_owd_baseline_microseconds == 80000U);
+    assert(observation.download_owd_delta_microseconds == -30000);
+    assert(observation.download_owd_delta_ewma_microseconds == -5000);
 }
 
 static void test_delta_ewma_freezes_during_load(void)
 {
     struct latency_tracker tracker;
     struct latency_sample sample = {
-        .round_trip_microseconds = 240000U
+        .download_owd_microseconds = 120000U,
+        .upload_owd_microseconds = 120000U
     };
     struct latency_observation observation;
 
@@ -327,8 +351,50 @@ static void test_delta_ewma_freezes_during_load(void)
     tracker_update(&tracker, &sample, &observation);
     tracker_update_delta_ewma(&tracker, false, &observation);
 
-    assert(observation.one_way_delta_microseconds == 19980);
-    assert(observation.one_way_delta_ewma_microseconds == 0);
+    assert(observation.download_owd_delta_microseconds == 19980);
+    assert(observation.download_owd_delta_ewma_microseconds == 0);
+}
+
+static void test_asymmetric_tracker_state_evolves_independently(void)
+{
+    struct latency_tracker tracker;
+    const struct latency_sample sample = {
+        .download_owd_microseconds = 200000U,
+        .upload_owd_microseconds = 20000U
+    };
+    struct latency_observation observation;
+
+    init_tracker(&tracker);
+    tracker_update(&tracker, &sample, &observation);
+    tracker_update_delta_ewma(&tracker, true, &observation);
+
+    assert(observation.download_owd_baseline_microseconds == 100100U);
+    assert(observation.download_owd_delta_microseconds == 99900);
+    assert(observation.download_owd_delta_ewma_microseconds == 9490);
+    assert(observation.upload_owd_baseline_microseconds == 28000U);
+    assert(observation.upload_owd_delta_microseconds == -8000);
+    assert(observation.upload_owd_delta_ewma_microseconds == -760);
+}
+
+static void test_signed_asymmetric_tracker_handles_one_day_values(void)
+{
+    struct latency_tracker tracker;
+    const struct latency_sample sample = {
+        .download_owd_microseconds = -(INT64_C(24) * 60 * 60 * 1000000),
+        .upload_owd_microseconds = INT64_C(24) * 60 * 60 * 1000000
+    };
+    struct latency_observation observation;
+
+    init_tracker(&tracker);
+    tracker_update(&tracker, &sample, &observation);
+    tracker_update_delta_ewma(&tracker, true, &observation);
+
+    assert(observation.download_owd_baseline_microseconds == -INT64_C(77759990000));
+    assert(observation.download_owd_delta_microseconds == -INT64_C(8640010000));
+    assert(observation.download_owd_delta_ewma_microseconds == -INT64_C(820800950));
+    assert(observation.upload_owd_baseline_microseconds == INT64_C(86499900));
+    assert(observation.upload_owd_delta_microseconds == INT64_C(86313500100));
+    assert(observation.upload_owd_delta_ewma_microseconds == INT64_C(8199782509));
 }
 
 static void test_invalid_alpha_is_rejected(void)
@@ -349,9 +415,9 @@ static void test_lower_sample_reduces_baseline(void)
     (void)track(&tracker, 30000U);
     observation = track(&tracker, 25000U);
 
-    assert(observation.one_way_baseline_microseconds == 13600U);
-    assert(observation.one_way_delta_microseconds == -1100);
-    assert(observation.one_way_delta_ewma_microseconds == -834);
+    assert(observation.download_owd_baseline_microseconds == 13600U);
+    assert(observation.download_owd_delta_microseconds == -1100);
+    assert(observation.download_owd_delta_ewma_microseconds == -834);
 }
 
 static void test_higher_sample_reports_delta(void)
@@ -363,9 +429,9 @@ static void test_higher_sample_reports_delta(void)
     (void)track(&tracker, 200000U);
     observation = track(&tracker, 240000U);
 
-    assert(observation.one_way_baseline_microseconds == 100020U);
-    assert(observation.one_way_delta_microseconds == 19980U);
-    assert(observation.one_way_delta_ewma_microseconds == 1898U);
+    assert(observation.download_owd_baseline_microseconds == 100020U);
+    assert(observation.download_owd_delta_microseconds == 19980U);
+    assert(observation.download_owd_delta_ewma_microseconds == 1898U);
 }
 
 static void test_baseline_increases_slowly(void)
@@ -377,8 +443,8 @@ static void test_baseline_increases_slowly(void)
     (void)track(&tracker, 200000U);
     observation = track(&tracker, 220000U);
 
-    assert(observation.one_way_baseline_microseconds == 100010U);
-    assert(observation.one_way_delta_microseconds == 9990U);
+    assert(observation.download_owd_baseline_microseconds == 100010U);
+    assert(observation.download_owd_delta_microseconds == 9990U);
 }
 
 static void test_maximum_rtt_does_not_overflow_delta(void)
@@ -390,9 +456,9 @@ static void test_maximum_rtt_does_not_overflow_delta(void)
     (void)track(&tracker, 200000U);
     observation = track(&tracker, UINT32_MAX);
 
-    assert(observation.one_way_microseconds == 2147483647U);
-    assert(observation.one_way_baseline_microseconds == 2247383U);
-    assert(observation.one_way_delta_microseconds == INT64_C(2145236264));
+    assert(observation.download_owd_microseconds == 2147483647U);
+    assert(observation.download_owd_baseline_microseconds == 2247383U);
+    assert(observation.download_owd_delta_microseconds == INT64_C(2145236264));
 }
 
 static void test_reflector_health_uses_rolling_offence_window(void)
@@ -441,8 +507,8 @@ static void test_latency_tracker_reset_discards_measurements(void)
     tracker_reset(&tracker);
     observation = track(&tracker, 200000U);
 
-    assert(observation.one_way_baseline_microseconds == 100000U);
-    assert(observation.one_way_delta_ewma_microseconds == 0);
+    assert(observation.download_owd_baseline_microseconds == 100000U);
+    assert(observation.download_owd_delta_ewma_microseconds == 0);
 }
 
 static void test_reflector_health_reset_clears_offences(void)
@@ -472,24 +538,84 @@ static void test_reflector_comparison_uses_active_order(void)
     for (index = 0U; index < 3U; index++) {
         init_tracker(&trackers[index]);
     }
-    trackers[0].one_way_baseline_microseconds = 90000U;
-    trackers[0].one_way_delta_ewma_microseconds = -100;
-    trackers[1].one_way_baseline_microseconds = 1U;
-    trackers[1].one_way_delta_ewma_microseconds = -1000;
-    trackers[2].one_way_baseline_microseconds = 100000U;
-    trackers[2].one_way_delta_ewma_microseconds = 400;
+    trackers[0].download.baseline_microseconds = trackers[0].upload.baseline_microseconds = 90000U;
+    trackers[0].download.delta_ewma_microseconds = trackers[0].upload.delta_ewma_microseconds = -100;
+    trackers[1].download.baseline_microseconds = trackers[1].upload.baseline_microseconds = 1U;
+    trackers[1].download.delta_ewma_microseconds = trackers[1].upload.delta_ewma_microseconds = -1000;
+    trackers[2].download.baseline_microseconds = trackers[2].upload.baseline_microseconds = 100000U;
+    trackers[2].download.delta_ewma_microseconds = trackers[2].upload.delta_ewma_microseconds = 400;
 
     reflector_compare(trackers, order, 2U, comparisons);
     assert(comparisons[0].minimum_sum_owd_baselines_microseconds == 180000U);
     assert(comparisons[0].sum_owd_baselines_microseconds == 200000U);
     assert(comparisons[0].sum_owd_baselines_delta_microseconds == 20000U);
-    assert(comparisons[0].minimum_delta_ewma_microseconds == -100);
-    assert(comparisons[0].delta_ewma_microseconds == 400);
-    assert(comparisons[0].delta_ewma_delta_microseconds == 500);
+    assert(comparisons[0].minimum_download_delta_ewma_microseconds == -100);
+    assert(comparisons[0].download_delta_ewma_microseconds == 400);
+    assert(comparisons[0].download_delta_ewma_delta_microseconds == 500);
     assert(comparisons[1].sum_owd_baselines_delta_microseconds == 0U);
-    assert(comparisons[1].minimum_delta_ewma_microseconds == -100);
-    assert(comparisons[1].delta_ewma_microseconds == -100);
-    assert(comparisons[1].delta_ewma_delta_microseconds == 0);
+    assert(comparisons[1].minimum_download_delta_ewma_microseconds == -100);
+    assert(comparisons[1].download_delta_ewma_microseconds == -100);
+    assert(comparisons[1].download_delta_ewma_delta_microseconds == 0);
+}
+
+static void test_reflector_comparison_keeps_directional_minima(void)
+{
+    struct latency_tracker trackers[3];
+    const size_t order[] = { 2U, 0U };
+    struct reflector_comparison comparisons[2];
+    size_t index;
+
+    for (index = 0U; index < 3U; index++) {
+        init_tracker(&trackers[index]);
+    }
+    trackers[0].download.baseline_microseconds = 50000U;
+    trackers[0].upload.baseline_microseconds = 170000U;
+    trackers[0].download.delta_ewma_microseconds = 100;
+    trackers[0].upload.delta_ewma_microseconds = -500;
+    trackers[1].download.baseline_microseconds = 1U;
+    trackers[1].upload.baseline_microseconds = 1U;
+    trackers[1].download.delta_ewma_microseconds = -1000;
+    trackers[1].upload.delta_ewma_microseconds = -1000;
+    trackers[2].download.baseline_microseconds = 100000U;
+    trackers[2].upload.baseline_microseconds = 80000U;
+    trackers[2].download.delta_ewma_microseconds = -200;
+    trackers[2].upload.delta_ewma_microseconds = 400;
+
+    reflector_compare(trackers, order, 2U, comparisons);
+    assert(comparisons[0].minimum_sum_owd_baselines_microseconds == 180000U);
+    assert(comparisons[0].sum_owd_baselines_microseconds == 180000U);
+    assert(comparisons[0].minimum_download_delta_ewma_microseconds == -200);
+    assert(comparisons[0].download_delta_ewma_delta_microseconds == 0);
+    assert(comparisons[0].minimum_upload_delta_ewma_microseconds == -500);
+    assert(comparisons[0].upload_delta_ewma_delta_microseconds == 900);
+    assert(comparisons[1].sum_owd_baselines_delta_microseconds == 40000U);
+    assert(comparisons[1].download_delta_ewma_delta_microseconds == 300);
+    assert(comparisons[1].upload_delta_ewma_delta_microseconds == 0);
+}
+
+static void test_reflector_comparison_preserves_signed_baselines(void)
+{
+    struct latency_tracker trackers[2];
+    const size_t order[] = { 0U, 1U };
+    struct reflector_comparison comparisons[2];
+
+    init_tracker(&trackers[0]);
+    init_tracker(&trackers[1]);
+    trackers[0].download.baseline_microseconds = -INT64_C(40000000000);
+    trackers[0].upload.baseline_microseconds = INT64_C(10000000000);
+    trackers[0].download.delta_ewma_microseconds = INT64_C(5000000000);
+    trackers[0].upload.delta_ewma_microseconds = -INT64_C(6000000000);
+    trackers[1].download.baseline_microseconds = -INT64_C(50000000000);
+    trackers[1].upload.baseline_microseconds = -INT64_C(20000000000);
+    trackers[1].download.delta_ewma_microseconds = -INT64_C(7000000000);
+    trackers[1].upload.delta_ewma_microseconds = INT64_C(8000000000);
+
+    reflector_compare(trackers, order, 2U, comparisons);
+    assert(comparisons[0].minimum_sum_owd_baselines_microseconds == -INT64_C(70000000000));
+    assert(comparisons[0].sum_owd_baselines_microseconds == -INT64_C(30000000000));
+    assert(comparisons[0].sum_owd_baselines_delta_microseconds == UINT64_C(40000000000));
+    assert(comparisons[0].download_delta_ewma_delta_microseconds == INT64_C(12000000000));
+    assert(comparisons[0].upload_delta_ewma_delta_microseconds == 0);
 }
 
 static void test_reflector_rotation_uses_first_standby(void)
@@ -621,15 +747,19 @@ int main(void)
     test_sub_millisecond_response_spacing_is_rejected();
     test_close_is_idempotent();
     test_fping_reply_is_parsed();
+    test_reflector_comparison_preserves_signed_baselines();
     test_fping_six_digit_timestamp_is_preserved();
     test_fping_byte_count_syntax();
+    test_fping_odd_and_extreme_rtt_use_equal_owd_halves();
     test_fping_timestamp_boundaries();
     test_fping_timeout_is_recognized();
     test_fping_reply_identifies_each_target();
+    test_signed_asymmetric_tracker_handles_one_day_values();
     test_first_sample_updates_initialized_baseline();
     test_configured_alpha_values_are_used();
     test_delta_ewma_freezes_during_load();
     test_invalid_alpha_is_rejected();
+    test_asymmetric_tracker_state_evolves_independently();
     test_lower_sample_reduces_baseline();
     test_higher_sample_reports_delta();
     test_baseline_increases_slowly();
@@ -640,6 +770,7 @@ int main(void)
     test_reflector_health_reset_clears_offences();
     test_reflector_comparison_uses_active_order();
     test_reflector_rotation_uses_first_standby();
+    test_reflector_comparison_keeps_directional_minima();
     test_pinger_arguments_reject_command_substitution();
     test_failed_spawn_closes_pipe();
     test_prefix_and_extra_args_reach_owned_process();

@@ -411,10 +411,12 @@ static const char *congestion_state_name(
 static void log_congestion_state(
     const char *direction,
     enum controller_congestion_state state,
-    const struct controller_latency_input *latency
+    const struct latency_observation *latency
 )
 {
-    uint32_t delay;
+    int64_t round_trip_microseconds;
+    int64_t baseline_microseconds;
+    int64_t delay_microseconds;
 
     if (state == CONTROLLER_CONGESTION_UNKNOWN) {
         log_message(
@@ -425,23 +427,25 @@ static void log_congestion_state(
         return;
     }
 
-    delay = latency->current_rtt_microseconds >=
-            latency->baseline_rtt_microseconds
-        ? latency->current_rtt_microseconds -
-            latency->baseline_rtt_microseconds
-        : 0U;
+    round_trip_microseconds = latency->download_owd_microseconds +
+        latency->upload_owd_microseconds;
+    baseline_microseconds = latency->download_owd_baseline_microseconds +
+        latency->upload_owd_baseline_microseconds;
+    delay_microseconds = round_trip_microseconds >= baseline_microseconds
+        ? round_trip_microseconds - baseline_microseconds
+        : 0;
     log_message(
         state == CONTROLLER_CONGESTION_DETECTED
             ? LOG_LEVEL_NOTICE
             : LOG_LEVEL_INFO,
         "congestion changed: direction=%s state=%s"
-        " rtt=%" PRIu32 " us baseline=%" PRIu32 " us"
-        " delta=%" PRIu32 " us",
+        " rtt=%" PRId64 " us baseline=%" PRId64 " us"
+        " delta=%" PRId64 " us",
         direction,
         congestion_state_name(state),
-        latency->current_rtt_microseconds,
-        latency->baseline_rtt_microseconds,
-        delay
+        round_trip_microseconds,
+        baseline_microseconds,
+        delay_microseconds
     );
 }
 
@@ -600,21 +604,21 @@ static void log_controller_stats(
             .reflector = reflector,
             .sequence = latency->sequence,
             .download_owd_baseline_microseconds =
-                latency->one_way_baseline_microseconds,
-            .download_owd_microseconds = latency->one_way_microseconds,
+                latency->download_owd_baseline_microseconds,
+            .download_owd_microseconds = latency->download_owd_microseconds,
             .download_owd_delta_ewma_microseconds =
-                latency->one_way_delta_ewma_microseconds,
+                latency->download_owd_delta_ewma_microseconds,
             .download_owd_delta_microseconds =
-                latency->one_way_delta_microseconds,
+                latency->download_owd_delta_microseconds,
             .download_adjust_delay_threshold_microseconds =
                 config->download_owd_delta_delay_threshold_microseconds,
             .upload_owd_baseline_microseconds =
-                latency->one_way_baseline_microseconds,
-            .upload_owd_microseconds = latency->one_way_microseconds,
+                latency->upload_owd_baseline_microseconds,
+            .upload_owd_microseconds = latency->upload_owd_microseconds,
             .upload_owd_delta_ewma_microseconds =
-                latency->one_way_delta_ewma_microseconds,
+                latency->upload_owd_delta_ewma_microseconds,
             .upload_owd_delta_microseconds =
-                latency->one_way_delta_microseconds,
+                latency->upload_owd_delta_microseconds,
             .upload_adjust_delay_threshold_microseconds =
                 config->upload_owd_delta_delay_threshold_microseconds,
             .download_sum_delays =
@@ -763,10 +767,13 @@ static void update_controller(
     struct controller_input input = {
         .download = direction_input(&context->download),
         .upload = direction_input(&context->upload),
-        .latency = {
+        .download_latency = {
             .valid = true,
-            .current_rtt_microseconds = latency->one_way_microseconds * 2U,
-            .baseline_rtt_microseconds = latency->one_way_baseline_microseconds * 2U
+            .owd_delta_microseconds = latency->download_owd_delta_microseconds
+        },
+        .upload_latency = {
+            .valid = true,
+            .owd_delta_microseconds = latency->upload_owd_delta_microseconds
         },
         .timestamp_microseconds = 0U
     };
@@ -795,7 +802,7 @@ static void update_controller(
             log_line_state(direction->name, decision->state, directions[index].input);
         }
         if (decision->congestion_changed) {
-            log_congestion_state(direction->name, decision->congestion, &input.latency);
+            log_congestion_state(direction->name, decision->congestion, latency);
         }
         /* The controller never requests changes for an observation-only link. */
         if (decision->rate_changed) {
@@ -1668,20 +1675,20 @@ static bool compare_active_reflectors(
                     loop->config
                         ->reflector_sum_owd_baselines_delta_threshold_microseconds,
                 .minimum_download_delta_ewma_microseconds =
-                    comparison->minimum_delta_ewma_microseconds,
+                    comparison->minimum_download_delta_ewma_microseconds,
                 .download_delta_ewma_microseconds =
-                    comparison->delta_ewma_microseconds,
+                    comparison->download_delta_ewma_microseconds,
                 .download_delta_ewma_delta_microseconds =
-                    comparison->delta_ewma_delta_microseconds,
+                    comparison->download_delta_ewma_delta_microseconds,
                 .delta_ewma_delta_threshold_microseconds =
                     loop->config
                         ->reflector_owd_delta_ewma_delta_threshold_microseconds,
                 .minimum_upload_delta_ewma_microseconds =
-                    comparison->minimum_delta_ewma_microseconds,
+                    comparison->minimum_upload_delta_ewma_microseconds,
                 .upload_delta_ewma_microseconds =
-                    comparison->delta_ewma_microseconds,
+                    comparison->upload_delta_ewma_microseconds,
                 .upload_delta_ewma_delta_microseconds =
-                    comparison->delta_ewma_delta_microseconds
+                    comparison->upload_delta_ewma_delta_microseconds
             };
 
             log_reflector(&record);
@@ -1699,12 +1706,22 @@ static bool compare_active_reflectors(
                 reflector
             );
         } else if (
-            (uint64_t)comparison->delta_ewma_delta_microseconds >
-                loop->config->reflector_owd_delta_ewma_delta_threshold_microseconds
+            (uint64_t)comparison->download_delta_ewma_delta_microseconds >
+            loop->config->reflector_owd_delta_ewma_delta_threshold_microseconds
         ) {
             log_message(
                 LOG_LEVEL_DEBUG,
                 "Warning: reflector: %s dl_owd_delta_ewma_us exceeds the"
+                " minimum by set threshold.",
+                reflector
+            );
+        } else if (
+            (uint64_t)comparison->upload_delta_ewma_delta_microseconds >
+            loop->config->reflector_owd_delta_ewma_delta_threshold_microseconds
+        ) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "Warning: reflector: %s ul_owd_delta_ewma_us exceeds the"
                 " minimum by set threshold.",
                 reflector
             );

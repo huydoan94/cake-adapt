@@ -68,13 +68,19 @@ static struct controller_input input_with_rates(
             .traffic_rate_bits_per_second = upload_rate,
             .cake_rate_bits_per_second = upload_limit
         },
-        .latency = {
-            .valid = true,
-            .current_rtt_microseconds = 30000U,
-            .baseline_rtt_microseconds = 30000U
-        },
+        .download_latency = { .valid = true, .owd_delta_microseconds = 0 },
+        .upload_latency = { .valid = true, .owd_delta_microseconds = 0 },
         .timestamp_microseconds = 1000001U
     };
+}
+
+static void set_latency_delta(
+    struct controller_input *input,
+    int64_t delta_microseconds
+)
+{
+    input->download_latency.owd_delta_microseconds = delta_microseconds;
+    input->upload_latency.owd_delta_microseconds = delta_microseconds;
 }
 
 static void update_repeatedly(
@@ -269,7 +275,7 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
     );
     struct controller_output output;
 
-    input.latency.current_rtt_microseconds = 90002U;
+    set_latency_delta(&input, 30001);
     init_controller(&controller, &config);
     update_repeatedly(&controller, &input, &output, 2U);
     assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
@@ -299,8 +305,7 @@ static void test_below_baseline_delay_remains_signed(void)
     );
     struct controller_output output;
 
-    input.latency.baseline_rtt_microseconds = 30000U;
-    input.latency.current_rtt_microseconds = 24000U;
+    set_latency_delta(&input, -3000);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
 
@@ -325,10 +330,10 @@ static void test_delay_window_clears_after_old_delays_expire(void)
     );
     struct controller_output output;
 
-    input.latency.current_rtt_microseconds = 90002U;
+    set_latency_delta(&input, 30001);
     init_controller(&controller, &config);
     update_repeatedly(&controller, &input, &output, 3U);
-    input.latency.current_rtt_microseconds = 30000U;
+    set_latency_delta(&input, 0);
     update_repeatedly(&controller, &input, &output, 3U);
     assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
     controller_update(&controller, &input, &output);
@@ -350,13 +355,15 @@ static void test_missing_probe_holds_delay_window(void)
     );
     struct controller_output output;
 
-    input.latency.current_rtt_microseconds = 90002U;
+    set_latency_delta(&input, 30001);
     init_controller(&controller, &config);
     update_repeatedly(&controller, &input, &output, 2U);
-    input.latency.valid = false;
+    input.download_latency.valid = false;
+    input.upload_latency.valid = false;
     controller_update(&controller, &input, &output);
     assert(output.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
-    input.latency.valid = true;
+    input.download_latency.valid = true;
+    input.upload_latency.valid = true;
     controller_update(&controller, &input, &output);
 
     assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
@@ -379,7 +386,7 @@ static void test_configured_delay_window_and_direction_thresholds(void)
     config.bufferbloat_detection_threshold = 2U;
     config.download.delay_threshold_microseconds = 10000U;
     config.upload.delay_threshold_microseconds = 20000U;
-    input.latency.current_rtt_microseconds = 60000U;
+    set_latency_delta(&input, 15000);
     init_controller(&controller, &config);
     update_repeatedly(&controller, &input, &output, 2U);
 
@@ -529,10 +536,12 @@ static void test_invalid_input_preserves_fresh_sample(void)
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
     input.timestamp_microseconds += 300001U;
-    input.latency.valid = false;
+    input.download_latency.valid = false;
+    input.upload_latency.valid = false;
     controller_update(&controller, &input, &output);
     assert(controller.download.last_increase_sample_id == 0U);
-    input.latency.valid = true;
+    input.download_latency.valid = true;
+    input.upload_latency.valid = true;
     input.download.valid = false;
     controller_update(&controller, &input, &output);
     assert(controller.download.last_increase_sample_id == 0U);
@@ -577,7 +586,7 @@ static void test_noop_increase_consumes_sample(void)
     assert(controller.download.last_increase_sample_id == 2U);
 
     /* Consuming the load sample must not suppress subsequent congestion cuts. */
-    input.latency.current_rtt_microseconds = 230000U;
+    set_latency_delta(&input, 100000);
     update_repeatedly(&controller, &input, &output, 6U);
     assert(output.download.rate_bits_per_second < 12U * MEBABIT);
     accept_rates(&input, &output);
@@ -657,7 +666,7 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
     );
     struct controller_output output;
 
-    input.latency.current_rtt_microseconds = 270000U;
+    set_latency_delta(&input, 120000);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
     accept_rates(&input, &output);
@@ -687,7 +696,7 @@ static void test_bufferbloat_reduction_scales_with_average_delay(void)
     );
     struct controller_output output;
 
-    input.latency.current_rtt_microseconds = 210000U;
+    set_latency_delta(&input, 90000);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
     accept_rates(&input, &output);
@@ -714,7 +723,7 @@ static void test_bufferbloat_reduction_observes_refractory_period(void)
     );
     struct controller_output output;
 
-    input.latency.current_rtt_microseconds = 270000U;
+    set_latency_delta(&input, 120000);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
     accept_rates(&input, &output);
@@ -762,7 +771,7 @@ static void test_configured_bufferbloat_adjustment_is_used(void)
     config.rate_minimum_adjust_down_bufferbloat_per_thousand = 900U;
     config.rate_maximum_adjust_down_bufferbloat_per_thousand = 500U;
     config.bufferbloat_refractory_period_microseconds = 10U;
-    input.latency.current_rtt_microseconds = 70000U;
+    set_latency_delta(&input, 20000);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
     accept_rates(&input, &output);
@@ -878,7 +887,7 @@ static void test_congestion_restarts_decay_refractory_period(void)
     uint64_t adjustment_time;
     unsigned int sample;
 
-    input.latency.current_rtt_microseconds = 270000U;
+    set_latency_delta(&input, 120000);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
     accept_rates(&input, &output);
@@ -890,7 +899,7 @@ static void test_congestion_restarts_decay_refractory_period(void)
     accept_rates(&input, &output);
     adjustment_time = input.timestamp_microseconds;
 
-    input.latency.current_rtt_microseconds = 30000U;
+    set_latency_delta(&input, 0);
     for (sample = 0U; sample < 4U; sample++) {
         input.timestamp_microseconds++;
         controller_update(&controller, &input, &output);
@@ -976,7 +985,7 @@ static void test_rate_limits_are_hard_bounds(void)
     config.download.maximum_rate_bits_per_second = 12U * MEBABIT;
     input.download.traffic_rate_bits_per_second = 1U * MEBABIT;
     input.download.cake_rate_bits_per_second = 8U * MEBABIT;
-    input.latency.current_rtt_microseconds = 270000U;
+    set_latency_delta(&input, 120000);
     controller_close(&controller);
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
@@ -1002,7 +1011,8 @@ static void test_invalid_sample_does_not_adjust_rate(void)
 
     init_controller(&controller, &config);
     controller_update(&controller, &input, &output);
-    input.latency.valid = false;
+    input.download_latency.valid = false;
+    input.upload_latency.valid = false;
     controller_update(&controller, &input, &output);
 
     assert(output.download.rate_bits_per_second == 8U * MEBABIT);
@@ -1187,24 +1197,64 @@ static void test_compact_delay_window_boundaries(void)
     config.download.delay_threshold_microseconds = 0U;
     config.upload.delay_threshold_microseconds = UINT64_MAX;
     init_controller(&controller, &config);
-    input.latency.current_rtt_microseconds = UINT32_MAX;
-    input.latency.baseline_rtt_microseconds = 0U;
+    set_latency_delta(&input, INT64_C(2147483647));
     controller_update(&controller, &input, &output);
     assert(output.download.average_delay_microseconds == INT32_MAX);
     assert(output.download.delayed_sample_count == 1U);
     assert(output.upload.delayed_sample_count == 0U);
 
-    input.latency.current_rtt_microseconds = 0U;
-    input.latency.baseline_rtt_microseconds = UINT32_MAX;
+    set_latency_delta(&input, -INT64_C(2147483647));
     controller_update(&controller, &input, &output);
     assert(output.download.average_delay_microseconds == -INT64_C(2147483647));
     assert(output.download.delayed_sample_count == 0U);
     assert(output.upload.delayed_sample_count == 0U);
 
-    input.latency.baseline_rtt_microseconds = 0U;
+    set_latency_delta(&input, 0);
     controller_update(&controller, &input, &output);
     assert(output.download.delay_sum_microseconds == 0);
     assert(output.download.delayed_sample_count == 0U);
+    controller_close(&controller);
+}
+
+static void test_directional_latency_windows_are_independent(void)
+{
+    struct controller controller;
+    struct controller_config config = default_config();
+    struct controller_input input = input_with_rates(0U, 1U, 0U, 1U);
+    struct controller_output output;
+
+    config.bufferbloat_detection_window = 3U;
+    config.bufferbloat_detection_threshold = 2U;
+    init_controller(&controller, &config);
+    input.download_latency.owd_delta_microseconds = 40000;
+    input.upload_latency.owd_delta_microseconds = -5000;
+    update_repeatedly(&controller, &input, &output, 2U);
+
+    assert(output.download.delay_sum_microseconds == 80000);
+    assert(output.download.average_delay_microseconds == 26666);
+    assert(output.download.delayed_sample_count == 2U);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.upload.delay_sum_microseconds == -10000);
+    assert(output.upload.average_delay_microseconds == -3333);
+    assert(output.upload.delayed_sample_count == 0U);
+    assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
+
+    input.download_latency.valid = false;
+    input.upload_latency.owd_delta_microseconds = 40000;
+    controller_update(&controller, &input, &output);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
+    assert(output.download.delay_sum_microseconds == 80000);
+    assert(output.download.delayed_sample_count == 2U);
+    assert(output.upload.delay_sum_microseconds == 30000);
+    assert(output.upload.delayed_sample_count == 1U);
+
+    input.download_latency.valid = true;
+    input.download_latency.owd_delta_microseconds = -1;
+    controller.download.config.delay_threshold_microseconds = UINT64_MAX;
+    controller_update(&controller, &input, &output);
+    assert(output.download.delay_sum_microseconds == 79999);
+    assert(output.download.delayed_sample_count == 2U);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
     controller_close(&controller);
 }
 
@@ -1229,12 +1279,13 @@ static void test_delay_window_matches_rescanned_history(void)
         unsigned int upload_delays = 0U;
 
         random = random * 1664525U + 1013904223U;
-        input.latency.current_rtt_microseconds = random;
-        random = random * 1664525U + 1013904223U;
-        input.latency.baseline_rtt_microseconds = random;
-        history[index % WINDOW_SIZE] =
-            ((int64_t)input.latency.current_rtt_microseconds -
-                (int64_t)input.latency.baseline_rtt_microseconds) / 2;
+        {
+            uint32_t current = random;
+
+            random = random * 1664525U + 1013904223U;
+            history[index % WINDOW_SIZE] = ((int64_t)current - (int64_t)random) / 2;
+            set_latency_delta(&input, history[index % WINDOW_SIZE]);
+        }
         for (unsigned int slot = 0U; slot < WINDOW_SIZE; slot++) {
             sum += history[slot];
             download_delays += history[slot] > 30000 ? 1U : 0U;
@@ -1261,6 +1312,7 @@ int main(void)
     test_brief_burst_does_not_saturate();
     test_line_hysteresis_and_recovery();
     test_invalid_direction_returns_to_unknown();
+    test_directional_latency_windows_are_independent();
     test_three_of_six_delays_detect_bufferbloat();
     test_below_baseline_delay_remains_signed();
     test_delay_window_clears_after_old_delays_expire();

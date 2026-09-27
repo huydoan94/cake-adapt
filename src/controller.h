@@ -61,14 +61,14 @@ struct controller_direction_input {
 
 struct controller_latency_input {
     bool valid;
-    uint32_t current_rtt_microseconds;
-    uint32_t baseline_rtt_microseconds;
+    int64_t owd_delta_microseconds;
 };
 
 struct controller_input {
     struct controller_direction_input download;
     struct controller_direction_input upload;
-    struct controller_latency_input latency;
+    struct controller_latency_input download_latency;
+    struct controller_latency_input upload_latency;
     uint64_t timestamp_microseconds;
 };
 
@@ -131,7 +131,8 @@ struct controller_direction {
     struct controller_direction_config config;
     enum controller_line_state state;
     enum controller_congestion_state congestion;
-    int32_t *delay_samples;
+    int64_t *delay_samples;
+    unsigned char *delayed_samples;
     int64_t delay_sum_microseconds;
     uint64_t shaper_rate_bits_per_second;
     unsigned int delay_next_sample;
