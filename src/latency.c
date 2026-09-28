@@ -360,6 +360,15 @@ int latency_open(
         error_set(error, error_size, "fping requires at least one target");
         return -1;
     }
+    if (target_count > CONFIG_MAX_REFLECTORS) {
+        error_set(
+            error,
+            error_size,
+            "fping supports at most %u targets",
+            CONFIG_MAX_REFLECTORS
+        );
+        return -1;
+    }
     if (
         reflector_ping_interval_microseconds / target_count <
         MICROSECONDS_PER_MILLISECOND
@@ -516,9 +525,10 @@ int latency_open(
         return -1;
     }
 
-    latency->output_descriptor = output_pipe[0];
-    latency->process_identifier = process_identifier;
-    latency->output_length = 0U;
+    latency->children[0].output_descriptor = output_pipe[0];
+    latency->children[0].process_identifier = process_identifier;
+    latency->children[0].output_length = 0U;
+    latency->child_count = 1U;
     return 0;
 
 close_output:
@@ -533,14 +543,14 @@ failed:
 }
 
 static bool take_output_line(
-    struct latency *latency,
+    struct latency_child *child,
     char line[LATENCY_OUTPUT_SIZE]
 )
 {
     char *newline = memchr(
-        latency->output_buffer,
+        child->output_buffer,
         '\n',
-        latency->output_length
+        child->output_length
     );
     size_t length;
     size_t consumed;
@@ -549,28 +559,28 @@ static bool take_output_line(
         return false;
     }
 
-    length = (size_t)(newline - latency->output_buffer);
+    length = (size_t)(newline - child->output_buffer);
     consumed = length + 1U;
     if (
         length > 0U &&
-        latency->output_buffer[length - 1U] == '\r'
+        child->output_buffer[length - 1U] == '\r'
     ) {
         --length;
     }
     /* The newline occupies a buffer byte, leaving room for the terminator. */
-    memcpy(line, latency->output_buffer, length);
+    memcpy(line, child->output_buffer, length);
     line[length] = '\0';
     memmove(
-        latency->output_buffer,
-        latency->output_buffer + consumed,
-        latency->output_length - consumed
+        child->output_buffer,
+        child->output_buffer + consumed,
+        child->output_length - consumed
     );
-    latency->output_length -= consumed;
+    child->output_length -= consumed;
     return true;
 }
 
 static void set_child_exit_error(
-    struct latency *latency,
+    struct latency_child *child,
     char *error,
     size_t error_size
 )
@@ -578,9 +588,9 @@ static void set_child_exit_error(
     int status;
     pid_t result;
 
-    result = waitpid(latency->process_identifier, &status, WNOHANG);
-    if (result == latency->process_identifier) {
-        latency->process_identifier = -1;
+    result = waitpid(child->process_identifier, &status, WNOHANG);
+    if (result == child->process_identifier) {
+        child->process_identifier = -1;
         if (WIFEXITED(status)) {
             error_set(
                 error,
@@ -606,12 +616,13 @@ static void set_child_exit_error(
 
 void latency_init(struct latency *latency)
 {
-    *latency = (struct latency) {
-        .output_descriptor = -1,
-        .process_identifier = -1,
-        .output_buffer = { 0 },
-        .output_length = 0U
-    };
+    size_t index;
+
+    *latency = (struct latency) { 0 };
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        latency->children[index].output_descriptor = -1;
+        latency->children[index].process_identifier = -1;
+    }
 }
 
 bool target_is_valid(const char *target)
@@ -639,21 +650,41 @@ bool target_is_valid(const char *target)
 
 bool latency_is_open(const struct latency *latency)
 {
-    return latency->output_descriptor >= 0 &&
-        latency->process_identifier > 0;
+    return latency->child_count > 0U &&
+        latency->children[0].output_descriptor >= 0 &&
+        latency->children[0].process_identifier > 0;
+}
+
+size_t latency_child_count(const struct latency *latency)
+{
+    return latency->child_count;
+}
+
+int latency_child_descriptor(const struct latency *latency, size_t child_index)
+{
+    if (child_index >= latency->child_count) {
+        return -1;
+    }
+    return latency->children[child_index].output_descriptor;
 }
 
 void latency_close(struct latency *latency)
 {
-    pid_t process_identifier = latency->process_identifier;
+    size_t index;
 
-    if (latency->output_descriptor >= 0) {
-        (void)close(latency->output_descriptor);
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        struct latency_child *child = &latency->children[index];
+        pid_t process_identifier = child->process_identifier;
+
+        if (child->output_descriptor >= 0) {
+            (void)close(child->output_descriptor);
+        }
+        child->output_descriptor = -1;
+        child->process_identifier = -1;
+        child->output_length = 0U;
+        stop_child(process_identifier);
     }
-    latency->output_descriptor = -1;
-    latency->process_identifier = -1;
-    latency->output_length = 0U;
-    stop_child(process_identifier);
+    latency->child_count = 0U;
 }
 
 int tracker_init(
@@ -1062,14 +1093,22 @@ void reflector_rotate(
     reflector_order[reflector_count - 1U] = bad_reflector;
 }
 
-enum latency_probe_result latency_receive(
+enum latency_probe_result latency_receive_child(
     struct latency *latency,
+    size_t child_index,
     struct latency_sample *sample,
     char *error,
     size_t error_size
 )
 {
-    if (!latency_is_open(latency)) {
+    struct latency_child *child;
+
+    if (child_index >= latency->child_count) {
+        error_set(error, error_size, "fping is not running");
+        return LATENCY_PROBE_ERROR;
+    }
+    child = &latency->children[child_index];
+    if (child->output_descriptor < 0 || child->process_identifier <= 0) {
         error_set(error, error_size, "fping is not running");
         return LATENCY_PROBE_ERROR;
     }
@@ -1078,7 +1117,7 @@ enum latency_probe_result latency_receive(
         char line[LATENCY_OUTPUT_SIZE];
         ssize_t received;
 
-        if (take_output_line(latency, line)) {
+        if (take_output_line(child, line)) {
             enum latency_fping_line_result parsed = parse_fping_line(line, sample);
 
             if (parsed == LATENCY_FPING_LINE_INVALID) {
@@ -1095,22 +1134,22 @@ enum latency_probe_result latency_receive(
                 : LATENCY_PROBE_TIMEOUT;
         }
 
-        if (latency->output_length == sizeof(latency->output_buffer)) {
+        if (child->output_length == sizeof(child->output_buffer)) {
             error_set(error, error_size, "fping output line is too long");
             return LATENCY_PROBE_ERROR;
         }
 
         received = read(
-            latency->output_descriptor,
-            latency->output_buffer + latency->output_length,
-            sizeof(latency->output_buffer) - latency->output_length
+            child->output_descriptor,
+            child->output_buffer + child->output_length,
+            sizeof(child->output_buffer) - child->output_length
         );
         if (received > 0) {
-            latency->output_length += (size_t)received;
+            child->output_length += (size_t)received;
             continue;
         }
         if (received == 0) {
-            set_child_exit_error(latency, error, error_size);
+            set_child_exit_error(child, error, error_size);
             return LATENCY_PROBE_ERROR;
         }
         if (errno == EINTR) {
@@ -1127,4 +1166,14 @@ enum latency_probe_result latency_receive(
         }
         return LATENCY_PROBE_PENDING;
     }
+}
+
+enum latency_probe_result latency_receive(
+    struct latency *latency,
+    struct latency_sample *sample,
+    char *error,
+    size_t error_size
+)
+{
+    return latency_receive_child(latency, 0U, sample, error, error_size);
 }
