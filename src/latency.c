@@ -705,6 +705,16 @@ static int64_t signed_difference(int64_t first, int64_t second)
         : -(int64_t)difference;
 }
 
+static int64_t signed_sum(int64_t first, int64_t second)
+{
+    int64_t sum;
+
+    if (!__builtin_add_overflow(first, second, &sum)) {
+        return sum;
+    }
+    return first < 0 ? INT64_MIN : INT64_MAX;
+}
+
 static bool sample_has_timestamp_rollover(
     const struct latency_tracker *tracker,
     const struct latency_sample *sample
@@ -961,9 +971,10 @@ void reflector_compare(
     int64_t minimum_upload_delta_ewma;
     size_t index;
 
-    minimum_baseline =
-        trackers[reflector_order[0]].download.baseline_microseconds +
-        trackers[reflector_order[0]].upload.baseline_microseconds;
+    minimum_baseline = signed_sum(
+        trackers[reflector_order[0]].download.baseline_microseconds,
+        trackers[reflector_order[0]].upload.baseline_microseconds
+    );
     minimum_download_delta_ewma =
         trackers[reflector_order[0]].download.delta_ewma_microseconds;
     minimum_upload_delta_ewma =
@@ -971,9 +982,10 @@ void reflector_compare(
     for (index = 1U; index < active_count; index++) {
         const struct latency_tracker *tracker =
             &trackers[reflector_order[index]];
-        int64_t sum_baselines =
-            tracker->download.baseline_microseconds +
-            tracker->upload.baseline_microseconds;
+        int64_t sum_baselines = signed_sum(
+            tracker->download.baseline_microseconds,
+            tracker->upload.baseline_microseconds
+        );
 
         if (sum_baselines < minimum_baseline) {
             minimum_baseline = sum_baselines;
@@ -997,9 +1009,10 @@ void reflector_compare(
     for (index = 0U; index < active_count; index++) {
         const struct latency_tracker *tracker =
             &trackers[reflector_order[index]];
-        int64_t sum_baselines =
-            tracker->download.baseline_microseconds +
-            tracker->upload.baseline_microseconds;
+        int64_t sum_baselines = signed_sum(
+            tracker->download.baseline_microseconds,
+            tracker->upload.baseline_microseconds
+        );
         int64_t download_delta_ewma =
             tracker->download.delta_ewma_microseconds;
         int64_t upload_delta_ewma =
@@ -1009,17 +1022,23 @@ void reflector_compare(
             .minimum_sum_owd_baselines_microseconds = minimum_baseline,
             .sum_owd_baselines_microseconds = sum_baselines,
             .sum_owd_baselines_delta_microseconds =
-                (uint64_t)(sum_baselines - minimum_baseline),
+                absolute_difference(sum_baselines, minimum_baseline),
             .minimum_download_delta_ewma_microseconds =
                 minimum_download_delta_ewma,
             .download_delta_ewma_microseconds = download_delta_ewma,
             .download_delta_ewma_delta_microseconds =
-                download_delta_ewma - minimum_download_delta_ewma,
+                signed_difference(
+                    download_delta_ewma,
+                    minimum_download_delta_ewma
+                ),
             .minimum_upload_delta_ewma_microseconds =
                 minimum_upload_delta_ewma,
             .upload_delta_ewma_microseconds = upload_delta_ewma,
             .upload_delta_ewma_delta_microseconds =
-                upload_delta_ewma - minimum_upload_delta_ewma
+                signed_difference(
+                    upload_delta_ewma,
+                    minimum_upload_delta_ewma
+                )
         };
     }
 }
