@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "config.h"
 #include "constants.h"
 #include "defaults.h"
@@ -25,49 +23,6 @@ static void print_usage(const char *program_name)
         program_name,
         program_name
     );
-}
-
-static void randomize_reflector_list(struct config *config)
-{
-    uint32_t random_values[CONFIG_MAX_REFLECTORS - 1U];
-    size_t count = (size_t)config->reflector_count;
-    size_t index;
-
-    log_message(LOG_LEVEL_DEBUG, "Randomizing reflectors.");
-    if (
-        !config->randomize_reflectors ||
-        count < 2U
-    ) {
-        return;
-    }
-    /* At most 63 words (252 bytes), within getentropy's 256-byte limit. */
-    if (getentropy(random_values, (count - 1U) * sizeof(*random_values)) != 0) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "could not randomize reflectors: %s",
-            strerror(errno)
-        );
-        return;
-    }
-
-    for (index = count - 1U; index > 0U; index--) {
-        size_t selected = (size_t)(
-            random_values[count - 1U - index] % (uint32_t)(index + 1U)
-        );
-        char temporary[CONFIG_REFLECTOR_SIZE];
-
-        memcpy(temporary, config->reflectors[index], sizeof(temporary));
-        memcpy(
-            config->reflectors[index],
-            config->reflectors[selected],
-            sizeof(config->reflectors[index])
-        );
-        memcpy(
-            config->reflectors[selected],
-            temporary,
-            sizeof(config->reflectors[selected])
-        );
-    }
 }
 
 int main(int argc, char **argv)
@@ -252,8 +207,6 @@ int main(int argc, char **argv)
         "Local list of reflectors contains %" PRIu64 " entries.",
         config.reflector_count
     );
-    randomize_reflector_list(&config);
-
     log_message(
         LOG_LEVEL_INFO,
         "configuration loaded: upload_interface=%s download_interface=%s"
