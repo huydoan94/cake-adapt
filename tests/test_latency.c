@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "latency.h"
+#include "constants.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -171,6 +172,7 @@ static void test_fping_reply_is_parsed(void)
     assert(sample.sequence == UINT64_C(65536));
     assert(sample.download_owd_microseconds == 15950U);
     assert(sample.upload_owd_microseconds == 15950U);
+    assert(!sample.timestamp_rollover_sensitive);
 }
 
 static void test_fping_six_digit_timestamp_is_preserved(void)
@@ -738,6 +740,100 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
     assert(target_is_valid("2001:4860:4860::8888"));
 }
 
+static void test_timestamp_rollover_resets_only_timestamp_samples(void)
+{
+    struct latency_tracker tracker;
+    struct latency_observation observation;
+    struct latency_sample sample = {
+        .download_owd_microseconds =
+            (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS,
+        .upload_owd_microseconds = 0,
+        .timestamp_rollover_sensitive = true
+    };
+
+    init_tracker(&tracker);
+    tracker.download.baseline_microseconds = 0;
+    tracker.upload.baseline_microseconds = 0;
+    tracker.download.delta_ewma_microseconds = 100;
+    tracker.upload.delta_ewma_microseconds = 200;
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds == 0);
+    assert(observation.upload_owd_delta_microseconds == 0);
+    assert(tracker.download.baseline_microseconds == sample.download_owd_microseconds);
+    assert(tracker.upload.baseline_microseconds == sample.upload_owd_microseconds);
+    tracker_update_delta_ewma(&tracker, true, &observation);
+    assert(tracker.download.delta_ewma_microseconds == 90);
+    assert(tracker.upload.delta_ewma_microseconds == 181);
+
+    tracker.download.baseline_microseconds = INT64_MAX;
+    tracker.upload.baseline_microseconds = INT64_MIN;
+    sample.download_owd_microseconds = INT64_MIN;
+    sample.upload_owd_microseconds = INT64_MAX;
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds == 0);
+    assert(observation.upload_owd_delta_microseconds == 0);
+    assert(tracker.download.baseline_microseconds == INT64_MIN);
+    assert(tracker.upload.baseline_microseconds == INT64_MAX);
+    tracker_update(&tracker, &sample, &observation);
+    assert(tracker.download.baseline_microseconds == INT64_MIN);
+    assert(tracker.upload.baseline_microseconds == INT64_MAX);
+    assert(observation.download_owd_delta_microseconds == 0);
+    assert(observation.upload_owd_delta_microseconds == 0);
+    tracker.download.delta_ewma_microseconds = 500;
+    tracker.upload.delta_ewma_microseconds = 600;
+    tracker_update_delta_ewma(&tracker, false, &observation);
+    assert(tracker.download.delta_ewma_microseconds == 500);
+    assert(tracker.upload.delta_ewma_microseconds == 600);
+
+    tracker_reset(&tracker);
+    tracker.download.baseline_microseconds = 0;
+    tracker.upload.baseline_microseconds = 0;
+    sample.download_owd_microseconds =
+        (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS - 1;
+    sample.upload_owd_microseconds = 0;
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds != 0);
+    tracker_reset(&tracker);
+    tracker.download.baseline_microseconds = 0;
+    tracker.upload.baseline_microseconds = 0;
+    sample.download_owd_microseconds =
+        (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS - 1;
+    sample.upload_owd_microseconds = 2;
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds == 0);
+    assert(observation.upload_owd_delta_microseconds == 0);
+    assert(tracker.download.baseline_microseconds == sample.download_owd_microseconds);
+    assert(tracker.upload.baseline_microseconds == sample.upload_owd_microseconds);
+
+    tracker.download.baseline_microseconds = 100;
+    tracker.upload.baseline_microseconds = -100;
+    sample.download_owd_microseconds = 100 +
+        (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS / 2;
+    sample.upload_owd_microseconds = -100 -
+        (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS / 2;
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds == 0);
+    assert(observation.upload_owd_delta_microseconds == 0);
+
+    tracker.download.baseline_microseconds = 0;
+    tracker.upload.baseline_microseconds = 0;
+    sample.download_owd_microseconds = 0;
+    sample.upload_owd_microseconds =
+        (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS;
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds == 0);
+    assert(observation.upload_owd_delta_microseconds == 0);
+    assert(tracker.download.baseline_microseconds == 0);
+    assert(tracker.upload.baseline_microseconds == sample.upload_owd_microseconds);
+
+    sample.timestamp_rollover_sensitive = false;
+    sample.download_owd_microseconds =
+        (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS;
+    tracker_reset(&tracker);
+    tracker_update(&tracker, &sample, &observation);
+    assert(observation.download_owd_delta_microseconds != 0);
+}
+
 int main(void)
 {
     test_initial_state_is_closed();
@@ -774,6 +870,7 @@ int main(void)
     test_pinger_arguments_reject_command_substitution();
     test_failed_spawn_closes_pipe();
     test_prefix_and_extra_args_reach_owned_process();
+    test_timestamp_rollover_resets_only_timestamp_samples();
 
     (void)puts("latency tests passed");
     return 0;

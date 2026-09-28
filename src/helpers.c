@@ -88,6 +88,37 @@ bool interval_elapsed(
     return current > previous && current - previous > interval;
 }
 
+void response_timestamp(
+    uint64_t processing_realtime_microseconds,
+    uint64_t processing_monotonic_microseconds,
+    uint64_t response_realtime_microseconds,
+    uint64_t *response_monotonic_microseconds,
+    bool *stale
+)
+{
+    uint64_t age_microseconds = 0U;
+
+    if (response_realtime_microseconds > processing_realtime_microseconds) {
+        age_microseconds = response_realtime_microseconds -
+            processing_realtime_microseconds;
+        *stale = false;
+        *response_monotonic_microseconds =
+            UINT64_MAX - processing_monotonic_microseconds < age_microseconds
+                ? UINT64_MAX
+                : processing_monotonic_microseconds + age_microseconds;
+        return;
+    }
+    if (processing_realtime_microseconds > response_realtime_microseconds) {
+        age_microseconds = processing_realtime_microseconds -
+            response_realtime_microseconds;
+    }
+    *stale = age_microseconds > LATENCY_STALE_RESPONSE_MICROSECONDS;
+    *response_monotonic_microseconds =
+        age_microseconds >= processing_monotonic_microseconds
+            ? 0U
+            : processing_monotonic_microseconds - age_microseconds;
+}
+
 bool read_clock_microseconds(
     clockid_t clock_identifier,
     uint64_t *timestamp
