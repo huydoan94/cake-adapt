@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <linux/pkt_sched.h>
 #include <net/if.h>
 #include <signal.h>
@@ -310,6 +311,7 @@ struct observation_context {
     uint64_t last_reflector_comparison_microseconds;
     uint64_t last_reflector_response_microseconds;
     uint64_t last_pinger_restart_microseconds;
+    uint64_t pinger_slot_origin_microseconds;
     uint64_t next_latency_attempt_microseconds;
     uint64_t pinger_grace_until_microseconds;
     struct controller_activity activity;
@@ -339,10 +341,12 @@ struct event_loop {
     bool traffic_cadence_applied;
     struct uloop_fd qdisc_events;
     struct latency_watch latency_output[CONFIG_MAX_REFLECTORS];
+    struct uloop_timeout latency_start_timer;
     int result;
 };
 
 static void handle_traffic_timer(struct uloop_interval *timer);
+static bool schedule_irtt_child_start(struct event_loop *loop);
 
 static void apply_traffic_cadence(struct event_loop *loop)
 {
@@ -969,6 +973,8 @@ static bool ensure_latency_open(
     size_t target_count = (size_t)config->no_pingers;
     size_t index;
     uint64_t timestamp_microseconds;
+    uint64_t first_start_microseconds;
+    int result;
 
     if (!cake_ready(context)) {
         return false;
@@ -987,8 +993,28 @@ static bool ensure_latency_open(
     for (index = 0U; index < target_count; index++) {
         targets[index] = config->reflectors[context->reflector_order[index]];
     }
-    if (
-        latency_open(
+    if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0) {
+        uint64_t elapsed = timestamp_microseconds -
+            context->pinger_slot_origin_microseconds;
+        uint64_t remainder = elapsed %
+            config->reflector_ping_interval_microseconds;
+
+        first_start_microseconds = timestamp_microseconds +
+            config->reflector_ping_interval_microseconds - remainder;
+        result = latency_open_irtt(
+            &context->latency,
+            targets,
+            target_count,
+            config->reflector_ping_interval_microseconds,
+            config->irtt_session_duration_minutes,
+            config->ping_extra_args,
+            config->ping_prefix_string,
+            first_start_microseconds,
+            error,
+            sizeof(error)
+        );
+    } else {
+        result = latency_open(
             &context->latency,
             config->interface,
             targets,
@@ -998,8 +1024,9 @@ static bool ensure_latency_open(
             config->ping_prefix_string,
             error,
             sizeof(error)
-        ) != 0
-    ) {
+        );
+    }
+    if (result != 0) {
         if (!context->latency_observation_failed) {
             log_message(
                 LOG_LEVEL_WARNING,
@@ -1011,16 +1038,28 @@ static bool ensure_latency_open(
         return false;
     }
 
-    log_message(
-        context->latency_observation_failed
-            ? LOG_LEVEL_NOTICE
-            : LOG_LEVEL_INFO,
-        context->latency_observation_failed
-            ? "latency observation recovered: targets=%zu interface=%s"
-            : "latency observation initialized: targets=%zu interface=%s",
-        target_count,
-        config->interface
-    );
+    if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0) {
+        log_message(
+            context->latency_observation_failed
+                ? LOG_LEVEL_NOTICE
+                : LOG_LEVEL_INFO,
+            context->latency_observation_failed
+                ? "latency observation recovered: targets=%zu pinger=irtt"
+                : "latency observation initialized: targets=%zu pinger=irtt",
+            target_count
+        );
+    } else {
+        log_message(
+            context->latency_observation_failed
+                ? LOG_LEVEL_NOTICE
+                : LOG_LEVEL_INFO,
+            context->latency_observation_failed
+                ? "latency observation recovered: targets=%zu interface=%s"
+                : "latency observation initialized: targets=%zu interface=%s",
+            target_count,
+            config->interface
+        );
+    }
     context->latency_observation_failed = false;
     context->next_latency_attempt_microseconds = 0U;
     context->last_pinger_restart_microseconds = timestamp_microseconds;
@@ -1078,6 +1117,15 @@ static bool receive_latency_samples(
         }
         if (result == LATENCY_PROBE_TIMEOUT) {
             continue;
+        }
+        if (result == LATENCY_PROBE_RESTART) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "Restarting irtt pinger: pinger=%zu (%s)",
+                child_index,
+                error
+            );
+            return true;
         }
         if (result == LATENCY_PROBE_ERROR) {
             if (!context->latency_observation_failed) {
@@ -1184,6 +1232,7 @@ static void close_latency(struct event_loop *loop)
 {
     size_t index;
 
+    (void)uloop_timeout_cancel(&loop->latency_start_timer);
     for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
         if (loop->latency_output[index].descriptor.registered) {
             (void)uloop_fd_delete(&loop->latency_output[index].descriptor);
@@ -1191,6 +1240,18 @@ static void close_latency(struct event_loop *loop)
         loop->latency_output[index].descriptor.fd = -1;
     }
     latency_close(&loop->observation.latency);
+}
+
+static void defer_latency_retry(struct event_loop *loop)
+{
+    uint64_t timestamp_microseconds;
+
+    close_latency(loop);
+    if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
+        loop->observation.next_latency_attempt_microseconds =
+            timestamp_microseconds +
+            loop->config->interface_up_check_interval_microseconds;
+    }
 }
 
 static struct monitored_direction *event_direction(
@@ -1327,44 +1388,45 @@ static void handle_latency_output(
         loop->config,
         watch->child_index
     )) {
-        uint64_t timestamp_microseconds;
-
-        close_latency(loop);
-        if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-            loop->observation.next_latency_attempt_microseconds =
-                timestamp_microseconds +
-                loop->config->interface_up_check_interval_microseconds;
+        defer_latency_retry(loop);
+    } else if (latency_child_descriptor(
+        &loop->observation.latency,
+        watch->child_index
+    ) < 0) {
+        if (watch->descriptor.registered) {
+            (void)uloop_fd_delete(&watch->descriptor);
         }
+        watch->descriptor.fd = -1;
+        (void)schedule_irtt_child_start(loop);
     }
 }
 
-static bool watch_latency(struct event_loop *loop)
+static bool watch_started_latency_children(struct event_loop *loop)
 {
     size_t index;
     int saved_errno;
 
-    if (!ensure_latency_open(&loop->observation, loop->config)) {
-        return false;
-    }
     for (
         index = 0U;
         index < latency_child_count(&loop->observation.latency);
         index++
     ) {
         struct latency_watch *watch = &loop->latency_output[index];
-
-        if (watch->descriptor.registered) {
-            continue;
-        }
-        watch->descriptor.fd = latency_child_descriptor(
+        int descriptor = latency_child_descriptor(
             &loop->observation.latency,
             index
         );
+
+        if (watch->descriptor.registered || descriptor < 0) {
+            continue;
+        }
+        watch->descriptor.fd = descriptor;
         if (uloop_fd_add(&watch->descriptor, ULOOP_READ | ULOOP_ERROR_CB) != 0) {
             saved_errno = errno;
             log_message(
                 LOG_LEVEL_WARNING,
-                "latency observation degraded: could not monitor fping output: %s",
+                "latency observation degraded: could not monitor %s output: %s",
+                loop->config->pinger_method,
                 strerror(saved_errno)
             );
             loop->observation.latency_observation_failed = true;
@@ -1373,6 +1435,106 @@ static bool watch_latency(struct event_loop *loop)
         }
     }
     return true;
+}
+
+static bool schedule_irtt_child_start(struct event_loop *loop)
+{
+    char error[ERROR_SIZE] = { 0 };
+    uint64_t timestamp_microseconds;
+    uint64_t next_start_microseconds;
+    uint64_t delay_microseconds;
+    uint64_t delay_milliseconds;
+
+    if (!latency_irtt_start_pending(&loop->observation.latency)) {
+        (void)uloop_timeout_cancel(&loop->latency_start_timer);
+        return true;
+    }
+    if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "latency observation degraded: IRTT start clock failed: %s",
+            strerror(errno)
+        );
+        loop->observation.latency_observation_failed = true;
+        defer_latency_retry(loop);
+        return false;
+    }
+    if (
+        latency_start_irtt_children(
+            &loop->observation.latency,
+            timestamp_microseconds,
+            error,
+            sizeof(error)
+        ) != 0
+    ) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "latency observation degraded: %s",
+            error
+        );
+        loop->observation.latency_observation_failed = true;
+        defer_latency_retry(loop);
+        return false;
+    }
+    if (!watch_started_latency_children(loop)) {
+        return false;
+    }
+    if (!latency_irtt_start_pending(&loop->observation.latency)) {
+        return true;
+    }
+
+    next_start_microseconds = latency_irtt_next_start_microseconds(
+        &loop->observation.latency
+    );
+    delay_microseconds = next_start_microseconds > timestamp_microseconds
+        ? next_start_microseconds - timestamp_microseconds
+        : 0U;
+    delay_milliseconds =
+        delay_microseconds / MICROSECONDS_PER_MILLISECOND;
+    if (delay_microseconds % MICROSECONDS_PER_MILLISECOND != 0U) {
+        delay_milliseconds++;
+    }
+    if (delay_milliseconds > (uint64_t)INT_MAX) {
+        delay_milliseconds = (uint64_t)INT_MAX;
+    }
+    if (
+        uloop_timeout_set(
+            &loop->latency_start_timer,
+            (int)delay_milliseconds
+        ) != 0
+    ) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "latency observation degraded: could not schedule IRTT start: %s",
+            strerror(errno)
+        );
+        loop->observation.latency_observation_failed = true;
+        defer_latency_retry(loop);
+        return false;
+    }
+    return true;
+}
+
+static void handle_latency_start(struct uloop_timeout *timer)
+{
+    struct event_loop *loop = __extension__ container_of(
+        timer,
+        struct event_loop,
+        latency_start_timer
+    );
+
+    (void)schedule_irtt_child_start(loop);
+}
+
+static bool watch_latency(struct event_loop *loop)
+{
+    if (!ensure_latency_open(&loop->observation, loop->config)) {
+        return false;
+    }
+    if (strcmp(loop->config->pinger_method, PINGER_METHOD_IRTT) == 0) {
+        return schedule_irtt_child_start(loop);
+    }
+    return watch_started_latency_children(loop);
 }
 
 static void enforce_minimum_rates(
@@ -2158,6 +2320,9 @@ int monitor_run(const struct config *config)
             .cb = handle_qdisc_events,
             .fd = -1
         },
+        .latency_start_timer = {
+            .cb = handle_latency_start
+        },
         .result = -1
     };
     bool previous_sigchld_handling = uloop_handle_sigchld;
@@ -2264,6 +2429,7 @@ int monitor_run(const struct config *config)
     loop.observation.last_reflector_response_microseconds =
         start_microseconds;
     loop.observation.last_pinger_restart_microseconds = start_microseconds;
+    loop.observation.pinger_slot_origin_microseconds = start_microseconds;
     loop.observation.activity.state = CONTROLLER_RUNNING;
     for (index = 0U; index < (size_t)config->no_pingers; index++) {
         if (
@@ -2283,7 +2449,7 @@ int monitor_run(const struct config *config)
         health_count++;
     }
 
-    /* latency.c owns and reaps fping; uloop must not consume its SIGCHLD. */
+    /* latency.c owns and reaps pinger children; uloop must not consume them. */
     uloop_handle_sigchld = false;
     if (uloop_init() != 0) {
         log_message(

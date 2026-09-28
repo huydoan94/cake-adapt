@@ -857,8 +857,18 @@ static int validate_latency_config(
     ) {
         return 0;
     }
-    if (strcmp(config->pinger_method, PINGER_METHOD_FPING) != 0) {
-        error_set(error, error_size, "option 'pinger_method' must be 'fping'; no other pinger is supported");
+    if (
+        strcmp(config->pinger_method, PINGER_METHOD_FPING) != 0 &&
+        strcmp(config->pinger_method, PINGER_METHOD_IRTT) != 0
+    ) {
+        error_set(error, error_size, "option 'pinger_method' must be 'fping' or 'irtt'");
+        return -1;
+    }
+    if (
+        strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0 &&
+        config->irtt_session_duration_minutes == 0U
+    ) {
+        error_set(error, error_size, "option 'irtt_session_duration_m' must be positive for irtt");
         return -1;
     }
     /* Loading bounds the reflector list; validation bounds no_pingers by it. */

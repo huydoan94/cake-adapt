@@ -166,16 +166,22 @@ static struct config valid_config(void)
     };
 }
 
-static void test_fping_only_and_intentional_exclusions(void)
+static void test_supported_pinger_methods(void)
 {
     struct config config = valid_config();
     char error[256] = "";
 
-    config.irtt_session_duration_minutes = UINT64_MAX;
+    config.irtt_session_duration_minutes = 10U;
     assert(validate_latency_config(&config, error, sizeof(error)) == 0);
     (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "irtt");
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+    config.irtt_session_duration_minutes = 0U;
     assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-    assert(strstr(error, "no other pinger") != NULL);
+    assert(strstr(error, "must be positive") != NULL);
+    config = valid_config();
+    (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "ping");
+    assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+    assert(strstr(error, "fping' or 'irtt") != NULL);
 }
 
 static void test_reflector_list_validation(void)
@@ -261,7 +267,7 @@ int main(void)
         "download", error, sizeof(error)) != 0);
     assert(strstr(error, "whole kbit/s") != NULL);
 
-    test_fping_only_and_intentional_exclusions();
+    test_supported_pinger_methods();
     test_option_copy_boundaries();
     test_scalar_option_types();
     test_supported_option_names();

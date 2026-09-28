@@ -212,6 +212,81 @@ static void test_fping_reply_is_parsed(void)
     assert(!sample.timestamp_rollover_sensitive);
 }
 
+static void test_irtt_reply_is_parsed_directionally(void)
+{
+    struct latency_sample sample;
+
+    assert(parse_irtt_line(
+        "seq=42 rtt=3ms rd=1.234ms sd=567µs ipdv=0s",
+        "2001:db8::1",
+        UINT64_C(123456789),
+        &sample
+    ));
+    assert(strcmp(sample.target, "2001:db8::1") == 0);
+    assert(sample.sequence == 42U);
+    assert(sample.download_owd_microseconds == 1234);
+    assert(sample.upload_owd_microseconds == 567);
+    assert(sample.timestamp_microseconds == UINT64_C(123456789));
+    assert(!sample.timestamp_rollover_sensitive);
+
+    assert(parse_irtt_line(
+        "seq=9 rd=1500ns sd=2s",
+        "1.1.1.1",
+        1U,
+        &sample
+    ));
+    assert(sample.download_owd_microseconds == 2);
+    assert(sample.upload_owd_microseconds == 2 * (int64_t)SECOND);
+    assert(!parse_irtt_line(
+        "seq=9 rd=-1ms sd=2ms",
+        "1.1.1.1",
+        1U,
+        &sample
+    ));
+    assert(!parse_irtt_line(
+        "seq=9 rd=1ms",
+        "1.1.1.1",
+        1U,
+        &sample
+    ));
+}
+
+static void test_irtt_receive_ignores_non_sample_lines(void)
+{
+    struct latency latency;
+    struct latency_sample sample;
+    const char output[] = "IRTT client\nseq=7 rtt=3ms rd=1ms sd=2ms\n";
+    char error[256] = "";
+    int descriptors[2];
+
+    latency_init(&latency);
+    assert(pipe(descriptors) == 0);
+    assert(fcntl(descriptors[0], F_SETFL, O_NONBLOCK) == 0);
+    latency.backend = LATENCY_BACKEND_IRTT;
+    latency.active = true;
+    latency.target_count = 1U;
+    latency.child_count = 1U;
+    latency.children[0].output_descriptor = descriptors[0];
+    latency.children[0].process_identifier = getpid();
+    latency.children[0].target = "9.9.9.9";
+    assert(write(descriptors[1], output, sizeof(output) - 1U) ==
+        (ssize_t)(sizeof(output) - 1U));
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_SUCCESS);
+    assert(strcmp(sample.target, "9.9.9.9") == 0);
+    assert(sample.sequence == 7U);
+    assert(sample.download_owd_microseconds == 1000);
+    assert(sample.upload_owd_microseconds == 2000);
+    assert(sample.timestamp_microseconds > 0U);
+    assert(close(descriptors[1]) == 0);
+    assert(close(descriptors[0]) == 0);
+}
+
 static void test_fping_six_digit_timestamp_is_preserved(void)
 {
     struct latency_sample sample;
@@ -872,6 +947,101 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
     assert(target_is_valid("2001:4860:4860::8888"));
 }
 
+static void test_irtt_children_start_in_separate_slots(void)
+{
+    struct latency latency;
+    struct latency_sample sample;
+    const char *targets[] = { "1.1.1.1", "2001:db8::1" };
+    char error[256] = "";
+    char output[1024];
+    size_t length = 0U;
+    struct pollfd descriptor;
+
+    latency_init(&latency);
+    assert(latency_open_irtt(
+        &latency,
+        targets,
+        2U,
+        300U * MILLISECOND,
+        10U,
+        "--fill=rand",
+        "/usr/bin/printf '%s\\n'",
+        1000U,
+        error,
+        sizeof(error)
+    ) == 0);
+    assert(latency_is_open(&latency));
+    assert(latency_child_count(&latency) == 2U);
+    assert(latency_child_descriptor(&latency, 0U) == -1);
+    assert(latency_child_descriptor(&latency, 1U) == -1);
+    assert(latency_irtt_start_pending(&latency));
+    assert(latency_start_irtt_children(
+        &latency,
+        999U,
+        error,
+        sizeof(error)
+    ) == 0);
+    assert(latency_child_descriptor(&latency, 0U) == -1);
+    assert(latency_child_descriptor(&latency, 1U) == -1);
+    assert(latency_start_irtt_children(
+        &latency,
+        1000U,
+        error,
+        sizeof(error)
+    ) == 0);
+    assert(latency_child_descriptor(&latency, 0U) >= 0);
+    assert(latency_child_descriptor(&latency, 1U) == -1);
+    assert(latency_irtt_next_start_microseconds(&latency) == 151000U);
+
+    descriptor = (struct pollfd) {
+        .fd = latency_child_descriptor(&latency, 0U),
+        .events = POLLIN
+    };
+    for (;;) {
+        ssize_t bytes;
+
+        assert(poll(&descriptor, 1U, 1000) > 0);
+        bytes = read(
+            descriptor.fd,
+            output + length,
+            sizeof(output) - 1U - length
+        );
+        assert(bytes >= 0);
+        if (bytes == 0) {
+            break;
+        }
+        length += (size_t)bytes;
+    }
+    output[length] = '\0';
+    assert(strcmp(
+        output,
+        "/usr/bin/irtt\nclient\n--fill=rand\n-i\n0.300000s\n"
+            "-d\n10m\n1.1.1.1\n"
+    ) == 0);
+
+    assert(latency_start_irtt_children(
+        &latency,
+        151000U,
+        error,
+        sizeof(error)
+    ) == 0);
+    assert(latency_child_descriptor(&latency, 1U) >= 0);
+    assert(!latency_irtt_start_pending(&latency));
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_RESTART);
+    assert(strstr(error, "irtt exited with status 0") != NULL);
+    assert(latency_child_descriptor(&latency, 0U) == -1);
+    assert(latency_child_descriptor(&latency, 1U) >= 0);
+    assert(latency_irtt_start_pending(&latency));
+    latency_close(&latency);
+    assert(!latency_is_open(&latency));
+}
+
 static void test_timestamp_rollover_resets_only_timestamp_samples(void)
 {
     struct latency_tracker tracker;
@@ -976,6 +1146,8 @@ int main(void)
     test_close_is_idempotent();
     test_close_releases_every_owned_descriptor();
     test_fping_reply_is_parsed();
+    test_irtt_reply_is_parsed_directionally();
+    test_irtt_receive_ignores_non_sample_lines();
     test_reflector_comparison_preserves_signed_baselines();
     test_fping_six_digit_timestamp_is_preserved();
     test_fping_byte_count_syntax();
@@ -1006,6 +1178,7 @@ int main(void)
     test_pinger_arguments_reject_command_substitution();
     test_failed_spawn_closes_pipe();
     test_prefix_and_extra_args_reach_owned_process();
+    test_irtt_children_start_in_separate_slots();
     test_timestamp_rollover_resets_only_timestamp_samples();
 
     (void)puts("latency tests passed");
