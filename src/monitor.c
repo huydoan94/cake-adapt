@@ -303,6 +303,8 @@ struct observation_context {
     bool latency_observation_failed;
     bool traffic_clock_failed;
     bool health_clock_failed;
+    bool traffic_cadence_initialized;
+    uint64_t traffic_cadence_microseconds;
     uint64_t last_reflector_replacement_microseconds;
     uint64_t last_reflector_comparison_microseconds;
     uint64_t last_reflector_response_microseconds;
@@ -325,6 +327,7 @@ struct event_loop {
     size_t cpu_count;
     bool cpu_observation_failed;
     bool qdisc_refresh;
+    bool traffic_cadence_applied;
     struct uloop_fd qdisc_events;
     struct uloop_fd latency_output;
     int result;
@@ -332,10 +335,59 @@ struct event_loop {
 
 static void handle_traffic_timer(struct uloop_interval *timer);
 
+static void apply_traffic_cadence(struct event_loop *loop)
+{
+    if (!loop->observation.traffic_cadence_initialized ||
+        loop->traffic_cadence_applied) {
+        return;
+    }
+    if (uloop_interval_set(
+        &loop->traffic_timer,
+        traffic_interval_milliseconds(
+            loop->observation.traffic_cadence_microseconds
+        )
+    ) != 0) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "could not apply compensated traffic cadence: %s",
+            strerror(errno)
+        );
+        return;
+    }
+    loop->traffic_cadence_applied = true;
+}
+
 static bool cake_ready(const struct observation_context *context)
 {
     return context->download.cake_state == CAKE_OBSERVATION_AVAILABLE &&
         context->upload.cake_state == CAKE_OBSERVATION_AVAILABLE;
+}
+
+static bool wire_metadata_ready(const struct observation_context *context)
+{
+    return cake_ready(context) &&
+        context->download.cake_valid &&
+        context->upload.cake_valid &&
+        context->download.cake.has_mtu &&
+        context->upload.cake.has_mtu &&
+        context->download.cake.has_bandwidth &&
+        context->upload.cake.has_bandwidth;
+}
+
+static void update_serialization_compensation(
+    struct observation_context *context
+)
+{
+    if (!wire_metadata_ready(context)) {
+        return;
+    }
+    controller_set_serialization_compensation(
+        &context->controller,
+        cake_max_wire_packet_bits(&context->download.cake),
+        cake_max_wire_packet_bits(&context->upload.cake),
+        context->controller.download.shaper_rate_bits_per_second,
+        context->controller.upload.shaper_rate_bits_per_second
+    );
 }
 
 static bool random_index(size_t count, size_t *index)
@@ -535,6 +587,8 @@ static void log_load_stats(
 
 static void log_controller_stats(
     const struct config *config,
+    const struct controller_direction_config *download_effective,
+    const struct controller_direction_config *upload_effective,
     uint64_t high_load_threshold_percent,
     const struct controller_input *input,
     const struct controller_output *output,
@@ -611,7 +665,7 @@ static void log_controller_stats(
             .download_owd_delta_microseconds =
                 latency->download_owd_delta_microseconds,
             .download_adjust_delay_threshold_microseconds =
-                config->download_owd_delta_delay_threshold_microseconds,
+                download_effective->delay_threshold_microseconds,
             .upload_owd_baseline_microseconds =
                 latency->upload_owd_baseline_microseconds,
             .upload_owd_microseconds = latency->upload_owd_microseconds,
@@ -620,22 +674,22 @@ static void log_controller_stats(
             .upload_owd_delta_microseconds =
                 latency->upload_owd_delta_microseconds,
             .upload_adjust_delay_threshold_microseconds =
-                config->upload_owd_delta_delay_threshold_microseconds,
+                upload_effective->delay_threshold_microseconds,
             .download_sum_delays =
                 output->download.delayed_sample_count,
             .download_average_owd_delta_microseconds =
                 output->download.average_delay_microseconds,
             .download_maximum_adjust_up_threshold_microseconds =
-                config->download_average_owd_delta_maximum_adjust_up_microseconds,
+                download_effective->average_delay_maximum_adjust_up_microseconds,
             .download_maximum_adjust_down_threshold_microseconds =
-                config->download_average_owd_delta_maximum_adjust_down_microseconds,
+                download_effective->average_delay_maximum_adjust_down_microseconds,
             .upload_sum_delays = output->upload.delayed_sample_count,
             .upload_average_owd_delta_microseconds =
                 output->upload.average_delay_microseconds,
             .upload_maximum_adjust_up_threshold_microseconds =
-                config->upload_average_owd_delta_maximum_adjust_up_microseconds,
+                upload_effective->average_delay_maximum_adjust_up_microseconds,
             .upload_maximum_adjust_down_threshold_microseconds =
-                config->upload_average_owd_delta_maximum_adjust_down_microseconds,
+                upload_effective->average_delay_maximum_adjust_down_microseconds,
             .download_load_condition = download_condition,
             .upload_load_condition = upload_condition,
             .cake_download_rate_kbps = download_rate,
@@ -815,8 +869,11 @@ static void update_controller(
             );
         }
     }
+    update_serialization_compensation(context);
     log_controller_stats(
         config,
+        &context->controller.download.config,
+        &context->controller.upload.config,
         context->controller.config.high_load_threshold_percent,
         &input,
         &output,
@@ -870,6 +927,18 @@ static void observe_traffic_cycle(
                 "traffic observation recovered: monotonic clock available"
             );
             context->traffic_clock_failed = false;
+        }
+        update_serialization_compensation(context);
+        if (!context->traffic_cadence_initialized && wire_metadata_ready(context)) {
+            context->traffic_cadence_microseconds =
+                traffic_compensated_interval_microseconds(
+                    config->monitor_achieved_rates_interval_microseconds,
+                    cake_max_wire_packet_bits(&context->download.cake),
+                    config->base_download_rate_bits_per_second,
+                    cake_max_wire_packet_bits(&context->upload.cake),
+                    config->base_upload_rate_bits_per_second
+                );
+            context->traffic_cadence_initialized = true;
         }
         observe_traffic(&context->download, &traffic_timestamp);
         observe_traffic(&context->upload, &traffic_timestamp);
@@ -1539,6 +1608,7 @@ static void handle_traffic_timer(
     uint64_t timestamp_microseconds;
 
     observe_traffic_cycle(&loop->observation, loop->config);
+    apply_traffic_cadence(loop);
     if (!cake_ready(&loop->observation)) {
         close_latency(loop);
         return;
@@ -2185,6 +2255,7 @@ int monitor_run(const struct config *config)
     }
 
     observe_traffic_cycle(&loop.observation, config);
+    apply_traffic_cadence(&loop);
     if (
         config->output_cpu_stats ||
         config->output_cpu_raw_stats

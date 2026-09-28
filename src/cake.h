@@ -19,8 +19,13 @@ struct cake_observation {
     uint32_t drops;
     uint32_t memory_limit_bytes;
     uint32_t memory_used_bytes;
+    uint32_t mtu_bytes;
+    int32_t overhead_bytes;
+    uint32_t atm_mode;
+    bool raw;
     bool has_bandwidth;
     bool has_basic_stats;
+    bool has_mtu;
 };
 
 enum cake_read_result {
@@ -45,5 +50,8 @@ int cake_set_bandwidth(
     char *error,
     size_t error_size
 );
+
+/* Matches pinned cake-autorate's tc-text parser, including PTM/raw fallback. */
+uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation);
 
 #endif

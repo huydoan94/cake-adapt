@@ -81,6 +81,14 @@ static void test_rate_conversion_boundaries(void)
     assert(bits_per_second(UINT64_MAX, UINT64_MAX) == 8000U);
 }
 
+static void test_serialization_microseconds(void)
+{
+    assert(serialization_microseconds(12000U, 1000000U) == 12000U);
+    assert(serialization_microseconds(UINT64_MAX - 1U, UINT64_MAX) == UINT64_MAX);
+    assert(serialization_microseconds(UINT64_MAX, 1U) == UINT64_MAX);
+    assert(serialization_microseconds(12000U, 0U) == 0U);
+}
+
 int main(void)
 {
     test_percentages_and_rounding();
@@ -89,6 +97,7 @@ int main(void)
     test_load_rounding_and_limits();
     test_clock_failure_preserves_output();
     test_rate_conversion_boundaries();
+    test_serialization_microseconds();
     (void)puts("helper tests passed");
     return 0;
 }

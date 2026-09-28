@@ -10,9 +10,12 @@
 #include <linux/pkt_sched.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <netlink/attr.h>
 #include <netlink/msg.h>
 #include <string.h>
+#include <unistd.h>
 
 struct cake_dump_context {
     unsigned int interface_index;
@@ -42,7 +45,10 @@ static void parse_options(
 )
 {
     static const struct nla_policy policy[TCA_CAKE_MAX + 1] = {
-        [TCA_CAKE_BASE_RATE64] = { .type = NLA_U64 }
+        [TCA_CAKE_BASE_RATE64] = { .type = NLA_U64 },
+        [TCA_CAKE_ATM] = { .type = NLA_U32 },
+        [TCA_CAKE_OVERHEAD] = { .type = NLA_S32 },
+        [TCA_CAKE_RAW] = { .type = NLA_U32 }
     };
     struct nlattr *attributes[TCA_CAKE_MAX + 1];
 
@@ -62,6 +68,58 @@ static void parse_options(
             rate_to_bits_per_second(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]));
         observation->has_bandwidth = true;
     }
+    if (attributes[TCA_CAKE_ATM] != NULL) {
+        observation->atm_mode = nla_get_u32(attributes[TCA_CAKE_ATM]);
+    }
+    if (attributes[TCA_CAKE_OVERHEAD] != NULL) {
+        observation->overhead_bytes = nla_get_s32(attributes[TCA_CAKE_OVERHEAD]);
+    }
+    if (attributes[TCA_CAKE_RAW] != NULL) {
+        observation->raw = true;
+    }
+}
+
+uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
+{
+    uint64_t bytes = observation->mtu_bytes;
+    uint64_t bits;
+
+    if (!observation->has_mtu) {
+        return 0U;
+    }
+    if (__builtin_mul_overflow(bytes, UINT64_C(8), &bits)) {
+        return UINT64_MAX;
+    }
+    if (
+        observation->raw ||
+        observation->overhead_bytes < 0 ||
+        (
+            observation->atm_mode != CAKE_ATM_NONE &&
+            observation->atm_mode != CAKE_ATM_ATM
+        )
+    ) {
+        return bits;
+    }
+    if (
+        __builtin_add_overflow(
+            bytes,
+            (uint64_t)observation->overhead_bytes,
+            &bytes
+        ) ||
+        __builtin_mul_overflow(bytes, UINT64_C(8), &bits)
+    ) {
+        return UINT64_MAX;
+    }
+    if (observation->atm_mode != CAKE_ATM_ATM) {
+        return bits;
+    }
+    if (bits > UINT64_MAX - UINT64_C(376)) {
+        return UINT64_MAX;
+    }
+    bits = (bits + UINT64_C(376)) / UINT64_C(384);
+    return bits > UINT64_MAX / UINT64_C(424)
+        ? UINT64_MAX
+        : bits * UINT64_C(424);
 }
 
 static void parse_cake_stats(
@@ -234,6 +292,57 @@ static unsigned int open_interface(
     return interface_index;
 }
 
+static int read_interface_mtu(
+    const char *interface,
+    uint32_t *mtu_bytes,
+    char *error,
+    size_t error_size
+)
+{
+    struct ifreq request = { 0 };
+    int socket_fd;
+
+    if (strlen(interface) >= sizeof(request.ifr_name)) {
+        error_set(error, error_size, "interface name is too long");
+        return -1;
+    }
+    socket_fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+    if (socket_fd < 0) {
+        error_set(
+            error,
+            error_size,
+            "could not open interface control socket: %s",
+            strerror(errno)
+        );
+        return -1;
+    }
+    memcpy(request.ifr_name, interface, strlen(interface) + 1U);
+    if (ioctl(socket_fd, SIOCGIFMTU, &request) != 0) {
+        error_set(
+            error,
+            error_size,
+            "could not read interface MTU for %s: %s",
+            interface,
+            strerror(errno)
+        );
+        (void)close(socket_fd);
+        return -1;
+    }
+    if (request.ifr_mtu <= 0) {
+        error_set(
+            error,
+            error_size,
+            "interface MTU for %s is invalid",
+            interface
+        );
+        (void)close(socket_fd);
+        return -1;
+    }
+    (void)close(socket_fd);
+    *mtu_bytes = (uint32_t)request.ifr_mtu;
+    return 0;
+}
+
 enum cake_read_result cake_read(
     struct netlink *netlink,
     const char *interface,
@@ -265,6 +374,19 @@ enum cake_read_result cake_read(
         return CAKE_READ_ERROR;
     }
 
+    if (
+        context.found &&
+        read_interface_mtu(
+            interface,
+            &observation->mtu_bytes,
+            error,
+            error_size
+        ) != 0
+    ) {
+        netlink_close_requests(netlink);
+        return CAKE_READ_ERROR;
+    }
+    observation->has_mtu = context.found;
     return context.found ? CAKE_READ_FOUND : CAKE_READ_NOT_FOUND;
 }
 

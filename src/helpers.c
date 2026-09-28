@@ -54,6 +54,31 @@ uint64_t rounded_divide(
         (value % divisor >= divisor / 2U + divisor % 2U ? 1U : 0U);
 }
 
+uint64_t serialization_microseconds(
+    uint64_t wire_packet_bits,
+    uint64_t rate_bits_per_second
+)
+{
+    uint64_t whole;
+    uint64_t remainder;
+    uint64_t fractional;
+
+    if (rate_bits_per_second == 0U) {
+        return 0U;
+    }
+    whole = wire_packet_bits / rate_bits_per_second;
+    remainder = wire_packet_bits % rate_bits_per_second;
+    if (
+        whole > UINT64_MAX / MICROSECONDS_PER_SECOND ||
+        __builtin_mul_overflow(remainder, MICROSECONDS_PER_SECOND, &fractional)
+    ) {
+        return UINT64_MAX;
+    }
+    whole *= MICROSECONDS_PER_SECOND;
+    fractional /= rate_bits_per_second;
+    return UINT64_MAX - whole < fractional ? UINT64_MAX : whole + fractional;
+}
+
 bool interval_elapsed(
     uint64_t current,
     uint64_t previous,

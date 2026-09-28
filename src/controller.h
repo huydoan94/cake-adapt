@@ -164,6 +164,14 @@ void controller_update(
     struct controller_output *output
 );
 
+void controller_set_serialization_compensation(
+    struct controller *controller,
+    uint64_t download_wire_packet_bits,
+    uint64_t upload_wire_packet_bits,
+    uint64_t download_rate_bits_per_second,
+    uint64_t upload_rate_bits_per_second
+);
+
 void controller_set_minimum_rates(
     struct controller *controller,
     uint64_t timestamp_microseconds

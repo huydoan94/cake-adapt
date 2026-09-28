@@ -1302,9 +1302,82 @@ static void test_delay_window_matches_rescanned_history(void)
     controller_close(&controller);
 }
 
+static void test_compensation_saturates_thresholds(void)
+{
+    struct controller controller;
+    struct controller_config config = default_config();
+
+    config.download.delay_threshold_microseconds = UINT64_MAX - 1U;
+    init_controller(&controller, &config);
+    controller_set_serialization_compensation(
+        &controller,
+        12000U,
+        0U,
+        1U,
+        1U
+    );
+    assert(controller.download.config.delay_threshold_microseconds == UINT64_MAX);
+    controller_close(&controller);
+}
+
+static void test_compensation_is_directional_and_preserves_history(void)
+{
+    struct controller controller;
+    struct controller_config config = default_config();
+    struct controller_input input = input_with_rates(1U, 1U, 1U, 1U);
+    struct controller_output output;
+
+    config.upload.average_delay_maximum_adjust_up_microseconds = 11000U;
+    config.upload.delay_threshold_microseconds = 31000U;
+    config.upload.average_delay_maximum_adjust_down_microseconds = 61000U;
+    input.download_latency.owd_delta_microseconds = 30001;
+    input.upload_latency.owd_delta_microseconds = 31001;
+    init_controller(&controller, &config);
+    controller_update(&controller, &input, &output);
+    assert(controller.download.delayed_sample_count == 1U);
+    assert(controller.upload.delayed_sample_count == 1U);
+
+    controller_set_serialization_compensation(
+        &controller,
+        12000U,
+        24000U,
+        1000000U,
+        2000000U
+    );
+    assert(controller.config.download.delay_threshold_microseconds == 30000U);
+    assert(controller.config.upload.delay_threshold_microseconds == 31000U);
+    assert(controller.download.config.average_delay_maximum_adjust_up_microseconds == 22000U);
+    assert(controller.download.config.delay_threshold_microseconds == 42000U);
+    assert(controller.download.config.average_delay_maximum_adjust_down_microseconds == 72000U);
+    assert(controller.upload.config.average_delay_maximum_adjust_up_microseconds == 23000U);
+    assert(controller.upload.config.delay_threshold_microseconds == 43000U);
+    assert(controller.upload.config.average_delay_maximum_adjust_down_microseconds == 73000U);
+    assert(controller.download.delayed_sample_count == 1U);
+    assert(controller.upload.delayed_sample_count == 1U);
+
+    controller_set_serialization_compensation(
+        &controller,
+        6000U,
+        6000U,
+        1000000U,
+        3000000U
+    );
+    assert(controller.download.config.average_delay_maximum_adjust_up_microseconds == 16000U);
+    assert(controller.download.config.delay_threshold_microseconds == 36000U);
+    assert(controller.download.config.average_delay_maximum_adjust_down_microseconds == 66000U);
+    assert(controller.upload.config.average_delay_maximum_adjust_up_microseconds == 13000U);
+    assert(controller.upload.config.delay_threshold_microseconds == 33000U);
+    assert(controller.upload.config.average_delay_maximum_adjust_down_microseconds == 63000U);
+    assert(controller.download.delayed_sample_count == 1U);
+    assert(controller.upload.delayed_sample_count == 1U);
+    controller_close(&controller);
+}
+
 int main(void)
 {
     test_initial_state_is_unknown();
+    test_compensation_saturates_thresholds();
+    test_compensation_is_directional_and_preserves_history();
     test_compact_delay_window_boundaries();
     test_delay_window_matches_rescanned_history();
     test_low_load_is_below_capacity();
