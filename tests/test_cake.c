@@ -34,6 +34,7 @@ static void test_qdisc_message(void)
     nested = nla_nest_start(message, TCA_OPTIONS);
     assert(nested != NULL);
     assert(nla_put(message, TCA_CAKE_BASE_RATE64, sizeof(bandwidth), &bandwidth) == 0);
+    assert(nla_put_u32(message, TCA_CAKE_RAW, 0U) == 0);
     assert(nla_nest_end(message, nested) == 0);
     memcpy(basic, &bytes, sizeof(bytes));
     memcpy(basic + sizeof(bytes), &packets, sizeof(packets));
@@ -54,6 +55,7 @@ static void test_qdisc_message(void)
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
     assert(context.found);
     assert(observation.has_bandwidth);
+    assert(observation.raw);
     assert(observation.bandwidth_bits_per_second == 10000000U);
     assert(observation.has_basic_stats);
     assert(observation.bytes == bytes);
@@ -197,6 +199,25 @@ static void test_missing_interface(void)
     assert(netlink.socket == NULL);
 }
 
+static void test_wire_packet_formula(void)
+{
+    struct cake_observation observation = { .mtu_bytes = 1500U, .has_mtu = true };
+
+    observation.atm_mode = CAKE_ATM_NONE;
+    observation.overhead_bytes = 44;
+    assert(cake_max_wire_packet_bits(&observation) == 12352U);
+    observation.atm_mode = CAKE_ATM_ATM;
+    assert(cake_max_wire_packet_bits(&observation) == 13992U);
+    observation.atm_mode = CAKE_ATM_PTM;
+    assert(cake_max_wire_packet_bits(&observation) == 12000U);
+    observation.atm_mode = CAKE_ATM_ATM;
+    observation.raw = true;
+    assert(cake_max_wire_packet_bits(&observation) == 12000U);
+    observation.raw = false;
+    observation.overhead_bytes = -1;
+    assert(cake_max_wire_packet_bits(&observation) == 12000U);
+}
+
 int main(void)
 {
     test_qdisc_message();
@@ -205,6 +226,7 @@ int main(void)
     test_invalid_message();
     test_short_queue_and_memory();
     test_missing_interface();
+    test_wire_packet_formula();
     (void)puts("cake parser tests passed");
     return 0;
 }

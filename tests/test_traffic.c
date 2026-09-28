@@ -1,6 +1,7 @@
 #include "traffic.h"
 
 #include <assert.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -190,6 +191,26 @@ static void test_large_64_bit_counter_is_supported(void)
     assert(rate == 1000000000U);
 }
 
+static void test_compensated_interval_uses_startup_snapshot_formula(void)
+{
+    assert(traffic_compensated_interval_microseconds(
+        100000U, 12000U, 1000000U, 12000U, 1000000U
+    ) == 240000U);
+    assert(traffic_compensated_interval_microseconds(
+        300000U, 12000U, 1000000U, 12000U, 1000000U
+    ) == 300000U);
+    assert(traffic_compensated_interval_microseconds(
+        0U, UINT64_MAX, 1U, 1U, 1U
+    ) == UINT64_MAX);
+}
+
+static void test_compensated_interval_converts_to_bounded_milliseconds(void)
+{
+    assert(traffic_interval_milliseconds(1000U) == 1U);
+    assert(traffic_interval_milliseconds(1001U) == 2U);
+    assert(traffic_interval_milliseconds(UINT64_MAX) == UINT_MAX);
+}
+
 int main(void)
 {
     test_initial_sample_establishes_baseline();
@@ -199,6 +220,8 @@ int main(void)
     test_qdisc_replacement_creates_new_baseline();
     test_invalid_interval_creates_new_baseline();
     test_large_64_bit_counter_is_supported();
+    test_compensated_interval_uses_startup_snapshot_formula();
+    test_compensated_interval_converts_to_bounded_milliseconds();
 
     (void)puts("traffic tests passed");
     return 0;

@@ -1,11 +1,56 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "traffic.h"
+
+#include "constants.h"
 #include "helpers.h"
+
+#include <limits.h>
+
+uint64_t traffic_compensated_interval_microseconds(
+    uint64_t configured_interval_microseconds,
+    uint64_t download_wire_packet_bits,
+    uint64_t download_rate_bits_per_second,
+    uint64_t upload_wire_packet_bits,
+    uint64_t upload_rate_bits_per_second
+)
+{
+    uint64_t round_trip = serialization_microseconds(
+        download_wire_packet_bits,
+        download_rate_bits_per_second
+    );
+    uint64_t upload = serialization_microseconds(
+        upload_wire_packet_bits,
+        upload_rate_bits_per_second
+    );
+
+    if (UINT64_MAX - round_trip < upload) {
+        return UINT64_MAX;
+    }
+    round_trip += upload;
+    if (round_trip > UINT64_MAX / 10U) {
+        return UINT64_MAX;
+    }
+    round_trip *= 10U;
+    return configured_interval_microseconds > round_trip
+        ? configured_interval_microseconds
+        : round_trip;
+}
 
 void traffic_init(struct traffic_monitor *monitor)
 {
     *monitor = (struct traffic_monitor) { 0 };
+}
+
+unsigned int traffic_interval_milliseconds(uint64_t interval_microseconds)
+{
+    uint64_t milliseconds =
+        interval_microseconds / MICROSECONDS_PER_MILLISECOND;
+
+    if (interval_microseconds % MICROSECONDS_PER_MILLISECOND != 0U) {
+        milliseconds++;
+    }
+    return milliseconds > UINT_MAX ? UINT_MAX : (unsigned int)milliseconds;
 }
 
 enum traffic_update_result traffic_update(

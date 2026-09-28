@@ -24,6 +24,12 @@ uint64_t rounded_divide(
     uint64_t divisor
 );
 
+/* Whole-microsecond serialization time, saturated on overflow. */
+uint64_t serialization_microseconds(
+    uint64_t wire_packet_bits,
+    uint64_t rate_bits_per_second
+);
+
 /* Strict boundary: equality and backwards timestamps have not elapsed. */
 bool interval_elapsed(
     uint64_t current,
