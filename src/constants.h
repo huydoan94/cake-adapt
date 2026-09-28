@@ -26,6 +26,10 @@
 #define NANOSECONDS_PER_SECOND \
     ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
 
+/* Fixed latency-response compatibility thresholds. */
+#define LATENCY_STALE_RESPONSE_MICROSECONDS (UINT64_C(500) * MILLISECOND)
+#define LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS (UINT64_C(50) * MINUTE)
+
 /* Program identity and integration names. */
 #define CLI_OPTIONS "C:LfS:Vh"
 #define IFB_PREFIX "ifb4"

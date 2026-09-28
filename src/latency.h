@@ -30,6 +30,7 @@ struct latency_sample {
     int64_t download_owd_microseconds;
     int64_t upload_owd_microseconds;
     uint64_t timestamp_microseconds;
+    bool timestamp_rollover_sensitive;
     uint64_t sequence;
 };
 

@@ -301,6 +301,7 @@ struct observation_context {
     struct monitored_direction download;
     struct monitored_direction upload;
     bool latency_observation_failed;
+    bool response_clock_failed;
     bool traffic_clock_failed;
     bool health_clock_failed;
     bool traffic_cadence_initialized;
@@ -1054,6 +1055,10 @@ static bool receive_latency_samples(
         struct latency_observation observation;
         struct latency_sample sample;
         char error[ERROR_SIZE] = { 0 };
+        bool stale;
+        uint64_t processing_realtime_microseconds;
+        uint64_t processing_monotonic_microseconds;
+        uint64_t response_monotonic_microseconds;
         enum latency_probe_result result = latency_receive(
             &context->latency,
             &sample,
@@ -1092,24 +1097,29 @@ static bool receive_latency_samples(
             return false;
         }
 
-        tracker_update(
-            &context->latency_trackers[
-                context->reflector_order[reflector_index]
-            ],
-            &sample,
-            &observation
-        );
-        {
-            uint64_t response_timestamp_microseconds;
-
-            if (read_clock_microseconds(CLOCK_MONOTONIC, &response_timestamp_microseconds)) {
-                context->last_reflector_response_microseconds =
-                    response_timestamp_microseconds;
-                health_record_response(
-                    &context->reflector_health[reflector_index],
-                    response_timestamp_microseconds
+        if (
+            !read_clock_microseconds(
+                CLOCK_REALTIME,
+                &processing_realtime_microseconds
+            ) ||
+            !read_clock_microseconds(
+                CLOCK_MONOTONIC,
+                &processing_monotonic_microseconds
+            )
+        ) {
+            if (!context->response_clock_failed) {
+                log_message(
+                    LOG_LEVEL_WARNING,
+                    "latency observation degraded: response clock failed: %s",
+                    strerror(errno)
                 );
             }
+            context->response_clock_failed = true;
+            continue;
+        }
+        if (context->response_clock_failed) {
+            log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
+            context->response_clock_failed = false;
         }
         low_load = direction_has_low_load(
             &context->download,
@@ -1119,6 +1129,14 @@ static bool receive_latency_samples(
             context->controller.config.high_load_threshold_percent
         );
 
+        tracker_update(
+            &context->latency_trackers[
+                context->reflector_order[reflector_index]
+            ],
+            &sample,
+            &observation
+        );
+
         tracker_update_delta_ewma(
             &context->latency_trackers[
                 context->reflector_order[reflector_index]
@@ -1126,6 +1144,28 @@ static bool receive_latency_samples(
             low_load,
             &observation
         );
+        response_timestamp(
+            processing_realtime_microseconds,
+            processing_monotonic_microseconds,
+            sample.timestamp_microseconds,
+            &response_monotonic_microseconds,
+            &stale
+        );
+        context->last_reflector_response_microseconds =
+            response_monotonic_microseconds;
+        health_record_response(
+            &context->reflector_health[reflector_index],
+            response_monotonic_microseconds
+        );
+        if (stale) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "processed response from [%s] that is > 500ms old. Skipping.",
+                sample.target
+            );
+            continue;
+        }
+
         update_controller(
             context,
             config,
