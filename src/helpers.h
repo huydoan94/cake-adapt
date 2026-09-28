@@ -2,6 +2,7 @@
 #define HELPERS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <time.h>
 
@@ -22,6 +23,24 @@ uint64_t percentage_of(
 uint64_t rounded_divide(
     uint64_t value,
     uint64_t divisor
+);
+
+typedef bool (*random_u32_source)(uint32_t *value, void *context);
+
+/* Uniformly select an index below count using the supplied entropy source. */
+bool random_below(
+    size_t count,
+    random_u32_source source,
+    void *context,
+    size_t *index
+);
+
+/* Shuffle in place; callers needing failure atomicity provide a working copy. */
+bool shuffle(
+    size_t *items,
+    size_t count,
+    random_u32_source source,
+    void *context
 );
 
 /* Whole-microsecond serialization time, saturated on overflow. */

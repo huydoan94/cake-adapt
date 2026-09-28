@@ -8,6 +8,25 @@
 #include <stdio.h>
 #include <string.h>
 
+struct random_sequence {
+    const uint32_t *values;
+    size_t count;
+    size_t index;
+};
+
+static bool sequence_u32(uint32_t *value, void *context)
+{
+    struct random_sequence *sequence = context;
+
+    if (sequence->index == sequence->count) {
+        errno = EIO;
+        return false;
+    }
+    *value = sequence->values[sequence->index];
+    sequence->index++;
+    return true;
+}
+
 static void test_unsigned_decimal_spans(void)
 {
     const char maximum[] = "18446744073709551615]";
@@ -89,6 +108,60 @@ static void test_serialization_microseconds(void)
     assert(serialization_microseconds(12000U, 0U) == 0U);
 }
 
+static void test_random_selection_and_shuffle(void)
+{
+    const uint32_t choices[] = { UINT32_MAX, 8U };
+    const uint32_t swaps[] = { 1U, 0U, 1U };
+    const uint32_t partial[] = { 1U };
+    struct random_sequence sequence = {
+        .values = choices,
+        .count = sizeof(choices) / sizeof(choices[0])
+    };
+    struct random_sequence shuffle_sequence = {
+        .values = swaps,
+        .count = sizeof(swaps) / sizeof(swaps[0])
+    };
+    struct random_sequence failing_sequence = {
+        .values = partial,
+        .count = sizeof(partial) / sizeof(partial[0])
+    };
+    size_t items[] = { 0U, 1U, 2U, 3U };
+    size_t startup_order[] = { 0U, 1U, 2U, 3U };
+    size_t working_order[] = { 0U, 1U, 2U, 3U };
+    size_t index = SIZE_MAX;
+
+    assert(random_below(3U, sequence_u32, &sequence, &index));
+    assert(index == 2U);
+    assert(sequence.index == 2U);
+    assert(random_below(1U, sequence_u32, &sequence, &index));
+    assert(index == 0U);
+    assert(sequence.index == 2U);
+
+    assert(shuffle(items, 4U, sequence_u32, &shuffle_sequence));
+    assert(items[0] == 2U);
+    assert(items[1] == 3U);
+    assert(items[2] == 0U);
+    assert(items[3] == 1U);
+
+    /* Monitor shuffles a working copy and commits it only on success. */
+    assert(!shuffle(working_order, 4U, sequence_u32, &failing_sequence));
+    assert(
+        memcmp(
+            startup_order,
+            (size_t[]) { 0U, 1U, 2U, 3U },
+            sizeof(startup_order)
+        ) == 0
+    );
+    assert(
+        memcmp(
+            working_order,
+            (size_t[]) { 0U, 3U, 2U, 1U },
+            sizeof(working_order)
+        ) == 0
+    );
+    assert(shuffle(items, 1U, sequence_u32, &shuffle_sequence));
+}
+
 static void test_response_timestamp_boundaries(void)
 {
     const uint64_t realtime = UINT64_C(10) * 1000000U;
@@ -152,6 +225,7 @@ int main(void)
     test_clock_failure_preserves_output();
     test_rate_conversion_boundaries();
     test_serialization_microseconds();
+    test_random_selection_and_shuffle();
     test_response_timestamp_boundaries();
     (void)puts("helper tests passed");
     return 0;
