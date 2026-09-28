@@ -623,6 +623,62 @@ void controller_update(
     );
 }
 
+static uint64_t saturating_add(uint64_t value, uint64_t increment)
+{
+    return UINT64_MAX - value < increment ? UINT64_MAX : value + increment;
+}
+
+static void compensate_direction(
+    struct controller_direction *direction,
+    struct controller_direction_config *configured,
+    uint64_t wire_packet_bits,
+    uint64_t rate_bits_per_second
+)
+{
+    uint64_t compensation = serialization_microseconds(
+        wire_packet_bits,
+        rate_bits_per_second
+    );
+
+    direction->config.average_delay_maximum_adjust_up_microseconds =
+        saturating_add(
+            configured->average_delay_maximum_adjust_up_microseconds,
+            compensation
+        );
+    direction->config.delay_threshold_microseconds =
+        saturating_add(
+            configured->delay_threshold_microseconds,
+            compensation
+        );
+    direction->config.average_delay_maximum_adjust_down_microseconds =
+        saturating_add(
+            configured->average_delay_maximum_adjust_down_microseconds,
+            compensation
+        );
+}
+
+void controller_set_serialization_compensation(
+    struct controller *controller,
+    uint64_t download_wire_packet_bits,
+    uint64_t upload_wire_packet_bits,
+    uint64_t download_rate_bits_per_second,
+    uint64_t upload_rate_bits_per_second
+)
+{
+    compensate_direction(
+        &controller->download,
+        &controller->config.download,
+        download_wire_packet_bits,
+        download_rate_bits_per_second
+    );
+    compensate_direction(
+        &controller->upload,
+        &controller->config.upload,
+        upload_wire_packet_bits,
+        upload_rate_bits_per_second
+    );
+}
+
 void controller_set_minimum_rates(
     struct controller *controller,
     uint64_t timestamp_microseconds
