@@ -175,8 +175,131 @@ enum latency_fping_line_result parse_fping_line(
     return LATENCY_FPING_LINE_SAMPLE;
 }
 
+static bool token_has_unit(const char *token, const char *unit)
+{
+    size_t length = strlen(unit);
+
+    return strncmp(token, unit, length) == 0 &&
+        (token[length] == '\0' || token[length] == ' ' || token[length] == '\t');
+}
+
+static bool parse_irtt_duration(
+    const char *value,
+    int64_t *microseconds
+)
+{
+    char *unit;
+    double parsed;
+    double scale;
+    double converted;
+
+    errno = 0;
+    parsed = strtod(value, &unit);
+    if (
+        errno == ERANGE || unit == value ||
+        !isfinite(parsed) || parsed < 0.0
+    ) {
+        return false;
+    }
+    if (token_has_unit(unit, "ns")) {
+        scale = 1.0 / (double)THOUSAND;
+    } else if (
+        token_has_unit(unit, "us") ||
+        token_has_unit(unit, "µs")
+    ) {
+        scale = (double)MICROSECOND;
+    } else if (token_has_unit(unit, "ms")) {
+        scale = (double)MILLISECOND;
+    } else if (token_has_unit(unit, "s")) {
+        scale = (double)SECOND;
+    } else {
+        return false;
+    }
+    converted = parsed * scale;
+    if (!isfinite(converted) || converted >= (double)INT64_MAX) {
+        return false;
+    }
+    *microseconds = (int64_t)(converted + 0.5);
+    return true;
+}
+
+static bool irtt_value(
+    const char *line,
+    const char *name,
+    const char **value
+)
+{
+    size_t name_length = strlen(name);
+    const char *cursor = line;
+
+    while (*cursor != '\0') {
+        const char *end = strpbrk(cursor, " \t");
+        size_t length = end == NULL ? strlen(cursor) : (size_t)(end - cursor);
+
+        if (length > name_length &&
+            strncmp(cursor, name, name_length) == 0 &&
+            cursor[name_length] == '=') {
+            *value = cursor + name_length + 1U;
+            return true;
+        }
+        if (end == NULL) {
+            break;
+        }
+        cursor = end + strspn(end, " \t");
+    }
+    return false;
+}
+
+bool parse_irtt_line(
+    const char *line,
+    const char *target,
+    uint64_t timestamp_microseconds,
+    struct latency_sample *sample
+)
+{
+    const char *sequence_text;
+    const char *download_text;
+    const char *upload_text;
+    char *sequence_end;
+    uintmax_t sequence;
+    int64_t download;
+    int64_t upload;
+
+    if (
+        line == NULL || target == NULL || sample == NULL ||
+        !irtt_value(line, "seq", &sequence_text) ||
+        !irtt_value(line, "rd", &download_text) ||
+        !irtt_value(line, "sd", &upload_text)
+    ) {
+        return false;
+    }
+    errno = 0;
+    sequence = strtoumax(sequence_text, &sequence_end, 10);
+    if (
+        errno == ERANGE || sequence_end == sequence_text ||
+        (*sequence_end != '\0' && *sequence_end != ' ' && *sequence_end != '\t') ||
+        !parse_irtt_duration(download_text, &download) ||
+        !parse_irtt_duration(upload_text, &upload)
+    ) {
+        return false;
+    }
+    if (strlen(target) >= sizeof(sample->target)) {
+        return false;
+    }
+    *sample = (struct latency_sample) {
+        .download_owd_microseconds = download,
+        .upload_owd_microseconds = upload,
+        .timestamp_microseconds = timestamp_microseconds,
+        .timestamp_rollover_sensitive = false,
+        .sequence = (uint64_t)sequence
+    };
+    (void)strcpy(sample->target, target);
+    return true;
+}
+
 static int set_nonblocking(
     int descriptor,
+    const char *name,
     char *error,
     size_t error_size
 )
@@ -189,7 +312,8 @@ static int set_nonblocking(
         error_set(
             error,
             error_size,
-            "could not make fping pipe nonblocking: %s",
+            "could not make %s pipe nonblocking: %s",
+            name,
             strerror(errno)
         );
         return -1;
@@ -234,11 +358,12 @@ static void stop_child(pid_t process_identifier)
     }
 }
 
-static int spawn_fping(
+static int spawn_child(
     pid_t *process_identifier,
     const int output_pipe[2],
     const char *executable,
     char *const arguments[],
+    const char *name,
     char *error,
     size_t error_size
 )
@@ -312,7 +437,8 @@ failed:
         error_set(
             error,
             error_size,
-            "could not start fping: %s",
+            "could not start %s: %s",
+            name,
             strerror(result)
         );
         return -1;
@@ -502,11 +628,12 @@ int latency_open(
     }
 
     if (
-        spawn_fping(
+        spawn_child(
             &process_identifier,
             output_pipe,
             arguments[0],
             arguments,
+            PINGER_METHOD_FPING,
             error,
             error_size
         ) != 0
@@ -519,7 +646,12 @@ int latency_open(
     wordfree(&prefix_words);
     wordfree(&extra_words);
 
-    if (set_nonblocking(output_pipe[0], error, error_size) != 0) {
+    if (set_nonblocking(
+        output_pipe[0],
+        PINGER_METHOD_FPING,
+        error,
+        error_size
+    ) != 0) {
         (void)close(output_pipe[0]);
         stop_child(process_identifier);
         return -1;
@@ -528,6 +660,9 @@ int latency_open(
     latency->children[0].output_descriptor = output_pipe[0];
     latency->children[0].process_identifier = process_identifier;
     latency->children[0].output_length = 0U;
+    latency->backend = LATENCY_BACKEND_FPING;
+    latency->active = true;
+    latency->target_count = target_count;
     latency->child_count = 1U;
     return 0;
 
@@ -540,6 +675,335 @@ failed:
     wordfree(&prefix_words);
     wordfree(&extra_words);
     return -1;
+}
+
+static int expand_words(
+    const char *value,
+    bool require_word,
+    const char *option,
+    wordexp_t *words,
+    char *error,
+    size_t error_size
+)
+{
+    int result;
+
+    if (value[0] == '\0') {
+        return 0;
+    }
+    result = wordexp(value, words, WRDE_NOCMD);
+    if (result == 0 && (!require_word || words->we_wordc > 0U)) {
+        return 0;
+    }
+    if (result == WRDE_NOSPACE || result == 0) {
+        wordfree(words);
+        *words = (wordexp_t) { 0 };
+    }
+    error_set(error, error_size, "could not parse %s", option);
+    return -1;
+}
+
+static int spawn_irtt_child(
+    struct latency *latency,
+    size_t child_index,
+    char *error,
+    size_t error_size
+)
+{
+    struct latency_child *child = &latency->children[child_index];
+    char interval[32];
+    char duration[32];
+    char endpoint[LATENCY_TARGET_SIZE + 3U];
+    char **arguments = NULL;
+    wordexp_t extra_words = { 0 };
+    wordexp_t prefix_words = { 0 };
+    int output_pipe[2] = { -1, -1 };
+    pid_t process_identifier;
+    size_t cursor = 0U;
+    size_t index;
+    int result = -1;
+
+    if (
+        expand_words(
+            latency->ping_extra_args,
+            false,
+            OPTION_PING_EXTRA_ARGS,
+            &extra_words,
+            error,
+            error_size
+        ) != 0 ||
+        expand_words(
+            latency->ping_prefix_string,
+            true,
+            OPTION_PING_PREFIX_STRING,
+            &prefix_words,
+            error,
+            error_size
+        ) != 0
+    ) {
+        goto done;
+    }
+
+    (void)snprintf(
+        interval,
+        sizeof(interval),
+        "%" PRIu64 ".%06" PRIu64 "s",
+        latency->reflector_ping_interval_microseconds / SECOND,
+        latency->reflector_ping_interval_microseconds % SECOND
+    );
+    (void)snprintf(
+        duration,
+        sizeof(duration),
+        "%" PRIu64 "m",
+        latency->irtt_session_duration_minutes
+    );
+    if (strchr(child->target, ':') == NULL) {
+        (void)strcpy(endpoint, child->target);
+    } else {
+        (void)snprintf(endpoint, sizeof(endpoint), "[%s]", child->target);
+    }
+
+    arguments = calloc(
+        prefix_words.we_wordc + extra_words.we_wordc + 8U,
+        sizeof(*arguments)
+    );
+    if (arguments == NULL) {
+        error_set(
+            error,
+            error_size,
+            "could not allocate irtt arguments: %s",
+            strerror(errno)
+        );
+        goto done;
+    }
+    for (index = 0U; index < prefix_words.we_wordc; index++) {
+        arguments[cursor++] = prefix_words.we_wordv[index];
+    }
+    arguments[cursor++] = (char *)IRTT_PATH;
+    arguments[cursor++] = (char *)IRTT_CLIENT;
+    for (index = 0U; index < extra_words.we_wordc; index++) {
+        arguments[cursor++] = extra_words.we_wordv[index];
+    }
+    arguments[cursor++] = (char *)IRTT_INTERVAL;
+    arguments[cursor++] = interval;
+    arguments[cursor++] = (char *)IRTT_DURATION;
+    arguments[cursor++] = duration;
+    arguments[cursor++] = endpoint;
+
+    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
+        error_set(
+            error,
+            error_size,
+            "could not create irtt pipe: %s",
+            strerror(errno)
+        );
+        goto done;
+    }
+    if (
+        spawn_child(
+            &process_identifier,
+            output_pipe,
+            arguments[0],
+            arguments,
+            PINGER_METHOD_IRTT,
+            error,
+            error_size
+        ) != 0
+    ) {
+        goto done;
+    }
+    (void)close(output_pipe[1]);
+    output_pipe[1] = -1;
+    if (set_nonblocking(
+        output_pipe[0],
+        PINGER_METHOD_IRTT,
+        error,
+        error_size
+    ) != 0) {
+        stop_child(process_identifier);
+        goto done;
+    }
+
+    child->output_descriptor = output_pipe[0];
+    child->process_identifier = process_identifier;
+    child->output_length = 0U;
+    output_pipe[0] = -1;
+    result = 0;
+
+done:
+    if (output_pipe[0] >= 0) {
+        (void)close(output_pipe[0]);
+    }
+    if (output_pipe[1] >= 0) {
+        (void)close(output_pipe[1]);
+    }
+    free(arguments);
+    wordfree(&prefix_words);
+    wordfree(&extra_words);
+    return result;
+}
+
+int latency_open_irtt(
+    struct latency *latency,
+    const char *const *targets,
+    size_t target_count,
+    uint64_t reflector_ping_interval_microseconds,
+    uint64_t session_duration_minutes,
+    const char *extra_arguments,
+    const char *prefix,
+    uint64_t first_start_microseconds,
+    char *error,
+    size_t error_size
+)
+{
+    wordexp_t words = { 0 };
+    uint64_t child_start_spacing_microseconds;
+    size_t index;
+
+    if (
+        targets == NULL || target_count == 0U ||
+        target_count > CONFIG_MAX_REFLECTORS ||
+        reflector_ping_interval_microseconds == 0U ||
+        reflector_ping_interval_microseconds / target_count < MILLISECOND ||
+        session_duration_minutes == 0U ||
+        extra_arguments == NULL || prefix == NULL
+    ) {
+        error_set(error, error_size, "invalid irtt session configuration");
+        return -1;
+    }
+    if (
+        strlen(extra_arguments) >= sizeof(latency->ping_extra_args) ||
+        strlen(prefix) >= sizeof(latency->ping_prefix_string)
+    ) {
+        error_set(error, error_size, "irtt arguments are too long");
+        return -1;
+    }
+    if (
+        expand_words(
+            extra_arguments,
+            false,
+            OPTION_PING_EXTRA_ARGS,
+            &words,
+            error,
+            error_size
+        ) != 0
+    ) {
+        return -1;
+    }
+    wordfree(&words);
+    words = (wordexp_t) { 0 };
+    if (
+        expand_words(
+            prefix,
+            true,
+            OPTION_PING_PREFIX_STRING,
+            &words,
+            error,
+            error_size
+        ) != 0
+    ) {
+        return -1;
+    }
+    wordfree(&words);
+
+    child_start_spacing_microseconds =
+        reflector_ping_interval_microseconds / target_count;
+    for (index = 0U; index < target_count; index++) {
+        if (!target_is_valid(targets[index])) {
+            error_set(
+                error,
+                error_size,
+                "latency target '%s' is not a valid IP address or hostname",
+                targets[index] == NULL ? NULL_VALUE : targets[index]
+            );
+            return -1;
+        }
+        latency->children[index].target = targets[index];
+        latency->children[index].next_start_microseconds =
+            first_start_microseconds +
+            index * child_start_spacing_microseconds;
+    }
+    latency->backend = LATENCY_BACKEND_IRTT;
+    latency->active = true;
+    latency->irtt_session_duration_minutes = session_duration_minutes;
+    latency->reflector_ping_interval_microseconds =
+        reflector_ping_interval_microseconds;
+    (void)strcpy(latency->ping_extra_args, extra_arguments);
+    (void)strcpy(latency->ping_prefix_string, prefix);
+    latency->target_count = target_count;
+    latency->child_count = target_count;
+    return 0;
+}
+
+int latency_start_irtt_children(
+    struct latency *latency,
+    uint64_t timestamp_microseconds,
+    char *error,
+    size_t error_size
+)
+{
+    size_t index;
+
+    if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT) {
+        error_set(error, error_size, "irtt session is not active");
+        return -1;
+    }
+    for (index = 0U; index < latency->target_count; index++) {
+        struct latency_child *child = &latency->children[index];
+
+        if (
+            child->output_descriptor >= 0 ||
+            timestamp_microseconds < child->next_start_microseconds
+        ) {
+            continue;
+        }
+        if (
+            spawn_irtt_child(
+                latency,
+                index,
+                error,
+                error_size
+            ) != 0
+        ) {
+            latency_close(latency);
+            return -1;
+        }
+        child->started_microseconds = timestamp_microseconds;
+    }
+    return 0;
+}
+
+bool latency_irtt_start_pending(const struct latency *latency)
+{
+    size_t index;
+
+    if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT) {
+        return false;
+    }
+    for (index = 0U; index < latency->target_count; index++) {
+        if (latency->children[index].output_descriptor < 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+uint64_t latency_irtt_next_start_microseconds(const struct latency *latency)
+{
+    uint64_t next = UINT64_MAX;
+    size_t index;
+
+    for (index = 0U; index < latency->target_count; index++) {
+        const struct latency_child *child = &latency->children[index];
+
+        if (
+            child->output_descriptor < 0 &&
+            child->next_start_microseconds < next
+        ) {
+            next = child->next_start_microseconds;
+        }
+    }
+    return next;
 }
 
 static bool take_output_line(
@@ -581,6 +1045,7 @@ static bool take_output_line(
 
 static void set_child_exit_error(
     struct latency_child *child,
+    const char *name,
     char *error,
     size_t error_size
 )
@@ -595,23 +1060,61 @@ static void set_child_exit_error(
             error_set(
                 error,
                 error_size,
-                "fping exited with status %d",
+                "%s exited with status %d",
+                name,
                 WEXITSTATUS(status)
             );
         } else if (WIFSIGNALED(status)) {
             error_set(
                 error,
                 error_size,
-                "fping terminated by signal %d",
+                "%s terminated by signal %d",
+                name,
                 WTERMSIG(status)
             );
         } else {
-            error_set(error, error_size, "fping stopped unexpectedly");
+            error_set(error, error_size, "%s stopped unexpectedly", name);
         }
         return;
     }
 
-    error_set(error, error_size, "fping output closed unexpectedly");
+    error_set(error, error_size, "%s output closed unexpectedly", name);
+}
+
+static enum latency_probe_result schedule_irtt_restart(
+    struct latency_child *child,
+    char *error,
+    size_t error_size
+)
+{
+    uint64_t timestamp_microseconds;
+    uint64_t runtime_microseconds;
+
+    if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
+        error_set(
+            error,
+            error_size,
+            "could not schedule irtt restart: %s",
+            strerror(errno)
+        );
+        return LATENCY_PROBE_ERROR;
+    }
+    set_child_exit_error(child, PINGER_METHOD_IRTT, error, error_size);
+    stop_child(child->process_identifier);
+    child->process_identifier = -1;
+    if (child->output_descriptor >= 0) {
+        (void)close(child->output_descriptor);
+    }
+    child->output_descriptor = -1;
+    child->output_length = 0U;
+    runtime_microseconds = timestamp_microseconds >= child->started_microseconds
+        ? timestamp_microseconds - child->started_microseconds
+        : 0U;
+    child->next_start_microseconds = timestamp_microseconds;
+    if (runtime_microseconds < IRTT_FAST_EXIT_THRESHOLD_MICROSECONDS) {
+        child->next_start_microseconds += IRTT_FAST_EXIT_RETRY_MICROSECONDS;
+    }
+    return LATENCY_PROBE_RESTART;
 }
 
 void latency_init(struct latency *latency)
@@ -650,9 +1153,7 @@ bool target_is_valid(const char *target)
 
 bool latency_is_open(const struct latency *latency)
 {
-    return latency->child_count > 0U &&
-        latency->children[0].output_descriptor >= 0 &&
-        latency->children[0].process_identifier > 0;
+    return latency->active;
 }
 
 size_t latency_child_count(const struct latency *latency)
@@ -681,9 +1182,12 @@ void latency_close(struct latency *latency)
         }
         child->output_descriptor = -1;
         child->process_identifier = -1;
+        child->target = NULL;
         child->output_length = 0U;
         stop_child(process_identifier);
     }
+    latency->active = false;
+    latency->target_count = 0U;
     latency->child_count = 0U;
 }
 
@@ -1102,14 +1606,17 @@ enum latency_probe_result latency_receive_child(
 )
 {
     struct latency_child *child;
+    const char *name = latency->backend == LATENCY_BACKEND_IRTT
+        ? PINGER_METHOD_IRTT
+        : PINGER_METHOD_FPING;
 
     if (child_index >= latency->child_count) {
-        error_set(error, error_size, "fping is not running");
+        error_set(error, error_size, "%s is not running", name);
         return LATENCY_PROBE_ERROR;
     }
     child = &latency->children[child_index];
     if (child->output_descriptor < 0 || child->process_identifier <= 0) {
-        error_set(error, error_size, "fping is not running");
+        error_set(error, error_size, "%s is not running", name);
         return LATENCY_PROBE_ERROR;
     }
 
@@ -1118,8 +1625,30 @@ enum latency_probe_result latency_receive_child(
         ssize_t received;
 
         if (take_output_line(child, line)) {
-            enum latency_fping_line_result parsed = parse_fping_line(line, sample);
+            enum latency_fping_line_result parsed;
 
+            if (latency->backend == LATENCY_BACKEND_IRTT) {
+                uint64_t timestamp_microseconds;
+
+                if (!parse_irtt_line(line, child->target, 0U, sample)) {
+                    continue;
+                }
+                if (!read_clock_microseconds(
+                    CLOCK_REALTIME,
+                    &timestamp_microseconds
+                )) {
+                    error_set(
+                        error,
+                        error_size,
+                        "could not timestamp irtt output: %s",
+                        strerror(errno)
+                    );
+                    return LATENCY_PROBE_ERROR;
+                }
+                sample->timestamp_microseconds = timestamp_microseconds;
+                return LATENCY_PROBE_SUCCESS;
+            }
+            parsed = parse_fping_line(line, sample);
             if (parsed == LATENCY_FPING_LINE_INVALID) {
                 error_set(
                     error,
@@ -1135,7 +1664,7 @@ enum latency_probe_result latency_receive_child(
         }
 
         if (child->output_length == sizeof(child->output_buffer)) {
-            error_set(error, error_size, "fping output line is too long");
+            error_set(error, error_size, "%s output line is too long", name);
             return LATENCY_PROBE_ERROR;
         }
 
@@ -1149,7 +1678,10 @@ enum latency_probe_result latency_receive_child(
             continue;
         }
         if (received == 0) {
-            set_child_exit_error(child, error, error_size);
+            if (latency->backend == LATENCY_BACKEND_IRTT) {
+                return schedule_irtt_restart(child, error, error_size);
+            }
+            set_child_exit_error(child, name, error, error_size);
             return LATENCY_PROBE_ERROR;
         }
         if (errno == EINTR) {
@@ -1159,7 +1691,8 @@ enum latency_probe_result latency_receive_child(
             error_set(
                 error,
                 error_size,
-                "could not read fping output: %s",
+                "could not read %s output: %s",
+                name,
                 strerror(errno)
             );
             return LATENCY_PROBE_ERROR;
