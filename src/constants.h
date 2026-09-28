@@ -26,6 +26,9 @@
 #define NANOSECONDS_PER_SECOND \
     ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
 
+/* Shared application bounds. */
+#define CONFIG_MAX_REFLECTORS 64U
+
 /* Fixed latency-response compatibility thresholds. */
 #define LATENCY_STALE_RESPONSE_MICROSECONDS (UINT64_C(500) * MILLISECOND)
 #define LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS (UINT64_C(50) * MINUTE)
