@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
@@ -29,6 +30,7 @@ static uint64_t log_opened_microseconds;
 static uint64_t log_last_flush_microseconds;
 static uint64_t log_maximum_age_microseconds;
 static uint64_t log_maximum_size_bytes;
+static uint64_t log_size_bytes;
 static uint64_t log_buffer_timeout_microseconds;
 static bool log_compress_exports;
 static bool header_data;
@@ -98,6 +100,20 @@ static uint64_t clock_microseconds(clockid_t clock_identifier)
     return timestamp;
 }
 
+static void write_file_line(const char *line)
+{
+    int written = fprintf(log_file, "%s\n", line);
+
+    if (written < 0) {
+        return;
+    }
+    if ((uint64_t)written > UINT64_MAX - log_size_bytes) {
+        log_size_bytes = UINT64_MAX;
+    } else {
+        log_size_bytes += (uint64_t)written;
+    }
+}
+
 uint64_t log_realtime_microseconds(void)
 {
     return clock_microseconds(CLOCK_REALTIME);
@@ -106,22 +122,22 @@ uint64_t log_realtime_microseconds(void)
 static void write_headers_to_file(void)
 {
     if (header_data) {
-        (void)fprintf(log_file, "%s\n", data_header);
+        write_file_line(data_header);
     }
     if (header_load) {
-        (void)fprintf(log_file, "%s\n", load_header);
+        write_file_line(load_header);
     }
     if (header_reflector) {
-        (void)fprintf(log_file, "%s\n", reflector_header);
+        write_file_line(reflector_header);
     }
     if (header_summary) {
-        (void)fprintf(log_file, "%s\n", summary_header);
+        write_file_line(summary_header);
     }
     if (cpu_header != NULL) {
-        (void)fprintf(log_file, "%s\n", cpu_header);
+        write_file_line(cpu_header);
     }
     if (header_cpu_raw) {
-        (void)fprintf(log_file, "%s\n", cpu_raw_header);
+        write_file_line(cpu_raw_header);
     }
 }
 
@@ -189,6 +205,7 @@ static int truncate_log_file(void)
     ) {
         return -1;
     }
+    log_size_bytes = 0U;
     write_headers_to_file();
     (void)fflush(log_file);
     log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
@@ -273,74 +290,66 @@ int log_reset_file(void)
     return truncate_log_file();
 }
 
-static void maintain_log_file(uint64_t timestamp_microseconds)
+static void rotate_log_file(bool maximum_age_reached)
 {
-    off_t size;
-    bool rotate;
+    char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
 
-    if (
-        log_file == NULL ||
-        log_maintenance_active
-    ) {
+    if (log_maintenance_active) {
         return;
     }
+    log_maintenance_active = true;
+    if (maximum_age_reached) {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "log file maximum time: %" PRIu64 " minutes has elapsed so flushing and rotating log file.",
+            log_maximum_age_microseconds / MICROSECONDS_PER_MINUTE
+        );
+    } else {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "log file size: %" PRIu64 " KB has exceeded configured maximum: %" PRIu64 " KB so flushing and rotating log file.",
+            log_size_bytes / KIBIBYTE,
+            log_maximum_size_bytes / KIBIBYTE
+        );
+    }
+    (void)snprintf(
+        previous_path,
+        sizeof(previous_path),
+        "%s%s",
+        log_path,
+        LOG_PREVIOUS_SUFFIX
+    );
     if (
-        log_buffer_timeout_microseconds == 0U ||
+        fflush(log_file) == 0 &&
+        export_log(previous_path, false, false)
+    ) {
+        (void)truncate_log_file();
+    }
+    log_maintenance_active = false;
+}
+
+void log_tick(void)
+{
+    uint64_t timestamp_microseconds;
+
+    if (log_file == NULL || log_maintenance_active) {
+        return;
+    }
+    timestamp_microseconds = clock_microseconds(CLOCK_MONOTONIC);
+    if (
+        log_buffer_timeout_microseconds > 0U &&
         timestamp_microseconds - log_last_flush_microseconds >=
             log_buffer_timeout_microseconds
     ) {
         (void)fflush(log_file);
         log_last_flush_microseconds = timestamp_microseconds;
     }
-    size = ftello(log_file);
-    rotate = (log_maximum_age_microseconds > 0U &&
-            timestamp_microseconds - log_opened_microseconds >
-                log_maximum_age_microseconds) ||
-        (log_maximum_size_bytes > 0U && size >= 0 &&
-            (uint64_t)size > log_maximum_size_bytes);
-    if (rotate) {
-        char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
-
-        log_maintenance_active = true;
-        if (
-            log_maximum_age_microseconds > 0U &&
-            timestamp_microseconds - log_opened_microseconds >
-                log_maximum_age_microseconds
-        ) {
-            log_message(
-                LOG_LEVEL_DEBUG,
-                "log file maximum time: %" PRIu64 " minutes has elapsed so flushing and rotating log file.",
-                log_maximum_age_microseconds / MICROSECONDS_PER_MINUTE
-            );
-        } else {
-            log_message(
-                LOG_LEVEL_DEBUG,
-                "log file size: %" PRIu64 " KB has exceeded configured maximum: %" PRIu64 " KB so flushing and rotating log file.",
-                (uint64_t)size / KIBIBYTE,
-                log_maximum_size_bytes / KIBIBYTE
-            );
-        }
-        (void)snprintf(
-            previous_path,
-            sizeof(previous_path),
-            "%s%s",
-            log_path,
-            LOG_PREVIOUS_SUFFIX
-        );
-        if (
-            fflush(log_file) == 0 &&
-            export_log(previous_path, false, false)
-        ) {
-            (void)truncate_log_file();
-        }
-        log_maintenance_active = false;
-    }
-}
-
-void log_tick(void)
-{
-    if (log_file != NULL) {
-        maintain_log_file(clock_microseconds(CLOCK_MONOTONIC));
+    if (
+        log_maximum_age_microseconds > 0U &&
+        timestamp_microseconds - log_opened_microseconds >
+            log_maximum_age_microseconds
+    ) {
+        rotate_log_file(true);
     }
 }
 
@@ -351,8 +360,16 @@ static void write_line(const char *line)
         (void)fflush(stdout);
     }
     if (log_file != NULL) {
-        (void)fprintf(log_file, "%s\n", line);
-        maintain_log_file(clock_microseconds(CLOCK_MONOTONIC));
+        write_file_line(line);
+        if (log_buffer_timeout_microseconds == 0U) {
+            (void)fflush(log_file);
+        }
+        if (
+            log_maximum_size_bytes > 0U &&
+            log_size_bytes > log_maximum_size_bytes
+        ) {
+            rotate_log_file(false);
+        }
     }
 }
 
@@ -439,6 +456,7 @@ int log_set_file(
 )
 {
     FILE *file;
+    struct stat file_status;
 
     if (
         path == NULL ||
@@ -457,6 +475,13 @@ int log_set_file(
     if (file == NULL) {
         return -1;
     }
+    if (fstat(fileno(file), &file_status) != 0 || file_status.st_size < 0) {
+        int saved_errno = errno;
+
+        (void)fclose(file);
+        errno = saved_errno == 0 ? EIO : saved_errno;
+        return -1;
+    }
     if (log_file != NULL) {
         (void)fclose(log_file);
     }
@@ -466,6 +491,7 @@ int log_set_file(
     log_last_flush_microseconds = log_opened_microseconds;
     log_maximum_age_microseconds = maximum_time_minutes * MICROSECONDS_PER_MINUTE;
     log_maximum_size_bytes = maximum_size_kilobytes * KIBIBYTE;
+    log_size_bytes = (uint64_t)file_status.st_size;
     log_buffer_timeout_microseconds = buffer_timeout_microseconds;
     log_compress_exports = compress_exports;
 
