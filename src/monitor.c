@@ -315,6 +315,14 @@ struct observation_context {
     struct controller_activity activity;
 };
 
+struct event_loop;
+
+struct latency_watch {
+    struct uloop_fd descriptor;
+    struct event_loop *loop;
+    size_t child_index;
+};
+
 struct event_loop {
     struct observation_context observation;
     const struct config *config;
@@ -330,7 +338,7 @@ struct event_loop {
     bool qdisc_refresh;
     bool traffic_cadence_applied;
     struct uloop_fd qdisc_events;
-    struct uloop_fd latency_output;
+    struct latency_watch latency_output[CONFIG_MAX_REFLECTORS];
     int result;
 };
 
@@ -1043,7 +1051,8 @@ static size_t find_active_reflector(
 
 static bool receive_latency_samples(
     struct observation_context *context,
-    const struct config *config
+    const struct config *config,
+    size_t child_index
 )
 {
     for (;;) {
@@ -1054,8 +1063,9 @@ static bool receive_latency_samples(
         uint64_t processing_realtime_microseconds;
         uint64_t processing_monotonic_microseconds;
         uint64_t response_monotonic_microseconds;
-        enum latency_probe_result result = latency_receive(
+        enum latency_probe_result result = latency_receive_child(
             &context->latency,
+            child_index,
             &sample,
             error,
             sizeof(error)
@@ -1172,10 +1182,14 @@ static bool receive_latency_samples(
 
 static void close_latency(struct event_loop *loop)
 {
-    if (loop->latency_output.registered) {
-        (void)uloop_fd_delete(&loop->latency_output);
+    size_t index;
+
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        if (loop->latency_output[index].descriptor.registered) {
+            (void)uloop_fd_delete(&loop->latency_output[index].descriptor);
+        }
+        loop->latency_output[index].descriptor.fd = -1;
     }
-    loop->latency_output.fd = -1;
     latency_close(&loop->observation.latency);
 }
 
@@ -1300,15 +1314,19 @@ static void handle_latency_output(
     unsigned int events
 )
 {
-    /* libubox's container_of uses a GNU expression; keep the exception local. */
-    struct event_loop *loop = __extension__ container_of(
+    struct latency_watch *watch = __extension__ container_of(
         descriptor,
-        struct event_loop,
-        latency_output
+        struct latency_watch,
+        descriptor
     );
+    struct event_loop *loop = watch->loop;
 
     (void)events;
-    if (!receive_latency_samples(&loop->observation, loop->config)) {
+    if (!receive_latency_samples(
+        &loop->observation,
+        loop->config,
+        watch->child_index
+    )) {
         uint64_t timestamp_microseconds;
 
         close_latency(loop);
@@ -1322,34 +1340,39 @@ static void handle_latency_output(
 
 static bool watch_latency(struct event_loop *loop)
 {
+    size_t index;
     int saved_errno;
 
-    if (loop->latency_output.registered) {
-        return true;
-    }
     if (!ensure_latency_open(&loop->observation, loop->config)) {
         return false;
     }
-
-    loop->latency_output.fd = loop->observation.latency.output_descriptor;
-    if (
-        uloop_fd_add(
-            &loop->latency_output,
-            ULOOP_READ | ULOOP_ERROR_CB
-        ) == 0
+    for (
+        index = 0U;
+        index < latency_child_count(&loop->observation.latency);
+        index++
     ) {
-        return true;
-    }
+        struct latency_watch *watch = &loop->latency_output[index];
 
-    saved_errno = errno;
-    log_message(
-        LOG_LEVEL_WARNING,
-        "latency observation degraded: could not monitor fping output: %s",
-        strerror(saved_errno)
-    );
-    loop->observation.latency_observation_failed = true;
-    close_latency(loop);
-    return false;
+        if (watch->descriptor.registered) {
+            continue;
+        }
+        watch->descriptor.fd = latency_child_descriptor(
+            &loop->observation.latency,
+            index
+        );
+        if (uloop_fd_add(&watch->descriptor, ULOOP_READ | ULOOP_ERROR_CB) != 0) {
+            saved_errno = errno;
+            log_message(
+                LOG_LEVEL_WARNING,
+                "latency observation degraded: could not monitor fping output: %s",
+                strerror(saved_errno)
+            );
+            loop->observation.latency_observation_failed = true;
+            close_latency(loop);
+            return false;
+        }
+    }
+    return true;
 }
 
 static void enforce_minimum_rates(
@@ -2135,10 +2158,6 @@ int monitor_run(const struct config *config)
             .cb = handle_qdisc_events,
             .fd = -1
         },
-        .latency_output = {
-            .cb = handle_latency_output,
-            .fd = -1
-        },
         .result = -1
     };
     bool previous_sigchld_handling = uloop_handle_sigchld;
@@ -2162,6 +2181,13 @@ int monitor_run(const struct config *config)
     uint64_t start_microseconds;
     size_t health_count = 0U;
     size_t index;
+
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        loop.latency_output[index].descriptor.cb = handle_latency_output;
+        loop.latency_output[index].descriptor.fd = -1;
+        loop.latency_output[index].loop = &loop;
+        loop.latency_output[index].child_index = index;
+    }
 
     latency_init(&loop.observation.latency);
     /* The aggregate initializer has zeroed the remaining monitor state. */

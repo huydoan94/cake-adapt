@@ -6,16 +6,23 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include "constants.h"
+
 #define LATENCY_OUTPUT_SIZE 512U
 #define LATENCY_TARGET_SIZE 256U
 
 bool target_is_valid(const char *target);
 
-struct latency {
+struct latency_child {
     int output_descriptor;
     pid_t process_identifier;
     char output_buffer[LATENCY_OUTPUT_SIZE];
     size_t output_length;
+};
+
+struct latency {
+    struct latency_child children[CONFIG_MAX_REFLECTORS];
+    size_t child_count;
 };
 
 enum latency_probe_result {
@@ -106,6 +113,10 @@ void latency_init(struct latency *latency);
 
 bool latency_is_open(const struct latency *latency);
 
+size_t latency_child_count(const struct latency *latency);
+
+int latency_child_descriptor(const struct latency *latency, size_t child_index);
+
 int latency_open(
     struct latency *latency,
     const char *interface,
@@ -119,6 +130,14 @@ int latency_open(
 );
 
 void latency_close(struct latency *latency);
+
+enum latency_probe_result latency_receive_child(
+    struct latency *latency,
+    size_t child_index,
+    struct latency_sample *sample,
+    char *error,
+    size_t error_size
+);
 
 enum latency_fping_line_result parse_fping_line(
     const char *line,

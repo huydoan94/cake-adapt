@@ -4,6 +4,7 @@
 #include "constants.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -29,8 +30,10 @@ static void test_initial_state_is_closed(void)
 
     latency_init(&latency);
 
-    assert(latency.output_descriptor == -1);
-    assert(latency.process_identifier == -1);
+    assert(latency.children[0].output_descriptor == -1);
+    assert(latency.children[0].process_identifier == -1);
+    assert(latency_child_count(&latency) == 0U);
+    assert(latency_child_descriptor(&latency, 0U) == -1);
     assert(!latency_is_open(&latency));
 }
 
@@ -46,14 +49,24 @@ static void test_receive_buffered_output(void)
     latency_init(&latency);
     assert(pipe(descriptors) == 0);
     assert(fcntl(descriptors[0], F_SETFL, O_NONBLOCK) == 0);
-    latency.output_descriptor = descriptors[0];
+    latency.children[0].output_descriptor = descriptors[0];
     /* This fixture owns only a pipe, not an fping child. */
-    latency.process_identifier = getpid();
+    latency.children[0].process_identifier = getpid();
+    latency.child_count = 1U;
+
+    assert(latency_receive_child(
+        &latency,
+        1U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_ERROR);
+    assert(strstr(error, "not running") != NULL);
 
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
     assert(write(descriptors[1], first, sizeof(first) - 1U) == (ssize_t)(sizeof(first) - 1U));
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
-    assert(latency.output_length == sizeof(first) - 1U);
+    assert(latency.children[0].output_length == sizeof(first) - 1U);
     assert(write(descriptors[1], rest, sizeof(rest) - 1U) == (ssize_t)(sizeof(rest) - 1U));
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
     assert(sample.sequence == 1U);
@@ -61,17 +74,17 @@ static void test_receive_buffered_output(void)
     assert(sample.upload_owd_microseconds == 1250U);
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_TIMEOUT);
     assert(sample.sequence == 2U);
-    assert(latency.output_length == 0U);
+    assert(latency.children[0].output_length == 0U);
 
     assert(write(descriptors[1], "bad\n", 4U) == 4);
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "unexpected fping output") != NULL);
 
-    memset(latency.output_buffer, 'x', sizeof(latency.output_buffer));
-    latency.output_length = sizeof(latency.output_buffer);
+    memset(latency.children[0].output_buffer, 'x', sizeof(latency.children[0].output_buffer));
+    latency.children[0].output_length = sizeof(latency.children[0].output_buffer);
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "too long") != NULL);
-    latency.output_length = 0U;
+    latency.children[0].output_length = 0U;
 
     assert(close(descriptors[1]) == 0);
     assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
@@ -98,8 +111,8 @@ static void test_invalid_target_is_rejected_before_starting_fping(void)
         error,
         sizeof(error)
     ) != 0);
-    assert(latency.output_descriptor == -1);
-    assert(latency.process_identifier == -1);
+    assert(latency.children[0].output_descriptor == -1);
+    assert(latency.children[0].process_identifier == -1);
     assert(strlen(error) > 0U);
 }
 
@@ -154,8 +167,32 @@ static void test_close_is_idempotent(void)
     latency_close(&latency);
     latency_close(&latency);
 
-    assert(latency.output_descriptor == -1);
-    assert(latency.process_identifier == -1);
+    assert(latency.children[0].output_descriptor == -1);
+    assert(latency.children[0].process_identifier == -1);
+}
+
+static void test_close_releases_every_owned_descriptor(void)
+{
+    struct latency latency;
+    int first[2];
+    int second[2];
+
+    latency_init(&latency);
+    assert(pipe(first) == 0);
+    assert(pipe(second) == 0);
+    latency.children[0].output_descriptor = first[0];
+    latency.children[1].output_descriptor = second[0];
+    latency.child_count = 2U;
+    latency_close(&latency);
+    assert(fcntl(first[0], F_GETFD) == -1);
+    assert(errno == EBADF);
+    assert(fcntl(second[0], F_GETFD) == -1);
+    assert(errno == EBADF);
+    assert(latency_child_count(&latency) == 0U);
+    assert(latency_child_descriptor(&latency, 0U) == -1);
+    assert(latency_child_descriptor(&latency, CONFIG_MAX_REFLECTORS) == -1);
+    assert(close(first[1]) == 0);
+    assert(close(second[1]) == 0);
 }
 
 static void test_fping_reply_is_parsed(void)
@@ -809,13 +846,13 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
         error,
         sizeof(error)
     ) == 0);
-    descriptor = (struct pollfd) { .fd = latency.output_descriptor, .events = POLLIN };
+    descriptor = (struct pollfd) { .fd = latency.children[0].output_descriptor, .events = POLLIN };
     for (;;) {
         ssize_t bytes;
 
         assert(poll(&descriptor, 1U, 1000) > 0);
         assert(length < sizeof(output) - 1U);
-        bytes = read(latency.output_descriptor, output + length, sizeof(output) - 1U - length);
+        bytes = read(latency.children[0].output_descriptor, output + length, sizeof(output) - 1U - length);
         assert(bytes >= 0);
         if (bytes == 0) {
             break;
@@ -830,6 +867,7 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
     ) == 0);
     latency_close(&latency);
     assert(!latency_is_open(&latency));
+    assert(latency_child_count(&latency) == 0U);
     assert(target_is_valid("::1"));
     assert(target_is_valid("2001:4860:4860::8888"));
 }
@@ -936,6 +974,7 @@ int main(void)
     test_empty_target_list_is_rejected();
     test_sub_millisecond_response_spacing_is_rejected();
     test_close_is_idempotent();
+    test_close_releases_every_owned_descriptor();
     test_fping_reply_is_parsed();
     test_reflector_comparison_preserves_signed_baselines();
     test_fping_six_digit_timestamp_is_preserved();

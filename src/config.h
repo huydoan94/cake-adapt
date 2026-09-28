@@ -6,9 +6,10 @@
 #include <stdint.h>
 #include <net/if.h>
 
+#include "constants.h"
+
 #define CONFIG_STRING_SIZE 512U
 #define CONFIG_REFLECTOR_SIZE 256U
-#define CONFIG_MAX_REFLECTORS 64U
 
 struct config {
     bool enabled;
