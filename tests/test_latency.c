@@ -620,6 +620,100 @@ static void test_reflector_comparison_preserves_signed_baselines(void)
     assert(comparisons[0].upload_delta_ewma_delta_microseconds == 0);
 }
 
+static void test_reflector_comparison_separates_all_minima(void)
+{
+    struct latency_tracker trackers[3];
+    const size_t order[] = { 0U, 1U, 2U };
+    struct reflector_comparison comparisons[3];
+    size_t index;
+
+    for (index = 0U; index < 3U; index++) {
+        init_tracker(&trackers[index]);
+    }
+    trackers[0].download.baseline_microseconds = 20U;
+    trackers[0].upload.baseline_microseconds = 120U;
+    trackers[0].download.delta_ewma_microseconds = 50;
+    trackers[0].upload.delta_ewma_microseconds = 9;
+    trackers[1].download.baseline_microseconds = 90U;
+    trackers[1].upload.baseline_microseconds = 70U;
+    trackers[1].download.delta_ewma_microseconds = -5;
+    trackers[1].upload.delta_ewma_microseconds = 30;
+    trackers[2].download.baseline_microseconds = 200U;
+    trackers[2].upload.baseline_microseconds = 100U;
+    trackers[2].download.delta_ewma_microseconds = 10;
+    trackers[2].upload.delta_ewma_microseconds = -10;
+
+    reflector_compare(trackers, order, 3U, comparisons);
+    assert(comparisons[0].minimum_sum_owd_baselines_microseconds == 140);
+    assert(comparisons[0].minimum_download_delta_ewma_microseconds == -5);
+    assert(comparisons[0].minimum_upload_delta_ewma_microseconds == -10);
+    assert(comparisons[0].sum_owd_baselines_delta_microseconds == 0U);
+    assert(comparisons[1].sum_owd_baselines_delta_microseconds == 20U);
+    assert(comparisons[1].download_delta_ewma_delta_microseconds == 0);
+    assert(comparisons[2].upload_delta_ewma_delta_microseconds == 0);
+}
+
+static void test_reflector_comparison_saturates_signed_extremes(void)
+{
+    struct latency_tracker trackers[2];
+    const size_t order[] = { 0U, 1U };
+    struct reflector_comparison comparisons[2];
+
+    init_tracker(&trackers[0]);
+    init_tracker(&trackers[1]);
+    trackers[0].download.baseline_microseconds = INT64_MAX;
+    trackers[0].upload.baseline_microseconds = INT64_MAX;
+    trackers[0].download.delta_ewma_microseconds = INT64_MAX;
+    trackers[0].upload.delta_ewma_microseconds = INT64_MAX;
+    trackers[1].download.baseline_microseconds = INT64_MIN;
+    trackers[1].upload.baseline_microseconds = INT64_MIN;
+    trackers[1].download.delta_ewma_microseconds = INT64_MIN;
+    trackers[1].upload.delta_ewma_microseconds = INT64_MIN;
+
+    reflector_compare(trackers, order, 2U, comparisons);
+    assert(comparisons[0].sum_owd_baselines_microseconds == INT64_MAX);
+    assert(comparisons[0].sum_owd_baselines_delta_microseconds == UINT64_MAX);
+    assert(comparisons[0].download_delta_ewma_delta_microseconds == INT64_MAX);
+    assert(comparisons[0].upload_delta_ewma_delta_microseconds == INT64_MAX);
+    assert(comparisons[1].sum_owd_baselines_microseconds == INT64_MIN);
+}
+
+static void test_reflector_rotation_retains_or_discards_identity_state(void)
+{
+    struct latency_tracker trackers[3];
+    size_t order[] = { 0U, 1U, 2U };
+    size_t index;
+
+    for (index = 0U; index < 3U; index++) {
+        init_tracker(&trackers[index]);
+    }
+    trackers[0].download.baseline_microseconds = 123;
+    trackers[0].upload.baseline_microseconds = 456;
+    trackers[0].download.delta_ewma_microseconds = 7;
+    trackers[0].upload.delta_ewma_microseconds = 8;
+
+    /* Retention leaves state on the immutable reflector identity. */
+    reflector_rotate(order, 3U, 1U, 0U);
+    reflector_rotate(order, 3U, 1U, 0U);
+    reflector_rotate(order, 3U, 1U, 0U);
+    assert(order[0] == 0U);
+    assert(trackers[0].download.baseline_microseconds == 123);
+    assert(trackers[0].upload.baseline_microseconds == 456);
+    assert(trackers[0].download.delta_ewma_microseconds == 7);
+    assert(trackers[0].upload.delta_ewma_microseconds == 8);
+
+    /* Discarding resets the departing identity before its next active turn. */
+    tracker_reset(&trackers[0]);
+    reflector_rotate(order, 3U, 1U, 0U);
+    reflector_rotate(order, 3U, 1U, 0U);
+    reflector_rotate(order, 3U, 1U, 0U);
+    assert(order[0] == 0U);
+    assert(trackers[0].download.baseline_microseconds == INT64_C(100000));
+    assert(trackers[0].upload.baseline_microseconds == INT64_C(100000));
+    assert(trackers[0].download.delta_ewma_microseconds == 0);
+    assert(trackers[0].upload.delta_ewma_microseconds == 0);
+}
+
 static void test_reflector_rotation_uses_first_standby(void)
 {
     size_t order[] = { 0U, 1U, 2U, 3U, 4U };
@@ -865,6 +959,9 @@ int main(void)
     test_latency_tracker_reset_discards_measurements();
     test_reflector_health_reset_clears_offences();
     test_reflector_comparison_uses_active_order();
+    test_reflector_comparison_separates_all_minima();
+    test_reflector_comparison_saturates_signed_extremes();
+    test_reflector_rotation_retains_or_discards_identity_state();
     test_reflector_rotation_uses_first_standby();
     test_reflector_comparison_keeps_directional_minima();
     test_pinger_arguments_reject_command_substitution();

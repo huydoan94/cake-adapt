@@ -391,15 +391,10 @@ static void update_serialization_compensation(
     );
 }
 
-static bool random_index(size_t count, size_t *index)
+static bool entropy_u32(uint32_t *value, void *context)
 {
-    uint32_t value;
-    /* no_pingers is validated as 1..CONFIG_MAX_REFLECTORS at startup. */
-    if (getentropy(&value, sizeof(value)) != 0) {
-        return false;
-    }
-    *index = (size_t)(value % (uint32_t)count);
-    return true;
+    (void)context;
+    return getentropy(value, sizeof(*value)) == 0;
 }
 
 static const char *line_state_name(enum controller_line_state state)
@@ -1867,7 +1862,12 @@ static bool run_scheduled_reflector_work(
     ) {
         loop->observation.last_reflector_replacement_microseconds =
             timestamp_microseconds;
-        if (!random_index((size_t)loop->config->no_pingers, &pinger)) {
+        if (!random_below(
+            (size_t)loop->config->no_pingers,
+            entropy_u32,
+            NULL,
+            &pinger
+        )) {
             log_message(
                 LOG_LEVEL_WARNING,
                 "could not randomly select reflector for replacement: %s",
@@ -2193,6 +2193,35 @@ int monitor_run(const struct config *config)
             goto done;
         }
         loop.observation.reflector_order[index] = index;
+    }
+    log_message(LOG_LEVEL_DEBUG, "Randomizing reflectors.");
+    if (config->randomize_reflectors) {
+        size_t randomized_order[CONFIG_MAX_REFLECTORS];
+        size_t reflector_count = (size_t)config->reflector_count;
+
+        memcpy(
+            randomized_order,
+            loop.observation.reflector_order,
+            reflector_count * sizeof(*randomized_order)
+        );
+        if (!shuffle(
+            randomized_order,
+            reflector_count,
+            entropy_u32,
+            NULL
+        )) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "could not randomize reflectors: %s; using configured order",
+                strerror(errno)
+            );
+        } else {
+            memcpy(
+                loop.observation.reflector_order,
+                randomized_order,
+                reflector_count * sizeof(*randomized_order)
+            );
+        }
     }
     if (!read_clock_microseconds(CLOCK_MONOTONIC, &start_microseconds)) {
         log_message(
