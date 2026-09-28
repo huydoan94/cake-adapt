@@ -2536,18 +2536,35 @@ int monitor_run(const struct config *config)
     }
     if (config->log_to_file) {
         uint64_t buffer_milliseconds =
-            config->log_file_buffer_timeout_microseconds /
-            MICROSECONDS_PER_MILLISECOND;
+            (config->log_file_buffer_timeout_microseconds + MILLISECOND - 1U) /
+            MILLISECOND;
+        uint64_t log_timer_milliseconds = buffer_milliseconds;
 
         if (
+            log_timer_milliseconds == 0U &&
+            config->log_file_max_time_minutes > 0U
+        ) {
+            uint64_t maximum_age_milliseconds =
+                config->log_file_max_time_minutes * (MINUTE / MILLISECOND);
+
+            log_timer_milliseconds = maximum_age_milliseconds < UINT_MAX
+                ? maximum_age_milliseconds + 1U
+                : UINT_MAX;
+        }
+        if (
+            log_timer_milliseconds > 0U &&
             uloop_interval_set(
                 &loop.log_timer,
-                (unsigned int)(buffer_milliseconds > 0U ? buffer_milliseconds : 1U)
-            ) != 0 ||
-            uloop_signal_add(&loop.log_export_signal) != 0 ||
-            uloop_signal_add(&loop.log_reset_signal) != 0
+                (unsigned int)log_timer_milliseconds
+            ) != 0
         ) {
-            log_message(LOG_LEVEL_WARNING, "log maintenance degraded: %s", strerror(errno));
+            log_message(LOG_LEVEL_WARNING, "log timer degraded: %s", strerror(errno));
+        }
+        if (uloop_signal_add(&loop.log_export_signal) != 0) {
+            log_message(LOG_LEVEL_WARNING, "log export signal degraded: %s", strerror(errno));
+        }
+        if (uloop_signal_add(&loop.log_reset_signal) != 0) {
+            log_message(LOG_LEVEL_WARNING, "log reset signal degraded: %s", strerror(errno));
         }
     }
     (void)watch_latency(&loop);
