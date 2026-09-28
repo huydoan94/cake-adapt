@@ -10,18 +10,35 @@
 
 #define LATENCY_OUTPUT_SIZE 512U
 #define LATENCY_TARGET_SIZE 256U
+#define LATENCY_ARGUMENT_SIZE 512U
+
+enum latency_backend {
+    LATENCY_BACKEND_FPING,
+    LATENCY_BACKEND_IRTT
+};
 
 bool target_is_valid(const char *target);
 
 struct latency_child {
     int output_descriptor;
     pid_t process_identifier;
+    uint64_t started_microseconds;
+    uint64_t next_start_microseconds;
+    /* Borrowed from the validated configuration for the session lifetime. */
+    const char *target;
     char output_buffer[LATENCY_OUTPUT_SIZE];
     size_t output_length;
 };
 
 struct latency {
+    enum latency_backend backend;
+    bool active;
+    uint64_t irtt_session_duration_minutes;
+    uint64_t reflector_ping_interval_microseconds;
+    char ping_extra_args[LATENCY_ARGUMENT_SIZE];
+    char ping_prefix_string[LATENCY_ARGUMENT_SIZE];
     struct latency_child children[CONFIG_MAX_REFLECTORS];
+    size_t target_count;
     size_t child_count;
 };
 
@@ -29,6 +46,7 @@ enum latency_probe_result {
     LATENCY_PROBE_SUCCESS,
     LATENCY_PROBE_TIMEOUT,
     LATENCY_PROBE_PENDING,
+    LATENCY_PROBE_RESTART,
     LATENCY_PROBE_ERROR
 };
 
@@ -131,6 +149,30 @@ int latency_open(
 
 void latency_close(struct latency *latency);
 
+int latency_open_irtt(
+    struct latency *latency,
+    const char *const *targets,
+    size_t target_count,
+    uint64_t reflector_ping_interval_microseconds,
+    uint64_t session_duration_minutes,
+    const char *extra_arguments,
+    const char *prefix,
+    uint64_t first_start_microseconds,
+    char *error,
+    size_t error_size
+);
+
+int latency_start_irtt_children(
+    struct latency *latency,
+    uint64_t timestamp_microseconds,
+    char *error,
+    size_t error_size
+);
+
+bool latency_irtt_start_pending(const struct latency *latency);
+
+uint64_t latency_irtt_next_start_microseconds(const struct latency *latency);
+
 enum latency_probe_result latency_receive_child(
     struct latency *latency,
     size_t child_index,
@@ -141,6 +183,13 @@ enum latency_probe_result latency_receive_child(
 
 enum latency_fping_line_result parse_fping_line(
     const char *line,
+    struct latency_sample *sample
+);
+
+bool parse_irtt_line(
+    const char *line,
+    const char *target,
+    uint64_t timestamp_microseconds,
     struct latency_sample *sample
 );
 

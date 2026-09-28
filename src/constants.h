@@ -30,6 +30,8 @@
 #define CONFIG_MAX_REFLECTORS 64U
 
 /* Fixed latency-response compatibility thresholds. */
+#define IRTT_FAST_EXIT_RETRY_MICROSECONDS SECOND
+#define IRTT_FAST_EXIT_THRESHOLD_MICROSECONDS (UINT64_C(3) * SECOND)
 #define LATENCY_STALE_RESPONSE_MICROSECONDS (UINT64_C(500) * MILLISECOND)
 #define LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS (UINT64_C(50) * MINUTE)
 
@@ -37,6 +39,7 @@
 #define CLI_OPTIONS "C:LfS:Vh"
 #define IFB_PREFIX "ifb4"
 #define PINGER_METHOD_FPING "fping"
+#define PINGER_METHOD_IRTT "irtt"
 #define PROGRAM_NAME "cake-adapt"
 #define QDISC_KIND "cake"
 #define UCI_PACKAGE PROGRAM_NAME
@@ -95,6 +98,10 @@
 #define FPING_TIMEOUT "--timeout"
 #define FPING_TIMEOUT_SUFFIX ", timed out"
 #define FPING_TIMESTAMP "--timestamp"
+#define IRTT_CLIENT "client"
+#define IRTT_DURATION "-d"
+#define IRTT_INTERVAL "-i"
+#define IRTT_PATH "/usr/bin/irtt"
 #define NULL_DEVICE_PATH "/dev/null"
 
 /* Proc, file, archive, and log-format constants. */
