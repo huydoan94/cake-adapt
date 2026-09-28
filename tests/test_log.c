@@ -650,6 +650,59 @@ static void test_buffer_timeout_and_time_rotation(void)
     assert(unlink(previous_path) == 0);
 }
 
+static void test_immediate_output_avoids_maintenance_clock(void)
+{
+    char path[] = "/tmp/cake-adapt-log-immediate-XXXXXX";
+    char contents[1024];
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    use_mock_time = true;
+    mock_time = (struct timespec) { .tv_sec = 2000 };
+    log_init("cake-adapt-test", false);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+    clock_reads = 0U;
+    log_print_headers(false, true, false, false);
+    assert(clock_reads == 0U);
+    read_log(path, contents, sizeof(contents));
+    assert(strncmp(contents, "LOAD_HEADER; ", 13U) == 0);
+    log_close();
+    use_mock_time = false;
+    assert(unlink(path) == 0);
+}
+
+static void test_existing_file_size_uses_strict_rotation_limit(void)
+{
+    char path[] = "/tmp/cake-adapt-log-size-XXXXXX";
+    char previous_path[128];
+    char contents[2048];
+    char existing[KIBIBYTE];
+    FILE *file;
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    memset(existing, 'x', sizeof(existing));
+    file = fopen(path, "w");
+    assert(file != NULL);
+    assert(fwrite(existing, 1U, sizeof(existing), file) == sizeof(existing));
+    assert(fclose(file) == 0);
+
+    log_init("cake-adapt-test", false);
+    log_set_level(LOG_LEVEL_INFO);
+    assert(log_set_file(path, 0U, 1U, 0U, false) == 0);
+    log_tick();
+    (void)snprintf(previous_path, sizeof(previous_path), "%s.old", path);
+    assert(access(previous_path, F_OK) != 0 && errno == ENOENT);
+    log_message(LOG_LEVEL_INFO, "cross size threshold");
+    read_log(previous_path, contents, sizeof(contents));
+    assert(strstr(contents, "cross size threshold") != NULL);
+    log_close();
+    assert(unlink(previous_path) == 0);
+    assert(unlink(path) == 0);
+}
+
 static void test_disabled_output_skips_formatting_clocks(void)
 {
     const struct log_load_record load = { 0 };
@@ -687,6 +740,8 @@ int main(void)
     test_rotation_export_and_reset_preserve_live_inode(false);
     test_rotation_export_and_reset_preserve_live_inode(true);
     test_buffer_timeout_and_time_rotation();
+    test_immediate_output_avoids_maintenance_clock();
+    test_existing_file_size_uses_strict_rotation_limit();
 
     (void)puts("log tests passed");
     return 0;
