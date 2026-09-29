@@ -395,6 +395,10 @@ unrelated legacy process merely because it owns an `fping` child.
 
 ## Change discipline
 
+- Work only on the currently checked-out local branch. Never inspect, switch,
+  modify, rewrite, delete, or otherwise touch any other branch or remote.
+  Never fetch, pull, push, force-push, or contact a remote; branch and remote
+  management belongs exclusively to the user.
 - Treat `AGENTS.md` as user-owned policy; edit it only when explicitly asked.
 - Inspect `git status` first and preserve unrelated user changes.
 - Verify a surprising observation once before changing known-working code.
