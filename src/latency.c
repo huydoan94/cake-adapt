@@ -662,7 +662,6 @@ int latency_open(
     latency->children[0].output_length = 0U;
     latency->backend = LATENCY_BACKEND_FPING;
     latency->active = true;
-    latency->target_count = target_count;
     latency->child_count = 1U;
     return 0;
 
@@ -872,13 +871,6 @@ int latency_open_irtt(
         return -1;
     }
     if (
-        strlen(extra_arguments) >= sizeof(latency->ping_extra_args) ||
-        strlen(prefix) >= sizeof(latency->ping_prefix_string)
-    ) {
-        error_set(error, error_size, "irtt arguments are too long");
-        return -1;
-    }
-    if (
         expand_words(
             extra_arguments,
             false,
@@ -928,9 +920,8 @@ int latency_open_irtt(
     latency->irtt_session_duration_minutes = session_duration_minutes;
     latency->reflector_ping_interval_microseconds =
         reflector_ping_interval_microseconds;
-    (void)strcpy(latency->ping_extra_args, extra_arguments);
-    (void)strcpy(latency->ping_prefix_string, prefix);
-    latency->target_count = target_count;
+    latency->ping_extra_args = extra_arguments;
+    latency->ping_prefix_string = prefix;
     latency->child_count = target_count;
     return 0;
 }
@@ -948,7 +939,7 @@ int latency_start_irtt_children(
         error_set(error, error_size, "irtt session is not active");
         return -1;
     }
-    for (index = 0U; index < latency->target_count; index++) {
+    for (index = 0U; index < latency->child_count; index++) {
         struct latency_child *child = &latency->children[index];
 
         if (
@@ -980,7 +971,7 @@ bool latency_irtt_start_pending(const struct latency *latency)
     if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT) {
         return false;
     }
-    for (index = 0U; index < latency->target_count; index++) {
+    for (index = 0U; index < latency->child_count; index++) {
         if (latency->children[index].output_descriptor < 0) {
             return true;
         }
@@ -993,7 +984,7 @@ uint64_t latency_irtt_next_start_microseconds(const struct latency *latency)
     uint64_t next = UINT64_MAX;
     size_t index;
 
-    for (index = 0U; index < latency->target_count; index++) {
+    for (index = 0U; index < latency->child_count; index++) {
         const struct latency_child *child = &latency->children[index];
 
         if (
@@ -1187,7 +1178,8 @@ void latency_close(struct latency *latency)
         stop_child(process_identifier);
     }
     latency->active = false;
-    latency->target_count = 0U;
+    latency->ping_extra_args = NULL;
+    latency->ping_prefix_string = NULL;
     latency->child_count = 0U;
 }
 
@@ -1699,14 +1691,4 @@ enum latency_probe_result latency_receive_child(
         }
         return LATENCY_PROBE_PENDING;
     }
-}
-
-enum latency_probe_result latency_receive(
-    struct latency *latency,
-    struct latency_sample *sample,
-    char *error,
-    size_t error_size
-)
-{
-    return latency_receive_child(latency, 0U, sample, error, error_size);
 }

@@ -114,7 +114,7 @@ static void write_file_line(const char *line)
     }
 }
 
-uint64_t log_realtime_microseconds(void)
+static uint64_t log_realtime_microseconds(void)
 {
     return clock_microseconds(CLOCK_REALTIME);
 }
