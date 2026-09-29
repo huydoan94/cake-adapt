@@ -122,8 +122,6 @@ void log_print_headers(
     bool output_summary_stats
 );
 
-uint64_t log_realtime_microseconds(void);
-
 void log_load(const struct log_load_record *record);
 
 void log_data(const struct log_data_record *record);

@@ -10,7 +10,6 @@
 
 #define LATENCY_OUTPUT_SIZE 512U
 #define LATENCY_TARGET_SIZE 256U
-#define LATENCY_ARGUMENT_SIZE 512U
 
 enum latency_backend {
     LATENCY_BACKEND_FPING,
@@ -35,10 +34,10 @@ struct latency {
     bool active;
     uint64_t irtt_session_duration_minutes;
     uint64_t reflector_ping_interval_microseconds;
-    char ping_extra_args[LATENCY_ARGUMENT_SIZE];
-    char ping_prefix_string[LATENCY_ARGUMENT_SIZE];
+    /* Borrowed from the validated configuration for the session lifetime. */
+    const char *ping_extra_args;
+    const char *ping_prefix_string;
     struct latency_child children[CONFIG_MAX_REFLECTORS];
-    size_t target_count;
     size_t child_count;
 };
 
@@ -249,13 +248,6 @@ void reflector_rotate(
     size_t reflector_count,
     size_t active_count,
     size_t pinger
-);
-
-enum latency_probe_result latency_receive(
-    struct latency *latency,
-    struct latency_sample *sample,
-    char *error,
-    size_t error_size
 );
 
 #endif
