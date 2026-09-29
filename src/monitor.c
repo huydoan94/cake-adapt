@@ -2291,9 +2291,7 @@ int monitor_run(const struct config *config)
                 .interface = config->interface,
                 .cake_state = CAKE_OBSERVATION_UNKNOWN,
                 .traffic_state = TRAFFIC_OBSERVATION_UNKNOWN
-            },
-            .latency_observation_failed = false,
-            .traffic_clock_failed = false
+            }
         },
         .config = config,
         .traffic_timer = {
@@ -2600,7 +2598,6 @@ done:
         health_cleanup(&loop.observation.reflector_health[index]);
     }
     netlink_close(&loop.observation.netlink);
-    latency_close(&loop.observation.latency);
     controller_close(&loop.observation.controller);
     return loop.result;
 }

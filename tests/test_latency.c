@@ -63,31 +63,73 @@ static void test_receive_buffered_output(void)
     ) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "not running") != NULL);
 
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_PENDING);
     assert(write(descriptors[1], first, sizeof(first) - 1U) == (ssize_t)(sizeof(first) - 1U));
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_PENDING);
     assert(latency.children[0].output_length == sizeof(first) - 1U);
     assert(write(descriptors[1], rest, sizeof(rest) - 1U) == (ssize_t)(sizeof(rest) - 1U));
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_SUCCESS);
     assert(sample.sequence == 1U);
     assert(sample.download_owd_microseconds == 1250U);
     assert(sample.upload_owd_microseconds == 1250U);
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_TIMEOUT);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_TIMEOUT);
     assert(sample.sequence == 2U);
     assert(latency.children[0].output_length == 0U);
 
     assert(write(descriptors[1], "bad\n", 4U) == 4);
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "unexpected fping output") != NULL);
 
     memset(latency.children[0].output_buffer, 'x', sizeof(latency.children[0].output_buffer));
     latency.children[0].output_length = sizeof(latency.children[0].output_buffer);
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "too long") != NULL);
     latency.children[0].output_length = 0U;
 
     assert(close(descriptors[1]) == 0);
-    assert(latency_receive(&latency, &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(latency_receive_child(
+        &latency,
+        0U,
+        &sample,
+        error,
+        sizeof(error)
+    ) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "output closed") != NULL);
     assert(close(descriptors[0]) == 0);
 }
@@ -264,7 +306,6 @@ static void test_irtt_receive_ignores_non_sample_lines(void)
     assert(fcntl(descriptors[0], F_SETFL, O_NONBLOCK) == 0);
     latency.backend = LATENCY_BACKEND_IRTT;
     latency.active = true;
-    latency.target_count = 1U;
     latency.child_count = 1U;
     latency.children[0].output_descriptor = descriptors[0];
     latency.children[0].process_identifier = getpid();
