@@ -296,6 +296,7 @@ struct observation_context {
     bool traffic_clock_failed;
     bool health_clock_failed;
     bool traffic_cadence_initialized;
+    bool pingers_suspended;
     uint64_t traffic_cadence_microseconds;
     uint64_t last_reflector_replacement_microseconds;
     uint64_t last_reflector_comparison_microseconds;
@@ -1586,6 +1587,23 @@ static void reset_reflector_health(
     }
 }
 
+/* Match cake-autorate's two-period setup grace after (re)starting pingers. */
+static void grant_pinger_setup_grace(
+    struct observation_context *context,
+    const struct config *config,
+    uint64_t timestamp_microseconds
+)
+{
+    context->last_reflector_response_microseconds = timestamp_microseconds;
+    context->pinger_grace_until_microseconds = timestamp_microseconds +
+        2U * config->reflector_ping_interval_microseconds;
+    reset_reflector_health(
+        context,
+        config,
+        context->pinger_grace_until_microseconds
+    );
+}
+
 static void restart_latency(
     struct event_loop *loop,
     uint64_t timestamp_microseconds
@@ -1720,15 +1738,7 @@ static void update_monitor_state(
             }
             close_latency(loop);
         } else if (previous == CONTROLLER_IDLE) {
-            context->last_reflector_response_microseconds = timestamp_microseconds;
-            /* Match cake-autorate's two-period setup grace after waking. */
-            context->pinger_grace_until_microseconds = timestamp_microseconds +
-                2U * config->reflector_ping_interval_microseconds;
-            reset_reflector_health(
-                context,
-                config,
-                context->pinger_grace_until_microseconds
-            );
+            grant_pinger_setup_grace(context, config, timestamp_microseconds);
             context->next_latency_attempt_microseconds = 0U;
             (void)watch_latency(loop);
         }
@@ -1828,9 +1838,19 @@ static void handle_traffic_timer(
     apply_traffic_cadence(loop);
     if (!cake_ready(&loop->observation)) {
         close_latency(loop);
+        loop->observation.pingers_suspended = true;
         return;
     }
     if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
+        /* Pingers stopped while CAKE was missing restart like after IDLE. */
+        if (loop->observation.pingers_suspended) {
+            grant_pinger_setup_grace(
+                &loop->observation,
+                loop->config,
+                timestamp_microseconds
+            );
+            loop->observation.pingers_suspended = false;
+        }
         update_monitor_state(loop, timestamp_microseconds);
     }
     if (loop->observation.activity.state != CONTROLLER_IDLE) {
