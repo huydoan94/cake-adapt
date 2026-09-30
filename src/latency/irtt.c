@@ -7,7 +7,6 @@
 #include "common/helpers.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -17,32 +16,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <wordexp.h>
-
-static int expand_words(
-    const char *value,
-    bool require_word,
-    const char *option,
-    wordexp_t *words,
-    char *error,
-    size_t error_size
-)
-{
-    int result;
-
-    if (value[0] == '\0') {
-        return 0;
-    }
-    result = wordexp(value, words, WRDE_NOCMD);
-    if (result == 0 && (!require_word || words->we_wordc > 0U)) {
-        return 0;
-    }
-    if (result == WRDE_NOSPACE || result == 0) {
-        wordfree(words);
-        *words = (wordexp_t) { 0 };
-    }
-    error_set(error, error_size, "could not parse %s", option);
-    return -1;
-}
 
 static int spawn_irtt_child(
     struct latency *latency,
@@ -58,8 +31,6 @@ static int spawn_irtt_child(
     char **arguments = NULL;
     wordexp_t extra_words = { 0 };
     wordexp_t prefix_words = { 0 };
-    int output_pipe[2] = { -1, -1 };
-    pid_t process_identifier;
     size_t cursor = 0U;
     size_t index;
     int result = -1;
@@ -131,53 +102,15 @@ static int spawn_irtt_child(
     arguments[cursor++] = duration;
     arguments[cursor++] = endpoint;
 
-    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
-        error_set(
-            error,
-            error_size,
-            "could not create irtt pipe: %s",
-            strerror(errno)
-        );
-        goto done;
-    }
-    if (
-        spawn_child(
-            &process_identifier,
-            output_pipe,
-            arguments[0],
-            arguments,
-            PINGER_METHOD_IRTT,
-            error,
-            error_size
-        ) != 0
-    ) {
-        goto done;
-    }
-    (void)close(output_pipe[1]);
-    output_pipe[1] = -1;
-    if (set_nonblocking(
-        output_pipe[0],
+    result = start_child(
+        child,
+        arguments,
         PINGER_METHOD_IRTT,
         error,
         error_size
-    ) != 0) {
-        stop_child(process_identifier);
-        goto done;
-    }
-
-    child->output_descriptor = output_pipe[0];
-    child->process_identifier = process_identifier;
-    child->output_length = 0U;
-    output_pipe[0] = -1;
-    result = 0;
+    );
 
 done:
-    if (output_pipe[0] >= 0) {
-        (void)close(output_pipe[0]);
-    }
-    if (output_pipe[1] >= 0) {
-        (void)close(output_pipe[1]);
-    }
     free(arguments);
     wordfree(&prefix_words);
     wordfree(&extra_words);
@@ -239,19 +172,13 @@ int latency_open_irtt(
         return -1;
     }
     wordfree(&words);
+    if (validate_targets(targets, target_count, error, error_size) != 0) {
+        return -1;
+    }
 
     child_start_spacing_microseconds =
         reflector_ping_interval_microseconds / target_count;
     for (index = 0U; index < target_count; index++) {
-        if (!target_is_valid(targets[index])) {
-            error_set(
-                error,
-                error_size,
-                "latency target '%s' is not a valid IP address or hostname",
-                targets[index] == NULL ? NULL_VALUE : targets[index]
-            );
-            return -1;
-        }
         latency->children[index].target = targets[index];
         latency->children[index].next_start_microseconds =
             first_start_microseconds +

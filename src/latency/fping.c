@@ -8,14 +8,12 @@
 #include "config/defaults.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <wordexp.h>
 
 int latency_open(
@@ -32,17 +30,15 @@ int latency_open(
 {
     char period_milliseconds[32];
     char response_interval_milliseconds[32];
-    char **arguments;
+    char **arguments = NULL;
     wordexp_t extra_words = { 0 };
     wordexp_t prefix_words = { 0 };
-    int output_pipe[2];
-    pid_t process_identifier;
     uint64_t period;
     uint64_t response_interval;
     size_t index;
     size_t cursor = 0U;
-    int word_result;
     bool interface_configured = false;
+    int result = -1;
 
     if (
         interface == NULL ||
@@ -78,16 +74,8 @@ int latency_open(
         );
         return -1;
     }
-    for (index = 0U; index < target_count; index++) {
-        if (!target_is_valid(targets[index])) {
-            error_set(
-                error,
-                error_size,
-                "latency target '%s' is not a valid IP address or hostname",
-                targets[index] == NULL ? NULL_VALUE : targets[index]
-            );
-            return -1;
-        }
+    if (validate_targets(targets, target_count, error, error_size) != 0) {
+        return -1;
     }
 
     period = rounded_divide(
@@ -110,32 +98,25 @@ int latency_open(
         response_interval
     );
 
-    if (extra_arguments[0] != '\0') {
-        word_result = wordexp(extra_arguments, &extra_words, WRDE_NOCMD);
-        if (word_result != 0) {
-            if (word_result == WRDE_NOSPACE) {
-                wordfree(&extra_words);
-            }
-            error_set(error, error_size, "could not parse ping_extra_args");
-            return -1;
-        }
-    }
-    if (prefix[0] != '\0') {
-        word_result = wordexp(prefix, &prefix_words, WRDE_NOCMD);
-        if (
-            word_result != 0 ||
-            prefix_words.we_wordc == 0U
-        ) {
-            if (
-                word_result == WRDE_NOSPACE ||
-                word_result == 0
-            ) {
-                wordfree(&prefix_words);
-            }
-            wordfree(&extra_words);
-            error_set(error, error_size, "could not parse ping_prefix_string");
-            return -1;
-        }
+    if (
+        expand_words(
+            extra_arguments,
+            false,
+            OPTION_PING_EXTRA_ARGS,
+            &extra_words,
+            error,
+            error_size
+        ) != 0 ||
+        expand_words(
+            prefix,
+            true,
+            OPTION_PING_PREFIX_STRING,
+            &prefix_words,
+            error,
+            error_size
+        ) != 0
+    ) {
+        goto done;
     }
     arguments = calloc(
         prefix_words.we_wordc + extra_words.we_wordc + target_count + 13U,
@@ -148,7 +129,7 @@ int latency_open(
             "could not allocate fping arguments: %s",
             strerror(errno)
         );
-        goto failed;
+        goto done;
     }
     for (index = 0U; index < prefix_words.we_wordc; index++) {
         arguments[cursor++] = prefix_words.we_wordv[index];
@@ -189,61 +170,25 @@ int latency_open(
         arguments[cursor++] = (char *)targets[index];
     }
 
-    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
-        error_set(
-            error,
-            error_size,
-            "could not create fping pipe: %s",
-            strerror(errno)
-        );
-        goto free_arguments;
-    }
-
     if (
-        spawn_child(
-            &process_identifier,
-            output_pipe,
-            arguments[0],
+        start_child(
+            &latency->children[0],
             arguments,
             PINGER_METHOD_FPING,
             error,
             error_size
         ) != 0
     ) {
-        goto close_output;
+        goto done;
     }
-
-    (void)close(output_pipe[1]);
-    free(arguments);
-    wordfree(&prefix_words);
-    wordfree(&extra_words);
-
-    if (set_nonblocking(
-        output_pipe[0],
-        PINGER_METHOD_FPING,
-        error,
-        error_size
-    ) != 0) {
-        (void)close(output_pipe[0]);
-        stop_child(process_identifier);
-        return -1;
-    }
-
-    latency->children[0].output_descriptor = output_pipe[0];
-    latency->children[0].process_identifier = process_identifier;
-    latency->children[0].output_length = 0U;
     latency->backend = LATENCY_BACKEND_FPING;
     latency->active = true;
     latency->child_count = 1U;
-    return 0;
+    result = 0;
 
-close_output:
-    (void)close(output_pipe[0]);
-    (void)close(output_pipe[1]);
-free_arguments:
+done:
     free(arguments);
-failed:
     wordfree(&prefix_words);
     wordfree(&extra_words);
-    return -1;
+    return result;
 }
