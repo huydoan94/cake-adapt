@@ -1,0 +1,23 @@
+1790811013 23:30:13 PHASE start inode=150
+1790811013 23:30:13 PHASE idle-probing-15s
+1790811028 23:30:28 PHASE download-40s
+1790811068 23:31:08 PHASE recover-20s
+1790811088 23:31:28 PHASE upload-30s
+1790811118 23:31:58 PHASE recover-15s
+1790811133 23:32:13 PHASE bidirectional-30s
+1790811163 23:32:43 PHASE recover-15s
+1790811178 23:32:58 PHASE log-export-sigusr1
+cake-adapt.log
+cake-adapt_2026_09_30_23_32_58.log.gz
+1790811180 23:33:00 PHASE log-reset-sigusr2 size-before=1329217
+1790811181 23:33:01 PHASE log-reset size-after=8484 inode=150
+1790811181 23:33:01 PHASE eth1-qdisc-delete
+1790811186 23:33:06 PHASE eth1-qdisc-restore
+1790811192 23:33:12 PHASE ifb-qdisc-delete
+1790811197 23:33:17 PHASE ifb-qdisc-restore
+1790811203 23:33:23 PHASE idle-75s fping=1861
+1790811278 23:34:38 PHASE wake-download-12s fping=[]
+1790811290 23:34:50 PHASE after-wake fping=2566
+1790811290 23:34:50 PHASE shutdown
+1790811291 23:34:51 PHASE daemon exit status 0
+1790811291 23:34:51 PHASE leftover fping=[] daemon=[] zombies=0 inode=150
