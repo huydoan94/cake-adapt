@@ -5,13 +5,13 @@
 #include "common/constants.h"
 #include "cake.h"
 #include "controller.h"
-#include "cpu.h"
+#include "platform/cpu.h"
 #include "common/error.h"
 #include "common/helpers.h"
 #include "latency.h"
 #include "logging/log.h"
-#include "netlink.h"
-#include "traffic.h"
+#include "platform/netlink.h"
+#include "platform/traffic.h"
 
 #include <libubox/list.h>
 #include <libubox/uloop.h>

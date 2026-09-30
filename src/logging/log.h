@@ -1,7 +1,7 @@
 #ifndef LOG_H_INCLUDED
 #define LOG_H_INCLUDED
 
-#include "cpu.h"
+#include "platform/cpu.h"
 #include "common/constants.h"
 
 #include <stdbool.h>
