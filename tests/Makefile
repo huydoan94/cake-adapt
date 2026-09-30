@@ -77,10 +77,11 @@ check: $(BINARIES)
 .SECONDEXPANSION:
 $(BINARIES): $(BINARY_DIR)/%: $$(addprefix $(OBJECT_DIR)/,$$($$*_OBJECTS))
 	@mkdir -p $(@D)
-	$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+	$(CC) $(LDFLAGS) $(TEST_LDFLAGS) -o $@ $^ $(LDLIBS) $(TEST_LDLIBS)
 
-$(BINARY_DIR)/test_log: LDFLAGS += -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose
-$(BINARY_DIR)/test_log: LDLIBS += -lz
+# Kept apart from LDFLAGS so command-line overrides cannot drop the wrappers.
+$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose
+$(BINARY_DIR)/test_log: TEST_LDLIBS := -lz
 
 $(OBJECT_DIR)/%.o: %.c
 	@mkdir -p $(@D)
