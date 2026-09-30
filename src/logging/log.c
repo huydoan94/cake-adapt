@@ -20,6 +20,7 @@
 
 #define LOG_MESSAGE_SIZE 2048U
 #define LOG_COPY_BUFFER_SIZE 4096U
+#define LOG_FILE_BUFFER_SIZE (16U * KIBIBYTE)
 
 static bool log_to_stdout;
 static bool log_to_syslog;
@@ -41,6 +42,11 @@ static char *cpu_header;
 static bool header_cpu_raw;
 static bool log_maintenance_active;
 static enum log_level minimum_log_level = LOG_LEVEL_INFO;
+/* Like cake-autorate, hold records until the buffer timer rather than per 1 KiB. */
+static char log_file_buffer[LOG_FILE_BUFFER_SIZE];
+static char datetime[LOG_DATETIME_SIZE];
+static time_t datetime_seconds;
+static bool datetime_valid;
 
 /* cake-autorate 3.3.0-PRERELEASE (ac75f493) analyzer schemas. */
 static const char data_header[] =
@@ -373,35 +379,42 @@ static void write_line(const char *line)
     }
 }
 
+/*
+ * OpenWrt's libc re-reads /etc/TZ on every local-time conversion, and records
+ * arrive many times per second. Convert once per second instead; a time zone
+ * change therefore applies from the next second.
+ */
+static const char *local_datetime(time_t seconds)
+{
+    struct tm local_time;
+
+    if (datetime_valid && seconds == datetime_seconds) {
+        return datetime;
+    }
+    datetime_valid =
+        localtime_r(&seconds, &local_time) != NULL &&
+        strftime(datetime, sizeof(datetime), LOG_DATETIME_FORMAT, &local_time) != 0U;
+    if (!datetime_valid) {
+        (void)snprintf(datetime, sizeof(datetime), LOG_DATETIME_FALLBACK);
+    }
+    datetime_seconds = seconds;
+    return datetime;
+}
+
 static void write_record_at(
     const char *type,
     const char *message,
     uint64_t timestamp_microseconds
 )
 {
-    char datetime[LOG_DATETIME_SIZE];
     char line[LOG_MESSAGE_SIZE];
-    struct tm local_time;
-    time_t seconds = (time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND);
-
-    if (
-        localtime_r(&seconds, &local_time) == NULL ||
-        strftime(
-            datetime,
-            sizeof(datetime),
-            LOG_DATETIME_FORMAT,
-            &local_time
-        ) == 0U
-    ) {
-        (void)snprintf(datetime, sizeof(datetime), LOG_DATETIME_FALLBACK);
-    }
 
     (void)snprintf(
         line,
         sizeof(line),
         "%s; %s; %" PRIu64 ".%06" PRIu64 "; %s",
         type,
-        datetime,
+        local_datetime((time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND)),
         timestamp_microseconds / MICROSECONDS_PER_SECOND,
         timestamp_microseconds % MICROSECONDS_PER_SECOND,
         message
@@ -482,9 +495,11 @@ int log_set_file(
         errno = saved_errno == 0 ? EIO : saved_errno;
         return -1;
     }
+    /* The previous stream must release the shared buffer before it is reused. */
     if (log_file != NULL) {
         (void)fclose(log_file);
     }
+    (void)setvbuf(file, log_file_buffer, _IOFBF, sizeof(log_file_buffer));
     (void)snprintf(log_path, sizeof(log_path), "%s", path);
     log_file = file;
     log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);

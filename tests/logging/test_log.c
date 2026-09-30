@@ -27,9 +27,17 @@ static char syslog_message[2048];
 static bool fail_memstream_open;
 static bool fail_memstream_close;
 static FILE *fault_stream;
+static unsigned int local_time_conversions;
 
 FILE *__real_open_memstream(char **buffer, size_t *size);
 int __real_fclose(FILE *stream);
+struct tm *__real_localtime_r(const time_t *seconds, struct tm *result);
+
+struct tm *__wrap_localtime_r(const time_t *seconds, struct tm *result)
+{
+    local_time_conversions++;
+    return __real_localtime_r(seconds, result);
+}
 
 FILE *__wrap_open_memstream(char **buffer, size_t *size)
 {
@@ -650,6 +658,78 @@ static void test_buffer_timeout_and_time_rotation(void)
     assert(unlink(previous_path) == 0);
 }
 
+static void test_local_time_is_converted_once_per_second(void)
+{
+    char path[] = "/tmp/cake-adapt-log-datetime-XXXXXX";
+    char contents[4096];
+    char expected[64];
+    struct tm local_time;
+    time_t seconds = 3000;
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    use_mock_time = true;
+    mock_time = (struct timespec) { .tv_sec = seconds };
+    log_init("cake-adapt-test", false);
+    log_set_level(LOG_LEVEL_INFO);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+    local_time_conversions = 0U;
+    log_message(LOG_LEVEL_INFO, "first");
+    mock_time.tv_nsec = 999999000L;
+    log_message(LOG_LEVEL_INFO, "same second");
+    assert(local_time_conversions == 1U);
+    mock_time.tv_sec++;
+    mock_time.tv_nsec = 0L;
+    log_message(LOG_LEVEL_INFO, "next second");
+    assert(local_time_conversions == 2U);
+
+    read_log(path, contents, sizeof(contents));
+    assert(localtime_r(&seconds, &local_time) != NULL);
+    assert(strftime(expected, sizeof(expected), "INFO; %Y-%m-%d-%H:%M:%S; 3000.999999; same second", &local_time) > 0U);
+    assert(strstr(contents, expected) != NULL);
+    seconds++;
+    assert(localtime_r(&seconds, &local_time) != NULL);
+    assert(strftime(expected, sizeof(expected), "INFO; %Y-%m-%d-%H:%M:%S; 3001.000000; next second", &local_time) > 0U);
+    assert(strstr(contents, expected) != NULL);
+    log_close();
+    use_mock_time = false;
+    assert(unlink(path) == 0);
+}
+
+static void test_records_wait_for_buffer_timeout(void)
+{
+    char path[] = "/tmp/cake-adapt-log-buffer-XXXXXX";
+    char contents[16384];
+    char record[512];
+    struct stat status;
+    size_t index;
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    use_mock_time = true;
+    mock_time = (struct timespec) { .tv_sec = 4000 };
+    log_init("cake-adapt-test", false);
+    log_set_level(LOG_LEVEL_INFO);
+    assert(log_set_file(path, 0U, 0U, 500000U, false) == 0);
+    memset(record, 'x', sizeof(record) - 1U);
+    record[sizeof(record) - 1U] = '\0';
+    /* More than libc's default stream buffer, but one timer period of records. */
+    for (index = 0U; index < 16U; index++) {
+        log_message(LOG_LEVEL_INFO, "%s", record);
+    }
+    assert(stat(path, &status) == 0);
+    assert(status.st_size == 0);
+    mock_time.tv_nsec = 500000000L;
+    log_tick();
+    read_log(path, contents, sizeof(contents));
+    assert(strlen(contents) > 16U * (sizeof(record) - 1U));
+    log_close();
+    use_mock_time = false;
+    assert(unlink(path) == 0);
+}
+
 static void test_immediate_output_avoids_maintenance_clock(void)
 {
     char path[] = "/tmp/cake-adapt-log-immediate-XXXXXX";
@@ -740,6 +820,8 @@ int main(void)
     test_rotation_export_and_reset_preserve_live_inode(false);
     test_rotation_export_and_reset_preserve_live_inode(true);
     test_buffer_timeout_and_time_rotation();
+    test_local_time_is_converted_once_per_second();
+    test_records_wait_for_buffer_timeout();
     test_immediate_output_avoids_maintenance_clock();
     test_existing_file_size_uses_strict_rotation_limit();
 
