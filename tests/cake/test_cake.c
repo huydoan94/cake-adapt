@@ -16,10 +16,11 @@ static void test_qdisc_message(void)
         .tcm_handle = 0x10000U
     };
     struct cake_observation observation = { 0 };
-    struct cake_read_context context = {
-        .interface_index = 7U,
-        .observation = &observation
+    struct cake_read read = {
+        .observation = &observation,
+        .interface_index = 7U
     };
+    struct cake_read_context context = { .reads = &read, .count = 1U };
     uint64_t bandwidth = 1250000U;
     uint64_t bytes = UINT64_C(5000000000);
     uint32_t packets = 123U;
@@ -53,7 +54,7 @@ static void test_qdisc_message(void)
     assert(nla_nest_end(message, nested) == 0);
 
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
-    assert(context.found);
+    assert(read.found);
     assert(observation.has_bandwidth);
     assert(observation.raw);
     assert(observation.bandwidth_bits_per_second == 10000000U);
@@ -67,15 +68,50 @@ static void test_qdisc_message(void)
     assert(observation.memory_limit_bytes == 8192U);
     assert(observation.memory_used_bytes == 1024U);
 
-    context.found = false;
-    context.interface_index = 8U;
+    read.found = false;
+    read.interface_index = 8U;
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
-    assert(!context.found);
-    context.interface_index = 7U;
+    assert(!read.found);
+    read.interface_index = 7U;
     ((struct tcmsg *)NLMSG_DATA(nlmsg_hdr(message)))->tcm_parent = 0x10001U;
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
-    assert(!context.found);
+    assert(!read.found);
     nlmsg_free(message);
+}
+
+/* One dump carries every interface; each root qdisc fills only its own read. */
+static void test_dump_routes_each_interface(void)
+{
+    struct nl_msg *messages[] = {
+        nlmsg_alloc_simple(RTM_NEWQDISC, 0),
+        nlmsg_alloc_simple(RTM_NEWQDISC, 0),
+        nlmsg_alloc_simple(RTM_NEWQDISC, 0)
+    };
+    struct tcmsg qdiscs[] = {
+        { .tcm_ifindex = 8, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x20000U },
+        { .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x10000U },
+        { .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x30000U }
+    };
+    struct cake_observation observations[2] = { { 0 } };
+    struct cake_read reads[2] = {
+        { .observation = &observations[0], .interface_index = 7U },
+        { .observation = &observations[1], .interface_index = 8U }
+    };
+    struct cake_read_context context = { .reads = reads, .count = 2U };
+    size_t index;
+
+    for (index = 0U; index < 3U; index++) {
+        assert(messages[index] != NULL);
+        assert(nlmsg_append(messages[index], &qdiscs[index], sizeof(qdiscs[index]), NLMSG_ALIGNTO) == 0);
+        assert(nla_put_string(messages[index], TCA_KIND, "cake") == 0);
+        assert(handle_qdisc(nlmsg_hdr(messages[index]), &context) == 0);
+        nlmsg_free(messages[index]);
+    }
+    /* The first matching root wins; a later message cannot overwrite it. */
+    assert(reads[0].found && observations[0].handle == 0x10000U);
+    assert(observations[0].interface_index == 7U);
+    assert(reads[1].found && observations[1].handle == 0x20000U);
+    assert(observations[1].interface_index == 8U);
 }
 
 static void test_invalid_optional_attributes(void)
@@ -83,10 +119,11 @@ static void test_invalid_optional_attributes(void)
     struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
     struct tcmsg tc = { .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT };
     struct cake_observation observation = { 0 };
-    struct cake_read_context context = {
-        .interface_index = 7U,
-        .observation = &observation
+    struct cake_read read = {
+        .observation = &observation,
+        .interface_index = 7U
     };
+    struct cake_read_context context = { .reads = &read, .count = 1U };
     struct nlattr *nested;
 
     assert(message != NULL);
@@ -102,7 +139,7 @@ static void test_invalid_optional_attributes(void)
     assert(nla_put_u32(message, TCA_STATS_BASIC, 1U) == 0);
     assert(nla_nest_end(message, nested) == 0);
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
-    assert(context.found);
+    assert(read.found);
     assert(!observation.has_bandwidth);
     assert(!observation.has_basic_stats);
     nlmsg_free(message);
@@ -132,21 +169,22 @@ static void test_invalid_message(void)
     struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
     struct tcmsg tc = { .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT };
     struct cake_observation observation = { 0 };
-    struct cake_read_context context = {
-        .interface_index = 7U,
-        .observation = &observation
+    struct cake_read read = {
+        .observation = &observation,
+        .interface_index = 7U
     };
+    struct cake_read_context context = { .reads = &read, .count = 1U };
     struct nlmsghdr short_message = { .nlmsg_len = NLMSG_HDRLEN };
 
     assert(handle_qdisc(&short_message, &context) == -1);
     assert(message != NULL);
     assert(nlmsg_append(message, &tc, sizeof(tc), NLMSG_ALIGNTO) == 0);
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
-    assert(!context.found);
+    assert(!read.found);
     /* The kind must be a complete NUL-terminated string. */
     assert(nla_put(message, TCA_KIND, 4, "cake") == 0);
     assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
-    assert(!context.found);
+    assert(!read.found);
     nlmsg_free(message);
 }
 
@@ -209,6 +247,25 @@ static void test_missing_cake_clears_cached_interface(void)
     netlink_close(&netlink);
 }
 
+/* A missing name fails alone; the other interface still gets its dump result. */
+static void test_read_all_reports_each_interface(void)
+{
+    struct netlink netlink = { 0 };
+    struct cake_observation observations[2] = { { 0 } };
+    struct cake_read reads[2] = {
+        { .interface = "missing-interface", .observation = &observations[0] },
+        { .interface = "lo", .observation = &observations[1] }
+    };
+
+    cake_read_all(&netlink, reads, 2U);
+    assert(reads[0].result == CAKE_READ_ERROR);
+    assert(strstr(reads[0].error, "could not find interface") != NULL);
+    assert(reads[1].result == CAKE_READ_NOT_FOUND);
+    assert(reads[1].error[0] == '\0');
+    assert(netlink.socket != NULL);
+    netlink_close(&netlink);
+}
+
 static void test_wire_packet_formula(void)
 {
     struct cake_observation observation = { .mtu_bytes = 1500U, .has_mtu = true };
@@ -231,12 +288,14 @@ static void test_wire_packet_formula(void)
 int main(void)
 {
     test_qdisc_message();
+    test_dump_routes_each_interface();
     test_invalid_optional_attributes();
     test_optional_application_stats();
     test_invalid_message();
     test_short_queue_and_memory();
     test_missing_interface();
     test_missing_cake_clears_cached_interface();
+    test_read_all_reports_each_interface();
     test_wire_packet_formula();
     (void)puts("cake parser tests passed");
     return 0;

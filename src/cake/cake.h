@@ -1,6 +1,7 @@
 #ifndef CAKE_H_INCLUDED
 #define CAKE_H_INCLUDED
 
+#include "common/error.h"
 #include "platform/netlink.h"
 
 #include <stdbool.h>
@@ -35,6 +36,25 @@ enum cake_read_result {
     CAKE_READ_NOT_FOUND,
     CAKE_READ_ERROR
 };
+
+struct cake_read {
+    const char *interface;
+    /* In: the previous observation (or zeroes), whose index and MTU are reused. */
+    struct cake_observation *observation;
+    enum cake_read_result result;
+    char error[ERROR_SIZE];
+    /* Working state owned by cake_read_all(). */
+    struct cake_observation previous;
+    unsigned int interface_index;
+    bool found;
+};
+
+/* Fills every read from a single qdisc dump. */
+void cake_read_all(
+    struct netlink *netlink,
+    struct cake_read *reads,
+    size_t count
+);
 
 /* Pass the previous observation (or zeroes) to reuse its index and MTU. */
 enum cake_read_result cake_read(

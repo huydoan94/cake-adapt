@@ -64,9 +64,9 @@ int netlink_receive_qdisc_events(
     size_t error_size
 );
 
+/* Every interface's qdiscs; the kernel does not filter a dump by tcm_ifindex. */
 int netlink_dump_qdiscs(
     struct netlink *netlink,
-    unsigned int interface_index,
     netlink_message_handler handler,
     void *context,
     char *error,
