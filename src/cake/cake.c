@@ -17,7 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 
-struct cake_dump_context {
+struct cake_read_context {
     unsigned int interface_index;
     struct cake_observation *observation;
     bool found;
@@ -211,7 +211,7 @@ static int handle_qdisc(
     void *context_pointer
 )
 {
-    struct cake_dump_context *context = context_pointer;
+    struct cake_read_context *context = context_pointer;
     static const struct nla_policy policy[TCA_MAX + 1] = {
         [TCA_KIND] = { .type = NLA_NUL_STRING }
     };
@@ -250,6 +250,7 @@ static int handle_qdisc(
     }
 
     memset(context->observation, 0, sizeof(*context->observation));
+    context->observation->interface_index = context->interface_index;
     context->observation->handle = traffic_control->tcm_handle;
     context->observation->parent = traffic_control->tcm_parent;
     parse_options(
@@ -262,34 +263,6 @@ static int handle_qdisc(
     );
     context->found = true;
     return 0;
-}
-
-static unsigned int open_interface(
-    struct netlink *netlink,
-    const char *interface,
-    char *error,
-    size_t error_size
-)
-{
-    unsigned int interface_index;
-
-    errno = 0;
-    interface_index = if_nametoindex(interface);
-    if (interface_index == 0U) {
-        error_set(
-            error,
-            error_size,
-            "could not find interface '%s': %s",
-            interface,
-            errno == 0 ? "unknown interface" : strerror(errno)
-        );
-        return 0U;
-    }
-
-    if (netlink_open(netlink, error, error_size) != 0) {
-        return 0U;
-    }
-    return interface_index;
 }
 
 static int read_interface_mtu(
@@ -351,19 +324,32 @@ enum cake_read_result cake_read(
     size_t error_size
 )
 {
-    unsigned int interface_index = open_interface(netlink, interface, error, error_size);
-    struct cake_dump_context context = {
-        .interface_index = interface_index,
+    /* The previous observation supplies the cached interface index and MTU. */
+    const struct cake_observation previous = *observation;
+    struct cake_read_context context = {
+        .interface_index = previous.interface_index,
         .observation = observation
     };
 
-    if (interface_index == 0U) {
-        return CAKE_READ_ERROR;
+    if (context.interface_index == 0U) {
+        errno = 0;
+        context.interface_index = if_nametoindex(interface);
+        if (context.interface_index == 0U) {
+            error_set(
+                error,
+                error_size,
+                "could not find interface '%s': %s",
+                interface,
+                errno == 0 ? "unknown interface" : strerror(errno)
+            );
+            return CAKE_READ_ERROR;
+        }
     }
     if (
+        netlink_open(netlink, error, error_size) != 0 ||
         netlink_dump_qdiscs(
             netlink,
-            interface_index,
+            context.interface_index,
             handle_qdisc,
             &context,
             error,
@@ -371,11 +357,24 @@ enum cake_read_result cake_read(
         ) != 0
     ) {
         netlink_close_requests(netlink);
+        observation->interface_index = 0U;
         return CAKE_READ_ERROR;
     }
+    /* The dump cannot reject a stale index, so keep it only while CAKE is found. */
+    if (!context.found) {
+        observation->interface_index = 0U;
+        observation->has_mtu = false;
+        return CAKE_READ_NOT_FOUND;
+    }
 
+    /* The MTU is read when CAKE is discovered or replaced, not every sample. */
     if (
-        context.found &&
+        previous.has_mtu &&
+        previous.interface_index == observation->interface_index &&
+        previous.handle == observation->handle
+    ) {
+        observation->mtu_bytes = previous.mtu_bytes;
+    } else if (
         read_interface_mtu(
             interface,
             &observation->mtu_bytes,
@@ -383,16 +382,14 @@ enum cake_read_result cake_read(
             error_size
         ) != 0
     ) {
-        netlink_close_requests(netlink);
         return CAKE_READ_ERROR;
     }
-    observation->has_mtu = context.found;
-    return context.found ? CAKE_READ_FOUND : CAKE_READ_NOT_FOUND;
+    observation->has_mtu = true;
+    return CAKE_READ_FOUND;
 }
 
 int cake_set_bandwidth(
     struct netlink *netlink,
-    const char *interface,
     const struct cake_observation *observation,
     uint64_t bandwidth_bits_per_second,
     char *error,
@@ -400,7 +397,6 @@ int cake_set_bandwidth(
 )
 {
     uint64_t bandwidth_bytes_per_second;
-    unsigned int interface_index;
 
     if (
         bandwidth_bits_per_second < 8U ||
@@ -413,9 +409,7 @@ int cake_set_bandwidth(
         );
         return -1;
     }
-
-    interface_index = open_interface(netlink, interface, error, error_size);
-    if (interface_index == 0U) {
+    if (netlink_open(netlink, error, error_size) != 0) {
         return -1;
     }
 
@@ -423,7 +417,7 @@ int cake_set_bandwidth(
     if (
         netlink_change_qdisc_option(
             netlink,
-            interface_index,
+            observation->interface_index,
             observation->handle,
             observation->parent,
             QDISC_KIND,
