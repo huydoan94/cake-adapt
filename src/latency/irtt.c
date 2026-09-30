@@ -284,14 +284,6 @@ enum latency_probe_result schedule_irtt_restart(
         );
         return LATENCY_PROBE_ERROR;
     }
-    set_child_exit_error(child, PINGER_METHOD_IRTT, error, error_size);
-    stop_child(child->process_identifier);
-    child->process_identifier = -1;
-    if (child->output_descriptor >= 0) {
-        (void)close(child->output_descriptor);
-    }
-    child->output_descriptor = -1;
-    child->output_length = 0U;
     runtime_microseconds = timestamp_microseconds >= child->started_microseconds
         ? timestamp_microseconds - child->started_microseconds
         : 0U;

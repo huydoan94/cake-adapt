@@ -8,10 +8,17 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
+
+/* Linux wait status encodings, as reported by waitpid() and uloop. */
+#define EXIT_STATUS(code) ((code) << 8)
+#define SIGNAL_STATUS(signal) (signal)
 
 static void test_initial_state_is_closed(void)
 {
@@ -23,104 +30,71 @@ static void test_initial_state_is_closed(void)
     assert(latency.children[0].process_identifier == -1);
     assert(latency_child_count(&latency) == 0U);
     assert(latency_child_descriptor(&latency, 0U) == -1);
+    assert(latency_child_process(&latency, 0U) == -1);
     assert(!latency_is_open(&latency));
+    assert(!latency_stopping(&latency));
 }
 
-static void test_receive_buffered_output(void)
+static void test_output_is_split_into_lines(void)
+{
+    const char output[] = "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms\r\npartial";
+    char line[LATENCY_OUTPUT_SIZE];
+    char long_output[LATENCY_OUTPUT_SIZE + 1U];
+    size_t consumed = 0U;
+
+    assert(latency_next_line(output, sizeof(output) - 1U, line, &consumed) == LATENCY_LINE_READY);
+    assert(strcmp(line, "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms") == 0);
+    assert(consumed == strlen(line) + 2U);
+    assert(latency_next_line(output + consumed, sizeof(output) - 1U - consumed, line, &consumed) == LATENCY_LINE_INCOMPLETE);
+    assert(latency_next_line("", 0U, line, &consumed) == LATENCY_LINE_INCOMPLETE);
+
+    /* The newline must fall within LATENCY_OUTPUT_SIZE bytes. */
+    memset(long_output, 'x', sizeof(long_output));
+    long_output[LATENCY_OUTPUT_SIZE - 1U] = '\n';
+    assert(latency_next_line(long_output, sizeof(long_output), line, &consumed) == LATENCY_LINE_READY);
+    assert(consumed == LATENCY_OUTPUT_SIZE);
+    assert(strlen(line) == LATENCY_OUTPUT_SIZE - 1U);
+    long_output[LATENCY_OUTPUT_SIZE - 1U] = 'x';
+    long_output[LATENCY_OUTPUT_SIZE] = '\n';
+    assert(latency_next_line(long_output, sizeof(long_output), line, &consumed) == LATENCY_LINE_TOO_LONG);
+    assert(latency_next_line(long_output, LATENCY_OUTPUT_SIZE - 1U, line, &consumed) == LATENCY_LINE_INCOMPLETE);
+}
+
+static void test_fping_lines_are_handled(void)
 {
     struct latency latency;
     struct latency_sample sample;
-    int descriptors[2];
     char error[256] = "";
-    const char first[] = "[123.456000] 1.1.1.1 : [1], 64 bytes, ";
-    const char rest[] = "2.50 ms\r\n[123.756000] 1.1.1.1 : [2], timed out\n";
 
     latency_init(&latency);
-    assert(pipe(descriptors) == 0);
-    assert(fcntl(descriptors[0], F_SETFL, O_NONBLOCK) == 0);
-    latency.children[0].output_descriptor = descriptors[0];
-    /* This fixture owns only a pipe, not an fping child. */
-    latency.children[0].process_identifier = getpid();
     latency.child_count = 1U;
-
-    assert(latency_receive_child(
-        &latency,
-        1U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_ERROR);
-    assert(strstr(error, "not running") != NULL);
-
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_PENDING);
-    assert(write(descriptors[1], first, sizeof(first) - 1U) == (ssize_t)(sizeof(first) - 1U));
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_PENDING);
-    assert(latency.children[0].output_length == sizeof(first) - 1U);
-    assert(write(descriptors[1], rest, sizeof(rest) - 1U) == (ssize_t)(sizeof(rest) - 1U));
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_SUCCESS);
+    assert(latency_handle_line(&latency, 0U, "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms", &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
     assert(sample.sequence == 1U);
     assert(sample.download_owd_microseconds == 1250U);
     assert(sample.upload_owd_microseconds == 1250U);
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_TIMEOUT);
+    assert(latency_handle_line(&latency, 0U, "[123.756000] 1.1.1.1 : [2], timed out", &sample, error, sizeof(error)) == LATENCY_PROBE_TIMEOUT);
     assert(sample.sequence == 2U);
-    assert(latency.children[0].output_length == 0U);
-
-    assert(write(descriptors[1], "bad\n", 4U) == 4);
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_ERROR);
+    assert(latency_handle_line(&latency, 0U, "bad", &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "unexpected fping output") != NULL);
+}
 
-    memset(latency.children[0].output_buffer, 'x', sizeof(latency.children[0].output_buffer));
-    latency.children[0].output_length = sizeof(latency.children[0].output_buffer);
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_ERROR);
-    assert(strstr(error, "too long") != NULL);
-    latency.children[0].output_length = 0U;
+static void test_exit_status_is_reported(void)
+{
+    struct latency latency;
+    char error[256] = "";
 
-    assert(close(descriptors[1]) == 0);
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_ERROR);
-    assert(strstr(error, "output closed") != NULL);
-    assert(close(descriptors[0]) == 0);
+    latency_init(&latency);
+    latency.active = true;
+    latency.child_count = 1U;
+    /* No process is signalled: exits are only reported here. */
+    latency.children[0].process_identifier = 424242;
+    assert(latency_child_exited(&latency, 0U, EXIT_STATUS(3), error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(strcmp(error, "fping exited with status 3") == 0);
+    assert(latency_child_process(&latency, 0U) == -1);
+
+    latency.children[0].process_identifier = 424242;
+    assert(latency_child_exited(&latency, 0U, SIGNAL_STATUS(SIGKILL), error, sizeof(error)) == LATENCY_PROBE_ERROR);
+    assert(strcmp(error, "fping terminated by signal 9") == 0);
 }
 
 static void test_invalid_target_is_rejected_before_starting_fping(void)
@@ -226,39 +200,119 @@ static void test_close_releases_every_owned_descriptor(void)
     assert(close(second[1]) == 0);
 }
 
-static void test_irtt_receive_ignores_non_sample_lines(void)
+static void test_irtt_lines_ignore_non_samples(void)
 {
     struct latency latency;
     struct latency_sample sample;
-    const char output[] = "IRTT client\nseq=7 rtt=3ms rd=1ms sd=2ms\n";
     char error[256] = "";
-    int descriptors[2];
 
     latency_init(&latency);
-    assert(pipe(descriptors) == 0);
-    assert(fcntl(descriptors[0], F_SETFL, O_NONBLOCK) == 0);
     latency.backend = LATENCY_BACKEND_IRTT;
     latency.active = true;
     latency.child_count = 1U;
-    latency.children[0].output_descriptor = descriptors[0];
-    latency.children[0].process_identifier = getpid();
     latency.children[0].target = "9.9.9.9";
-    assert(write(descriptors[1], output, sizeof(output) - 1U) ==
-        (ssize_t)(sizeof(output) - 1U));
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_SUCCESS);
+    assert(latency_handle_line(&latency, 0U, "IRTT client", &sample, error, sizeof(error)) == LATENCY_PROBE_PENDING);
+    assert(latency_handle_line(&latency, 0U, "seq=7 rtt=3ms rd=1ms sd=2ms", &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
     assert(strcmp(sample.target, "9.9.9.9") == 0);
     assert(sample.sequence == 7U);
     assert(sample.download_owd_microseconds == 1000);
     assert(sample.upload_owd_microseconds == 2000);
     assert(sample.timestamp_microseconds > 0U);
-    assert(close(descriptors[1]) == 0);
-    assert(close(descriptors[0]) == 0);
+}
+
+/* The test stands in for uloop: it reaps the child and reports the exit. */
+static void reap_stopped_child(struct latency *latency, size_t child_index, pid_t process_identifier)
+{
+    char error[256] = "";
+    int status;
+
+    assert(waitpid(process_identifier, &status, 0) == process_identifier);
+    assert(latency_child_exited(latency, child_index, status, error, sizeof(error)) == LATENCY_PROBE_STOPPED);
+    assert(error[0] == '\0');
+}
+
+static uint64_t monotonic_milliseconds(void)
+{
+    struct timespec now;
+
+    assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+    return (uint64_t)now.tv_sec * 1000U + (uint64_t)now.tv_nsec / 1000000U;
+}
+
+static void open_long_running_child(struct latency *latency, const char *script)
+{
+    const char *targets[] = { "127.0.0.1" };
+    char prefix[128];
+    char error[256] = "";
+
+    /* The fping arguments become the shell's positional parameters. */
+    (void)snprintf(prefix, sizeof(prefix), "/bin/sh -c '%s'", script);
+    latency_init(latency);
+    assert(latency_open(latency, "lo", targets, 1U, 1000000U, "", prefix, error, sizeof(error)) == 0);
+    assert(latency_child_process(latency, 0U) > 0);
+}
+
+static void test_close_signals_without_waiting(void)
+{
+    struct latency latency;
+    pid_t process_identifier;
+    uint64_t started;
+
+    open_long_running_child(&latency, "sleep 30");
+    process_identifier = latency_child_process(&latency, 0U);
+    started = monotonic_milliseconds();
+    latency_close(&latency);
+    assert(monotonic_milliseconds() - started < 100U);
+    assert(!latency_is_open(&latency));
+    assert(latency_stopping(&latency));
+    assert(latency_child_descriptor(&latency, 0U) == -1);
+    /* Closing again must not signal the same child twice. */
+    latency_close(&latency);
+    reap_stopped_child(&latency, 0U, process_identifier);
+    assert(!latency_stopping(&latency));
+    assert(latency_child_process(&latency, 0U) == -1);
+}
+
+static void test_ignored_sigterm_escalates_to_sigkill(void)
+{
+    struct latency latency;
+    const struct timespec settle = { .tv_nsec = 100000000L };
+    pid_t process_identifier;
+    char error[256] = "";
+    unsigned int attempts;
+    int status;
+
+    open_long_running_child(&latency, "trap \"\" TERM; sleep 30; sleep 30");
+    process_identifier = latency_child_process(&latency, 0U);
+    (void)nanosleep(&settle, NULL);
+    latency_close(&latency);
+    (void)nanosleep(&settle, NULL);
+    assert(waitpid(process_identifier, &status, WNOHANG) == 0);
+    latency_kill_stopping(&latency);
+    assert(waitpid(process_identifier, &status, 0) == process_identifier);
+    assert(WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL);
+    assert(latency_child_exited(&latency, 0U, status, error, sizeof(error)) == LATENCY_PROBE_STOPPED);
+    /* The whole group was killed; the orphaned sleep is reaped by init shortly after. */
+    for (attempts = 0U; kill(-process_identifier, 0) == 0 && attempts < 200U; attempts++) {
+        const struct timespec pause = { .tv_nsec = 10000000L };
+
+        (void)nanosleep(&pause, NULL);
+    }
+    assert(kill(-process_identifier, 0) == -1 && errno == ESRCH);
+    assert(!latency_stopping(&latency));
+}
+
+static void test_stop_now_reaps_before_returning(void)
+{
+    struct latency latency;
+    pid_t process_identifier;
+
+    open_long_running_child(&latency, "sleep 30");
+    process_identifier = latency_child_process(&latency, 0U);
+    latency_stop_now(&latency);
+    assert(waitpid(process_identifier, NULL, WNOHANG) == -1 && errno == ECHILD);
+    assert(!latency_stopping(&latency));
+    assert(latency_child_process(&latency, 0U) == -1);
 }
 
 static void test_pinger_arguments_reject_command_substitution(void)
@@ -326,6 +380,7 @@ static void test_failed_spawn_closes_pipe(void)
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
     struct latency latency;
+    pid_t process_identifier;
     const char *targets[] = { "1.1.1.1", "::1" };
     char error[256] = "";
     char output[1024];
@@ -363,9 +418,11 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
         "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
         "--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
     ) == 0);
+    process_identifier = latency_child_process(&latency, 0U);
     latency_close(&latency);
     assert(!latency_is_open(&latency));
     assert(latency_child_count(&latency) == 0U);
+    reap_stopped_child(&latency, 0U, process_identifier);
     assert(target_is_valid("::1"));
     assert(target_is_valid("2001:4860:4860::8888"));
 }
@@ -373,7 +430,9 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
 static void test_irtt_children_start_in_separate_slots(void)
 {
     struct latency latency;
-    struct latency_sample sample;
+    pid_t first;
+    pid_t second;
+    int status;
     const char *targets[] = { "1.1.1.1", "2001:db8::1" };
     char error[256] = "";
     char output[1024];
@@ -450,31 +509,37 @@ static void test_irtt_children_start_in_separate_slots(void)
     ) == 0);
     assert(latency_child_descriptor(&latency, 1U) >= 0);
     assert(!latency_irtt_start_pending(&latency));
-    assert(latency_receive_child(
-        &latency,
-        0U,
-        &sample,
-        error,
-        sizeof(error)
-    ) == LATENCY_PROBE_RESTART);
+    /* A finished session is reaped and restarted without stopping the others. */
+    first = latency_child_process(&latency, 0U);
+    assert(waitpid(first, &status, 0) == first);
+    assert(latency_child_exited(&latency, 0U, status, error, sizeof(error)) == LATENCY_PROBE_RESTART);
     assert(strstr(error, "irtt exited with status 0") != NULL);
     assert(latency_child_descriptor(&latency, 0U) == -1);
+    assert(latency_child_process(&latency, 0U) == -1);
     assert(latency_child_descriptor(&latency, 1U) >= 0);
     assert(latency_irtt_start_pending(&latency));
+    second = latency_child_process(&latency, 1U);
     latency_close(&latency);
     assert(!latency_is_open(&latency));
+    reap_stopped_child(&latency, 1U, second);
+    assert(!latency_stopping(&latency));
 }
 
 int main(void)
 {
     test_initial_state_is_closed();
-    test_receive_buffered_output();
+    test_output_is_split_into_lines();
+    test_fping_lines_are_handled();
+    test_exit_status_is_reported();
     test_invalid_target_is_rejected_before_starting_fping();
     test_empty_target_list_is_rejected();
     test_sub_millisecond_response_spacing_is_rejected();
     test_close_is_idempotent();
     test_close_releases_every_owned_descriptor();
-    test_irtt_receive_ignores_non_sample_lines();
+    test_irtt_lines_ignore_non_samples();
+    test_close_signals_without_waiting();
+    test_ignored_sigterm_escalates_to_sigkill();
+    test_stop_now_reaps_before_returning();
     test_pinger_arguments_reject_command_substitution();
     test_failed_spawn_closes_pipe();
     test_prefix_and_extra_args_reach_owned_process();
