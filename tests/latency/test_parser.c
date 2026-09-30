@@ -19,6 +19,8 @@ static void test_fping_reply_is_parsed(void)
         &sample
     ) == LATENCY_FPING_LINE_SAMPLE);
     assert(sample.timestamp_microseconds == UINT64_C(1789284242096160));
+    /* cake-autorate logs fping's token verbatim, including its brackets. */
+    assert(strcmp(sample.timestamp_text, "[1789284242.09616]") == 0);
     assert(strcmp(sample.target, "1.1.1.1") == 0);
     assert(sample.sequence == UINT64_C(65536));
     assert(sample.download_owd_microseconds == 15950U);
@@ -141,7 +143,11 @@ static void test_fping_timestamp_boundaries(void)
         (void)snprintf(line, sizeof(line), "[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms", valid[index].text);
         assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_SAMPLE);
         assert(sample.timestamp_microseconds == valid[index].microseconds);
+        assert(strncmp(sample.timestamp_text + 1, valid[index].text, strlen(valid[index].text)) == 0);
     }
+    /* A token that cannot be logged verbatim is not fping output. */
+    (void)snprintf(line, sizeof(line), "[1.%045d] 1.1.1.1 : [1], 64 bytes, 1.0 ms", 0);
+    assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
     for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); index++) {
         (void)snprintf(line, sizeof(line), "[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms", invalid[index]);
         assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
