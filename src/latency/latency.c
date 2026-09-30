@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 
-#include "latency.h"
+#include "latency/latency.h"
 #include "common/error.h"
 #include "common/constants.h"
 #include "config/defaults.h"
