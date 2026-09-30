@@ -528,18 +528,21 @@ static const char *rate_reason_name(enum controller_rate_reason reason)
     return STATE_INVALID;
 }
 
+/*
+ * cake-autorate gates the delay EWMA on its last load percentage, which is 0
+ * before the first achieved-rate sample; an unavailable rate here is also 0.
+ */
 static bool direction_has_low_load(
     const struct monitored_direction *direction,
     uint64_t high_load_threshold_percent
 )
 {
-    return direction->traffic_valid &&
-        load_percent(
-            direction->traffic_rate_bits_per_second,
-            direction->cake_valid
-                ? direction->cake.bandwidth_bits_per_second
-                : 0U
-        ) < high_load_threshold_percent;
+    return load_percent(
+        direction->traffic_rate_bits_per_second,
+        direction->cake_valid
+            ? direction->cake.bandwidth_bits_per_second
+            : 0U
+    ) < high_load_threshold_percent;
 }
 
 static void load_condition(
