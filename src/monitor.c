@@ -740,7 +740,8 @@ static void apply_bandwidth(
     bool output_cake_changes
 )
 {
-    struct cake_observation verified;
+    /* Seed the readback with the known index and MTU so neither is re-queried. */
+    struct cake_observation verified = direction->cake;
     char error[ERROR_SIZE] = { 0 };
     enum cake_read_result read_result;
 
@@ -751,7 +752,6 @@ static void apply_bandwidth(
     if (
         cake_set_bandwidth(
             netlink,
-            direction->interface,
             &direction->cake,
             desired_rate,
             error,
@@ -1271,10 +1271,18 @@ static struct monitored_direction *event_direction(
         return NULL;
     }
     for (index = 0U; index < ARRAY_SIZE(directions); index++) {
+        if (directions[index]->cake.interface_index == event->interface_index) {
+            return directions[index];
+        }
+    }
+    /* An unknown index may belong to a monitored interface that was recreated. */
+    for (index = 0U; index < ARRAY_SIZE(directions); index++) {
         if (
             if_nametoindex(directions[index]->interface) ==
             event->interface_index
         ) {
+            directions[index]->cake.interface_index = event->interface_index;
+            directions[index]->cake.has_mtu = false;
             return directions[index];
         }
     }
