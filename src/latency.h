@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "constants.h"
+#include "common/constants.h"
 
 #define LATENCY_OUTPUT_SIZE 512U
 #define LATENCY_TARGET_SIZE 256U

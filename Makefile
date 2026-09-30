@@ -24,7 +24,7 @@ endef
 
 define Build/Prepare
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)
-	$(CP) ./src/Makefile ./src/*.c ./src/*.h $(PKG_BUILD_DIR)/
+	$(CP) ./src/Makefile ./src/*.c ./src/*.h ./src/*/ $(PKG_BUILD_DIR)/
 endef
 
 define Build/Compile

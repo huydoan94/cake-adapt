@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
 
 #include "config.h"
-#include "constants.h"
+#include "common/constants.h"
 #include "defaults.h"
-#include "error.h"
-#include "helpers.h"
+#include "common/error.h"
+#include "common/helpers.h"
 #include "latency.h"
 
 #include <libubox/utils.h>

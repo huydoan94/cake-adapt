@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <net/if.h>
 
-#include "constants.h"
+#include "common/constants.h"
 
 #define CONFIG_STRING_SIZE 512U
 #define CONFIG_REFLECTOR_SIZE 256U
