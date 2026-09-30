@@ -23,6 +23,7 @@ SOURCES := \
 	cake/cake.c \
 	config/config.c \
 	controller/controller.c \
+	controller/reflector.c \
 	platform/cpu.c \
 	config/defaults.c \
 	latency/latency.c \
