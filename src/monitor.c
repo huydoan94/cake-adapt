@@ -195,62 +195,14 @@ static void log_cake_discovery(
     );
 }
 
-static void log_cake_sample(
-    const char *interface,
-    const struct cake_observation *observation
-)
-{
-    log_message(
-        LOG_LEVEL_DEBUG,
-        "cake: interface=%s handle=0x%08" PRIx32
-        " parent=0x%08" PRIx32
-        " bandwidth=%" PRIu64 " bit/s"
-        " capacity=%" PRIu64 " bit/s"
-        " bytes=%" PRIu64 " packets=%" PRIu32
-        " qlen=%" PRIu32 " backlog=%" PRIu32 " drops=%" PRIu32
-        " memory_used=%" PRIu32 " memory_limit=%" PRIu32,
-        interface,
-        observation->handle,
-        observation->parent,
-        observation->bandwidth_bits_per_second,
-        observation->capacity_estimate_bits_per_second,
-        observation->bytes,
-        observation->packets,
-        observation->queue_length,
-        observation->backlog_bytes,
-        observation->drops,
-        observation->memory_used_bytes,
-        observation->memory_limit_bytes
-    );
-}
-
-static void observe_cake(
-    struct netlink *netlink,
+static void record_cake_read(
     struct monitored_direction *direction,
+    const struct cake_read *read,
     uint64_t timestamp_microseconds,
     uint64_t retry_interval_microseconds
 )
 {
-    char error[ERROR_SIZE] = { 0 };
-    enum cake_read_result read_result;
-
-    if (
-        timestamp_microseconds <
-        direction->next_cake_observation_microseconds
-    ) {
-        direction->cake_valid = false;
-        return;
-    }
-    read_result = cake_read(
-        netlink,
-        direction->interface,
-        &direction->cake,
-        error,
-        sizeof(error)
-    );
-    direction->cake_valid = false;
-
-    switch (read_result) {
+    switch (read->result) {
     case CAKE_READ_FOUND:
         if (direction->cake_state != CAKE_OBSERVATION_AVAILABLE) {
             log_cake_discovery(
@@ -262,7 +214,6 @@ static void observe_cake(
         direction->cake_state = CAKE_OBSERVATION_AVAILABLE;
         direction->cake_valid = true;
         direction->next_cake_observation_microseconds = 0U;
-        log_cake_sample(direction->interface, &direction->cake);
         return;
     case CAKE_READ_NOT_FOUND:
         if (direction->cake_state != CAKE_OBSERVATION_NOT_FOUND) {
@@ -284,7 +235,7 @@ static void observe_cake(
                 LOG_LEVEL_WARNING,
                 "CAKE observation degraded: interface=%s: %s",
                 direction->interface,
-                error
+                read->error
             );
         }
         direction->cake_state = CAKE_OBSERVATION_FAILED;
@@ -292,6 +243,43 @@ static void observe_cake(
     }
     direction->next_cake_observation_microseconds =
         timestamp_microseconds + retry_interval_microseconds;
+}
+
+/* Directions whose retry time has come share one qdisc dump. */
+static void observe_cake(
+    struct netlink *netlink,
+    struct monitored_direction *const directions[2],
+    uint64_t timestamp_microseconds,
+    uint64_t retry_interval_microseconds
+)
+{
+    struct cake_read reads[2];
+    struct monitored_direction *due[2];
+    size_t count = 0U;
+    size_t index;
+
+    for (index = 0U; index < 2U; index++) {
+        struct monitored_direction *direction = directions[index];
+
+        direction->cake_valid = false;
+        if (timestamp_microseconds < direction->next_cake_observation_microseconds) {
+            continue;
+        }
+        reads[count] = (struct cake_read) {
+            .interface = direction->interface,
+            .observation = &direction->cake
+        };
+        due[count++] = direction;
+    }
+    cake_read_all(netlink, reads, count);
+    for (index = 0U; index < count; index++) {
+        record_cake_read(
+            due[index],
+            &reads[index],
+            timestamp_microseconds,
+            retry_interval_microseconds
+        );
+    }
 }
 
 struct observation_context {
@@ -916,18 +904,17 @@ static void observe_traffic_cycle(
         traffic_init(&context->download.traffic_monitor);
         traffic_init(&context->upload.traffic_monitor);
     } else {
+        struct monitored_direction *const directions[] = {
+            &context->upload,
+            &context->download
+        };
+
         timestamp_microseconds =
             (uint64_t)traffic_timestamp.tv_sec * MICROSECONDS_PER_SECOND +
             (uint64_t)traffic_timestamp.tv_nsec / NANOSECONDS_PER_MICROSECOND;
         observe_cake(
             &context->netlink,
-            &context->upload,
-            timestamp_microseconds,
-            config->interface_up_check_interval_microseconds
-        );
-        observe_cake(
-            &context->netlink,
-            &context->download,
+            directions,
             timestamp_microseconds,
             config->interface_up_check_interval_microseconds
         );

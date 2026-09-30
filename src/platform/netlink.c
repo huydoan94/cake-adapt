@@ -493,7 +493,6 @@ static int send_request(
 
 int netlink_dump_qdiscs(
     struct netlink *netlink,
-    unsigned int interface_index,
     netlink_message_handler handler,
     void *handler_context,
     char *error,
@@ -501,8 +500,7 @@ int netlink_dump_qdiscs(
 )
 {
     struct tcmsg traffic_control = {
-        .tcm_family = AF_UNSPEC,
-        .tcm_ifindex = (int)interface_index
+        .tcm_family = AF_UNSPEC
     };
     struct response_context response = {
         .handler = handler,
