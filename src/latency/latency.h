@@ -7,9 +7,9 @@
 #include <sys/types.h>
 
 #include "common/constants.h"
+#include "latency/parser.h"
 
 #define LATENCY_OUTPUT_SIZE 512U
-#define LATENCY_TARGET_SIZE 256U
 
 enum latency_backend {
     LATENCY_BACKEND_FPING,
@@ -47,51 +47,6 @@ enum latency_probe_result {
     LATENCY_PROBE_PENDING,
     LATENCY_PROBE_RESTART,
     LATENCY_PROBE_ERROR
-};
-
-struct latency_sample {
-    char target[LATENCY_TARGET_SIZE];
-    int64_t download_owd_microseconds;
-    int64_t upload_owd_microseconds;
-    uint64_t timestamp_microseconds;
-    bool timestamp_rollover_sensitive;
-    uint64_t sequence;
-};
-
-struct latency_observation {
-    int64_t download_owd_microseconds;
-    int64_t download_owd_baseline_microseconds;
-    int64_t download_owd_delta_microseconds;
-    int64_t download_owd_delta_ewma_microseconds;
-    int64_t upload_owd_microseconds;
-    int64_t upload_owd_baseline_microseconds;
-    int64_t upload_owd_delta_microseconds;
-    int64_t upload_owd_delta_ewma_microseconds;
-    uint64_t timestamp_microseconds;
-    uint64_t sequence;
-};
-
-enum latency_fping_line_result {
-    LATENCY_FPING_LINE_SAMPLE,
-    LATENCY_FPING_LINE_TIMEOUT,
-    LATENCY_FPING_LINE_INVALID
-};
-
-struct latency_tracker_config {
-    uint64_t alpha_baseline_increase_per_million;
-    uint64_t alpha_baseline_decrease_per_million;
-    uint64_t alpha_delta_ewma_per_million;
-};
-
-struct latency_direction_tracker {
-    int64_t baseline_microseconds;
-    int64_t delta_ewma_microseconds;
-};
-
-struct latency_tracker {
-    struct latency_tracker_config config;
-    struct latency_direction_tracker download;
-    struct latency_direction_tracker upload;
 };
 
 void latency_init(struct latency *latency);
@@ -146,37 +101,6 @@ enum latency_probe_result latency_receive_child(
     struct latency_sample *sample,
     char *error,
     size_t error_size
-);
-
-enum latency_fping_line_result parse_fping_line(
-    const char *line,
-    struct latency_sample *sample
-);
-
-bool parse_irtt_line(
-    const char *line,
-    const char *target,
-    uint64_t timestamp_microseconds,
-    struct latency_sample *sample
-);
-
-int tracker_init(
-    struct latency_tracker *tracker,
-    const struct latency_tracker_config *config
-);
-
-void tracker_reset(struct latency_tracker *tracker);
-
-void tracker_update(
-    struct latency_tracker *tracker,
-    const struct latency_sample *sample,
-    struct latency_observation *observation
-);
-
-void tracker_update_delta_ewma(
-    struct latency_tracker *tracker,
-    bool low_load,
-    struct latency_observation *observation
 );
 
 #endif
