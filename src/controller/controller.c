@@ -540,8 +540,12 @@ static void set_rate_output(
     }
 
     output->rate_bits_per_second = direction->shaper_rate_bits_per_second;
-    output->rate_changed = input->valid &&
-        input->cake_rate_bits_per_second != output->rate_bits_per_second;
+    /* Like cake-autorate's first set_shaper_rates(), the base rate is written once
+     * even when CAKE already holds it. */
+    output->rate_changed = input->valid && (
+        reason == CONTROLLER_RATE_INITIAL ||
+        input->cake_rate_bits_per_second != output->rate_bits_per_second
+    );
     output->rate_reason = output->rate_changed &&
         reason == CONTROLLER_RATE_UNCHANGED
         ? CONTROLLER_RATE_RECONCILE

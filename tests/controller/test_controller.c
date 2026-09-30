@@ -467,6 +467,32 @@ static void test_initial_rate_is_baseline(void)
     controller_close(&controller);
 }
 
+static void test_initial_rate_is_written_even_when_cake_holds_it(void)
+{
+    struct controller controller;
+    const struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        1U * MEBABIT,
+        8U * MEBABIT,
+        1U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    init_controller(&controller, &config);
+    controller_update(&controller, &input, &output);
+    assert(output.download.rate_bits_per_second == 8U * MEBABIT);
+    assert(output.download.rate_changed);
+    assert(output.download.rate_reason == CONTROLLER_RATE_INITIAL);
+    assert(output.upload.rate_changed);
+
+    /* Afterwards an equal rate is not rewritten. */
+    controller_update(&controller, &input, &output);
+    assert(!output.download.rate_changed);
+    assert(!output.upload.rate_changed);
+    controller_close(&controller);
+}
+
 static void test_initial_rate_waits_for_valid_qdisc_input(void)
 {
     struct controller controller;
@@ -1428,6 +1454,7 @@ int main(void)
     test_configured_delay_window_and_direction_thresholds();
     test_invalid_delay_window_is_rejected();
     test_initial_rate_is_baseline();
+    test_initial_rate_is_written_even_when_cake_holds_it();
     test_initial_rate_waits_for_valid_qdisc_input();
     test_high_load_increases_rate_four_percent();
     test_high_load_consumes_each_direction_sample_once();
