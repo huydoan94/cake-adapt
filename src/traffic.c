@@ -2,8 +2,8 @@
 
 #include "traffic.h"
 
-#include "constants.h"
-#include "helpers.h"
+#include "common/constants.h"
+#include "common/helpers.h"
 
 #include <limits.h>
 

@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "latency.h"
-#include "constants.h"
+#include "common/constants.h"
 
 #include <assert.h>
 #include <errno.h>

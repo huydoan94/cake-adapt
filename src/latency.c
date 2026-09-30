@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
 
 #include "latency.h"
-#include "error.h"
-#include "constants.h"
+#include "common/error.h"
+#include "common/constants.h"
 #include "defaults.h"
-#include "helpers.h"
+#include "common/helpers.h"
 
 #include <errno.h>
 #include <fcntl.h>

@@ -1,6 +1,6 @@
 #include "defaults.h"
 #include "config.h"
-#include "constants.h"
+#include "common/constants.h"
 
 #include <string.h>
 

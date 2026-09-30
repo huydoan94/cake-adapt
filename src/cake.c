@@ -1,8 +1,8 @@
 #define _GNU_SOURCE
 
 #include "cake.h"
-#include "constants.h"
-#include "error.h"
+#include "common/constants.h"
+#include "common/error.h"
 
 #include <errno.h>
 #include <limits.h>

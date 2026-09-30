@@ -2,7 +2,7 @@
 #define LOG_H_INCLUDED
 
 #include "cpu.h"
-#include "constants.h"
+#include "common/constants.h"
 
 #include <stdbool.h>
 #include <stdint.h>
