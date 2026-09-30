@@ -22,7 +22,7 @@ BINARY_DIR := $(OBJECT_DIR)/bin
 TARGETS := test_controller test_latency test_log test_traffic test_cpu test_helpers test_defaults
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 
-test_controller_OBJECTS := test_controller.o src/controller.o src/common/helpers.o
+test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
 test_latency_OBJECTS := test_latency.o src/latency.o src/common/error.o src/common/helpers.o
 test_log_OBJECTS := logging/test_log.o src/logging/log.o src/common/helpers_log.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o

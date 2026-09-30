@@ -4,7 +4,7 @@
 
 #include "common/constants.h"
 #include "cake/cake.h"
-#include "controller.h"
+#include "controller/controller.h"
 #include "platform/cpu.h"
 #include "common/error.h"
 #include "common/helpers.h"

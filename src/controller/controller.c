@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "controller.h"
+#include "controller/controller.h"
 #include "config/defaults.h"
 #include "common/helpers.h"
 

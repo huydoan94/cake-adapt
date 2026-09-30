@@ -22,7 +22,7 @@ SOURCES := \
 	monitor.c \
 	cake/cake.c \
 	config/config.c \
-	controller.c \
+	controller/controller.c \
 	platform/cpu.c \
 	config/defaults.c \
 	latency.c \
