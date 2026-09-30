@@ -1,6 +1,6 @@
-#include "config.h"
+#include "config/config.h"
 #include "common/constants.h"
-#include "defaults.h"
+#include "config/defaults.h"
 #include "common/error.h"
 #include "log.h"
 #include "monitor.h"

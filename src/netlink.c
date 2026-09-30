@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 
 #include "netlink.h"
-#include "defaults.h"
+#include "config/defaults.h"
 #include "common/error.h"
 #include "common/helpers.h"
 
