@@ -32,7 +32,8 @@ struct log_data_record {
     uint64_t upload_achieved_rate_kbps;
     unsigned int download_load_percent;
     unsigned int upload_load_percent;
-    uint64_t icmp_timestamp_microseconds;
+    /* The pinger's timestamp token, verbatim. */
+    const char *icmp_timestamp;
     const char *reflector;
     uint64_t sequence;
     int64_t download_owd_baseline_microseconds;

@@ -346,7 +346,7 @@ static void test_cake_autorate_headers_and_record_format(void)
         .upload_achieved_rate_kbps = 20U,
         .download_load_percent = 30U,
         .upload_load_percent = 40U,
-        .icmp_timestamp_microseconds = 50000060U,
+        .icmp_timestamp = "[50.00006]",
         .reflector = "1.1.1.1",
         .sequence = 70U,
         .download_owd_baseline_microseconds = -80,
@@ -459,7 +459,7 @@ static void test_cake_autorate_headers_and_record_format(void)
     assert(strstr(field_end, "; 10; 20; 30; 40\n") == field_end);
     assert(strstr(
         contents,
-        "; 10; 20; 30; 40; 50.000060; 1.1.1.1; 70; -80; -90;"
+        "; 10; 20; 30; 40; [50.00006]; 1.1.1.1; 70; -80; -90;"
         " -100; -110; 120; -130; -140; -150; -160; 170; 180; -190;"
         " 200; 210; 220; -230; 240; 250; dl_low; ul_high_bb; 260; 270\n"
     ) != NULL);
