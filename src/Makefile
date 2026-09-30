@@ -21,17 +21,21 @@ SOURCES := \
 	main.c \
 	monitor.c \
 	cake/cake.c \
+	common/error.c \
+	common/helpers.c \
 	config/config.c \
+	config/defaults.c \
 	controller/controller.c \
 	controller/reflector.c \
-	platform/cpu.c \
-	config/defaults.c \
+	latency/fping.c \
+	latency/irtt.c \
 	latency/latency.c \
+	latency/parser.c \
+	latency/tracker.c \
 	logging/log.c \
+	platform/cpu.c \
 	platform/netlink.c \
-	platform/traffic.c \
-	common/error.c \
-	common/helpers.c
+	platform/traffic.c
 OBJECT_DIR ?= ../build
 OBJECTS := $(SOURCES:%.c=$(OBJECT_DIR)/%.o)
 DEPENDENCIES := $(OBJECTS:.o=.d)

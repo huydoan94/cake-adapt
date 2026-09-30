@@ -19,12 +19,15 @@ WARNINGS := \
 # Test sources mirror src/; objects and binaries stay below build/.
 OBJECT_DIR ?= ../build/tests
 BINARY_DIR := $(OBJECT_DIR)/bin
-TARGETS := test_controller test_reflector test_latency test_log test_traffic test_cpu test_helpers test_defaults
+TARGETS := test_controller test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_helpers test_defaults
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 
 test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
-test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/latency.o src/common/error.o src/common/helpers.o
-test_latency_OBJECTS := latency/test_latency.o src/latency/latency.o src/common/error.o src/common/helpers.o
+test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/tracker.o src/common/helpers.o
+LATENCY_OBJECTS := src/latency/latency.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o
+test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o src/common/helpers.o
+test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/helpers.o
+test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/helpers.o
 test_log_OBJECTS := logging/test_log.o src/logging/log.o src/common/helpers_log.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
