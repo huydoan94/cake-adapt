@@ -13,8 +13,12 @@ struct config;
 
 /* Fixed operational defaults, separate from configurable UCI values. */
 #define CHILD_STOP_ATTEMPTS 50U
+#define CHILD_STOP_INTERVAL_MILLISECONDS 10
 #define CHILD_STOP_INTERVAL_NANOSECONDS \
-    (10L * (long)NANOSECONDS_PER_MILLISECOND)
+    ((long)CHILD_STOP_INTERVAL_MILLISECONDS * (long)NANOSECONDS_PER_MILLISECOND)
+/* The event loop escalates to SIGKILL after the same bound as the shutdown stop. */
+#define CHILD_STOP_TIMEOUT_MILLISECONDS \
+    ((int)CHILD_STOP_ATTEMPTS * CHILD_STOP_INTERVAL_MILLISECONDS)
 #define INITIAL_ONE_WAY_BASELINE_MICROSECONDS \
     (100U * MILLISECOND)
 #define NETLINK_RESPONSE_TIMEOUT_MILLISECONDS \

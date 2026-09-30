@@ -264,83 +264,7 @@ int start_child(
     }
     child->output_descriptor = output_pipe[0];
     child->process_identifier = process_identifier;
-    child->output_length = 0U;
     return 0;
-}
-
-static bool take_output_line(
-    struct latency_child *child,
-    char line[LATENCY_OUTPUT_SIZE]
-)
-{
-    char *newline = memchr(
-        child->output_buffer,
-        '\n',
-        child->output_length
-    );
-    size_t length;
-    size_t consumed;
-
-    if (newline == NULL) {
-        return false;
-    }
-
-    length = (size_t)(newline - child->output_buffer);
-    consumed = length + 1U;
-    if (
-        length > 0U &&
-        child->output_buffer[length - 1U] == '\r'
-    ) {
-        --length;
-    }
-    /* The newline occupies a buffer byte, leaving room for the terminator. */
-    memcpy(line, child->output_buffer, length);
-    line[length] = '\0';
-    memmove(
-        child->output_buffer,
-        child->output_buffer + consumed,
-        child->output_length - consumed
-    );
-    child->output_length -= consumed;
-    return true;
-}
-
-void set_child_exit_error(
-    struct latency_child *child,
-    const char *name,
-    char *error,
-    size_t error_size
-)
-{
-    int status;
-    pid_t result;
-
-    result = waitpid(child->process_identifier, &status, WNOHANG);
-    if (result == child->process_identifier) {
-        child->process_identifier = -1;
-        if (WIFEXITED(status)) {
-            error_set(
-                error,
-                error_size,
-                "%s exited with status %d",
-                name,
-                WEXITSTATUS(status)
-            );
-        } else if (WIFSIGNALED(status)) {
-            error_set(
-                error,
-                error_size,
-                "%s terminated by signal %d",
-                name,
-                WTERMSIG(status)
-            );
-        } else {
-            error_set(error, error_size, "%s stopped unexpectedly", name);
-        }
-        return;
-    }
-
-    error_set(error, error_size, "%s output closed unexpectedly", name);
 }
 
 void latency_init(struct latency *latency)
@@ -395,22 +319,40 @@ int latency_child_descriptor(const struct latency *latency, size_t child_index)
     return latency->children[child_index].output_descriptor;
 }
 
+pid_t latency_child_process(const struct latency *latency, size_t child_index)
+{
+    return latency->children[child_index].process_identifier;
+}
+
+bool latency_stopping(const struct latency *latency)
+{
+    size_t index;
+
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        if (latency->children[index].stopping) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void latency_close(struct latency *latency)
 {
     size_t index;
 
     for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
         struct latency_child *child = &latency->children[index];
-        pid_t process_identifier = child->process_identifier;
 
         if (child->output_descriptor >= 0) {
             (void)close(child->output_descriptor);
         }
         child->output_descriptor = -1;
-        child->process_identifier = -1;
         child->target = NULL;
-        child->output_length = 0U;
-        stop_child(process_identifier);
+        /* A prefix may launch the pinger as a child; terminate the owned group too. */
+        if (child->process_identifier > 0 && !child->stopping) {
+            (void)kill(-child->process_identifier, SIGTERM);
+            child->stopping = true;
+        }
     }
     latency->active = false;
     latency->ping_extra_args = NULL;
@@ -418,106 +360,134 @@ void latency_close(struct latency *latency)
     latency->child_count = 0U;
 }
 
-enum latency_probe_result latency_receive_child(
-    struct latency *latency,
+void latency_kill_stopping(struct latency *latency)
+{
+    size_t index;
+
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        const struct latency_child *child = &latency->children[index];
+
+        if (child->stopping) {
+            (void)kill(-child->process_identifier, SIGKILL);
+        }
+    }
+}
+
+void latency_stop_now(struct latency *latency)
+{
+    size_t index;
+
+    latency_close(latency);
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        struct latency_child *child = &latency->children[index];
+
+        stop_child(child->process_identifier);
+        child->process_identifier = -1;
+        child->stopping = false;
+    }
+}
+
+enum latency_line_result latency_next_line(
+    const char *data,
+    size_t length,
+    char line[LATENCY_OUTPUT_SIZE],
+    size_t *consumed
+)
+{
+    const char *newline = memchr(
+        data,
+        '\n',
+        length < LATENCY_OUTPUT_SIZE ? length : LATENCY_OUTPUT_SIZE
+    );
+    size_t line_length;
+
+    if (newline == NULL) {
+        return length < LATENCY_OUTPUT_SIZE
+            ? LATENCY_LINE_INCOMPLETE
+            : LATENCY_LINE_TOO_LONG;
+    }
+    line_length = (size_t)(newline - data);
+    *consumed = line_length + 1U;
+    if (line_length > 0U && data[line_length - 1U] == '\r') {
+        line_length--;
+    }
+    /* The newline occupies one of the LATENCY_OUTPUT_SIZE bytes, leaving room for NUL. */
+    memcpy(line, data, line_length);
+    line[line_length] = '\0';
+    return LATENCY_LINE_READY;
+}
+
+enum latency_probe_result latency_handle_line(
+    const struct latency *latency,
     size_t child_index,
+    const char *line,
     struct latency_sample *sample,
     char *error,
     size_t error_size
 )
 {
-    struct latency_child *child;
-    const char *name = latency->backend == LATENCY_BACKEND_IRTT
-        ? PINGER_METHOD_IRTT
-        : PINGER_METHOD_FPING;
+    enum latency_fping_line_result parsed;
+    uint64_t timestamp_microseconds;
 
-    if (child_index >= latency->child_count) {
-        error_set(error, error_size, "%s is not running", name);
-        return LATENCY_PROBE_ERROR;
-    }
-    child = &latency->children[child_index];
-    if (child->output_descriptor < 0 || child->process_identifier <= 0) {
-        error_set(error, error_size, "%s is not running", name);
-        return LATENCY_PROBE_ERROR;
-    }
-
-    for (;;) {
-        char line[LATENCY_OUTPUT_SIZE];
-        ssize_t received;
-
-        if (take_output_line(child, line)) {
-            enum latency_fping_line_result parsed;
-
-            if (latency->backend == LATENCY_BACKEND_IRTT) {
-                uint64_t timestamp_microseconds;
-
-                if (!parse_irtt_line(line, child->target, 0U, sample)) {
-                    continue;
-                }
-                if (!read_clock_microseconds(
-                    CLOCK_REALTIME,
-                    &timestamp_microseconds
-                )) {
-                    error_set(
-                        error,
-                        error_size,
-                        "could not timestamp irtt output: %s",
-                        strerror(errno)
-                    );
-                    return LATENCY_PROBE_ERROR;
-                }
-                sample->timestamp_microseconds = timestamp_microseconds;
-                return LATENCY_PROBE_SUCCESS;
-            }
-            parsed = parse_fping_line(line, sample);
-            if (parsed == LATENCY_FPING_LINE_INVALID) {
-                error_set(
-                    error,
-                    error_size,
-                    "unexpected fping output: %.160s",
-                    line
-                );
-                return LATENCY_PROBE_ERROR;
-            }
-            return parsed == LATENCY_FPING_LINE_SAMPLE
-                ? LATENCY_PROBE_SUCCESS
-                : LATENCY_PROBE_TIMEOUT;
+    if (latency->backend == LATENCY_BACKEND_IRTT) {
+        if (!parse_irtt_line(line, latency->children[child_index].target, 0U, sample)) {
+            return LATENCY_PROBE_PENDING;
         }
-
-        if (child->output_length == sizeof(child->output_buffer)) {
-            error_set(error, error_size, "%s output line is too long", name);
-            return LATENCY_PROBE_ERROR;
-        }
-
-        received = read(
-            child->output_descriptor,
-            child->output_buffer + child->output_length,
-            sizeof(child->output_buffer) - child->output_length
-        );
-        if (received > 0) {
-            child->output_length += (size_t)received;
-            continue;
-        }
-        if (received == 0) {
-            if (latency->backend == LATENCY_BACKEND_IRTT) {
-                return schedule_irtt_restart(child, error, error_size);
-            }
-            set_child_exit_error(child, name, error, error_size);
-            return LATENCY_PROBE_ERROR;
-        }
-        if (errno == EINTR) {
-            continue;
-        }
-        if (errno != EAGAIN) {
+        if (!read_clock_microseconds(CLOCK_REALTIME, &timestamp_microseconds)) {
             error_set(
                 error,
                 error_size,
-                "could not read %s output: %s",
-                name,
+                "could not timestamp irtt output: %s",
                 strerror(errno)
             );
             return LATENCY_PROBE_ERROR;
         }
-        return LATENCY_PROBE_PENDING;
+        sample->timestamp_microseconds = timestamp_microseconds;
+        return LATENCY_PROBE_SUCCESS;
     }
+    parsed = parse_fping_line(line, sample);
+    if (parsed == LATENCY_FPING_LINE_INVALID) {
+        error_set(error, error_size, "unexpected fping output: %.160s", line);
+        return LATENCY_PROBE_ERROR;
+    }
+    return parsed == LATENCY_FPING_LINE_SAMPLE
+        ? LATENCY_PROBE_SUCCESS
+        : LATENCY_PROBE_TIMEOUT;
+}
+
+enum latency_probe_result latency_child_exited(
+    struct latency *latency,
+    size_t child_index,
+    int status,
+    char *error,
+    size_t error_size
+)
+{
+    struct latency_child *child = &latency->children[child_index];
+    const char *name = latency->backend == LATENCY_BACKEND_IRTT
+        ? PINGER_METHOD_IRTT
+        : PINGER_METHOD_FPING;
+    bool stopping = child->stopping;
+
+    child->process_identifier = -1;
+    child->stopping = false;
+    if (stopping) {
+        return LATENCY_PROBE_STOPPED;
+    }
+    if (child->output_descriptor >= 0) {
+        (void)close(child->output_descriptor);
+    }
+    child->output_descriptor = -1;
+    if (WIFEXITED(status)) {
+        error_set(error, error_size, "%s exited with status %d", name, WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        error_set(error, error_size, "%s terminated by signal %d", name, WTERMSIG(status));
+    } else {
+        error_set(error, error_size, "%s stopped unexpectedly", name);
+    }
+    /* IRTT sessions end by design; fping only exits on failure. */
+    if (latency->backend == LATENCY_BACKEND_IRTT) {
+        return schedule_irtt_restart(child, error, error_size);
+    }
+    return LATENCY_PROBE_ERROR;
 }
