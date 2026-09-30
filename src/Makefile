@@ -26,7 +26,7 @@ SOURCES := \
 	cpu.c \
 	config/defaults.c \
 	latency.c \
-	log.c \
+	logging/log.c \
 	netlink.c \
 	traffic.c \
 	common/error.c \

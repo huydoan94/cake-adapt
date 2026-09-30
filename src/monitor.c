@@ -9,7 +9,7 @@
 #include "common/error.h"
 #include "common/helpers.h"
 #include "latency.h"
-#include "log.h"
+#include "logging/log.h"
 #include "netlink.h"
 #include "traffic.h"
 

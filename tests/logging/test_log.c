@@ -1,6 +1,6 @@
 #define _XOPEN_SOURCE 700
 
-#include "log.h"
+#include "logging/log.h"
 
 #include <assert.h>
 #include <ctype.h>
