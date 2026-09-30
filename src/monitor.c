@@ -2,12 +2,12 @@
 
 #include "monitor.h"
 
-#include "constants.h"
+#include "common/constants.h"
 #include "cake.h"
 #include "controller.h"
 #include "cpu.h"
-#include "error.h"
-#include "helpers.h"
+#include "common/error.h"
+#include "common/helpers.h"
 #include "latency.h"
 #include "log.h"
 #include "netlink.h"

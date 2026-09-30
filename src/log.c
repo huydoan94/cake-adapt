@@ -1,8 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "log.h"
-#include "constants.h"
-#include "helpers.h"
+#include "common/constants.h"
+#include "common/helpers.h"
 
 #include <ctype.h>
 #include <errno.h>

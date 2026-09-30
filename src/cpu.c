@@ -2,9 +2,9 @@
 
 #include "cpu.h"
 
-#include "error.h"
-#include "constants.h"
-#include "helpers.h"
+#include "common/error.h"
+#include "common/constants.h"
+#include "common/helpers.h"
 
 #include <errno.h>
 #include <inttypes.h>

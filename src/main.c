@@ -1,7 +1,7 @@
 #include "config.h"
-#include "constants.h"
+#include "common/constants.h"
 #include "defaults.h"
-#include "error.h"
+#include "common/error.h"
 #include "log.h"
 #include "monitor.h"
 

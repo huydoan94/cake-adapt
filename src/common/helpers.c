@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "helpers.h"
-#include "constants.h"
+#include "common/helpers.h"
+#include "common/constants.h"
 
 #include <limits.h>
 #include <errno.h>

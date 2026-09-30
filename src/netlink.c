@@ -2,8 +2,8 @@
 
 #include "netlink.h"
 #include "defaults.h"
-#include "error.h"
-#include "helpers.h"
+#include "common/error.h"
+#include "common/helpers.h"
 
 #include <errno.h>
 #include <limits.h>

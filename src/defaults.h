@@ -1,7 +1,7 @@
 #ifndef DEFAULTS_H_INCLUDED
 #define DEFAULTS_H_INCLUDED
 
-#include "constants.h"
+#include "common/constants.h"
 
 struct config;
 
