@@ -9,10 +9,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <spawn.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
@@ -443,6 +445,12 @@ enum latency_probe_result latency_handle_line(
             return LATENCY_PROBE_ERROR;
         }
         sample->timestamp_microseconds = timestamp_microseconds;
+        (void)snprintf(
+            sample->timestamp_text,
+            sizeof(sample->timestamp_text),
+            "%" PRIu64,
+            timestamp_microseconds
+        );
         return LATENCY_PROBE_SUCCESS;
     }
     parsed = parse_fping_line(line, sample);

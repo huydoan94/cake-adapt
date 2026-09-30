@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -218,6 +219,8 @@ static void test_irtt_lines_ignore_non_samples(void)
     assert(sample.download_owd_microseconds == 1000);
     assert(sample.upload_owd_microseconds == 2000);
     assert(sample.timestamp_microseconds > 0U);
+    /* Like cake-autorate's gawk wrapper: receive time in whole microseconds. */
+    assert(strtoull(sample.timestamp_text, NULL, 10) == sample.timestamp_microseconds);
 }
 
 /* The test stands in for uloop: it reaps the child and reports the exit. */

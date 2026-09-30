@@ -79,6 +79,7 @@ enum latency_fping_line_result parse_fping_line(
     double round_trip_milliseconds;
     double round_trip_microseconds;
     size_t target_length;
+    size_t token_length;
 
     if (
         line == NULL || sample == NULL ||
@@ -86,6 +87,13 @@ enum latency_fping_line_result parse_fping_line(
     ) {
         return LATENCY_FPING_LINE_INVALID;
     }
+    /* The bracketed token ends two bytes before cursor, at "] ". */
+    token_length = (size_t)(cursor - 1 - line);
+    if (token_length >= sizeof(sample->timestamp_text)) {
+        return LATENCY_FPING_LINE_INVALID;
+    }
+    memcpy(sample->timestamp_text, line, token_length);
+    sample->timestamp_text[token_length] = '\0';
 
     separator = strstr(cursor, FPING_SEQUENCE_SEPARATOR);
     if (separator == NULL) {

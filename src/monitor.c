@@ -600,7 +600,7 @@ static void log_controller_stats(
     const struct controller_input *input,
     const struct controller_output *output,
     const struct latency_observation *latency,
-    const char *reflector
+    const struct latency_sample *sample
 )
 {
     char download_condition[LOAD_CONDITION_SIZE];
@@ -661,8 +661,8 @@ static void log_controller_stats(
                 input->upload.traffic_rate_bits_per_second / KILOBIT,
             .download_load_percent = download_load,
             .upload_load_percent = upload_load,
-            .icmp_timestamp_microseconds = latency->timestamp_microseconds,
-            .reflector = reflector,
+            .icmp_timestamp = sample->timestamp_text,
+            .reflector = sample->target,
             .sequence = latency->sequence,
             .download_owd_baseline_microseconds =
                 latency->download_owd_baseline_microseconds,
@@ -822,7 +822,7 @@ static void update_controller(
     struct observation_context *context,
     const struct config *config,
     const struct latency_observation *latency,
-    const char *reflector
+    const struct latency_sample *sample
 )
 {
     struct controller_input input = {
@@ -885,7 +885,7 @@ static void update_controller(
         &input,
         &output,
         latency,
-        reflector
+        sample
     );
 }
 
@@ -1222,7 +1222,7 @@ static bool process_latency_line(
         context,
         config,
         &observation,
-        sample.target
+        &sample
     );
     return true;
 }

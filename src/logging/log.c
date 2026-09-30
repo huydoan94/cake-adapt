@@ -661,7 +661,7 @@ void log_data(const struct log_data_record *record)
     write_timed_record(
         RECORD_DATA,
         "%" PRIu64 "; %" PRIu64 "; %u; %u;"
-        " %" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 ";"
+        " %s; %s; %" PRIu64 ";"
         " %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRId64
         "; %" PRIu64 "; %" PRId64 "; %" PRId64 "; %" PRId64 ";"
         " %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64
@@ -671,8 +671,7 @@ void log_data(const struct log_data_record *record)
         record->upload_achieved_rate_kbps,
         record->download_load_percent,
         record->upload_load_percent,
-        record->icmp_timestamp_microseconds / MICROSECONDS_PER_SECOND,
-        record->icmp_timestamp_microseconds % MICROSECONDS_PER_SECOND,
+        record->icmp_timestamp,
         record->reflector,
         record->sequence,
         record->download_owd_baseline_microseconds,
