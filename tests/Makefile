@@ -24,7 +24,7 @@ BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 
 test_controller_OBJECTS := test_controller.o src/controller.o src/common/helpers.o
 test_latency_OBJECTS := test_latency.o src/latency.o src/common/error.o src/common/helpers.o
-test_log_OBJECTS := test_log.o src/log.o src/common/helpers_log.o
+test_log_OBJECTS := logging/test_log.o src/logging/log.o src/common/helpers_log.o
 test_traffic_OBJECTS := test_traffic.o src/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := test_cpu.o src/cpu.o src/common/error.o src/common/helpers.o
 test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
@@ -38,7 +38,7 @@ NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0)
 UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency.c log.c common/error.c common/helpers.c)
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency.c logging/log.c common/error.c common/helpers.c)
 
 .PHONY: check-config
 check-config: $(BINARY_DIR)/test_config
