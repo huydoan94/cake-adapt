@@ -20,7 +20,7 @@ TARGET := cake-adapt
 SOURCES := \
 	main.c \
 	monitor.c \
-	cake.c \
+	cake/cake.c \
 	config/config.c \
 	controller.c \
 	platform/cpu.c \
