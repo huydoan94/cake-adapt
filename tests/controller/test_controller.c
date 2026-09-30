@@ -1,10 +1,25 @@
 #include "controller/controller.h"
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #define MEBABIT 1000000U
+
+/* Zero allows every allocation; otherwise the Nth calloc() fails. */
+static unsigned int failing_allocation;
+static unsigned int allocations;
+
+void *__real_calloc(size_t count, size_t size);
+
+void *__wrap_calloc(size_t count, size_t size)
+{
+    if (failing_allocation != 0U && ++allocations == failing_allocation) {
+        return NULL;
+    }
+    return __real_calloc(count, size);
+}
 
 static struct controller_config default_config(void)
 {
@@ -409,6 +424,25 @@ static void test_invalid_delay_window_is_rejected(void)
     config.bufferbloat_detection_window = 2U;
     config.bufferbloat_detection_threshold = 3U;
     assert(controller_init(&controller, &config) != 0);
+}
+
+static void test_allocation_failure_releases_every_window(void)
+{
+    struct controller controller;
+    const struct controller_config config = default_config();
+    unsigned int failure;
+
+    /* Each direction owns two windows; leak checking covers every failure point. */
+    for (failure = 1U; failure <= 4U; failure++) {
+        failing_allocation = failure;
+        allocations = 0U;
+        assert(controller_init(&controller, &config) != 0);
+        assert(controller.download.delay_samples == NULL);
+        assert(controller.download.delayed_samples == NULL);
+        assert(controller.upload.delay_samples == NULL);
+        assert(controller.upload.delayed_samples == NULL);
+    }
+    failing_allocation = 0U;
 }
 
 static void test_initial_rate_is_baseline(void)
@@ -1376,6 +1410,7 @@ static void test_compensation_is_directional_and_preserves_history(void)
 int main(void)
 {
     test_initial_state_is_unknown();
+    test_allocation_failure_releases_every_window();
     test_compensation_saturates_thresholds();
     test_compensation_is_directional_and_preserves_history();
     test_compact_delay_window_boundaries();
