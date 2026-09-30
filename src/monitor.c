@@ -10,6 +10,7 @@
 #include "common/error.h"
 #include "common/helpers.h"
 #include "latency/latency.h"
+#include "latency/tracker.h"
 #include "logging/log.h"
 #include "platform/netlink.h"
 #include "platform/traffic.h"

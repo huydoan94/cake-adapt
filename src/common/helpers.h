@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 #include <time.h>
 
 /* Decimal token in a NUL-terminated string; end points to its delimiter. */

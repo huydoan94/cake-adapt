@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "latency/latency.h"
+#include "latency/tracker.h"
 
 struct reflector_health_config {
     uint64_t response_deadline_microseconds;
