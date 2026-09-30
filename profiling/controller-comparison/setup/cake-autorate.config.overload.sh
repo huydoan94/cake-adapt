@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2034
+# A/B comparison: same limits, reflectors and outputs as the cake-adapt run.
+dl_if=ifb4eth1
+ul_if=eth1
+adjust_dl_shaper_rate=1
+adjust_ul_shaper_rate=1
+min_dl_shaper_rate_kbps=10000
+base_dl_shaper_rate_kbps=20000
+max_dl_shaper_rate_kbps=200000
+min_ul_shaper_rate_kbps=10000
+base_ul_shaper_rate_kbps=20000
+max_ul_shaper_rate_kbps=200000
+connection_active_thr_kbps=2000
+output_processing_stats=1
+output_load_stats=1
+output_reflector_stats=1
+output_summary_stats=1
+output_cpu_stats=0
+output_cpu_raw_stats=0
+output_cake_changes=1
+debug=1
+log_to_file=1
+log_file_path_override=/tmp/ab/autorate/logs
+randomize_reflectors=0
+reflectors=(
+	"1.1.1.1"
+	"1.0.0.1"
+	"8.8.8.8"
+	"8.8.4.4"
+	"9.9.9.9"
+	"9.9.9.10"
+	"9.9.9.11"
+	"94.140.14.15"
+	"94.140.14.140"
+	"94.140.14.141"
+	"94.140.15.15"
+	"94.140.15.16"
+	"64.6.65.6"
+	"156.154.70.1"
+	"156.154.70.2"
+	"156.154.70.3"
+	"156.154.70.4"
+	"156.154.70.5"
+	"156.154.71.1"
+	"156.154.71.2"
+	"156.154.71.3"
+	"156.154.71.4"
+	"156.154.71.5"
+	"208.67.220.2"
+	"208.67.220.123"
+	"208.67.220.220"
+	"208.67.222.2"
+	"208.67.222.123"
+	"185.228.168.9"
+	"185.228.168.10"
+)
