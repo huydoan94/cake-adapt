@@ -27,6 +27,7 @@ static bool log_to_syslog;
 static bool debug_to_syslog;
 static FILE *log_file;
 static char log_path[LOG_PATH_SIZE];
+static char previous_log_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
 static uint64_t log_opened_microseconds;
 static uint64_t log_last_flush_microseconds;
 static uint64_t log_maximum_age_microseconds;
@@ -154,8 +155,7 @@ static bool export_log(
 )
 {
     char buffer[LOG_COPY_BUFFER_SIZE];
-    char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
-    const char *source_paths[] = { previous_path, log_path };
+    const char *source_paths[] = { previous_log_path, log_path };
     /* zlib's transparent mode writes plain bytes, without a gzip wrapper. */
     gzFile destination = gzopen(
         export_path,
@@ -165,13 +165,6 @@ static bool export_log(
     size_t index;
     bool success = true;
 
-    (void)snprintf(
-        previous_path,
-        sizeof(previous_path),
-        "%s%s",
-        log_path,
-        LOG_PREVIOUS_SUFFIX
-    );
     if (destination == NULL) {
         return false;
     }
@@ -274,21 +267,13 @@ int log_export_file(
 
 int log_reset_file(void)
 {
-    char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
     FILE *previous;
 
     if (log_file == NULL) {
         errno = EBADF;
         return -1;
     }
-    (void)snprintf(
-        previous_path,
-        sizeof(previous_path),
-        "%s%s",
-        log_path,
-        LOG_PREVIOUS_SUFFIX
-    );
-    previous = fopen(previous_path, FILE_MODE_WRITE);
+    previous = fopen(previous_log_path, FILE_MODE_WRITE);
     if (previous == NULL) {
         return -1;
     }
@@ -298,8 +283,6 @@ int log_reset_file(void)
 
 static void rotate_log_file(bool maximum_age_reached)
 {
-    char previous_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
-
     if (log_maintenance_active) {
         return;
     }
@@ -318,16 +301,9 @@ static void rotate_log_file(bool maximum_age_reached)
             log_maximum_size_bytes / KIBIBYTE
         );
     }
-    (void)snprintf(
-        previous_path,
-        sizeof(previous_path),
-        "%s%s",
-        log_path,
-        LOG_PREVIOUS_SUFFIX
-    );
     if (
         fflush(log_file) == 0 &&
-        export_log(previous_path, false, false)
+        export_log(previous_log_path, false, false)
     ) {
         (void)truncate_log_file();
     }
@@ -501,6 +477,13 @@ int log_set_file(
     }
     (void)setvbuf(file, log_file_buffer, _IOFBF, sizeof(log_file_buffer));
     (void)snprintf(log_path, sizeof(log_path), "%s", path);
+    (void)snprintf(
+        previous_log_path,
+        sizeof(previous_log_path),
+        "%s%s",
+        log_path,
+        LOG_PREVIOUS_SUFFIX
+    );
     log_file = file;
     log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
     log_last_flush_microseconds = log_opened_microseconds;
