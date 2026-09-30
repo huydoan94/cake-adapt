@@ -1,0 +1,3 @@
+perf version 6.12.108
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+busybox: applet not found
