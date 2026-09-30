@@ -5,7 +5,7 @@
 #define nl_recvmsgs_default test_receive
 #define nl_send_auto_complete test_send
 #define read_clock_microseconds test_clock
-#include "../src/netlink.c"
+#include "platform/netlink.c"
 #undef poll
 #undef nl_recvmsgs_default
 #undef nl_send_auto_complete

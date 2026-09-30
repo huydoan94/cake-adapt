@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "traffic.h"
+#include "platform/traffic.h"
 
 #include "common/constants.h"
 #include "common/helpers.h"

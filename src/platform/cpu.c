@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "cpu.h"
+#include "platform/cpu.h"
 
 #include "common/error.h"
 #include "common/constants.h"
