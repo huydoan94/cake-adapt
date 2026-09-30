@@ -3,6 +3,7 @@
 #include "monitor.h"
 
 #include "common/constants.h"
+#include "config/defaults.h"
 #include "cake/cake.h"
 #include "controller/controller.h"
 #include "controller/reflector.h"
@@ -17,6 +18,7 @@
 
 #include <libubox/list.h>
 #include <libubox/uloop.h>
+#include <libubox/ustream.h>
 #include <libubox/utils.h>
 
 #include <errno.h>
@@ -310,10 +312,13 @@ struct observation_context {
 
 struct event_loop;
 
-struct latency_watch {
-    struct uloop_fd descriptor;
+/* One pinger child: uloop drives both its output stream and its exit. */
+struct pinger_watch {
+    struct ustream_fd output;
+    struct uloop_process process;
     struct event_loop *loop;
     size_t child_index;
+    bool reading;
 };
 
 struct event_loop {
@@ -331,13 +336,16 @@ struct event_loop {
     bool qdisc_refresh;
     bool traffic_cadence_applied;
     struct uloop_fd qdisc_events;
-    struct latency_watch latency_output[CONFIG_MAX_REFLECTORS];
+    struct pinger_watch pingers[CONFIG_MAX_REFLECTORS];
+    struct uloop_timeout pinger_stop_timer;
+    struct uloop_timeout latency_failure_timer;
     struct uloop_timeout latency_start_timer;
     int result;
 };
 
 static void handle_traffic_timer(struct uloop_interval *timer);
 static bool schedule_irtt_child_start(struct event_loop *loop);
+static bool watch_latency(struct event_loop *loop);
 
 static void apply_traffic_cadence(struct event_loop *loop)
 {
@@ -972,6 +980,10 @@ static bool ensure_latency_open(
     if (latency_is_open(&context->latency)) {
         return true;
     }
+    /* A new session waits for the previous pingers to be reaped. */
+    if (latency_stopping(&context->latency)) {
+        return false;
+    }
     if (
         !read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds) ||
         timestamp_microseconds < context->next_latency_attempt_microseconds
@@ -1078,143 +1090,167 @@ static size_t find_active_reflector(
     return SIZE_MAX;
 }
 
-static bool receive_latency_samples(
+static void report_latency_degraded(
     struct observation_context *context,
-    const struct config *config,
-    size_t child_index
+    const char *error
 )
 {
-    for (;;) {
-        struct latency_observation observation;
-        struct latency_sample sample;
-        char error[ERROR_SIZE] = { 0 };
-        bool stale;
-        uint64_t processing_realtime_microseconds;
-        uint64_t processing_monotonic_microseconds;
-        uint64_t response_monotonic_microseconds;
-        enum latency_probe_result result = latency_receive_child(
-            &context->latency,
-            child_index,
-            &sample,
-            error,
-            sizeof(error)
-        );
-        size_t reflector_index;
-        bool low_load;
+    if (!context->latency_observation_failed) {
+        log_message(LOG_LEVEL_WARNING, "latency observation degraded: %s", error);
+    }
+    context->latency_observation_failed = true;
+}
 
-        if (result == LATENCY_PROBE_PENDING) {
-            return true;
-        }
-        if (result == LATENCY_PROBE_TIMEOUT) {
-            continue;
-        }
-        if (result == LATENCY_PROBE_RESTART) {
-            log_message(
-                LOG_LEVEL_DEBUG,
-                "Restarting irtt pinger: pinger=%zu (%s)",
-                child_index,
-                error
-            );
-            return true;
-        }
-        if (result == LATENCY_PROBE_ERROR) {
-            if (!context->latency_observation_failed) {
-                log_message(
-                    LOG_LEVEL_WARNING,
-                    "latency observation degraded: %s",
-                    error
-                );
-            }
-            context->latency_observation_failed = true;
-            return false;
-        }
+/* Returns false when latency observation must be restarted. */
+static bool process_latency_line(
+    struct observation_context *context,
+    const struct config *config,
+    size_t child_index,
+    const char *line
+)
+{
+    struct latency_observation observation;
+    struct latency_sample sample;
+    char error[ERROR_SIZE] = { 0 };
+    bool stale;
+    uint64_t processing_realtime_microseconds;
+    uint64_t processing_monotonic_microseconds;
+    uint64_t response_monotonic_microseconds;
+    enum latency_probe_result result = latency_handle_line(
+        &context->latency,
+        child_index,
+        line,
+        &sample,
+        error,
+        sizeof(error)
+    );
+    size_t reflector_index;
+    bool low_load;
 
-        reflector_index = find_active_reflector(context, config, sample.target);
-        if (reflector_index == SIZE_MAX) {
-            log_message(
-                LOG_LEVEL_WARNING,
-                "latency observation degraded: unexpected reflector=%s",
-                sample.target
-            );
-            context->latency_observation_failed = true;
-            return false;
-        }
+    if (
+        result == LATENCY_PROBE_PENDING ||
+        result == LATENCY_PROBE_TIMEOUT
+    ) {
+        return true;
+    }
+    if (result == LATENCY_PROBE_ERROR) {
+        report_latency_degraded(context, error);
+        return false;
+    }
 
-        if (
-            !read_clock_microseconds(
-                CLOCK_REALTIME,
-                &processing_realtime_microseconds
-            ) ||
-            !read_clock_microseconds(
-                CLOCK_MONOTONIC,
-                &processing_monotonic_microseconds
-            )
-        ) {
-            if (!context->response_clock_failed) {
-                log_message(
-                    LOG_LEVEL_WARNING,
-                    "latency observation degraded: response clock failed: %s",
-                    strerror(errno)
-                );
-            }
-            context->response_clock_failed = true;
-            continue;
-        }
-        if (context->response_clock_failed) {
-            log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
-            context->response_clock_failed = false;
-        }
-        low_load = direction_has_low_load(
-            &context->download,
-            context->controller.config.high_load_threshold_percent
-        ) && direction_has_low_load(
-            &context->upload,
-            context->controller.config.high_load_threshold_percent
-        );
-
-        tracker_update(
-            &context->latency_trackers[
-                context->reflector_order[reflector_index]
-            ],
-            &sample,
-            &observation
-        );
-
-        tracker_update_delta_ewma(
-            &context->latency_trackers[
-                context->reflector_order[reflector_index]
-            ],
-            low_load,
-            &observation
-        );
-        response_timestamp(
-            processing_realtime_microseconds,
-            processing_monotonic_microseconds,
-            sample.timestamp_microseconds,
-            &response_monotonic_microseconds,
-            &stale
-        );
-        context->last_reflector_response_microseconds =
-            response_monotonic_microseconds;
-        health_record_response(
-            &context->reflector_health[reflector_index],
-            response_monotonic_microseconds
-        );
-        if (stale) {
-            log_message(
-                LOG_LEVEL_DEBUG,
-                "processed response from [%s] that is > 500ms old. Skipping.",
-                sample.target
-            );
-            continue;
-        }
-
-        update_controller(
-            context,
-            config,
-            &observation,
+    reflector_index = find_active_reflector(context, config, sample.target);
+    if (reflector_index == SIZE_MAX) {
+        log_message(
+            LOG_LEVEL_WARNING,
+            "latency observation degraded: unexpected reflector=%s",
             sample.target
         );
+        context->latency_observation_failed = true;
+        return false;
+    }
+
+    if (
+        !read_clock_microseconds(
+            CLOCK_REALTIME,
+            &processing_realtime_microseconds
+        ) ||
+        !read_clock_microseconds(
+            CLOCK_MONOTONIC,
+            &processing_monotonic_microseconds
+        )
+    ) {
+        if (!context->response_clock_failed) {
+            log_message(
+                LOG_LEVEL_WARNING,
+                "latency observation degraded: response clock failed: %s",
+                strerror(errno)
+            );
+        }
+        context->response_clock_failed = true;
+        return true;
+    }
+    if (context->response_clock_failed) {
+        log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
+        context->response_clock_failed = false;
+    }
+    low_load = direction_has_low_load(
+        &context->download,
+        context->controller.config.high_load_threshold_percent
+    ) && direction_has_low_load(
+        &context->upload,
+        context->controller.config.high_load_threshold_percent
+    );
+
+    tracker_update(
+        &context->latency_trackers[
+            context->reflector_order[reflector_index]
+        ],
+        &sample,
+        &observation
+    );
+
+    tracker_update_delta_ewma(
+        &context->latency_trackers[
+            context->reflector_order[reflector_index]
+        ],
+        low_load,
+        &observation
+    );
+    response_timestamp(
+        processing_realtime_microseconds,
+        processing_monotonic_microseconds,
+        sample.timestamp_microseconds,
+        &response_monotonic_microseconds,
+        &stale
+    );
+    context->last_reflector_response_microseconds =
+        response_monotonic_microseconds;
+    health_record_response(
+        &context->reflector_health[reflector_index],
+        response_monotonic_microseconds
+    );
+    if (stale) {
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "processed response from [%s] that is > 500ms old. Skipping.",
+            sample.target
+        );
+        return true;
+    }
+
+    update_controller(
+        context,
+        config,
+        &observation,
+        sample.target
+    );
+    return true;
+}
+
+/* Every spawned child must be known to uloop before anything can stop it. */
+static void register_pinger_processes(struct event_loop *loop)
+{
+    size_t index;
+
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        struct pinger_watch *watch = &loop->pingers[index];
+        pid_t process_identifier = latency_child_process(
+            &loop->observation.latency,
+            index
+        );
+
+        if (process_identifier > 0 && !watch->process.pending) {
+            watch->process.pid = process_identifier;
+            (void)uloop_process_add(&watch->process);
+        }
+    }
+}
+
+static void release_pinger_output(struct pinger_watch *watch)
+{
+    if (watch->reading) {
+        ustream_free(&watch->output.stream);
+        watch->reading = false;
     }
 }
 
@@ -1223,13 +1259,53 @@ static void close_latency(struct event_loop *loop)
     size_t index;
 
     (void)uloop_timeout_cancel(&loop->latency_start_timer);
+    register_pinger_processes(loop);
     for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
-        if (loop->latency_output[index].descriptor.registered) {
-            (void)uloop_fd_delete(&loop->latency_output[index].descriptor);
-        }
-        loop->latency_output[index].descriptor.fd = -1;
+        release_pinger_output(&loop->pingers[index]);
     }
     latency_close(&loop->observation.latency);
+    /* uloop reaps the children; escalate once if SIGTERM is ignored. */
+    if (
+        latency_stopping(&loop->observation.latency) &&
+        !loop->pinger_stop_timer.pending
+    ) {
+        (void)uloop_timeout_set(
+            &loop->pinger_stop_timer,
+            CHILD_STOP_TIMEOUT_MILLISECONDS
+        );
+    }
+}
+
+/* The event loop has stopped, so pingers are stopped and reaped synchronously. */
+static void stop_pingers_now(struct event_loop *loop)
+{
+    size_t index;
+
+    (void)uloop_timeout_cancel(&loop->latency_start_timer);
+    (void)uloop_timeout_cancel(&loop->pinger_stop_timer);
+    (void)uloop_timeout_cancel(&loop->latency_failure_timer);
+    for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+        release_pinger_output(&loop->pingers[index]);
+        (void)uloop_process_delete(&loop->pingers[index].process);
+    }
+    latency_stop_now(&loop->observation.latency);
+}
+
+static void handle_pinger_stop_timeout(struct uloop_timeout *timer)
+{
+    struct event_loop *loop = __extension__ container_of(
+        timer,
+        struct event_loop,
+        pinger_stop_timer
+    );
+
+    log_message(
+        LOG_LEVEL_WARNING,
+        "%s did not stop within %d ms of SIGTERM; sending SIGKILL",
+        loop->config->pinger_method,
+        CHILD_STOP_TIMEOUT_MILLISECONDS
+    );
+    latency_kill_stopping(&loop->observation.latency);
 }
 
 static void defer_latency_retry(struct event_loop *loop)
@@ -1368,64 +1444,148 @@ static void handle_qdisc_events(
     }
 }
 
-static void handle_latency_output(
-    struct uloop_fd *descriptor,
-    unsigned int events
-)
+static void handle_latency_failure(struct uloop_timeout *timer)
 {
-    struct latency_watch *watch = __extension__ container_of(
-        descriptor,
-        struct latency_watch,
-        descriptor
+    struct event_loop *loop = __extension__ container_of(
+        timer,
+        struct event_loop,
+        latency_failure_timer
+    );
+
+    defer_latency_retry(loop);
+}
+
+static void handle_pinger_output(struct ustream *stream, int bytes)
+{
+    struct pinger_watch *watch = __extension__ container_of(
+        stream,
+        struct pinger_watch,
+        output.stream
     );
     struct event_loop *loop = watch->loop;
+    char error[ERROR_SIZE];
 
-    (void)events;
-    if (!receive_latency_samples(
-        &loop->observation,
-        loop->config,
-        watch->child_index
-    )) {
-        defer_latency_retry(loop);
-    } else if (latency_child_descriptor(
-        &loop->observation.latency,
-        watch->child_index
-    ) < 0) {
-        if (watch->descriptor.registered) {
-            (void)uloop_fd_delete(&watch->descriptor);
+    (void)bytes;
+    for (;;) {
+        char line[LATENCY_OUTPUT_SIZE];
+        size_t consumed;
+        int length;
+        const char *data = ustream_get_read_buf(stream, &length);
+        enum latency_line_result result;
+
+        if (data == NULL) {
+            return;
         }
-        watch->descriptor.fd = -1;
+        result = latency_next_line(data, (size_t)length, line, &consumed);
+        if (result == LATENCY_LINE_INCOMPLETE) {
+            return;
+        }
+        if (result == LATENCY_LINE_TOO_LONG) {
+            (void)snprintf(
+                error,
+                sizeof(error),
+                "%s output line is too long",
+                loop->config->pinger_method
+            );
+            report_latency_degraded(&loop->observation, error);
+            break;
+        }
+        ustream_consume(stream, (int)consumed);
+        if (!process_latency_line(
+            &loop->observation,
+            loop->config,
+            watch->child_index,
+            line
+        )) {
+            break;
+        }
+    }
+    /* A stream cannot be freed from its read callback; restart from the loop. */
+    ustream_set_read_blocked(stream, true);
+    (void)uloop_timeout_set(&loop->latency_failure_timer, 0);
+}
+
+/* End of output or a descriptor error; the exit callback reports the cause. */
+static void handle_pinger_state(struct ustream *stream)
+{
+    struct pinger_watch *watch = __extension__ container_of(
+        stream,
+        struct pinger_watch,
+        output.stream
+    );
+
+    release_pinger_output(watch);
+}
+
+static void handle_pinger_exit(struct uloop_process *process, int status)
+{
+    struct pinger_watch *watch = __extension__ container_of(
+        process,
+        struct pinger_watch,
+        process
+    );
+    struct event_loop *loop = watch->loop;
+    struct latency *latency = &loop->observation.latency;
+    char error[ERROR_SIZE] = { 0 };
+
+    /* Deliver output written just before the exit, then stop reading. */
+    if (watch->reading) {
+        (void)ustream_poll(&watch->output.stream);
+        release_pinger_output(watch);
+    }
+    switch (latency_child_exited(latency, watch->child_index, status, error, sizeof(error))) {
+    case LATENCY_PROBE_STOPPED:
+        if (!latency_stopping(latency)) {
+            (void)uloop_timeout_cancel(&loop->pinger_stop_timer);
+            /* Like cake-autorate, a restart starts once the old pingers are gone. */
+            if (loop->observation.activity.state != CONTROLLER_IDLE) {
+                (void)watch_latency(loop);
+            }
+        }
+        return;
+    case LATENCY_PROBE_RESTART:
+        log_message(
+            LOG_LEVEL_DEBUG,
+            "Restarting irtt pinger: pinger=%zu (%s)",
+            watch->child_index,
+            error
+        );
         (void)schedule_irtt_child_start(loop);
+        return;
+    default:
+        report_latency_degraded(&loop->observation, error);
+        defer_latency_retry(loop);
+        return;
     }
 }
 
 static bool watch_started_latency_children(struct event_loop *loop)
 {
+    const struct latency *latency = &loop->observation.latency;
     size_t index;
-    int saved_errno;
 
-    for (
-        index = 0U;
-        index < latency_child_count(&loop->observation.latency);
-        index++
-    ) {
-        struct latency_watch *watch = &loop->latency_output[index];
-        int descriptor = latency_child_descriptor(
-            &loop->observation.latency,
-            index
-        );
+    register_pinger_processes(loop);
+    for (index = 0U; index < latency_child_count(latency); index++) {
+        struct pinger_watch *watch = &loop->pingers[index];
+        int descriptor = latency_child_descriptor(latency, index);
 
-        if (watch->descriptor.registered || descriptor < 0) {
+        if (watch->reading || descriptor < 0) {
             continue;
         }
-        watch->descriptor.fd = descriptor;
-        if (uloop_fd_add(&watch->descriptor, ULOOP_READ | ULOOP_ERROR_CB) != 0) {
-            saved_errno = errno;
+        watch->output = (struct ustream_fd) {
+            .stream = {
+                .notify_read = handle_pinger_output,
+                .notify_state = handle_pinger_state
+            }
+        };
+        ustream_fd_init(&watch->output, descriptor);
+        watch->reading = true;
+        /* ustream_fd_init() does not report a failed registration itself. */
+        if (!watch->output.fd.registered) {
             log_message(
                 LOG_LEVEL_WARNING,
-                "latency observation degraded: could not monitor %s output: %s",
-                loop->config->pinger_method,
-                strerror(saved_errno)
+                "latency observation degraded: could not monitor %s output",
+                loop->config->pinger_method
             );
             loop->observation.latency_observation_failed = true;
             close_latency(loop);
@@ -2338,9 +2498,14 @@ int monitor_run(const struct config *config)
         .latency_start_timer = {
             .cb = handle_latency_start
         },
+        .pinger_stop_timer = {
+            .cb = handle_pinger_stop_timeout
+        },
+        .latency_failure_timer = {
+            .cb = handle_latency_failure
+        },
         .result = -1
     };
-    bool previous_sigchld_handling = uloop_handle_sigchld;
     const struct {
         struct uloop_interval *timer;
         uint64_t interval_microseconds;
@@ -2363,10 +2528,9 @@ int monitor_run(const struct config *config)
     size_t index;
 
     for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
-        loop.latency_output[index].descriptor.cb = handle_latency_output;
-        loop.latency_output[index].descriptor.fd = -1;
-        loop.latency_output[index].loop = &loop;
-        loop.latency_output[index].child_index = index;
+        loop.pingers[index].process.cb = handle_pinger_exit;
+        loop.pingers[index].loop = &loop;
+        loop.pingers[index].child_index = index;
     }
 
     latency_init(&loop.observation.latency);
@@ -2464,15 +2628,13 @@ int monitor_run(const struct config *config)
         health_count++;
     }
 
-    /* latency.c owns and reaps pinger children; uloop must not consume them. */
-    uloop_handle_sigchld = false;
+    /* uloop reaps pinger children and reports each exit to handle_pinger_exit(). */
     if (uloop_init() != 0) {
         log_message(
             LOG_LEVEL_ERROR,
             "could not initialize event loop: %s",
             strerror(errno)
         );
-        uloop_handle_sigchld = previous_sigchld_handling;
         goto done;
     }
 
@@ -2597,7 +2759,7 @@ int monitor_run(const struct config *config)
     }
 
 uloop_done:
-    close_latency(&loop);
+    stop_pingers_now(&loop);
     if (loop.qdisc_events.registered) {
         (void)uloop_fd_delete(&loop.qdisc_events);
     }
@@ -2608,7 +2770,6 @@ uloop_done:
     (void)uloop_signal_delete(&loop.log_export_signal);
     (void)uloop_signal_delete(&loop.log_reset_signal);
     uloop_done();
-    uloop_handle_sigchld = previous_sigchld_handling;
 
 done:
     for (index = 0U; index < health_count; index++) {

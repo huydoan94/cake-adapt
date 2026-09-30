@@ -42,14 +42,7 @@ int start_child(
     size_t error_size
 );
 
-void set_child_exit_error(
-    struct latency_child *child,
-    const char *name,
-    char *error,
-    size_t error_size
-);
-
-/* Reap an ended IRTT session and schedule its restart, delayed after a fast exit. */
+/* Schedule a reaped IRTT session's restart, delayed after a fast exit. */
 enum latency_probe_result schedule_irtt_restart(
     struct latency_child *child,
     char *error,
