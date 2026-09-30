@@ -299,6 +299,7 @@ struct observation_context {
     bool health_clock_failed;
     bool traffic_cadence_initialized;
     bool pingers_suspended;
+    bool initial_shaper_reported;
     uint64_t traffic_cadence_microseconds;
     uint64_t last_reflector_replacement_microseconds;
     uint64_t last_reflector_comparison_microseconds;
@@ -844,11 +845,25 @@ static void update_controller(
     struct controller_output output;
     const struct {
         struct monitored_direction *direction;
+        const struct controller_direction *controller;
         const struct controller_direction_input *input;
         const struct controller_direction_output *output;
+        const char *short_name;
     } directions[] = {
-        { &context->download, &input.download, &output.download },
-        { &context->upload, &input.upload, &output.upload }
+        {
+            &context->download,
+            &context->controller.download,
+            &input.download,
+            &output.download,
+            DIRECTION_DOWNLOAD_SHORT
+        },
+        {
+            &context->upload,
+            &context->controller.upload,
+            &input.upload,
+            &output.upload,
+            DIRECTION_UPLOAD_SHORT
+        }
     };
 
     (void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
@@ -868,6 +883,22 @@ static void update_controller(
         if (decision->congestion_changed) {
             log_congestion_state(direction->name, decision->congestion, latency);
         }
+        /* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
+        if (
+            !context->initial_shaper_reported &&
+            !directions[index].controller->config.adjust &&
+            config->output_cake_changes
+        ) {
+            log_shaper(
+                direction->interface,
+                directions[index].controller->config.base_rate_bits_per_second / KILOBIT
+            );
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "adjust_%s_shaper_rate set to 0 in config, so skipping the corresponding tc qdisc change call.",
+                directions[index].short_name
+            );
+        }
         /* The controller never requests changes for an observation-only link. */
         if (decision->rate_changed) {
             apply_bandwidth(
@@ -879,6 +910,7 @@ static void update_controller(
             );
         }
     }
+    context->initial_shaper_reported = true;
     update_serialization_compensation(context);
     log_controller_stats(
         config,
