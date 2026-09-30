@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 
 /* Exercise the actual parser with synthetic kernel messages, without a VM. */
-#include "../src/cake.c"
+#include "cake/cake.c"
 
 #include <assert.h>
 #include <netlink/msg.h>

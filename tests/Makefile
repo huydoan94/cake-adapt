@@ -53,9 +53,9 @@ check-netlink: $(BINARY_DIR)/test_cake $(BINARY_DIR)/test_netlink
 	$(BINARY_DIR)/test_cake
 	$(BINARY_DIR)/test_netlink
 
-$(BINARY_DIR)/test_cake: test_cake.c $(SOURCE_DIR)/cake.c $(SOURCE_DIR)/cake.h $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_cake: cake/test_cake.c $(SOURCE_DIR)/cake/cake.c $(SOURCE_DIR)/cake/cake.h $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cake.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ cake/test_cake.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
 
 $(BINARY_DIR)/test_netlink: platform/test_netlink.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/helpers.h $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)

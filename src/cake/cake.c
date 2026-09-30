@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 
-#include "cake.h"
+#include "cake/cake.h"
 #include "common/constants.h"
 #include "common/error.h"
 
