@@ -80,8 +80,15 @@ measurement -> controller decision -> desired CAKE state -> kernel update
 - The CAKE layer does not measure traffic or latency.
 - The netlink layer contains transport and message mechanics, not policy.
 
-Keep `src/` flat until a subsystem genuinely needs a directory. Do not add
-unnecessary abstraction layers, wrapper libraries, or one-use helpers.
+`src/` is organized by subsystem. `main.c` and `monitor.c` stay at the top
+level; every other module belongs to exactly one subsystem directory. Put new
+code in the directory that owns the concept, and do not create a new directory
+or nested layer without a real ownership reason. Do not add unnecessary
+abstraction layers, wrapper libraries, or one-use helpers.
+
+Include project headers relative to `src/`, for example
+`#include "latency/tracker.h"`. A header shared only inside one subsystem stays
+in that directory and is not included from outside it.
 
 ### Module boundaries
 
@@ -89,24 +96,37 @@ unnecessary abstraction layers, wrapper libraries, or one-use helpers.
   top-level lifecycle, and orderly shutdown only.
 - `monitor.c`: event-loop orchestration and coordination between measurements,
   controller decisions, qdisc lifecycle, timers, and signals.
-- `config.c`: typed UCI loading, conversion, and validation through `libuci`;
-  never parse `/etc/config/cake-adapt` manually.
-- `defaults.c` and `defaults.h`: built-in application and configuration
-  defaults.
-- `constants.h`: shared semantic names, paths, modes, and state tokens; keep
-  prose diagnostics, format strings, and module-owned record schemas local.
-- `controller.c`: platform-independent autorate, congestion, and activity
-  policy; keep it directly unit-testable with synthetic inputs.
-- `cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
-- `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
-- `traffic.c`: counter samples and achieved-rate calculations only.
-- `latency.c`: `fping` process ownership, parsing, and latency tracking only.
-- `cpu.c`: CPU sampling and usage calculations only.
-- `log.c`: all logging, cake-autorate-compatible records, rotation, export, and
-  reset behavior.
-- `helpers.c`: small genuinely generic operations shared by modules, such as
-  numeric parsing, percentages, clocks, and safe conversions.
-- `error.c`: shared error-buffer formatting.
+- `common/`
+  - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
+    prose diagnostics, format strings, and module-owned record schemas local.
+  - `helpers.c`: small genuinely generic operations shared by modules, such as
+    numeric parsing, percentages, saturating arithmetic, clocks, and safe
+    conversions.
+  - `error.c`: shared error-buffer formatting.
+- `config/`
+  - `config.c`: typed UCI loading, conversion, and validation through
+    `libuci`; never parse `/etc/config/cake-adapt` manually.
+  - `defaults.c` and `defaults.h`: built-in application and configuration
+    defaults.
+- `controller/`
+  - `controller.c`: platform-independent autorate, congestion, and activity
+    policy; keep it directly unit-testable with synthetic inputs.
+  - `reflector.c`: reflector health, comparison, and rotation policy over
+    latency trackers.
+- `latency/`
+  - `latency.c`: pinger session and child-process ownership, output buffering,
+    and dispatch to the active backend.
+  - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
+  - `pinger.h`: private interface between the session and its backends.
+  - `parser.c`: pinger output parsing into latency samples.
+  - `tracker.c`: per-reflector baseline and delta EWMA tracking.
+- `cake/cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
+- `platform/`
+  - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
+  - `traffic.c`: counter samples and achieved-rate calculations only.
+  - `cpu.c`: CPU sampling and usage calculations only.
+- `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
+  export, and reset behavior.
 
 Before adding a function, search for an existing equivalent. Consolidate
 duplicate conversions, parsing, percentage, timing, and bounds logic in the
@@ -202,14 +222,15 @@ log_message();
 
 Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
 `cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
-Move generic names such as `read_u32()` or `percentage_of()` to `helpers` when
-they are shared; keep module-specific helpers local and `static`.
+Move generic names such as `read_u32()` or `percentage_of()` to
+`common/helpers` when they are shared; keep module-specific helpers local and
+`static`.
 
-Put shared semantic string values in `constants.h` and built-in defaults in
-`defaults.c`/`defaults.h`. Keep complete diagnostics, format strings, and
-module-owned schemas beside the code that uses them. Tests should keep literal
-expected values when importing the production constant would make the check
-tautological.
+Put shared semantic string values in `common/constants.h` and built-in defaults
+in `config/defaults.c`/`config/defaults.h`. Keep complete diagnostics, format
+strings, and module-owned schemas beside the code that uses them. Tests should
+keep literal expected values when importing the production constant would make
+the check tautological.
 
 Do not repeat the program name in every log message because the backend already
 identifies the service.
@@ -266,11 +287,12 @@ Keep strict warnings enabled:
 
 Disable a warning only for a narrow, documented reason.
 
-Generated `.o` and `.d` files belong in `build/`, never in `src/`.
+Generated `.o` and `.d` files and test binaries belong in `build/`, never in
+`src/` or `tests/`.
 
 ## Logging and failure behavior
 
-All application logging goes through `log.c`.
+All application logging goes through `logging/log.c`.
 
 Syslog must make these conditions visible even when detailed file output is
 disabled:
@@ -307,6 +329,9 @@ Use plain Make:
 - `src/Makefile`: daemon build; and
 - `tests/Makefile`: focused host tests.
 
+Test sources mirror the `src/` subsystem directories; move a test with the
+module it covers. Test objects and binaries are written below `build/tests/`.
+
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
 builds for host-only work. Use `.vscode/tasks.json` for the configured x86 and
 Filogic SDK commands; do not guess SDK locations or rewrite the user's local
@@ -320,7 +345,9 @@ destination with checksums.
 
 When explicitly bumping `PKG_VERSION`, update any versioned artifact path in
 `.vscode/tasks.json` in the same change. The native `check-config` target needs
-both `libuci` and `libubox` development headers; missing host headers are an
+both `libuci` and `libubox` development headers but no native libraries. When
+the host lacks them, point `UCI_CFLAGS` at a directory exposing the SDK's staged
+`uci.h` and `libubox/` headers; otherwise treat the missing headers as an
 environment limitation, but the production SDK build must still pass.
 
 Unit tests are part of every behavioral change. Cover the affected branches,
@@ -336,10 +363,33 @@ Before declaring work complete:
 
 1. inspect existing behavior and relevant upstream behavior;
 2. make the smallest coherent change;
-3. run focused host tests;
+3. run focused host tests, plus sanitizer builds for structural or
+   memory-sensitive changes;
 4. build the affected SDK package when appropriate;
 5. test on the VM when runtime/kernel behavior changed; and
 6. verify actual service, process, log, and qdisc state.
+
+## Project status and deferred work
+
+The main parity/refactor sequence has covered directional latency state,
+stale-response handling, timestamp/serialization compensation, reflector
+health and rotation, multi-child latency ownership, logging maintenance, and
+redundant-state cleanup. The subsystem split of `src/` and `tests/` is
+complete. Host tests, sanitizer runs, and the x86 SDK build pass. Runtime VM
+validation remains pending when the VM is unreachable.
+
+Remaining work is tracked in `REFACTOR_PLAN.md` and must remain behavior-first:
+
+- compare cake-autorate and cake-adapt in sequential two-minute runs, never
+  concurrently controlling the same qdiscs;
+- use deterministic controller replay when live network conditions are too
+  dynamic;
+- complete end-to-end VM validation, then refresh flowcharts and profiling;
+- preserve raw logs, traces, profiler output, and reproducibility metadata.
+
+Do not claim full parity from host tests alone. `fping` remains the only
+supported production pinger until every additional backend has independent
+parser, lifecycle, fixture, and runtime verification.
 
 ## VM testing and delegation
 
