@@ -54,6 +54,38 @@ uint64_t rounded_divide(
         (value % divisor >= divisor / 2U + divisor % 2U ? 1U : 0U);
 }
 
+uint64_t absolute_difference(int64_t first, int64_t second)
+{
+    if (first >= second) {
+        return (uint64_t)first - (uint64_t)second;
+    }
+    return (uint64_t)second - (uint64_t)first;
+}
+
+int64_t signed_difference(int64_t first, int64_t second)
+{
+    uint64_t difference = absolute_difference(first, second);
+
+    if (first >= second) {
+        return difference > (uint64_t)INT64_MAX
+            ? INT64_MAX
+            : (int64_t)difference;
+    }
+    return difference > (uint64_t)INT64_MAX
+        ? INT64_MIN
+        : -(int64_t)difference;
+}
+
+int64_t signed_sum(int64_t first, int64_t second)
+{
+    int64_t sum;
+
+    if (!__builtin_add_overflow(first, second, &sum)) {
+        return sum;
+    }
+    return first < 0 ? INT64_MIN : INT64_MAX;
+}
+
 bool random_below(
     size_t count,
     random_u32_source source,

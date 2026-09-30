@@ -58,6 +58,20 @@ static void test_percentages_and_rounding(void)
     assert(rounded_divide(UINT64_MAX / 2U, UINT64_MAX) == 0U);
 }
 
+static void test_saturating_signed_arithmetic(void)
+{
+    assert(absolute_difference(3, -2) == 5U);
+    assert(absolute_difference(-2, 3) == 5U);
+    assert(absolute_difference(INT64_MAX, INT64_MIN) == UINT64_MAX);
+    assert(signed_difference(3, 5) == -2);
+    assert(signed_difference(INT64_MAX, -1) == INT64_MAX);
+    assert(signed_difference(INT64_MIN, 1) == INT64_MIN);
+    assert(signed_difference(-1, INT64_MAX) == INT64_MIN);
+    assert(signed_sum(-3, 5) == 2);
+    assert(signed_sum(INT64_MAX, 1) == INT64_MAX);
+    assert(signed_sum(INT64_MIN, -1) == INT64_MIN);
+}
+
 static void test_elapsed_interval_boundaries(void)
 {
     assert(!interval_elapsed(9U, 10U, 1U));
@@ -220,6 +234,7 @@ int main(void)
 {
     test_percentages_and_rounding();
     test_unsigned_decimal_spans();
+    test_saturating_signed_arithmetic();
     test_elapsed_interval_boundaries();
     test_load_rounding_and_limits();
     test_clock_failure_preserves_output();

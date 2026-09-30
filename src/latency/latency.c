@@ -1210,38 +1210,6 @@ void tracker_reset(struct latency_tracker *tracker)
     tracker->upload = tracker->download;
 }
 
-static uint64_t absolute_difference(int64_t first, int64_t second)
-{
-    if (first >= second) {
-        return (uint64_t)first - (uint64_t)second;
-    }
-    return (uint64_t)second - (uint64_t)first;
-}
-
-static int64_t signed_difference(int64_t first, int64_t second)
-{
-    uint64_t difference = absolute_difference(first, second);
-
-    if (first >= second) {
-        return difference > (uint64_t)INT64_MAX
-            ? INT64_MAX
-            : (int64_t)difference;
-    }
-    return difference > (uint64_t)INT64_MAX
-        ? INT64_MIN
-        : -(int64_t)difference;
-}
-
-static int64_t signed_sum(int64_t first, int64_t second)
-{
-    int64_t sum;
-
-    if (!__builtin_add_overflow(first, second, &sum)) {
-        return sum;
-    }
-    return first < 0 ? INT64_MIN : INT64_MAX;
-}
-
 static bool sample_has_timestamp_rollover(
     const struct latency_tracker *tracker,
     const struct latency_sample *sample

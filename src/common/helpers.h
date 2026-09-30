@@ -25,6 +25,15 @@ uint64_t rounded_divide(
     uint64_t divisor
 );
 
+/* Exact |first - second|; every int64_t difference fits in uint64_t. */
+uint64_t absolute_difference(int64_t first, int64_t second);
+
+/* first - second, saturated to the int64_t range. */
+int64_t signed_difference(int64_t first, int64_t second);
+
+/* first + second, saturated to the int64_t range. */
+int64_t signed_sum(int64_t first, int64_t second);
+
 typedef bool (*random_u32_source)(uint32_t *value, void *context);
 
 /* Uniformly select an index below count using the supplied entropy source. */
