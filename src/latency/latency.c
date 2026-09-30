@@ -18,10 +18,11 @@
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <wordexp.h>
 
 extern char **environ;
 
-int set_nonblocking(
+static int set_nonblocking(
     int descriptor,
     const char *name,
     char *error,
@@ -82,7 +83,7 @@ void stop_child(pid_t process_identifier)
     }
 }
 
-int spawn_child(
+static int spawn_child(
     pid_t *process_identifier,
     const int output_pipe[2],
     const char *executable,
@@ -167,6 +168,103 @@ failed:
         );
         return -1;
     }
+    return 0;
+}
+
+int expand_words(
+    const char *value,
+    bool require_word,
+    const char *option,
+    wordexp_t *words,
+    char *error,
+    size_t error_size
+)
+{
+    int result;
+
+    if (value[0] == '\0') {
+        return 0;
+    }
+    result = wordexp(value, words, WRDE_NOCMD);
+    if (result == 0 && (!require_word || words->we_wordc > 0U)) {
+        return 0;
+    }
+    if (result == WRDE_NOSPACE || result == 0) {
+        wordfree(words);
+        *words = (wordexp_t) { 0 };
+    }
+    error_set(error, error_size, "could not parse %s", option);
+    return -1;
+}
+
+int validate_targets(
+    const char *const *targets,
+    size_t target_count,
+    char *error,
+    size_t error_size
+)
+{
+    size_t index;
+
+    for (index = 0U; index < target_count; index++) {
+        if (!target_is_valid(targets[index])) {
+            error_set(
+                error,
+                error_size,
+                "latency target '%s' is not a valid IP address or hostname",
+                targets[index] == NULL ? NULL_VALUE : targets[index]
+            );
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int start_child(
+    struct latency_child *child,
+    char *const arguments[],
+    const char *name,
+    char *error,
+    size_t error_size
+)
+{
+    int output_pipe[2];
+    pid_t process_identifier;
+
+    if (pipe2(output_pipe, O_CLOEXEC) != 0) {
+        error_set(
+            error,
+            error_size,
+            "could not create %s pipe: %s",
+            name,
+            strerror(errno)
+        );
+        return -1;
+    }
+    if (
+        spawn_child(
+            &process_identifier,
+            output_pipe,
+            arguments[0],
+            arguments,
+            name,
+            error,
+            error_size
+        ) != 0
+    ) {
+        (void)close(output_pipe[0]);
+        (void)close(output_pipe[1]);
+        return -1;
+    }
+    (void)close(output_pipe[1]);
+    if (set_nonblocking(output_pipe[0], name, error, error_size) != 0) {
+        (void)close(output_pipe[0]);
+        stop_child(process_identifier);
+        return -1;
+    }
+    child->output_descriptor = output_pipe[0];
+    child->process_identifier = process_identifier;
+    child->output_length = 0U;
     return 0;
 }
 
