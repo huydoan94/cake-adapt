@@ -25,8 +25,8 @@ BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 test_controller_OBJECTS := test_controller.o src/controller.o src/common/helpers.o
 test_latency_OBJECTS := test_latency.o src/latency.o src/common/error.o src/common/helpers.o
 test_log_OBJECTS := logging/test_log.o src/logging/log.o src/common/helpers_log.o
-test_traffic_OBJECTS := test_traffic.o src/traffic.o src/common/helpers.o
-test_cpu_OBJECTS := test_cpu.o src/cpu.o src/common/error.o src/common/helpers.o
+test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
+test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
 test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
 test_defaults_OBJECTS := config/test_defaults.o src/config/defaults.o
 
@@ -53,13 +53,13 @@ check-netlink: $(BINARY_DIR)/test_cake $(BINARY_DIR)/test_netlink
 	$(BINARY_DIR)/test_cake
 	$(BINARY_DIR)/test_netlink
 
-$(BINARY_DIR)/test_cake: test_cake.c $(SOURCE_DIR)/cake.c $(SOURCE_DIR)/cake.h $(SOURCE_DIR)/netlink.c $(SOURCE_DIR)/netlink.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_cake: test_cake.c $(SOURCE_DIR)/cake.c $(SOURCE_DIR)/cake.h $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cake.c $(SOURCE_DIR)/netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_cake.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
 
-$(BINARY_DIR)/test_netlink: test_netlink.c $(SOURCE_DIR)/netlink.c $(SOURCE_DIR)/netlink.h $(SOURCE_DIR)/common/helpers.h $(SOURCE_DIR)/common/error.c
+$(BINARY_DIR)/test_netlink: platform/test_netlink.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/helpers.h $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ test_netlink.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(NETLINK_LIBS)
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ platform/test_netlink.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(NETLINK_LIBS)
 
 .PHONY: all check clean
 

@@ -23,12 +23,12 @@ SOURCES := \
 	cake.c \
 	config/config.c \
 	controller.c \
-	cpu.c \
+	platform/cpu.c \
 	config/defaults.c \
 	latency.c \
 	logging/log.c \
-	netlink.c \
-	traffic.c \
+	platform/netlink.c \
+	platform/traffic.c \
 	common/error.c \
 	common/helpers.c
 OBJECT_DIR ?= ../build

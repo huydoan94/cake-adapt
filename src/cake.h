@@ -1,7 +1,7 @@
 #ifndef CAKE_H_INCLUDED
 #define CAKE_H_INCLUDED
 
-#include "netlink.h"
+#include "platform/netlink.h"
 
 #include <stdbool.h>
 #include <stddef.h>
