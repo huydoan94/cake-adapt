@@ -16,7 +16,7 @@ static void test_qdisc_message(void)
         .tcm_handle = 0x10000U
     };
     struct cake_observation observation = { 0 };
-    struct cake_dump_context context = {
+    struct cake_read_context context = {
         .interface_index = 7U,
         .observation = &observation
     };
@@ -83,7 +83,7 @@ static void test_invalid_optional_attributes(void)
     struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
     struct tcmsg tc = { .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT };
     struct cake_observation observation = { 0 };
-    struct cake_dump_context context = {
+    struct cake_read_context context = {
         .interface_index = 7U,
         .observation = &observation
     };
@@ -132,7 +132,7 @@ static void test_invalid_message(void)
     struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
     struct tcmsg tc = { .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT };
     struct cake_observation observation = { 0 };
-    struct cake_dump_context context = {
+    struct cake_read_context context = {
         .interface_index = 7U,
         .observation = &observation
     };
@@ -187,16 +187,26 @@ static void test_missing_interface(void)
     assert(cake_read(&netlink, interface, &observation, error, sizeof(error)) == CAKE_READ_ERROR);
     assert(strstr(error, "could not find interface") != NULL);
     assert(netlink.socket == NULL);
-    assert(cake_set_bandwidth(
-        &netlink,
-        interface,
-        &observation,
-        8000000U,
-        error,
-        sizeof(error)
-    ) == -1);
-    assert(strstr(error, "could not find interface") != NULL);
-    assert(netlink.socket == NULL);
+    assert(observation.interface_index == 0U);
+}
+
+/* Unprivileged qdisc dump against the host kernel's loopback, which has no CAKE. */
+static void test_missing_cake_clears_cached_interface(void)
+{
+    struct netlink netlink = { 0 };
+    struct cake_observation observation = {
+        .interface_index = (unsigned int)INT_MAX,
+        .has_mtu = true
+    };
+    char error[128] = "";
+
+    /* A stale index cannot match any qdisc, so the next read resolves the name. */
+    assert(cake_read(&netlink, "lo", &observation, error, sizeof(error)) == CAKE_READ_NOT_FOUND);
+    assert(observation.interface_index == 0U);
+    assert(!observation.has_mtu);
+    assert(cake_read(&netlink, "lo", &observation, error, sizeof(error)) == CAKE_READ_NOT_FOUND);
+    assert(observation.interface_index == 0U);
+    netlink_close(&netlink);
 }
 
 static void test_wire_packet_formula(void)
@@ -226,6 +236,7 @@ int main(void)
     test_invalid_message();
     test_short_queue_and_memory();
     test_missing_interface();
+    test_missing_cake_clears_cached_interface();
     test_wire_packet_formula();
     (void)puts("cake parser tests passed");
     return 0;
