@@ -28,7 +28,7 @@ test_log_OBJECTS := test_log.o src/log.o src/common/helpers_log.o
 test_traffic_OBJECTS := test_traffic.o src/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := test_cpu.o src/cpu.o src/common/error.o src/common/helpers.o
 test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
-test_defaults_OBJECTS := test_defaults.o src/defaults.o
+test_defaults_OBJECTS := config/test_defaults.o src/config/defaults.o
 
 OBJECTS := $(sort $(addprefix $(OBJECT_DIR)/,$(foreach target,$(TARGETS),$($(target)_OBJECTS))))
 
@@ -38,15 +38,15 @@ NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0)
 UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,defaults.c latency.c log.c common/error.c common/helpers.c)
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency.c log.c common/error.c common/helpers.c)
 
 .PHONY: check-config
 check-config: $(BINARY_DIR)/test_config
 	$(BINARY_DIR)/test_config
 
-$(BINARY_DIR)/test_config: test_config.c $(SOURCE_DIR)/config.c $(SOURCE_DIR)/config.h $(CONFIG_SOURCES)
+$(BINARY_DIR)/test_config: config/test_config.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(CONFIG_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ test_config.c $(CONFIG_SOURCES) $(LDLIBS) -lz
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/test_config.c $(CONFIG_SOURCES) $(LDLIBS) -lz
 
 .PHONY: check-netlink
 check-netlink: $(BINARY_DIR)/test_cake $(BINARY_DIR)/test_netlink

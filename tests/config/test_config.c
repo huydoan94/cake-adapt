@@ -1,4 +1,4 @@
-#include "../src/config.c"
+#include "config/config.c"
 
 #include <assert.h>
 

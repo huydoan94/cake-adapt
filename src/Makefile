@@ -21,10 +21,10 @@ SOURCES := \
 	main.c \
 	monitor.c \
 	cake.c \
-	config.c \
+	config/config.c \
 	controller.c \
 	cpu.c \
-	defaults.c \
+	config/defaults.c \
 	latency.c \
 	log.c \
 	netlink.c \

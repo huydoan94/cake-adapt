@@ -1,5 +1,5 @@
-#include "defaults.h"
-#include "config.h"
+#include "config/defaults.h"
+#include "config/config.h"
 #include "common/constants.h"
 
 #include <string.h>

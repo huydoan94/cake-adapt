@@ -1,8 +1,8 @@
 #define _GNU_SOURCE
 
-#include "config.h"
+#include "config/config.h"
 #include "common/constants.h"
-#include "defaults.h"
+#include "config/defaults.h"
 #include "common/error.h"
 #include "common/helpers.h"
 #include "latency.h"

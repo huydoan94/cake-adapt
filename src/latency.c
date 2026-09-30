@@ -3,7 +3,7 @@
 #include "latency.h"
 #include "common/error.h"
 #include "common/constants.h"
-#include "defaults.h"
+#include "config/defaults.h"
 #include "common/helpers.h"
 
 #include <errno.h>
