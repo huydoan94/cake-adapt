@@ -427,6 +427,23 @@ host tests, builds each architecture, and publishes packages as workflow
 artifacts. Tags beginning with `v` additionally publish the packages as GitHub
 release assets.
 
+## Source layout
+
+```text
+src/
+├── main.c, monitor.c   startup, shutdown, and uloop event orchestration
+├── common/             shared constants, generic helpers, error formatting
+├── config/             typed UCI loading, validation, and built-in defaults
+├── controller/         rate/congestion/activity policy and reflector selection
+├── latency/            pinger sessions, fping/IRTT backends, parsing, tracking
+├── cake/               CAKE discovery, state decoding, and bandwidth updates
+├── platform/           rtnetlink transport, traffic rates, CPU sampling
+└── logging/            syslog, structured records, rotation, export, reset
+```
+
+Headers are included relative to `src/`. The tests in `tests/` mirror the same
+directories; objects and test binaries are written below `build/`.
+
 ## Host tests
 
 The controller and most measurement logic can be tested without rebuilding an
@@ -437,11 +454,26 @@ make -C tests check check-netlink
 ```
 
 The host needs a C compiler, `zlib`, and development headers for libnl 3. The
-optional configuration test additionally needs native `libuci` and `libubox`
-development headers:
+optional configuration test additionally needs `libuci` and `libubox`
+development headers, but not the native libraries:
 
 ```sh
 make -C tests check-config
+```
+
+If the host lacks those headers, `UCI_CFLAGS` can point at a directory that
+exposes an OpenWrt SDK's staged `uci.h` and `libubox/` headers:
+
+```sh
+make -C tests check-config UCI_CFLAGS="-isystem /path/to/uci-headers"
+```
+
+A sanitizer run uses a separate object directory:
+
+```sh
+make -C tests check check-netlink OBJECT_DIR=../build/sanitize \
+    CFLAGS="-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer" \
+    LDFLAGS="-fsanitize=address,undefined -fno-sanitize-recover=all"
 ```
 
 The production daemon itself is built with strict warnings, including
@@ -464,6 +496,31 @@ Replacing CAKE itself is not a goal. CAKE remains the Linux kernel qdisc.
 Taking ownership of IFB creation, DSCP restoration, ingress redirection, and
 CAKE setup is a possible later phase and must not be confused with the current
 daemon behavior.
+
+## Development status and deferred work
+
+The current controller has completed the main parity/refactor sequence for
+directional latency tracking, stale-response handling, serialization
+compensation, reflector health and rotation, multi-child latency ownership,
+structured logging maintenance, and redundant-state cleanup. The source and
+tests are now split by subsystem without behavioral changes. Host tests,
+sanitizer runs, and the x86 SDK build pass; full VM validation must still be
+repeated when the VM is reachable.
+
+The remaining work is documented in [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md):
+
+1. Run sequential two-minute cake-autorate and cake-adapt comparisons under
+   equivalent conditions.
+2. If live conditions are too dynamic, replay an immutable upstream trace
+   through the controller boundary and compare every decision.
+3. Run the final end-to-end VM test for load, congestion, recovery, qdisc
+   lifecycle, logging, and shutdown.
+4. Refresh the flowcharts and repeat profiling, retaining raw profiler data,
+   flame graphs, and a separate conclusion.
+
+Additional pinger backends remain future work. `fping` is the supported
+production backend until another backend has its own parser, lifecycle tests,
+and runtime verification.
 
 ## License
 
