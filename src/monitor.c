@@ -5,6 +5,7 @@
 #include "common/constants.h"
 #include "cake/cake.h"
 #include "controller/controller.h"
+#include "controller/reflector.h"
 #include "platform/cpu.h"
 #include "common/error.h"
 #include "common/helpers.h"
