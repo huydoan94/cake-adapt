@@ -5,7 +5,7 @@
 #include "config/defaults.h"
 #include "common/error.h"
 #include "common/helpers.h"
-#include "latency.h"
+#include "latency/latency.h"
 
 #include <libubox/utils.h>
 

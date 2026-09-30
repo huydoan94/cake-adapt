@@ -25,7 +25,7 @@ SOURCES := \
 	controller/controller.c \
 	platform/cpu.c \
 	config/defaults.c \
-	latency.c \
+	latency/latency.c \
 	logging/log.c \
 	platform/netlink.c \
 	platform/traffic.c \
