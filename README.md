@@ -507,7 +507,7 @@ tests are now split by subsystem without behavioral changes. Host tests,
 sanitizer runs, and the x86 SDK build pass; full VM validation must still be
 repeated when the VM is reachable.
 
-The remaining work is documented in [`REFACTOR_PLAN.md`](REFACTOR_PLAN.md):
+The remaining work is:
 
 1. Run sequential two-minute cake-autorate and cake-adapt comparisons under
    equivalent conditions.

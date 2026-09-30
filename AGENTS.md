@@ -378,7 +378,7 @@ redundant-state cleanup. The subsystem split of `src/` and `tests/` is
 complete. Host tests, sanitizer runs, and the x86 SDK build pass. Runtime VM
 validation remains pending when the VM is unreachable.
 
-Remaining work is tracked in `REFACTOR_PLAN.md` and must remain behavior-first:
+Remaining work must remain behavior-first:
 
 - compare cake-autorate and cake-adapt in sequential two-minute runs, never
   concurrently controlling the same qdiscs;
