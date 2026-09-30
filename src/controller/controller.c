@@ -114,8 +114,6 @@ static int initialize_direction(
         sizeof(*direction->delayed_samples)
     );
     if (direction->delayed_samples == NULL) {
-        free(direction->delay_samples);
-        direction->delay_samples = NULL;
         return -1;
     }
     direction->state = CONTROLLER_LINE_UNKNOWN;
@@ -159,21 +157,15 @@ int controller_init(
             &controller->download,
             &config->download,
             config->bufferbloat_detection_window
-        ) != 0
-    ) {
-        return -1;
-    }
-    if (
+        ) != 0 ||
         initialize_direction(
             &controller->upload,
             &config->upload,
             config->bufferbloat_detection_window
         ) != 0
     ) {
-        free(controller->download.delay_samples);
-        free(controller->download.delayed_samples);
-        controller->download.delay_samples = NULL;
-        controller->download.delayed_samples = NULL;
+        /* The controller was zeroed above, so unallocated arrays are NULL. */
+        controller_close(controller);
         return -1;
     }
     return 0;
