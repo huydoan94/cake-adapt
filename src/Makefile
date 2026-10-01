@@ -6,6 +6,8 @@ LDFLAGS ?=
 LDLIBS ?=
 NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0 2>/dev/null))
 NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0 2>/dev/null)
+# The OpenWrt package passes PKG_VERSION-rPKG_RELEASE.
+VERSION ?= unknown
 
 WARNINGS := \
 	-Wall \
@@ -55,7 +57,7 @@ $(TARGET): $(OBJECTS)
 # Subsystem headers are included relative to this source root.
 $(OBJECT_DIR)/%.o: %.c
 	@mkdir -p $(@D)
-	$(CC) -I$(CURDIR) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
+	$(CC) -I$(CURDIR) -DPROGRAM_VERSION='"$(VERSION)"' $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 clean:
 	$(RM) $(TARGET) $(OBJECTS) $(DEPENDENCIES)

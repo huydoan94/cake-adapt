@@ -41,6 +41,10 @@
 #define PINGER_METHOD_FPING "fping"
 #define PINGER_METHOD_IRTT "irtt"
 #define PROGRAM_NAME "cake-adapt"
+/* Set by the build from the package version; other builds report "unknown". */
+#ifndef PROGRAM_VERSION
+#define PROGRAM_VERSION "unknown"
+#endif
 #define QDISC_KIND "cake"
 #define UCI_PACKAGE PROGRAM_NAME
 #define UCI_SECTION_TYPE "cake_adapt"
