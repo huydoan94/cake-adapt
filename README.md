@@ -80,8 +80,11 @@ differences are in integration and safety:
   of `tc`, and is read back from the kernel to verify the effective rate.
 - Reflectors come only from local configuration. Remote reflector-list
   retrieval is not implemented.
-- `fping` is the supported pinger. The IRTT backend exists but is not yet
-  supported for production use.
+- `fping` is the supported pinger. The `fping-ts` method (fping with ICMP
+  timestamps, giving separate download and upload delays) and the IRTT backend
+  are implemented as in cake-autorate but not yet verified for production use.
+  `fping-ts` accepts only IPv4 reflectors, because ICMP timestamps are IPv4
+  only; cake-autorate leaves fping to fail on IPv6 targets at runtime.
 - Configuration is typed UCI. A cake-autorate configuration file can be
   imported (see [Standalone shell configuration](#standalone-shell-configuration)),
   but it is validated like UCI and never sourced by the daemon.
@@ -584,8 +587,8 @@ The cake-autorate parity and refactor sequence is complete:
 Deferred work:
 
 - Additional pinger backends. `fping` is the supported production backend;
-  the IRTT backend needs its own controller fixtures and runtime verification
-  before it is supported.
+  `fping-ts` and the IRTT backend need their own fixtures and runtime
+  verification before they are supported.
 - Native SQM ownership (CAKE, IFB, `ctinfo` and `mirred` setup) remains a
   possible later phase. It requires an explicit decision and is not part of
   the current daemon.

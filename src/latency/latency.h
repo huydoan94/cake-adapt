@@ -14,6 +14,7 @@
 
 enum latency_backend {
     LATENCY_BACKEND_FPING,
+    LATENCY_BACKEND_FPING_TS,
     LATENCY_BACKEND_IRTT
 };
 
@@ -84,6 +85,7 @@ pid_t latency_child_process(const struct latency *latency, size_t child_index);
 /* True until every child stopped by latency_close() has been reaped. */
 bool latency_stopping(const struct latency *latency);
 
+/* One fping for all targets; icmp_timestamps selects fping-ts (ICMP type 13). */
 int latency_open(
     struct latency *latency,
     const char *interface,
@@ -92,6 +94,7 @@ int latency_open(
     uint64_t reflector_ping_interval_microseconds,
     const char *extra_arguments,
     const char *prefix,
+    bool icmp_timestamps,
     char *error,
     size_t error_size
 );

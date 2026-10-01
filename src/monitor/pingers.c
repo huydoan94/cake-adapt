@@ -91,6 +91,7 @@ static bool ensure_latency_open(
             config->reflector_ping_interval_microseconds,
             config->ping_extra_args,
             config->ping_prefix_string,
+            strcmp(config->pinger_method, PINGER_METHOD_FPING_TS) == 0,
             error,
             sizeof(error)
         );

@@ -39,6 +39,7 @@
 #define CLI_OPTIONS "C:LfS:Vh"
 #define IFB_PREFIX "ifb4"
 #define PINGER_METHOD_FPING "fping"
+#define PINGER_METHOD_FPING_TS "fping-ts"
 #define PINGER_METHOD_IRTT "irtt"
 #define PROGRAM_NAME "cake-adapt"
 /* Set by the build from the package version; other builds report "unknown". */
@@ -89,6 +90,7 @@
 /* fping command-line arguments and output grammar. */
 #define FPING_BYTES_SEPARATOR " bytes, "
 #define FPING_FIELD_SEPARATOR ", "
+#define FPING_ICMP_TIMESTAMP "--icmp-timestamp"
 #define FPING_INTERFACE_LONG "--iface"
 #define FPING_INTERFACE_LONG_PREFIX "--iface="
 #define FPING_INTERFACE_SHORT "-I"
@@ -101,6 +103,7 @@
 #define FPING_TIMEOUT "--timeout"
 #define FPING_TIMEOUT_SUFFIX ", timed out"
 #define FPING_TIMESTAMP "--timestamp"
+#define FPING_TIMESTAMPS_PREFIX " timestamps: "
 #define IRTT_CLIENT "client"
 #define IRTT_DURATION "-d"
 #define IRTT_INTERVAL "-i"

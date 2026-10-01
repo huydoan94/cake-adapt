@@ -123,11 +123,8 @@ static int validate_latency_config(
     ) {
         return 0;
     }
-    if (
-        strcmp(config->pinger_method, PINGER_METHOD_FPING) != 0 &&
-        strcmp(config->pinger_method, PINGER_METHOD_IRTT) != 0
-    ) {
-        error_set(error, error_size, "option 'pinger_method' must be 'fping' or 'irtt'");
+    if (latency_backend_executable(config->pinger_method) == NULL) {
+        error_set(error, error_size, "option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'");
         return -1;
     }
     if (
@@ -140,6 +137,22 @@ static int validate_latency_config(
     /* Loading bounds the reflector list; validation bounds no_pingers by it. */
     if (validate_reflectors(config, error, error_size) != 0) {
         return -1;
+    }
+    /* fping sends ICMP timestamp requests over IPv4 only. */
+    if (strcmp(config->pinger_method, PINGER_METHOD_FPING_TS) == 0) {
+        uint64_t index;
+
+        for (index = 0U; index < config->reflector_count; index++) {
+            if (strchr(config->reflectors[index], ':') != NULL) {
+                error_set(
+                    error,
+                    error_size,
+                    "pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6",
+                    config->reflectors[index]
+                );
+                return -1;
+            }
+        }
     }
     if (
         config->reflector_ping_interval_microseconds /
