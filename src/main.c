@@ -245,7 +245,8 @@ int main(int argc, char **argv)
     }
 
     log_system_message(
-        "Starting cake-adapt with PID: %ld, config: %s, section: %s",
+        "Starting cake-adapt %s with PID: %ld, config: %s, section: %s",
+        PROGRAM_VERSION,
         (long)getpid(),
         active_config,
         section_name

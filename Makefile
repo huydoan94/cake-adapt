@@ -35,7 +35,8 @@ define Build/Compile
 		LDFLAGS="$(TARGET_LDFLAGS)" \
 		NETLINK_CFLAGS="-isystem $(STAGING_DIR)/usr/include/libnl-tiny" \
 		NETLINK_LIBS="-lnl-tiny" \
-		OBJECT_DIR="$(PKG_BUILD_DIR)/build"
+		OBJECT_DIR="$(PKG_BUILD_DIR)/build" \
+		VERSION="$(PKG_VERSION)-r$(PKG_RELEASE)"
 endef
 
 define Package/cake-adapt/conffiles
