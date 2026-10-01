@@ -162,7 +162,8 @@ warning that `interface` was overridden.
 The OpenWrt package declares these runtime dependencies. The IRTT pinger
 backend (`pinger_method 'irtt'`), which is not yet supported for production use,
 additionally needs the `irtt` package; install it separately only if you select
-that backend.
+that backend. As in cake-autorate, an enabled instance refuses to start, with
+an error in syslog, when the selected pinger's executable is missing.
 
 ## Installation
 
