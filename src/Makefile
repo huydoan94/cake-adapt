@@ -24,6 +24,7 @@ SOURCES := \
 	common/helpers.c \
 	config/config.c \
 	config/defaults.c \
+	config/validate.c \
 	controller/controller.c \
 	controller/reflector.c \
 	latency/fping.c \

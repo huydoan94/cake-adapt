@@ -49,7 +49,7 @@ CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c
 check-config: $(BINARY_DIR)/test_config
 	$(BINARY_DIR)/test_config
 
-$(BINARY_DIR)/test_config: config/test_config.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(CONFIG_SOURCES)
+$(BINARY_DIR)/test_config: config/test_config.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/test_config.c $(CONFIG_SOURCES) $(LDLIBS) -lz
 
