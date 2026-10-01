@@ -158,10 +158,11 @@ warning that `interface` was overridden.
 - `libnl-tiny`
 - `zlib`
 - `bash`, for importing a cake-autorate configuration file
-- `irtt`, for the IRTT pinger backend, which is not yet supported for
-  production use
 
-The OpenWrt package declares these runtime dependencies.
+The OpenWrt package declares these runtime dependencies. The IRTT pinger
+backend (`pinger_method 'irtt'`), which is not yet supported for production use,
+additionally needs the `irtt` package; install it separately only if you select
+that backend.
 
 ## Installation
 
