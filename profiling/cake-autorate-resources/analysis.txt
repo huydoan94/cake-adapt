@@ -1,0 +1,58 @@
+
+=== defaults: rounds autorate=3 adapt=3 none=3
+phase | cgroup CPU % (autorate / adapt) | ratio | system busy % above baseline (autorate / adapt) | forks/s (autorate / adapt / none) | ctxt/s (autorate / adapt / none) | CAKE Mbit/s dl+ul (autorate / adapt)
+Startup (first 15 s) | 3.77 [3.41–4.30] / 0.91 [0.77–1.07] | 4.1x | 4.44 / 2.44 | 11.66 / 4.44 / 4.09 | 306 / 254 / 71 | 0.0 / 0.0
+Idle, pinging (40 s) | 2.60 [2.44–2.88] / 0.76 [0.74–0.79] | 3.4x | 3.17 / 2.48 | 4.98 / 3.72 / 3.41 | 265 / 247 / 68 | 0.0 / 0.0
+Download (45 s) | 4.42 [3.80–5.23] / 0.99 [0.96–1.04] | 4.5x | -39.58 / -44.88 | 6.53 / 3.61 / 3.27 | 940 / 988 / 2182 | 15.9 / 14.7
+Upload (45 s) | 6.01 [4.61–8.32] / 0.93 [0.76–1.18] | 6.5x | 10.09 / 8.53 | 6.80 / 3.72 / 3.31 | 3684 / 3793 / 3830 | 17.7 / 18.8
+Bidirectional (45 s) | 8.16 [7.80–8.77] / 1.67 [1.56–1.83] | 4.9x | 17.14 / 13.33 | 6.99 / 3.64 / 3.37 | 4448 / 4555 / 5852 | 43.8 / 42.3
+Idle sleep (30 s) | 0.33 [0.32–0.33] / 0.07 [0.07–0.07] | 4.6x | 0.07 / 0.06 | 4.51 / 3.43 / 3.45 | 94 / 89 / 68 | 0.0 / 0.0
+user/system split of cgroup CPU (autorate user, sys / adapt user, sys):
+  Startup (first 15 s): 0.69, 3.08 / 0.00, 0.91
+  Idle, pinging (40 s): 0.77, 1.84 / 0.06, 0.70
+  Download (45 s): 0.66, 3.76 / 0.02, 0.97
+  Upload (45 s): 0.02, 6.00 / 0.00, 0.93
+  Bidirectional (45 s): 0.36, 7.80 / 0.02, 1.65
+  Idle sleep (30 s): 0.10, 0.23 / 0.00, 0.07
+memory (mean private kB per phase from statm, max processes) autorate / adapt:
+  Startup (first 15 s): 2434 kB, 6 procs / 220 kB, 2 procs
+  Idle, pinging (40 s): 2452 kB, 6 procs / 232 kB, 2 procs
+  Download (45 s): 2477 kB, 6 procs / 249 kB, 2 procs
+  Upload (45 s): 2491 kB, 6 procs / 263 kB, 2 procs
+  Bidirectional (45 s): 2506 kB, 7 procs / 277 kB, 2 procs
+  Idle sleep (30 s): 2396 kB, 5 procs / 147 kB, 1 procs
+  peak private: 2540 / 304 kB; peak RSS: 9520 / 1928 kB; peak processes: 7 / 2
+time-weighted awake cgroup CPU: autorate 5.38% / adapt 1.10% (4.9x)
+
+=== stats: rounds autorate=1 adapt=1 none=0
+phase | cgroup CPU % (autorate / adapt) | ratio | system busy % above baseline (autorate / adapt) | forks/s (autorate / adapt / none) | ctxt/s (autorate / adapt / none) | CAKE Mbit/s dl+ul (autorate / adapt)
+Startup (first 15 s) | 6.07 [] / 1.12 [] | 5.4x | nan / nan | 13.52 / 4.39 / nan | 343 / 270 / nan | 0.0 / 0.0
+Idle, pinging (40 s) | 4.66 [] / 1.02 [] | 4.6x | nan / nan | 4.25 / 3.75 / nan | 295 / 247 / nan | 0.0 / 0.0
+Download (45 s) | 7.38 [] / 1.22 [] | 6.0x | nan / nan | 5.86 / 3.44 / nan | 934 / 729 / nan | 13.6 / 17.0
+Upload (45 s) | 11.07 [] / 0.96 [] | 11.6x | nan / nan | 6.49 / 3.42 / nan | 4659 / 2819 / nan | 23.8 / 14.0
+Bidirectional (45 s) | 13.22 [] / 1.66 [] | 7.9x | nan / nan | 6.42 / 3.50 / nan | 4052 / 3445 / nan | 36.7 / 34.0
+Idle sleep (30 s) | 0.50 [] / 0.09 [] | 5.6x | nan / nan | 4.20 / 3.36 / nan | 99 / 86 / nan | 0.0 / 0.0
+user/system split of cgroup CPU (autorate user, sys / adapt user, sys):
+  Startup (first 15 s): 3.64, 2.43 / 0.00, 1.12
+  Idle, pinging (40 s): 2.07, 2.59 / 0.05, 0.96
+  Download (45 s): 1.18, 6.20 / 0.00, 1.22
+  Upload (45 s): 0.00, 11.07 / 0.05, 0.91
+  Bidirectional (45 s): 0.00, 13.22 / 0.03, 1.63
+  Idle sleep (30 s): 0.10, 0.40 / 0.00, 0.09
+memory (mean private kB per phase from statm, max processes) autorate / adapt:
+  Startup (first 15 s): 2498 kB, 6 procs / 228 kB, 2 procs
+  Idle, pinging (40 s): 2508 kB, 6 procs / 240 kB, 2 procs
+  Download (45 s): 2531 kB, 6 procs / 257 kB, 2 procs
+  Upload (45 s): 2546 kB, 6 procs / 270 kB, 2 procs
+  Bidirectional (45 s): 2563 kB, 6 procs / 285 kB, 2 procs
+  Idle sleep (30 s): 2448 kB, 5 procs / 159 kB, 1 procs
+  peak private: 2588 / 308 kB; peak RSS: 9432 / 1876 kB; peak processes: 6 / 2
+time-weighted awake cgroup CPU: autorate 9.21% / adapt 1.22% (7.6x)
+reply->DATA latency autorate: n=4944 median=0.92 ms p90=3.42 p99=20.82 max=84.67
+reply->DATA latency adapt: n=4945 median=0.13 ms p90=0.52 p99=3.58 max=22.14
+
+=== per-process CPU (ticks of 10 ms; children reaped by a process are included in it)
+autorate idle (40 s): fping 33 ticks (0.82% CPU), controller 73 ticks (1.82% CPU)
+autorate bidirectional (45 s): fping 66 ticks (1.47% CPU), controller 344 ticks (7.64% CPU)
+adapt idle (40 s): fping 36 ticks (0.90% CPU), controller 5 ticks (0.12% CPU)
+adapt bidirectional (45 s): fping 59 ticks (1.31% CPU), controller 18 ticks (0.40% CPU)

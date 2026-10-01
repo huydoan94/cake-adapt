@@ -93,6 +93,8 @@ differences are in integration and safety:
   [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
 - [Controller comparison with cake-autorate](profiling/controller-comparison/README.md)
   — side-by-side VM runs and the replayed upstream traces.
+- [Resource use compared with cake-autorate](profiling/cake-autorate-resources/README.md)
+  — CPU, memory, processes and reaction time under the same workload.
 - [End-to-end run and profiling, 2026-09-30](profiling/2026-09-30/README.md)
   — the final VM run, CPU before and after the optimization pass, flame graphs,
   and raw `perf` data.
@@ -568,6 +570,10 @@ The cake-autorate parity and refactor sequence is complete:
 - After the optimization pass, bidirectional CPU use roughly halved and
   syscalls fell from 20,586 to 4,593 per 45 s. The daemon's own code is 4–9%
   of its sampled CPU time.
+- Against cake-autorate under the same workload, cake-adapt uses about a fifth
+  of the CPU including fping (1.10% against 5.38% of a core while awake), a
+  tenth of the memory, and reacts to a reply 7× faster at the median
+  ([comparison](profiling/cake-autorate-resources/README.md)).
 - Host tests, sanitizer runs, and the x86 SDK build pass.
 
 Deferred work:

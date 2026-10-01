@@ -1,0 +1,28 @@
+Thu Oct  1 02:49:18 GMT 2026
+pid 30367: /usr/sbin/cake-adapt -C /tmp/cake-adapt-config/main -S main 
+lrwx------    1 root     root            64 Oct  1 02:49 4 -> /tmp/log/cake-adapt.log
+ 3056 root      1212 S    ash -c date; for p in $(pidof cake-adapt fping tail); do echo "pid $p: $(tr "\0" " " < /proc/$p/cmdline)"
+ 3063 root      1212 R    ash -c date; for p in $(pidof cake-adapt fping tail); do echo "pid $p: $(tr "\0" " " < /proc/$p/cmdline)"
+30367 root      1196 S    /usr/sbin/cake-adapt -C /tmp/cake-adapt-config/main -S main
+6c84e4dd2db9ad1109967cc9530f497f  -
+-rw-r--r--    1 root     root       1283014 Oct  1 02:49 /var/log/cake-adapt.log
+-rw-r--r--    1 root     root       1762810 Oct  1 02:42 /var/log/cake-adapt.log.old
+
+/tmp/cake-adapt-config:
+drwx------    3 root     root            60 Oct  1 02:08 .
+drwxrwxrwt   18 root     root           480 Oct  1 02:08 ..
+drwx------    2 root     root            60 Oct  1 02:08 main
+qdisc cake 800d: root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 63104024 bytes 87236 pkt (dropped 109, overlimits 44152 requeues 0) 
+qdisc cake 800e: root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 134436804 bytes 135363 pkt (dropped 301, overlimits 160778 requeues 0) 
+36: ifb4eth1: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc cake state UNKNOWN mode DEFAULT group default qlen 32
+    link/ether 0e:9c:c5:7d:e5:b1 brd ff:ff:ff:ff:ff:ff promiscuity 0 allmulti 0 minmtu 0 maxmtu 0 
+3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc cake state UP mode DEFAULT group default qlen 1000
+default via 10.0.3.2 dev eth1 proto static src 10.0.3.15 
+10.0.3.0/24 dev eth1 proto kernel scope link src 10.0.3.15 
+192.168.56.0/24 dev br-lan proto kernel scope link src 192.168.56.2 
+              total        used        free      shared  buff/cache   available
+Mem:        1021528       35904      958208        4212       27416      935464
+Swap:             0           0           0
+model name	: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz

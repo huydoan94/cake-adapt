@@ -1,0 +1,6 @@
+start 19109 19103 cake-adapt 3
+start 19111 19109 fping 17
+idle 19109 19103 cake-adapt 8
+idle 19111 19109 fping 53
+bidirectional 19109 19103 cake-adapt 26
+bidirectional 19111 19109 fping 112
