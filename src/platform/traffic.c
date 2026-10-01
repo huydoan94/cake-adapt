@@ -44,12 +44,8 @@ void traffic_init(struct traffic_monitor *monitor)
 
 unsigned int traffic_interval_milliseconds(uint64_t interval_microseconds)
 {
-    uint64_t milliseconds =
-        interval_microseconds / MICROSECONDS_PER_MILLISECOND;
+    uint64_t milliseconds = milliseconds_rounded_up(interval_microseconds);
 
-    if (interval_microseconds % MICROSECONDS_PER_MILLISECOND != 0U) {
-        milliseconds++;
-    }
     return milliseconds > UINT_MAX ? UINT_MAX : (unsigned int)milliseconds;
 }
 

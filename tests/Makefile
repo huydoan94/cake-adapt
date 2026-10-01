@@ -62,9 +62,9 @@ $(BINARY_DIR)/test_cake: cake/test_cake.c $(SOURCE_DIR)/cake/cake.c $(SOURCE_DIR
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ cake/test_cake.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
 
-$(BINARY_DIR)/test_netlink: platform/test_netlink.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/helpers.h $(SOURCE_DIR)/common/error.c
+$(BINARY_DIR)/test_netlink: platform/test_netlink.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/helpers.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ platform/test_netlink.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(NETLINK_LIBS)
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ platform/test_netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
 
 .PHONY: all check clean
 

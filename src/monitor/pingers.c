@@ -577,11 +577,7 @@ static bool schedule_irtt_child_start(struct event_loop *loop)
     delay_microseconds = next_start_microseconds > timestamp_microseconds
         ? next_start_microseconds - timestamp_microseconds
         : 0U;
-    delay_milliseconds =
-        delay_microseconds / MICROSECONDS_PER_MILLISECOND;
-    if (delay_microseconds % MICROSECONDS_PER_MILLISECOND != 0U) {
-        delay_milliseconds++;
-    }
+    delay_milliseconds = milliseconds_rounded_up(delay_microseconds);
     if (delay_milliseconds > (uint64_t)INT_MAX) {
         delay_milliseconds = (uint64_t)INT_MAX;
     }

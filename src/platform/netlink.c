@@ -263,8 +263,8 @@ static int wait_for_response(
         result = poll(
             &descriptor,
             1U,
-            (int)((deadline_microseconds - now + MICROSECONDS_PER_MILLISECOND - 1U) /
-                MICROSECONDS_PER_MILLISECOND)
+            /* The remaining time is within NETLINK_RESPONSE_TIMEOUT_MILLISECONDS. */
+            (int)milliseconds_rounded_up(deadline_microseconds - now)
         );
     } while (result < 0 && errno == EINTR);
 
