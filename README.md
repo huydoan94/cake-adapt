@@ -157,6 +157,9 @@ warning that `interface` was overridden.
 - `libubox`
 - `libnl-tiny`
 - `zlib`
+- `bash`, for importing a cake-autorate configuration file
+- `irtt`, for the IRTT pinger backend, which is not yet supported for
+  production use
 
 The OpenWrt package declares these runtime dependencies.
 
@@ -453,7 +456,7 @@ OpenWrt 25.12 SDK's `package` directory and compile only this package:
 
 ```sh
 cd /path/to/openwrt-sdk
-git clone https://github.com/huydoan94/sqm-mon.git package/cake-adapt
+git clone https://github.com/huydoan94/cake-adapt.git package/cake-adapt
 make package/cake-adapt/compile V=s
 ```
 
