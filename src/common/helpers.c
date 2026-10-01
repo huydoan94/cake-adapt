@@ -172,6 +172,12 @@ uint64_t serialization_microseconds(
     return UINT64_MAX - whole < fractional ? UINT64_MAX : whole + fractional;
 }
 
+uint64_t milliseconds_rounded_up(uint64_t microseconds)
+{
+    return microseconds / MICROSECONDS_PER_MILLISECOND +
+        (microseconds % MICROSECONDS_PER_MILLISECOND != 0U ? 1U : 0U);
+}
+
 bool interval_elapsed(
     uint64_t current,
     uint64_t previous,

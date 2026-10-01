@@ -296,8 +296,7 @@ static void watch_log_maintenance(struct event_loop *loop)
         return;
     }
     log_timer_milliseconds =
-        (config->log_file_buffer_timeout_microseconds + MILLISECOND - 1U) /
-        MILLISECOND;
+        milliseconds_rounded_up(config->log_file_buffer_timeout_microseconds);
     /* Without a buffer timer, still wake up to rotate at the maximum age. */
     if (
         log_timer_milliseconds == 0U &&
