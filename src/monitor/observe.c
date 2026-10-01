@@ -297,6 +297,10 @@ void observe_traffic_cycle(
     const struct config *config
 )
 {
+    struct monitored_direction *const directions[] = {
+        &context->upload,
+        &context->download
+    };
     struct timespec traffic_timestamp;
     uint64_t timestamp_microseconds;
 
@@ -315,43 +319,39 @@ void observe_traffic_cycle(
         context->upload.traffic_valid = false;
         traffic_init(&context->download.traffic_monitor);
         traffic_init(&context->upload.traffic_monitor);
-    } else {
-        struct monitored_direction *const directions[] = {
-            &context->upload,
-            &context->download
-        };
-
-        timestamp_microseconds =
-            (uint64_t)traffic_timestamp.tv_sec * MICROSECONDS_PER_SECOND +
-            (uint64_t)traffic_timestamp.tv_nsec / NANOSECONDS_PER_MICROSECOND;
-        observe_cake(
-            &context->netlink,
-            directions,
-            timestamp_microseconds,
-            config->interface_up_check_interval_microseconds
-        );
-        if (context->traffic_clock_failed) {
-            log_message(
-                LOG_LEVEL_NOTICE,
-                "traffic observation recovered: monotonic clock available"
-            );
-            context->traffic_clock_failed = false;
-        }
-        update_serialization_compensation(context);
-        if (!context->traffic_cadence_initialized && wire_metadata_ready(context)) {
-            context->traffic_cadence_microseconds =
-                traffic_compensated_interval_microseconds(
-                    config->monitor_achieved_rates_interval_microseconds,
-                    cake_max_wire_packet_bits(&context->download.cake),
-                    config->base_download_rate_bits_per_second,
-                    cake_max_wire_packet_bits(&context->upload.cake),
-                    config->base_upload_rate_bits_per_second
-                );
-            context->traffic_cadence_initialized = true;
-        }
-        observe_traffic(&context->download, &traffic_timestamp);
-        observe_traffic(&context->upload, &traffic_timestamp);
+        return;
     }
+
+    timestamp_microseconds =
+        (uint64_t)traffic_timestamp.tv_sec * MICROSECONDS_PER_SECOND +
+        (uint64_t)traffic_timestamp.tv_nsec / NANOSECONDS_PER_MICROSECOND;
+    observe_cake(
+        &context->netlink,
+        directions,
+        timestamp_microseconds,
+        config->interface_up_check_interval_microseconds
+    );
+    if (context->traffic_clock_failed) {
+        log_message(
+            LOG_LEVEL_NOTICE,
+            "traffic observation recovered: monotonic clock available"
+        );
+        context->traffic_clock_failed = false;
+    }
+    update_serialization_compensation(context);
+    if (!context->traffic_cadence_initialized && wire_metadata_ready(context)) {
+        context->traffic_cadence_microseconds =
+            traffic_compensated_interval_microseconds(
+                config->monitor_achieved_rates_interval_microseconds,
+                cake_max_wire_packet_bits(&context->download.cake),
+                config->base_download_rate_bits_per_second,
+                cake_max_wire_packet_bits(&context->upload.cake),
+                config->base_upload_rate_bits_per_second
+            );
+        context->traffic_cadence_initialized = true;
+    }
+    observe_traffic(&context->download, &traffic_timestamp);
+    observe_traffic(&context->upload, &traffic_timestamp);
 
     if (
         config->output_load_stats &&

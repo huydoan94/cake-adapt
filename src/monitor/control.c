@@ -14,6 +14,28 @@
 
 #define LOAD_CONDITION_SIZE 16U
 
+/* Indexed by the controller's own enum values. */
+static const char *const line_state_names[] = {
+    [CONTROLLER_LINE_UNKNOWN] = STATE_UNKNOWN,
+    [CONTROLLER_LINE_BELOW_CAPACITY] = STATE_BELOW_CAPACITY,
+    [CONTROLLER_LINE_SATURATED] = STATE_SATURATED
+};
+
+static const char *const congestion_state_names[] = {
+    [CONTROLLER_CONGESTION_UNKNOWN] = STATE_UNKNOWN,
+    [CONTROLLER_CONGESTION_CLEAR] = STATE_CLEAR,
+    [CONTROLLER_CONGESTION_DETECTED] = STATE_DETECTED
+};
+
+static const char *const rate_reason_names[] = {
+    [CONTROLLER_RATE_UNCHANGED] = STATE_UNCHANGED,
+    [CONTROLLER_RATE_INITIAL] = STATE_INITIAL,
+    [CONTROLLER_RATE_CONGESTION] = STATE_CONGESTION,
+    [CONTROLLER_RATE_HIGH_LOAD] = STATE_HIGH_LOAD,
+    [CONTROLLER_RATE_RETURN_TO_BASE] = STATE_RETURN_TO_BASE,
+    [CONTROLLER_RATE_RECONCILE] = STATE_RECONCILE
+};
+
 void update_serialization_compensation(
     struct observation_context *context
 )
@@ -28,20 +50,6 @@ void update_serialization_compensation(
         context->controller.download.shaper_rate_bits_per_second,
         context->controller.upload.shaper_rate_bits_per_second
     );
-}
-
-static const char *line_state_name(enum controller_line_state state)
-{
-    switch (state) {
-    case CONTROLLER_LINE_UNKNOWN:
-        return STATE_UNKNOWN;
-    case CONTROLLER_LINE_BELOW_CAPACITY:
-        return STATE_BELOW_CAPACITY;
-    case CONTROLLER_LINE_SATURATED:
-        return STATE_SATURATED;
-    }
-
-    return STATE_INVALID;
 }
 
 static void log_line_state(
@@ -67,26 +75,10 @@ static void log_line_state(
         " traffic_rate=%" PRIu64 " bit/s"
         " cake_rate=%" PRIu64 " bit/s",
         direction,
-        line_state_name(state),
+        line_state_names[state],
         input->traffic_rate_bits_per_second,
         input->cake_rate_bits_per_second
     );
-}
-
-static const char *congestion_state_name(
-    enum controller_congestion_state state
-)
-{
-    switch (state) {
-    case CONTROLLER_CONGESTION_UNKNOWN:
-        return STATE_UNKNOWN;
-    case CONTROLLER_CONGESTION_CLEAR:
-        return STATE_CLEAR;
-    case CONTROLLER_CONGESTION_DETECTED:
-        return STATE_DETECTED;
-    }
-
-    return STATE_INVALID;
 }
 
 static void log_congestion_state(
@@ -123,31 +115,11 @@ static void log_congestion_state(
         " rtt=%" PRId64 " us baseline=%" PRId64 " us"
         " delta=%" PRId64 " us",
         direction,
-        congestion_state_name(state),
+        congestion_state_names[state],
         round_trip_microseconds,
         baseline_microseconds,
         delay_microseconds
     );
-}
-
-static const char *rate_reason_name(enum controller_rate_reason reason)
-{
-    switch (reason) {
-    case CONTROLLER_RATE_UNCHANGED:
-        return STATE_UNCHANGED;
-    case CONTROLLER_RATE_INITIAL:
-        return STATE_INITIAL;
-    case CONTROLLER_RATE_CONGESTION:
-        return STATE_CONGESTION;
-    case CONTROLLER_RATE_HIGH_LOAD:
-        return STATE_HIGH_LOAD;
-    case CONTROLLER_RATE_RETURN_TO_BASE:
-        return STATE_RETURN_TO_BASE;
-    case CONTROLLER_RATE_RECONCILE:
-        return STATE_RECONCILE;
-    }
-
-    return STATE_INVALID;
 }
 
 /*
@@ -200,15 +172,17 @@ static void load_condition(
 
 static void log_controller_stats(
     const struct config *config,
-    const struct controller_direction_config *download_effective,
-    const struct controller_direction_config *upload_effective,
-    uint64_t high_load_threshold_percent,
+    const struct controller *controller,
     const struct controller_input *input,
     const struct controller_output *output,
     const struct latency_observation *latency,
     const struct latency_sample *sample
 )
 {
+    /* Records report the serialization-compensated thresholds in effect. */
+    const struct controller_direction_config *download_effective = &controller->download.config;
+    const struct controller_direction_config *upload_effective = &controller->upload.config;
+    uint64_t high_load_threshold_percent = controller->config.high_load_threshold_percent;
     char download_condition[LOAD_CONDITION_SIZE];
     char upload_condition[LOAD_CONDITION_SIZE];
     uint64_t download_rate =
@@ -370,7 +344,7 @@ static void apply_bandwidth(
             direction->interface,
             direction->cake.bandwidth_bits_per_second,
             desired_rate,
-            rate_reason_name(reason),
+            rate_reason_names[reason],
             error
         );
         return;
@@ -516,9 +490,7 @@ void update_controller(
     update_serialization_compensation(context);
     log_controller_stats(
         config,
-        &context->controller.download.config,
-        &context->controller.upload.config,
-        context->controller.config.high_load_threshold_percent,
+        &context->controller,
         &input,
         &output,
         latency,

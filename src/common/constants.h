@@ -55,7 +55,6 @@
 #define STATE_IDLE "idle"
 #define STATE_IDLE_UPPER "IDLE"
 #define STATE_INITIAL "initial"
-#define STATE_INVALID "invalid"
 #define STATE_LOW "low"
 #define STATE_RECONCILE "reconcile"
 #define STATE_RETURN_TO_BASE "return-to-base"
