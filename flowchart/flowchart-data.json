@@ -1,3376 +1,2881 @@
-[
-  {
-    "id": "00-system-overview",
-    "title": "00 — System and ownership overview",
-    "refs": [
-      {
-        "ref": "files/cake-adapt.init",
-        "line": 1
-      },
-      {
-        "ref": "src/main.c",
-        "line": 1
-      },
-      {
-        "ref": "src/monitor.c",
-        "line": 1
-      },
-      {
-        "ref": "src/config.c",
-        "line": 1
-      },
-      {
-        "ref": "src/traffic.c",
-        "line": 1
-      },
-      {
-        "ref": "src/latency.c",
-        "line": 1
-      },
-      {
-        "ref": "src/controller.c",
-        "line": 1
-      },
-      {
-        "ref": "src/cake.c",
-        "line": 1
-      },
-      {
-        "ref": "src/netlink.c",
-        "line": 1
-      },
-      {
-        "ref": "src/log.c",
-        "line": 1
-      }
-    ],
-    "notes": [
-      "The daemon adapts CAKE instances that already exist. SQM still creates WAN/IFB, ingress redirect, and qdiscs.",
-      "The policy boundary is measurement → controller decision → desired CAKE state → verified kernel update.",
-      "Upload is the configured interface; download is derived as ifb4<interface>.",
-      "fping is the only supported pinger. Configuration comes from typed UCI, optionally followed by validated standalone overrides."
-    ],
-    "nodes": [
-      {
-        "id": "procd",
-        "label": "procd service lifecycle",
-        "kind": "external"
-      },
-      {
-        "id": "uci",
-        "label": "/etc/config/cake-adapt\nlibuci typed configuration\n+ optional standalone cake-adapt config",
-        "kind": "io"
-      },
-      {
-        "id": "main",
-        "label": "main.c\nstartup + shutdown",
-        "kind": "process"
-      },
-      {
-        "id": "monitor",
-        "label": "monitor.c\nuloop coordinator",
-        "kind": "process"
-      },
-      {
-        "id": "kernel",
-        "label": "Linux kernel\ninterfaces + CAKE qdiscs",
-        "kind": "external"
-      },
-      {
-        "id": "traffic",
-        "label": "traffic.c\nCAKE byte deltas → achieved rates",
-        "kind": "process"
-      },
-      {
-        "id": "fping",
-        "label": "fping child process\nmultiple local reflectors",
-        "kind": "external"
-      },
-      {
-        "id": "latency",
-        "label": "latency.c\nparse replies + per-reflector tracking",
-        "kind": "process"
-      },
-      {
-        "id": "controller",
-        "label": "controller.c\npure autorate/activity policy",
-        "kind": "process"
-      },
-      {
-        "id": "cake",
-        "label": "cake.c + netlink.c\ndiscover/read/set/verify CAKE",
-        "kind": "process"
-      },
-      {
-        "id": "logging",
-        "label": "log.c + cpu.c\ncompatible records + rotation",
-        "kind": "process"
-      },
-      {
-        "id": "result",
-        "label": "Running adaptive shaper\nor observation-only mode",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "procd",
-        "to": "main",
-        "label": "start/stop",
-        "style": ""
-      },
-      {
-        "from": "uci",
-        "to": "main",
-        "label": "load + validate",
-        "style": ""
-      },
-      {
-        "from": "main",
-        "to": "monitor",
-        "label": "monitor_run()",
-        "style": ""
-      },
-      {
-        "from": "kernel",
-        "to": "traffic",
-        "label": "CAKE counters",
-        "style": ""
-      },
-      {
-        "from": "monitor",
-        "to": "traffic",
-        "label": "periodic sample",
-        "style": ""
-      },
-      {
-        "from": "monitor",
-        "to": "fping",
-        "label": "spawn/stop",
-        "style": ""
-      },
-      {
-        "from": "fping",
-        "to": "latency",
-        "label": "timestamped RTT lines",
-        "style": ""
-      },
-      {
-        "from": "latency",
-        "to": "controller",
-        "label": "latency observation",
-        "style": ""
-      },
-      {
-        "from": "traffic",
-        "to": "controller",
-        "label": "rates + fresh sample IDs",
-        "style": ""
-      },
-      {
-        "from": "controller",
-        "to": "monitor",
-        "label": "desired DL/UL rates",
-        "style": ""
-      },
-      {
-        "from": "monitor",
-        "to": "cake",
-        "label": "apply when desired ≠ observed",
-        "style": ""
-      },
-      {
-        "from": "cake",
-        "to": "kernel",
-        "label": "rtnetlink SET + readback",
-        "style": ""
-      },
-      {
-        "from": "monitor",
-        "to": "logging",
-        "label": "DATA/LOAD/SUMMARY/SHAPER",
-        "style": ""
-      },
-      {
-        "from": "monitor",
-        "to": "result",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "kernel",
-        "to": "monitor",
-        "label": "RTM_NEWQDISC / RTM_DELQDISC",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "01-startup-config",
-    "title": "01 — Service, CLI, configuration, and startup",
-    "refs": [
-      {
-        "ref": "files/cake-adapt.init",
-        "line": 1
-      },
-      {
-        "ref": "src/main.c:main",
-        "line": 72
-      },
-      {
-        "ref": "src/config.c:config_load",
-        "line": 1880
-      },
-      {
-        "ref": "src/config.c:load_section",
-        "line": 1417
-      }
-    ],
-    "notes": [
-      "procd checks enabled before starting. If the daemon is invoked while disabled, it reports that state and exits successfully.",
-      "Precedence is built-in defaults < typed UCI < recognized values in the selected standalone cake-adapt shell file. The daemon never parses shell syntax.",
-      "ul_if and dl_if override interface only as a complete pair. enabled and config_file remain UCI-owned.",
-      "Adjustment is independently opt-in for download and upload. Invalid ranges or missing required values prevent control from starting.",
-      "Log-file setup happens after configuration so the configured path, rotation, export, and record selections can be honored."
-    ],
-    "nodes": [
-      {
-        "id": "start",
-        "label": "procd creates one daemon per named UCI section",
-        "kind": "start"
-      },
-      {
-        "id": "initcheck",
-        "label": "Instance enabled?",
-        "kind": "decision"
-      },
-      {
-        "id": "skip",
-        "label": "Do not launch daemon",
-        "kind": "end"
-      },
-      {
-        "id": "args",
-        "label": "Parse -C UCI directory and -S section",
-        "kind": "process"
-      },
-      {
-        "id": "loginit",
-        "label": "Initialize logging backend",
-        "kind": "process"
-      },
-      {
-        "id": "load",
-        "label": "config_load(): initialize defaults\nload typed scalar/list values through libuci",
-        "kind": "process"
-      },
-      {
-        "id": "selected",
-        "label": "config_file selected?",
-        "kind": "decision"
-      },
-      {
-        "id": "import",
-        "label": "Source standalone cake-adapt shell configuration\nwrite recognized values to temporary UCI",
-        "kind": "process"
-      },
-      {
-        "id": "interface",
-        "label": "Use ul_if and dl_if when both are set\notherwise derive download from interface",
-        "kind": "process"
-      },
-      {
-        "id": "validate",
-        "label": "Validate merged types, ranges, timers, pinger, reflectors",
-        "kind": "process"
-      },
-      {
-        "id": "ok",
-        "label": "Configuration valid?",
-        "kind": "decision"
-      },
-      {
-        "id": "fatal",
-        "label": "Log configuration failure; exit 1",
-        "kind": "error"
-      },
-      {
-        "id": "enabled",
-        "label": "config.enabled?",
-        "kind": "decision"
-      },
-      {
-        "id": "disabled",
-        "label": "Log disabled service; exit 0",
-        "kind": "end"
-      },
-      {
-        "id": "derive",
-        "label": "Use resolved upload and download interfaces",
-        "kind": "process"
-      },
-      {
-        "id": "file",
-        "label": "Open configured log file and write headers",
-        "kind": "process"
-      },
-      {
-        "id": "rng",
-        "label": "Randomization requested? seed with getentropy",
-        "kind": "process"
-      },
-      {
-        "id": "announce",
-        "label": "Log effective configuration and mode",
-        "kind": "process"
-      },
-      {
-        "id": "run",
-        "label": "monitor_run(config)",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "start",
-        "to": "initcheck",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "initcheck",
-        "to": "skip",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "initcheck",
-        "to": "args",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "args",
-        "to": "loginit",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "loginit",
-        "to": "load",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "load",
-        "to": "selected",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "selected",
-        "to": "import",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "selected",
-        "to": "validate",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "import",
-        "to": "interface",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "interface",
-        "to": "validate",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "validate",
-        "to": "ok",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ok",
-        "to": "fatal",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "ok",
-        "to": "enabled",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "enabled",
-        "to": "disabled",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "enabled",
-        "to": "derive",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "derive",
-        "to": "file",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "file",
-        "to": "rng",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "rng",
-        "to": "announce",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "announce",
-        "to": "run",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "02-monitor-initialization",
-    "title": "02 — Monitor initialization and uloop event topology",
-    "refs": [
-      {
-        "ref": "src/monitor.c:monitor_run",
-        "line": 1866
-      },
-      {
-        "ref": "src/monitor.c:handle_traffic_timer",
-        "line": 332
-      },
-      {
-        "ref": "src/monitor.c:handle_latency_output",
-        "line": 1180
-      },
-      {
-        "ref": "src/monitor.c:handle_qdisc_events",
-        "line": 1149
-      }
-    ],
-    "notes": [
-      "One controller direction is initialized for download and one for upload. Their desired rates begin at configured base rates.",
-      "A tracker exists for every configured reflector; health history exists for each active pinger slot.",
-      "Qdisc subscription occurs before initial discovery, preventing a lifecycle gap between discovery and event listening.",
-      "Traffic and health timers are required; optional CPU/log timers degrade with a warning if unavailable."
-    ],
-    "nodes": [
-      {
-        "id": "enter",
-        "label": "monitor_run(config)",
-        "kind": "start"
-      },
-      {
-        "id": "map",
-        "label": "Convert ms/s/scaled factors to integer internal units",
-        "kind": "process"
-      },
-      {
-        "id": "state",
-        "label": "Initialize DL/UL desired=base\ninitial_pending for enabled direction",
-        "kind": "process"
-      },
-      {
-        "id": "refs",
-        "label": "Allocate trackers and active health rings",
-        "kind": "process"
-      },
-      {
-        "id": "uloop",
-        "label": "uloop_init(); latency owns SIGCHLD reaping",
-        "kind": "process"
-      },
-      {
-        "id": "nl",
-        "label": "Open separate rtnetlink request and event sockets",
-        "kind": "process"
-      },
-      {
-        "id": "sub",
-        "label": "Subscribe qdisc multicast; register qdisc fd",
-        "kind": "process"
-      },
-      {
-        "id": "discover",
-        "label": "Initial CAKE observation on upload and download",
-        "kind": "process"
-      },
-      {
-        "id": "timers",
-        "label": "Register traffic timer + reflector health timer",
-        "kind": "process"
-      },
-      {
-        "id": "optional",
-        "label": "Register optional log flush/rotation and CPU timers",
-        "kind": "process"
-      },
-      {
-        "id": "signals",
-        "label": "Register SIGINT, SIGTERM, SIGUSR1, SIGUSR2",
-        "kind": "process"
-      },
-      {
-        "id": "first",
-        "label": "Take initial traffic observation / establish counters",
-        "kind": "process"
-      },
-      {
-        "id": "ping",
-        "label": "If both CAKE qdiscs available, start fping",
-        "kind": "process"
-      },
-      {
-        "id": "loop",
-        "label": "uloop_run()",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "enter",
-        "to": "map",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "map",
-        "to": "state",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "state",
-        "to": "refs",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "refs",
-        "to": "uloop",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "uloop",
-        "to": "nl",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "nl",
-        "to": "sub",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "sub",
-        "to": "discover",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "discover",
-        "to": "timers",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "timers",
-        "to": "optional",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "optional",
-        "to": "signals",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "signals",
-        "to": "first",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "first",
-        "to": "ping",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ping",
-        "to": "loop",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "loop",
-        "to": "first",
-        "label": "traffic timer",
-        "style": "dashed"
-      },
-      {
-        "from": "loop",
-        "to": "ping",
-        "label": "latency fd/retry",
-        "style": "dashed"
-      },
-      {
-        "from": "loop",
-        "to": "discover",
-        "label": "qdisc event/retry",
-        "style": "dashed"
-      }
-    ]
-  },
-  {
-    "id": "03-cake-and-traffic",
-    "title": "03 — CAKE readiness, traffic counters, and fresh-sample IDs",
-    "refs": [
-      {
-        "ref": "src/monitor.c:observe_cake",
-        "line": 223
-      },
-      {
-        "ref": "src/monitor.c:cake_ready",
-        "line": 334
-      },
-      {
-        "ref": "src/traffic.c:traffic_update",
-        "line": 11
-      },
-      {
-        "ref": "src/cake.c:cake_read",
-        "line": 236
-      }
-    ],
-    "notes": [
-      "A direction can be AVAILABLE, NOT_FOUND, or FAILED. NOT_FOUND waits for an RTM_NEWQDISC event; FAILED is retried on a bounded timer.",
-      "A usable achieved-rate sample requires a previous baseline, unchanged qdisc identity, nondecreasing counter, and positive elapsed time.",
-      "The baseline is advanced even for invalid samples so resets and qdisc replacements recover cleanly.",
-      "Only a computed RATES sample increments traffic_sample_id. The controller uses this ID to prevent repeated upward increases from one traffic sample."
-    ],
-    "nodes": [
-      {
-        "id": "tick",
-        "label": "Traffic timer / immediate lifecycle refresh",
-        "kind": "start"
-      },
-      {
-        "id": "due",
-        "label": "Observation due?",
-        "kind": "decision"
-      },
-      {
-        "id": "cached",
-        "label": "Keep state; mark this sample invalid",
-        "kind": "process"
-      },
-      {
-        "id": "dump",
-        "label": "cake_read(interface): RTM_GETQDISC dump",
-        "kind": "process"
-      },
-      {
-        "id": "found",
-        "label": "CAKE found?",
-        "kind": "decision"
-      },
-      {
-        "id": "avail",
-        "label": "Cache handle, parent, bytes, bandwidth\nstate=AVAILABLE; next observation now",
-        "kind": "process"
-      },
-      {
-        "id": "notfound",
-        "label": "state=NOT_FOUND\nnext retry=never; await qdisc event",
-        "kind": "process"
-      },
-      {
-        "id": "failed",
-        "label": "state=FAILED\nretry after configured/default delay",
-        "kind": "error"
-      },
-      {
-        "id": "ready",
-        "label": "Both directions AVAILABLE?",
-        "kind": "decision"
-      },
-      {
-        "id": "close",
-        "label": "Stop fping; skip activity/control",
-        "kind": "process"
-      },
-      {
-        "id": "sample",
-        "label": "traffic_update(current counter, time, identity)",
-        "kind": "process"
-      },
-      {
-        "id": "baseline",
-        "label": "Previous valid baseline and same qdisc identity?",
-        "kind": "decision"
-      },
-      {
-        "id": "delta",
-        "label": "counter increased and elapsed > 0?",
-        "kind": "decision"
-      },
-      {
-        "id": "invalid",
-        "label": "Advance baseline; output invalid sample",
-        "kind": "process"
-      },
-      {
-        "id": "rate",
-        "label": "rate bit/s = Δbytes × 8 × 1e6 / Δtime_us\nmark valid; increment sample ID",
-        "kind": "process"
-      },
-      {
-        "id": "activity",
-        "label": "Update RUNNING/IDLE/STALL; ensure fping",
-        "kind": "process"
-      },
-      {
-        "id": "log",
-        "label": "Optional LOAD record when both samples valid",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "tick",
-        "to": "due",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "due",
-        "to": "cached",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "due",
-        "to": "dump",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "dump",
-        "to": "found",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "found",
-        "to": "avail",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "found",
-        "to": "notfound",
-        "label": "no, clean absence",
-        "style": ""
-      },
-      {
-        "from": "found",
-        "to": "failed",
-        "label": "transport/decode error",
-        "style": ""
-      },
-      {
-        "from": "cached",
-        "to": "ready",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "avail",
-        "to": "ready",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "notfound",
-        "to": "ready",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "failed",
-        "to": "ready",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ready",
-        "to": "close",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "ready",
-        "to": "sample",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "sample",
-        "to": "baseline",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "baseline",
-        "to": "invalid",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "baseline",
-        "to": "delta",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "delta",
-        "to": "invalid",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "delta",
-        "to": "rate",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "invalid",
-        "to": "activity",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "rate",
-        "to": "activity",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "activity",
-        "to": "log",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "04-qdisc-lifecycle",
-    "title": "04 — Kernel qdisc lifecycle events",
-    "refs": [
-      {
-        "ref": "src/monitor.c:handle_qdisc_events",
-        "line": 1149
-      },
-      {
-        "ref": "src/monitor.c:process_qdisc_event",
-        "line": 1098
-      },
-      {
-        "ref": "src/netlink.c:netlink_subscribe_qdiscs",
-        "line": 112
-      }
-    ],
-    "notes": [
-      "Lifecycle is event-driven through RTM_NEWQDISC and RTM_DELQDISC; startup_wait_s is intentionally absent.",
-      "A NEW event for the currently cached handle is ignored because the daemon’s own bandwidth changes also emit NEWQDISC.",
-      "A disappearance stops latency probing immediately. Reappearance triggers an immediate CAKE/traffic refresh rather than waiting for the periodic timer."
-    ],
-    "nodes": [
-      {
-        "id": "event",
-        "label": "Netlink qdisc fd readable",
-        "kind": "start"
-      },
-      {
-        "id": "recv",
-        "label": "Receive bounded batch of qdisc events",
-        "kind": "process"
-      },
-      {
-        "id": "ok",
-        "label": "Receive/decode successful?",
-        "kind": "decision"
-      },
-      {
-        "id": "fatal",
-        "label": "Log netlink failure; end uloop",
-        "kind": "error"
-      },
-      {
-        "id": "match",
-        "label": "Map ifindex to configured upload/download",
-        "kind": "process"
-      },
-      {
-        "id": "type",
-        "label": "Event type?",
-        "kind": "decision"
-      },
-      {
-        "id": "delmatch",
-        "label": "DEL matches cached available handle?",
-        "kind": "decision"
-      },
-      {
-        "id": "clear",
-        "label": "Clear cached CAKE\nstate=NOT_FOUND; retry=never\nreset traffic baseline; stop fping",
-        "kind": "process"
-      },
-      {
-        "id": "newmatch",
-        "label": "NEW is same cached available handle?",
-        "kind": "decision"
-      },
-      {
-        "id": "ignore",
-        "label": "Ignore own/duplicate qdisc update",
-        "kind": "process"
-      },
-      {
-        "id": "invalidate",
-        "label": "Invalidate cached CAKE\nretry immediately; reset traffic baseline",
-        "kind": "process"
-      },
-      {
-        "id": "more",
-        "label": "More events in batch?",
-        "kind": "decision"
-      },
-      {
-        "id": "refresh",
-        "label": "If state changed, invoke traffic callback immediately",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "event",
-        "to": "recv",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "recv",
-        "to": "ok",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ok",
-        "to": "fatal",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "ok",
-        "to": "match",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "match",
-        "to": "type",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "type",
-        "to": "delmatch",
-        "label": "RTM_DELQDISC",
-        "style": ""
-      },
-      {
-        "from": "type",
-        "to": "newmatch",
-        "label": "RTM_NEWQDISC",
-        "style": ""
-      },
-      {
-        "from": "delmatch",
-        "to": "clear",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "delmatch",
-        "to": "more",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "newmatch",
-        "to": "ignore",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "newmatch",
-        "to": "invalidate",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "clear",
-        "to": "more",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ignore",
-        "to": "more",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "invalidate",
-        "to": "more",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "more",
-        "to": "match",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "more",
-        "to": "refresh",
-        "label": "no",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "05-fping-process",
-    "title": "05 — fping process ownership and reply parsing",
-    "refs": [
-      {
-        "ref": "src/latency.c:latency_open",
-        "line": 336
-      },
-      {
-        "ref": "src/latency.c:latency_receive",
-        "line": 896
-      },
-      {
-        "ref": "src/latency.c:stop_child",
-        "line": 213
-      },
-      {
-        "ref": "src/monitor.c:ensure_latency_open",
-        "line": 869
-      }
-    ],
-    "notes": [
-      "One owned fping child probes all currently active reflectors. Changing the active set restarts that child.",
-      "The pipe is nonblocking and integrated into uloop. Operations and shutdown are bounded; the daemon never waits forever for fping.",
-      "A timeout line is not a latency sample. It is consumed while reflector health detects missing responses by monotonic age.",
-      "Malformed/full lines, EOF, or read failure degrade probing, close the child, and schedule a retry; they do not kill the daemon."
-    ],
-    "nodes": [
-      {
-        "id": "need",
-        "label": "Both CAKE directions available, state not IDLE, retry due?",
-        "kind": "decision"
-      },
-      {
-        "id": "keep",
-        "label": "Existing owned child? keep it",
-        "kind": "end"
-      },
-      {
-        "id": "argv",
-        "label": "Build fping argv\n--timestamp --loop --period --interval --timeout\n-I <upload interface> + active reflectors",
-        "kind": "process"
-      },
-      {
-        "id": "pipe",
-        "label": "Create CLOEXEC nonblocking pipe",
-        "kind": "process"
-      },
-      {
-        "id": "spawn",
-        "label": "posix_spawnp fping in its own process group",
-        "kind": "process"
-      },
-      {
-        "id": "watch",
-        "label": "Register read fd in uloop",
-        "kind": "process"
-      },
-      {
-        "id": "read",
-        "label": "Pipe becomes readable",
-        "kind": "start"
-      },
-      {
-        "id": "line",
-        "label": "Extract one complete bounded line",
-        "kind": "process"
-      },
-      {
-        "id": "status",
-        "label": "Line type?",
-        "kind": "decision"
-      },
-      {
-        "id": "pending",
-        "label": "EAGAIN / partial line: wait for more",
-        "kind": "process"
-      },
-      {
-        "id": "timeout",
-        "label": "Timeout/unreachable: no controller sample",
-        "kind": "process"
-      },
-      {
-        "id": "parse",
-        "label": "Parse timestamp, target, sequence, RTT",
-        "kind": "process"
-      },
-      {
-        "id": "valid",
-        "label": "Target is active and values valid?",
-        "kind": "decision"
-      },
-      {
-        "id": "deliver",
-        "label": "Update tracker + response clocks\ninvoke controller",
-        "kind": "process"
-      },
-      {
-        "id": "bad",
-        "label": "Log degraded state; close/reap child\nschedule retry",
-        "kind": "error"
-      },
-      {
-        "id": "stop",
-        "label": "Close requested: SIGTERM process group\nwait 50×10 ms; SIGKILL if needed; reap",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "need",
-        "to": "keep",
-        "label": "no or already open",
-        "style": ""
-      },
-      {
-        "from": "need",
-        "to": "argv",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "argv",
-        "to": "pipe",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "pipe",
-        "to": "spawn",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "spawn",
-        "to": "watch",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "watch",
-        "to": "read",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "read",
-        "to": "line",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "line",
-        "to": "status",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "status",
-        "to": "pending",
-        "label": "partial/EAGAIN",
-        "style": ""
-      },
-      {
-        "from": "status",
-        "to": "timeout",
-        "label": "timeout",
-        "style": ""
-      },
-      {
-        "from": "status",
-        "to": "parse",
-        "label": "reply",
-        "style": ""
-      },
-      {
-        "from": "status",
-        "to": "bad",
-        "label": "overflow/EOF/error",
-        "style": ""
-      },
-      {
-        "from": "parse",
-        "to": "valid",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "valid",
-        "to": "deliver",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "valid",
-        "to": "bad",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "pending",
-        "to": "read",
-        "label": "later",
-        "style": "dashed"
-      },
-      {
-        "from": "timeout",
-        "to": "read",
-        "label": "next line",
-        "style": "dashed"
-      },
-      {
-        "from": "deliver",
-        "to": "read",
-        "label": "next line",
-        "style": "dashed"
-      },
-      {
-        "from": "watch",
-        "to": "stop",
-        "label": "shutdown/restart/IDLE",
-        "style": "dashed"
-      }
-    ]
-  },
-  {
-    "id": "06-latency-tracking",
-    "title": "06 — Per-reflector baseline and delay tracking",
-    "refs": [
-      {
-        "ref": "src/latency.c:tracker_update",
-        "line": 684
-      },
-      {
-        "ref": "src/monitor.c:receive_latency_samples",
-        "line": 959
-      },
-      {
-        "ref": "src/controller.c:controller_update",
-        "line": 598
-      }
-    ],
-    "notes": [
-      "RTT is converted to one-way delay as floor(RTT/2). This is an estimate, not a truly directional measurement.",
-      "Baseline EWMA follows decreases quickly (α=0.9) and increases slowly (α=0.001). Delta is current OWD minus the updated baseline.",
-      "Reflector delta EWMA (α=0.095) updates only when both upload and download are at or below the high-load threshold.",
-      "The same measured latency is supplied to download and upload policy; direction-specific congestion decisions differ through load and thresholds."
-    ],
-    "nodes": [
-      {
-        "id": "reply",
-        "label": "Valid fping reply: target, RTT, timestamp, sequence",
-        "kind": "start"
-      },
-      {
-        "id": "owd",
-        "label": "one_way_delay_us = floor(RTT_us / 2)",
-        "kind": "process"
-      },
-      {
-        "id": "first",
-        "label": "Tracker initialized?",
-        "kind": "decision"
-      },
-      {
-        "id": "seed",
-        "label": "Seed baseline=100 ms internal default\nthen apply EWMA update",
-        "kind": "process"
-      },
-      {
-        "id": "direction",
-        "label": "OWD <= baseline?",
-        "kind": "decision"
-      },
-      {
-        "id": "fall",
-        "label": "baseline += 0.9 × (OWD − baseline)",
-        "kind": "process"
-      },
-      {
-        "id": "rise",
-        "label": "baseline += 0.001 × (OWD − baseline)",
-        "kind": "process"
-      },
-      {
-        "id": "delta",
-        "label": "signed delta_us = OWD − updated baseline",
-        "kind": "process"
-      },
-      {
-        "id": "loads",
-        "label": "Both direction loads <= high-load threshold?",
-        "kind": "decision"
-      },
-      {
-        "id": "ewma",
-        "label": "delta_ewma += 0.095 × (delta − delta_ewma)",
-        "kind": "process"
-      },
-      {
-        "id": "retain",
-        "label": "Retain previous reflector delta EWMA",
-        "kind": "process"
-      },
-      {
-        "id": "health",
-        "label": "Update target response timestamp and slot health",
-        "kind": "process"
-      },
-      {
-        "id": "input",
-        "label": "Build controller input for DL and UL\nlatency current/baseline, rates, sample IDs",
-        "kind": "process"
-      },
-      {
-        "id": "controller",
-        "label": "controller_update()",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "reply",
-        "to": "owd",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "owd",
-        "to": "first",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "first",
-        "to": "seed",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "first",
-        "to": "direction",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "seed",
-        "to": "direction",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "direction",
-        "to": "fall",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "direction",
-        "to": "rise",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "fall",
-        "to": "delta",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "rise",
-        "to": "delta",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "delta",
-        "to": "loads",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "loads",
-        "to": "ewma",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "loads",
-        "to": "retain",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "ewma",
-        "to": "health",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "retain",
-        "to": "health",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "health",
-        "to": "input",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "input",
-        "to": "controller",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "07-controller-window",
-    "title": "07 — Delay window and congestion classification",
-    "refs": [
-      {
-        "ref": "src/controller.c:update_congestion",
-        "line": 253
-      },
-      {
-        "ref": "src/controller.c:update_line_state",
-        "line": 194
-      },
-      {
-        "ref": "src/controller.c:controller_update",
-        "line": 598
-      }
-    ],
-    "notes": [
-      "Each direction keeps a six-entry delay-delta window across reflector replies. Entries begin at zero and the average always divides by six.",
-      "A reply is delayed when its delta exceeds the direction delay threshold (default 30 ms). Congestion needs at least three delayed entries.",
-      "Diagnostic line saturation uses a separate 3-observation hysteresis: saturated at >=90% load; recovered at <=80%.",
-      "Rate high-load classification uses the configured high_load_thr (default 75%) relative to the previous desired rate."
-    ],
-    "nodes": [
-      {
-        "id": "input",
-        "label": "Direction input + valid latency",
-        "kind": "start"
-      },
-      {
-        "id": "delta",
-        "label": "delta_us = current_owd − baseline_owd",
-        "kind": "process"
-      },
-      {
-        "id": "push",
-        "label": "Push delta into circular window of 6",
-        "kind": "process"
-      },
-      {
-        "id": "stats",
-        "label": "average_delta = sum(window)/6\ndelayed_count = count(delta > delay_threshold)",
-        "kind": "process"
-      },
-      {
-        "id": "congestion",
-        "label": "delayed_count >= 3?",
-        "kind": "decision"
-      },
-      {
-        "id": "detected",
-        "label": "Congestion detected for this direction",
-        "kind": "process"
-      },
-      {
-        "id": "clear",
-        "label": "Delay congestion clear",
-        "kind": "process"
-      },
-      {
-        "id": "load",
-        "label": "load% = achieved_rate / previous_desired_rate × 100",
-        "kind": "process"
-      },
-      {
-        "id": "diag",
-        "label": "Diagnostic thresholds",
-        "kind": "decision"
-      },
-      {
-        "id": "sat",
-        "label": ">=90% for 3 observations → SATURATED",
-        "kind": "process"
-      },
-      {
-        "id": "recover",
-        "label": "<=80% for 3 observations → RECOVERED",
-        "kind": "process"
-      },
-      {
-        "id": "unknown",
-        "label": "Invalid load → UNKNOWN/reset run",
-        "kind": "process"
-      },
-      {
-        "id": "rateclass",
-        "label": "achieved_rate > high_load_thr × desired?",
-        "kind": "decision"
-      },
-      {
-        "id": "high",
-        "label": "Rate policy sees HIGH LOAD",
-        "kind": "process"
-      },
-      {
-        "id": "low",
-        "label": "Rate policy sees LOW LOAD",
-        "kind": "process"
-      },
-      {
-        "id": "next",
-        "label": "Proceed to exact rate decision",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "input",
-        "to": "delta",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "delta",
-        "to": "push",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "push",
-        "to": "stats",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "stats",
-        "to": "congestion",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "congestion",
-        "to": "detected",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "congestion",
-        "to": "clear",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "stats",
-        "to": "load",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "load",
-        "to": "diag",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "diag",
-        "to": "sat",
-        "label": ">=90%",
-        "style": ""
-      },
-      {
-        "from": "diag",
-        "to": "recover",
-        "label": "<=80%",
-        "style": ""
-      },
-      {
-        "from": "diag",
-        "to": "unknown",
-        "label": "invalid",
-        "style": ""
-      },
-      {
-        "from": "diag",
-        "to": "rateclass",
-        "label": "between",
-        "style": ""
-      },
-      {
-        "from": "sat",
-        "to": "rateclass",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "recover",
-        "to": "rateclass",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "unknown",
-        "to": "rateclass",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "rateclass",
-        "to": "high",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "rateclass",
-        "to": "low",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "detected",
-        "to": "next",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "clear",
-        "to": "next",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "high",
-        "to": "next",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "low",
-        "to": "next",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "08-exact-rate-decision",
-    "title": "08 — Exact per-direction rate decision order",
-    "refs": [
-      {
-        "ref": "src/controller.c:update_direction",
-        "line": 555
-      },
-      {
-        "ref": "src/controller.c:controller_update",
-        "line": 598
-      }
-    ],
-    "notes": [
-      "This order matters: congestion reduction can react on every qualifying latency reply, while upward growth requires a fresh traffic_sample_id.",
-      "A successful upward attempt records the decay clock even when max-rate clamping makes the effective rate unchanged.",
-      "Low-load decay moves the desired rate toward base by 1% no more than once per second and never crosses base.",
-      "All outcomes are clamped to min/max. Observation-only directions compute state but never request a kernel rate change."
-    ],
-    "nodes": [
-      {
-        "id": "begin",
-        "label": "For download, then upload",
-        "kind": "start"
-      },
-      {
-        "id": "enabled",
-        "label": "adjust_*_shaper_rate enabled?",
-        "kind": "decision"
-      },
-      {
-        "id": "observe",
-        "label": "Observation only; output not actionable",
-        "kind": "end"
-      },
-      {
-        "id": "initial",
-        "label": "initial_pending and input valid?",
-        "kind": "decision"
-      },
-      {
-        "id": "base",
-        "label": "Set desired=base\nreason=INITIAL; initialize clocks",
-        "kind": "process"
-      },
-      {
-        "id": "valid",
-        "label": "Direction sample and latency valid?",
-        "kind": "decision"
-      },
-      {
-        "id": "holdbad",
-        "label": "Hold current desired rate",
-        "kind": "process"
-      },
-      {
-        "id": "cong",
-        "label": "Congestion detected AND\nnow − last_congestion > 300 ms?",
-        "kind": "decision"
-      },
-      {
-        "id": "cut",
-        "label": "Apply congestion factor\nupdate congestion + decay clocks",
-        "kind": "process"
-      },
-      {
-        "id": "clearhigh",
-        "label": "Congestion clear AND high load?",
-        "kind": "decision"
-      },
-      {
-        "id": "fresh",
-        "label": "traffic_sample_id differs from consumed ID AND\ncongestion refractory period elapsed?",
-        "kind": "decision"
-      },
-      {
-        "id": "grow",
-        "label": "Consume sample ID\napply upward factor\nupdate decay clock",
-        "kind": "process"
-      },
-      {
-        "id": "decay",
-        "label": "Congestion clear, low load, rate != base AND\nnow − last_decay > 1 s?",
-        "kind": "decision"
-      },
-      {
-        "id": "toward",
-        "label": "Scale by 0.99 above base or 1.01 below base\ncap at base; update decay clock",
-        "kind": "process"
-      },
-      {
-        "id": "same",
-        "label": "Keep current desired rate",
-        "kind": "process"
-      },
-      {
-        "id": "clamp",
-        "label": "Clamp desired to [minimum, maximum]",
-        "kind": "process"
-      },
-      {
-        "id": "changed",
-        "label": "Desired differs from cached kernel CAKE rate?",
-        "kind": "decision"
-      },
-      {
-        "id": "action",
-        "label": "Output actionable rate change\n(or RECONCILE if policy itself held)",
-        "kind": "process"
-      },
-      {
-        "id": "none",
-        "label": "No kernel update for this direction",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "begin",
-        "to": "enabled",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "enabled",
-        "to": "observe",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "enabled",
-        "to": "initial",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "initial",
-        "to": "base",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "initial",
-        "to": "valid",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "valid",
-        "to": "holdbad",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "valid",
-        "to": "cong",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "cong",
-        "to": "cut",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "cong",
-        "to": "clearhigh",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "clearhigh",
-        "to": "fresh",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "clearhigh",
-        "to": "decay",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "fresh",
-        "to": "grow",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "fresh",
-        "to": "same",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "decay",
-        "to": "toward",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "decay",
-        "to": "same",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "base",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "holdbad",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "cut",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "grow",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "toward",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "same",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "clamp",
-        "to": "changed",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "changed",
-        "to": "action",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "changed",
-        "to": "none",
-        "label": "no",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "09-rate-math",
-    "title": "09 — Rate factors, thresholds, rounding, and bounds",
-    "refs": [
-      {
-        "ref": "src/controller.c:upward_factor",
-        "line": 372
-      },
-      {
-        "ref": "src/controller.c:downward_factor",
-        "line": 328
-      },
-      {
-        "ref": "src/controller.c:scale_rate",
-        "line": 21
-      }
-    ],
-    "notes": [
-      "A is the six-sample average OWD delta. U is adjust-up threshold, D is per-sample delay threshold, and L is maximum adjust-down threshold.",
-      "Configured floating factors are represented as integers to avoid floating-point policy drift. Rates are whole kbit/s.",
-      "Defaults are U=10 ms, D=30 ms, L=60 ms; maximum upward factor 1.04; maximum downward reduction 25%.",
-      "There is currently no fixed “achieved throughput minus 5 Mbps” reserve, learned-capacity estimate, or 170 Mbps target. Adding one is a new policy design."
-    ],
-    "nodes": [
-      {
-        "id": "input",
-        "label": "Current desired rate R (kbit/s)\nAverage delay A; thresholds U,D,L",
-        "kind": "start"
-      },
-      {
-        "id": "upregion",
-        "label": "Clear congestion + high load",
-        "kind": "process"
-      },
-      {
-        "id": "ux",
-        "label": "x = clamp((D − A)/(D − U), 0..1)\nquantized to thousandths",
-        "kind": "process"
-      },
-      {
-        "id": "uf",
-        "label": "up_factor = min_up + (max_up − min_up) × x\nA<=U gives ×1.04; A>=D gives ×1.00",
-        "kind": "process"
-      },
-      {
-        "id": "downregion",
-        "label": "Congestion detected",
-        "kind": "process"
-      },
-      {
-        "id": "dx",
-        "label": "x = clamp((A − D)/(L − D), 0..1)\nquantized to thousandths",
-        "kind": "process"
-      },
-      {
-        "id": "df",
-        "label": "down_factor = 0.99 − 0.24 × x\nA<=D gives ×0.99; A>=L gives ×0.75",
-        "kind": "process"
-      },
-      {
-        "id": "lowregion",
-        "label": "Clear congestion + low load + decay due",
-        "kind": "process"
-      },
-      {
-        "id": "low",
-        "label": "If R>base: scale ×0.99, floor at base\nIf R<base: scale ×1.01, cap at base",
-        "kind": "process"
-      },
-      {
-        "id": "scale",
-        "label": "scale_rate: checked integer multiply/divide\nwhole-kbit/s result with overflow guards",
-        "kind": "process"
-      },
-      {
-        "id": "bounds",
-        "label": "Clamp final rate to minimum <= R <= maximum",
-        "kind": "process"
-      },
-      {
-        "id": "output",
-        "label": "Desired CAKE bandwidth in kbit/s",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "input",
-        "to": "upregion",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "input",
-        "to": "downregion",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "input",
-        "to": "lowregion",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "upregion",
-        "to": "ux",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ux",
-        "to": "uf",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "uf",
-        "to": "scale",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "downregion",
-        "to": "dx",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "dx",
-        "to": "df",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "df",
-        "to": "scale",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "lowregion",
-        "to": "low",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "low",
-        "to": "bounds",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "scale",
-        "to": "bounds",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "bounds",
-        "to": "output",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "10-apply-and-verify",
-    "title": "10 — CAKE update, bounded netlink, and readback verification",
-    "refs": [
-      {
-        "ref": "src/monitor.c:apply_bandwidth",
-        "line": 661
-      },
-      {
-        "ref": "src/cake.c:cake_set_bandwidth",
-        "line": 270
-      },
-      {
-        "ref": "src/cake.c:cake_read",
-        "line": 236
-      },
-      {
-        "ref": "src/netlink.c:netlink_change_qdisc_option",
-        "line": 556
-      }
-    ],
-    "notes": [
-      "No tc process is spawned. The tc-like SHAPER log is explanatory; the actual operation is rtnetlink.",
-      "kbit/s is converted to CAKE’s bytes/s attribute with checked arithmetic. Existing qdisc handle and parent are preserved.",
-      "The request socket waits at most one second for ACK/replies; EINTR does not extend the deadline.",
-      "The cached effective rate changes only after a readback confirms the requested bandwidth. Failure is nonfatal and later replies can reconcile it."
-    ],
-    "nodes": [
-      {
-        "id": "change",
-        "label": "Controller output says rate change",
-        "kind": "start"
-      },
-      {
-        "id": "log",
-        "label": "If enabled, emit analyzer-compatible SHAPER record",
-        "kind": "process"
-      },
-      {
-        "id": "convert",
-        "label": "Validate positive kbit/s\nconvert kbit/s → bit/s → bytes/s",
-        "kind": "process"
-      },
-      {
-        "id": "msg",
-        "label": "Build RTM_NEWQDISC + NLM_F_ACK\nexisting ifindex, parent, handle, kind=cake\nTCA_CAKE_BASE_RATE64",
-        "kind": "process"
-      },
-      {
-        "id": "send",
-        "label": "Send on request netlink socket",
-        "kind": "process"
-      },
-      {
-        "id": "wait",
-        "label": "poll/read ACK with absolute 1 s deadline",
-        "kind": "process"
-      },
-      {
-        "id": "ack",
-        "label": "Kernel ACK successful?",
-        "kind": "decision"
-      },
-      {
-        "id": "fail",
-        "label": "Log warning; close failed request socket\nkeep desired rate for later reconcile",
-        "kind": "error"
-      },
-      {
-        "id": "read",
-        "label": "RTM_GETQDISC readback for same qdisc",
-        "kind": "process"
-      },
-      {
-        "id": "match",
-        "label": "Readback bandwidth equals requested value?",
-        "kind": "decision"
-      },
-      {
-        "id": "cache",
-        "label": "Update cached effective CAKE rate",
-        "kind": "process"
-      },
-      {
-        "id": "done",
-        "label": "Continue daemon",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "change",
-        "to": "log",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "log",
-        "to": "convert",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "convert",
-        "to": "msg",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "msg",
-        "to": "send",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "send",
-        "to": "wait",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "wait",
-        "to": "ack",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "ack",
-        "to": "fail",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "ack",
-        "to": "read",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "read",
-        "to": "match",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "match",
-        "to": "cache",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "match",
-        "to": "fail",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "cache",
-        "to": "done",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "fail",
-        "to": "done",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "11-activity-state",
-    "title": "11 — RUNNING, IDLE, STALL, and recovery state machine",
-    "refs": [
-      {
-        "ref": "src/monitor.c:update_monitor_state",
-        "line": 1306
-      },
-      {
-        "ref": "src/controller.c:activity_update",
-        "line": 664
-      },
-      {
-        "ref": "src/monitor.c:close_latency",
-        "line": 1055
-      },
-      {
-        "ref": "src/monitor.c:enforce_minimum_rates",
-        "line": 1237
-      }
-    ],
-    "notes": [
-      "Defaults: idle threshold 2 Mbit/s, idle duration 60 s, stall-load bypass 10 kbit/s, response timeout roughly 250 ms, global failure 10 s.",
-      "IDLE stops fping. It wakes when either valid traffic direction exceeds the idle threshold, resets response clocks, and grants two ping periods of grace.",
-      "STALL represents missing reflector replies while traffic is not clearly active. If both directions exceed the stall-load threshold, the daemon stays RUNNING.",
-      "After global response failure, enabled directions may be forced to minimum rate and fping is restarted no more often than every 10 seconds."
-    ],
-    "nodes": [
-      {
-        "id": "sample",
-        "label": "Traffic callback with both CAKE qdiscs available",
-        "kind": "start"
-      },
-      {
-        "id": "state",
-        "label": "Current activity state?",
-        "kind": "decision"
-      },
-      {
-        "id": "idlewake",
-        "label": "IDLE: either valid rate > 2 Mbit/s?",
-        "kind": "decision"
-      },
-      {
-        "id": "stayidle",
-        "label": "Remain IDLE; fping stays closed",
-        "kind": "process"
-      },
-      {
-        "id": "wake",
-        "label": "Set RUNNING; response clock=now\nhealth grace=2 ping periods; reset health",
-        "kind": "process"
-      },
-      {
-        "id": "grace",
-        "label": "RUNNING but still in wake grace?",
-        "kind": "decision"
-      },
-      {
-        "id": "age",
-        "label": "Age since last successful latency reply",
-        "kind": "process"
-      },
-      {
-        "id": "stale",
-        "label": "age > stall timeout?",
-        "kind": "decision"
-      },
-      {
-        "id": "loads",
-        "label": "Both rates > 10 kbit/s?",
-        "kind": "decision"
-      },
-      {
-        "id": "stall",
-        "label": "Enter/keep STALL",
-        "kind": "process"
-      },
-      {
-        "id": "running",
-        "label": "Set/keep RUNNING",
-        "kind": "process"
-      },
-      {
-        "id": "healthy",
-        "label": "Enough healthy replies and sleep enabled?",
-        "kind": "decision"
-      },
-      {
-        "id": "quiet",
-        "label": "Both rates <= 2 Mbit/s continuously for 60 s?",
-        "kind": "decision"
-      },
-      {
-        "id": "enteridle",
-        "label": "Enter IDLE; stop fping\noptionally enforce minimum rates",
-        "kind": "process"
-      },
-      {
-        "id": "global",
-        "label": "No successful response for >=10 s?",
-        "kind": "decision"
-      },
-      {
-        "id": "degrade",
-        "label": "Warn once; enforce minima if enabled\nrestart fping if last start >=10 s",
-        "kind": "process"
-      },
-      {
-        "id": "ensure",
-        "label": "Ensure fping open unless IDLE",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "sample",
-        "to": "state",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "state",
-        "to": "idlewake",
-        "label": "IDLE",
-        "style": ""
-      },
-      {
-        "from": "state",
-        "to": "grace",
-        "label": "RUNNING",
-        "style": ""
-      },
-      {
-        "from": "state",
-        "to": "age",
-        "label": "STALL",
-        "style": ""
-      },
-      {
-        "from": "idlewake",
-        "to": "stayidle",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "idlewake",
-        "to": "wake",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "wake",
-        "to": "grace",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "grace",
-        "to": "running",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "grace",
-        "to": "age",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "age",
-        "to": "stale",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "stale",
-        "to": "running",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "stale",
-        "to": "loads",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "loads",
-        "to": "running",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "loads",
-        "to": "stall",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "running",
-        "to": "healthy",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "stall",
-        "to": "global",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "healthy",
-        "to": "quiet",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "healthy",
-        "to": "global",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "quiet",
-        "to": "enteridle",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "quiet",
-        "to": "global",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "enteridle",
-        "to": "ensure",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "global",
-        "to": "degrade",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "global",
-        "to": "ensure",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "degrade",
-        "to": "ensure",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "stayidle",
-        "to": "ensure",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "12-reflector-health",
-    "title": "12 — Reflector health, comparison, and replacement",
-    "refs": [
-      {
-        "ref": "src/monitor.c:handle_reflector_health_timer",
-        "line": 1764
-      },
-      {
-        "ref": "src/monitor.c:replace_active_reflector",
-        "line": 1436
-      },
-      {
-        "ref": "src/monitor.c:run_scheduled_reflector_work",
-        "line": 1707
-      }
-    ],
-    "notes": [
-      "Health runs once per second only while RUNNING, both qdiscs are available, and wake grace has expired.",
-      "Scheduled randomization defaults to every 60 minutes. Statistical comparison defaults to every minute.",
-      "A reflector is comparatively poor when its doubled baseline exceeds the best by >20 ms or its delta EWMA exceeds the best by >10 ms.",
-      "Missing responses count as offenses after 1 second; three offenses in the 60-check ring mark a reflector misbehaving. At most one replacement occurs per health tick."
-    ],
-    "nodes": [
-      {
-        "id": "tick",
-        "label": "1 s reflector health timer",
-        "kind": "start"
-      },
-      {
-        "id": "eligible",
-        "label": "RUNNING + CAKE ready + grace expired?",
-        "kind": "decision"
-      },
-      {
-        "id": "return",
-        "label": "Return; rearm timer",
-        "kind": "end"
-      },
-      {
-        "id": "random",
-        "label": "Randomization interval due?",
-        "kind": "decision"
-      },
-      {
-        "id": "choose",
-        "label": "Choose random active slot and spare reflector",
-        "kind": "process"
-      },
-      {
-        "id": "compare",
-        "label": "Comparison interval due?",
-        "kind": "decision"
-      },
-      {
-        "id": "best",
-        "label": "Find best active baseline and delta EWMA",
-        "kind": "process"
-      },
-      {
-        "id": "poor",
-        "label": "Any active exceeds configured excess threshold?",
-        "kind": "decision"
-      },
-      {
-        "id": "health",
-        "label": "For each active slot: response age >1 s?\nrecord offense in 60-check ring",
-        "kind": "process"
-      },
-      {
-        "id": "bad",
-        "label": "Any slot has >=3 offenses?",
-        "kind": "decision"
-      },
-      {
-        "id": "spare",
-        "label": "Unused configured reflector available?",
-        "kind": "decision"
-      },
-      {
-        "id": "warn",
-        "label": "Warn; retain active reflector; reset health history",
-        "kind": "process"
-      },
-      {
-        "id": "swap",
-        "label": "Promote first spare into active slot\nmove old reflector to spare tail",
-        "kind": "process"
-      },
-      {
-        "id": "retain",
-        "label": "retain_reflector_stats?",
-        "kind": "decision"
-      },
-      {
-        "id": "reset",
-        "label": "Reset old tracker statistics",
-        "kind": "process"
-      },
-      {
-        "id": "child",
-        "label": "Reset slot health; stop shared fping child\nrestart with new active target set",
-        "kind": "process"
-      },
-      {
-        "id": "done",
-        "label": "Finish this health tick",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "tick",
-        "to": "eligible",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "eligible",
-        "to": "return",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "eligible",
-        "to": "random",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "random",
-        "to": "choose",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "random",
-        "to": "compare",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "choose",
-        "to": "spare",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "compare",
-        "to": "best",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "compare",
-        "to": "health",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "best",
-        "to": "poor",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "poor",
-        "to": "spare",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "poor",
-        "to": "health",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "health",
-        "to": "bad",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "bad",
-        "to": "return",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "bad",
-        "to": "spare",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "spare",
-        "to": "warn",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "spare",
-        "to": "swap",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "warn",
-        "to": "done",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "swap",
-        "to": "retain",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "retain",
-        "to": "reset",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "retain",
-        "to": "child",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "reset",
-        "to": "child",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "child",
-        "to": "done",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "13-logging-cpu-signals",
-    "title": "13 — Structured logging, CPU sampling, rotation, export, and reset",
-    "refs": [
-      {
-        "ref": "src/log.c",
-        "line": 1
-      },
-      {
-        "ref": "src/cpu.c",
-        "line": 1
-      },
-      {
-        "ref": "src/monitor.c:handle_log_export_signal",
-        "line": 1595
-      },
-      {
-        "ref": "src/monitor.c:handle_log_reset_signal",
-        "line": 1609
-      }
-    ],
-    "notes": [
-      "High-frequency record groups are optional. System messages still expose startup, shutdown, invalid config, missing qdisc/interface, fping/netlink failures, and degraded operation.",
-      "Rotation copies the live file to .old and truncates the live file in place, preserving inode continuity for tail -f.",
-      "SIGUSR1 exports old+live logs to a timestamped artifact (optionally gzip). SIGUSR2 truncates/reset files in place and rewrites headers.",
-      "CPU sampling is optional and occurs only in RUNNING. CPU-count changes reset its baseline and header; read failure warns and can recover."
-    ],
-    "nodes": [
-      {
-        "id": "events",
-        "label": "Monitor/controller/kernel events",
-        "kind": "start"
-      },
-      {
-        "id": "select",
-        "label": "Record enabled?",
-        "kind": "decision"
-      },
-      {
-        "id": "records",
-        "label": "Write compatible DATA / LOAD / REFLECTOR\nSUMMARY / SHAPER / CPU records",
-        "kind": "process"
-      },
-      {
-        "id": "message",
-        "label": "System message: apply severity\nnormal backend sends warnings/errors to syslog\ndebug syslog only when configured",
-        "kind": "process"
-      },
-      {
-        "id": "flush",
-        "label": "Periodic flush/rotation timer",
-        "kind": "process"
-      },
-      {
-        "id": "limit",
-        "label": "File age > max minutes OR size > max KiB?",
-        "kind": "decision"
-      },
-      {
-        "id": "rotate",
-        "label": "Copy live → .old\ntruncate live in place; rewrite headers",
-        "kind": "process"
-      },
-      {
-        "id": "usr1",
-        "label": "SIGUSR1?",
-        "kind": "decision"
-      },
-      {
-        "id": "export",
-        "label": "Export .old + live to timestamped file\noptionally gzip",
-        "kind": "process"
-      },
-      {
-        "id": "usr2",
-        "label": "SIGUSR2?",
-        "kind": "decision"
-      },
-      {
-        "id": "reset",
-        "label": "Truncate .old and live in place\nrewrite headers",
-        "kind": "process"
-      },
-      {
-        "id": "cpu",
-        "label": "CPU timer while RUNNING",
-        "kind": "process"
-      },
-      {
-        "id": "proc",
-        "label": "Read /proc/stat; compute usage deltas",
-        "kind": "process"
-      },
-      {
-        "id": "out",
-        "label": "Continue uloop",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "events",
-        "to": "select",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "select",
-        "to": "records",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "select",
-        "to": "message",
-        "label": "system/error",
-        "style": ""
-      },
-      {
-        "from": "select",
-        "to": "out",
-        "label": "disabled",
-        "style": ""
-      },
-      {
-        "from": "records",
-        "to": "out",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "message",
-        "to": "out",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "flush",
-        "to": "limit",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "limit",
-        "to": "rotate",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "limit",
-        "to": "out",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "rotate",
-        "to": "out",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "usr1",
-        "to": "export",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "export",
-        "to": "out",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "usr2",
-        "to": "reset",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "reset",
-        "to": "out",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "cpu",
-        "to": "proc",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "proc",
-        "to": "records",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "14-shutdown-and-failure",
-    "title": "14 — Shutdown, failure severity, and cleanup ownership",
-    "refs": [
-      {
-        "ref": "src/main.c:main",
-        "line": 72
-      },
-      {
-        "ref": "src/monitor.c:monitor_run",
-        "line": 1866
-      },
-      {
-        "ref": "src/latency.c:latency_close",
-        "line": 645
-      },
-      {
-        "ref": "src/netlink.c",
-        "line": 1
-      }
-    ],
-    "notes": [
-      "SIGINT/SIGTERM is an orderly success path. A fatal uloop/netlink state returns failure only when continuing would be incorrect.",
-      "One optional measurement failure does not terminate the daemon. Available directions continue and degraded state is reported.",
-      "Shutdown does not delete SQM-created interfaces/qdiscs and does not restore previous CAKE rates; ownership remains with the existing SQM setup."
-    ],
-    "nodes": [
-      {
-        "id": "event",
-        "label": "Termination condition",
-        "kind": "start"
-      },
-      {
-        "id": "kind",
-        "label": "Cause?",
-        "kind": "decision"
-      },
-      {
-        "id": "signal",
-        "label": "SIGINT/SIGTERM: set success result; end uloop",
-        "kind": "process"
-      },
-      {
-        "id": "fatal",
-        "label": "Fatal event-loop/netlink condition: set failure; end uloop",
-        "kind": "error"
-      },
-      {
-        "id": "degraded",
-        "label": "Optional CPU/log/measurement failure",
-        "kind": "process"
-      },
-      {
-        "id": "continue",
-        "label": "Warn and continue with available capability",
-        "kind": "end"
-      },
-      {
-        "id": "fping",
-        "label": "Unregister fd; close pipe\nterminate/reap owned fping process group",
-        "kind": "process"
-      },
-      {
-        "id": "timers",
-        "label": "Cancel uloop timers and signal handlers",
-        "kind": "process"
-      },
-      {
-        "id": "fds",
-        "label": "Close qdisc event and request netlink sockets",
-        "kind": "process"
-      },
-      {
-        "id": "state",
-        "label": "Free reflector health, trackers, controller state",
-        "kind": "process"
-      },
-      {
-        "id": "log",
-        "label": "Flush/close structured log; log service stop",
-        "kind": "process"
-      },
-      {
-        "id": "exit",
-        "label": "main exits 0 for orderly stop, 1 for fatal failure",
-        "kind": "end"
-      }
-    ],
-    "edges": [
-      {
-        "from": "event",
-        "to": "kind",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "kind",
-        "to": "signal",
-        "label": "termination signal",
-        "style": ""
-      },
-      {
-        "from": "kind",
-        "to": "fatal",
-        "label": "fatal",
-        "style": ""
-      },
-      {
-        "from": "kind",
-        "to": "degraded",
-        "label": "optional failure",
-        "style": ""
-      },
-      {
-        "from": "degraded",
-        "to": "continue",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "signal",
-        "to": "fping",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "fatal",
-        "to": "fping",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "fping",
-        "to": "timers",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "timers",
-        "to": "fds",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "fds",
-        "to": "state",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "state",
-        "to": "log",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "log",
-        "to": "exit",
-        "label": "",
-        "style": ""
-      }
-    ]
-  },
-  {
-    "id": "15-worked-200mbps",
-    "title": "15 — Worked example: why a 200 Mbps shaper currently stays at 200",
-    "refs": [
-      {
-        "ref": "src/controller.c:update_direction",
-        "line": 555
-      },
-      {
-        "ref": "src/controller.c:upward_factor",
-        "line": 372
-      },
-      {
-        "ref": "src/controller.c:scale_rate",
-        "line": 21
-      }
-    ],
-    "notes": [
-      "This follows the current code and the supplied beta log example: achieved ≈153.199 Mbit/s, desired=200 Mbit/s, average delay ≈13.608 ms, no delayed samples.",
-      "153.199/200 ≈76.6%, above default high_load_thr=75%. Delay is clear because delayed_count=0 (<3).",
-      "A fresh sample permits an upward factor near 1.032, but the result is clamped to max=200 Mbit/s. The shaper therefore remains at 200.",
-      "The controller does not infer a 175 Mbit/s capacity and subtract 5 Mbit/s. Doing that directly from each achieved sample would risk repeated downward ratcheting."
-    ],
-    "nodes": [
-      {
-        "id": "input",
-        "label": "Observed example\nR=200,000 kbit/s; achieved=153,199 kbit/s\nA=13.608 ms; U=10, D=30; delayed_count=0",
-        "kind": "start"
-      },
-      {
-        "id": "load",
-        "label": "load = floor(153199/200000 × 100) ≈76%",
-        "kind": "process"
-      },
-      {
-        "id": "high",
-        "label": "76% > 75% → HIGH LOAD",
-        "kind": "process"
-      },
-      {
-        "id": "cong",
-        "label": "delayed_count >= 3?",
-        "kind": "decision"
-      },
-      {
-        "id": "clear",
-        "label": "No → congestion clear",
-        "kind": "process"
-      },
-      {
-        "id": "fresh",
-        "label": "Fresh traffic sample and refractory elapsed?",
-        "kind": "decision"
-      },
-      {
-        "id": "hold",
-        "label": "Hold 200,000 kbit/s",
-        "kind": "process"
-      },
-      {
-        "id": "factor",
-        "label": "x=(30−13.608)/(30−10)≈0.819\nup factor ≈1 + 0.04×0.819 ≈1.03276",
-        "kind": "process"
-      },
-      {
-        "id": "scaled",
-        "label": "scaled desired ≈206,552 kbit/s",
-        "kind": "process"
-      },
-      {
-        "id": "clamp",
-        "label": "Clamp to configured max=200,000 kbit/s",
-        "kind": "process"
-      },
-      {
-        "id": "compare",
-        "label": "Desired equals observed kernel rate",
-        "kind": "process"
-      },
-      {
-        "id": "result",
-        "label": "No CAKE update; remains 200 Mbps",
-        "kind": "end"
-      },
-      {
-        "id": "missing",
-        "label": "NOT IN CURRENT POLICY\ncapacity learning / fixed 5 Mbps reserve\n/ automatic 170 Mbps ceiling",
-        "kind": "note"
-      }
-    ],
-    "edges": [
-      {
-        "from": "input",
-        "to": "load",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "load",
-        "to": "high",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "high",
-        "to": "cong",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "cong",
-        "to": "clear",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "clear",
-        "to": "fresh",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "fresh",
-        "to": "hold",
-        "label": "no",
-        "style": ""
-      },
-      {
-        "from": "fresh",
-        "to": "factor",
-        "label": "yes",
-        "style": ""
-      },
-      {
-        "from": "factor",
-        "to": "scaled",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "scaled",
-        "to": "clamp",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "hold",
-        "to": "compare",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "clamp",
-        "to": "compare",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "compare",
-        "to": "result",
-        "label": "",
-        "style": ""
-      },
-      {
-        "from": "missing",
-        "to": "result",
-        "label": "would require a new design",
-        "style": "dashed"
-      }
-    ]
-  }
-]
+{
+  "title": "cake-adapt: current code flowcharts",
+  "description": "Code-backed flowcharts for startup, kernel lifecycle, measurements, latency, controller decisions, CAKE updates, activity states, reflector health, logging, and shutdown.",
+  "boundary": "Current ownership boundary: the daemon observes and adjusts CAKE qdiscs that SQM already created. It does not create or remove CAKE, IFB, ctinfo, or mirred plumbing.",
+  "charts": [
+    {
+      "id": "00-system-overview",
+      "title": "00 — System and ownership overview",
+      "refs": [
+        "files/cake-adapt.init:start_service",
+        "src/main.c:main",
+        "src/monitor/monitor.c:monitor_run",
+        "src/monitor/pingers.c:process_latency_line",
+        "src/monitor/control.c:update_controller",
+        "src/cake/cake.c:cake_set_bandwidth"
+      ],
+      "notes": [
+        "The pipeline is measurement → controller decision → desired CAKE state → verified kernel update. Each stage lives in its own subsystem directory under src/.",
+        "The upload direction is the configured interface; download is ifb4<interface>, truncated to the kernel interface-name limit. A complete ul_if/dl_if pair overrides both.",
+        "fping is the default pinger. irtt is also implemented as a per-reflector child process.",
+        "Every reflector reply runs the controller once, as in cake-autorate. The traffic timer only refreshes CAKE counters, achieved rates and activity state."
+      ],
+      "nodes": [
+        {
+          "id": "procd",
+          "label": "procd\n/etc/init.d/cake-adapt",
+          "kind": "external"
+        },
+        {
+          "id": "uci",
+          "label": "/etc/config/cake-adapt (UCI)\n+ optional cake-autorate config_file import",
+          "kind": "io"
+        },
+        {
+          "id": "main",
+          "label": "main.c\nCLI, config_load, logging setup",
+          "kind": "process"
+        },
+        {
+          "id": "loop",
+          "label": "monitor/\nuloop timers, fds, child processes, signals",
+          "kind": "process"
+        },
+        {
+          "id": "pinger",
+          "label": "fping (or irtt) children",
+          "kind": "external"
+        },
+        {
+          "id": "latency",
+          "label": "latency/\nparse replies, per-reflector OWD baseline and delta",
+          "kind": "process"
+        },
+        {
+          "id": "observe",
+          "label": "cake/ + platform/traffic\none qdisc dump per tick → achieved rates",
+          "kind": "process"
+        },
+        {
+          "id": "controller",
+          "label": "controller/\ndelay window, congestion, rate decision,\nactivity state, reflector health",
+          "kind": "process"
+        },
+        {
+          "id": "apply",
+          "label": "cake_set_bandwidth\n+ readback verification",
+          "kind": "process"
+        },
+        {
+          "id": "kernel",
+          "label": "Kernel CAKE qdiscs\nroot of <ul_if> and ifb4<if>\n(created by SQM)",
+          "kind": "external"
+        },
+        {
+          "id": "log",
+          "label": "logging/log.c\nsyslog + cake-autorate-compatible records",
+          "kind": "io"
+        }
+      ],
+      "edges": [
+        {
+          "from": "procd",
+          "to": "main",
+          "label": "one instance per enabled section\n-C runtime dir -S section",
+          "style": ""
+        },
+        {
+          "from": "uci",
+          "to": "main",
+          "label": "validated with -V before spawn",
+          "style": "dashed"
+        },
+        {
+          "from": "main",
+          "to": "loop",
+          "label": "monitor_run()",
+          "style": ""
+        },
+        {
+          "from": "pinger",
+          "to": "latency",
+          "label": "stdout lines (ustream)",
+          "style": ""
+        },
+        {
+          "from": "latency",
+          "to": "loop",
+          "label": "OWD deltas",
+          "style": ""
+        },
+        {
+          "from": "kernel",
+          "to": "observe",
+          "label": "RTM_GETQDISC dump",
+          "style": ""
+        },
+        {
+          "from": "observe",
+          "to": "loop",
+          "label": "achieved rates, CAKE bandwidth",
+          "style": ""
+        },
+        {
+          "from": "kernel",
+          "to": "loop",
+          "label": "RTM_NEWQDISC / RTM_DELQDISC",
+          "style": "dashed"
+        },
+        {
+          "from": "loop",
+          "to": "controller",
+          "label": "controller_input",
+          "style": ""
+        },
+        {
+          "from": "controller",
+          "to": "apply",
+          "label": "rate_changed",
+          "style": ""
+        },
+        {
+          "from": "apply",
+          "to": "kernel",
+          "label": "TCA_CAKE_BASE_RATE64",
+          "style": ""
+        },
+        {
+          "from": "loop",
+          "to": "log",
+          "label": "",
+          "style": "dashed"
+        }
+      ]
+    },
+    {
+      "id": "01-startup-config",
+      "title": "01 — Service, CLI, configuration, and startup",
+      "refs": [
+        "files/cake-adapt.init:start_service",
+        "files/cake-adapt.init:start_instance",
+        "files/cake-adapt.init:generate_runtime_config",
+        "src/main.c:main",
+        "src/config/config.c:config_load",
+        "src/config/config.c:resolve_interfaces",
+        "src/config/validate.c:config_validate"
+      ],
+      "notes": [
+        "The init script generates a private runtime copy for each instance under /tmp/cake-adapt-config/<section>. It validates that copy with the daemon itself (-V) before procd sees the instance.",
+        "config_file names a cake-autorate-format Bash file. The importer sources it only in a child process and writes the recognized options into the staged UCI copy.",
+        "config_load applies built-in defaults first, then reads the typed UCI options, resolves the interface pair, and runs config_validate.",
+        "A disabled configuration is reported to syslog and exits successfully. An invalid configuration is reported and exits with status 1.",
+        "Rate control stays opt-in. With both adjust flags off, the daemon runs in observation-only mode."
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "service start / reload",
+          "kind": "start"
+        },
+        {
+          "id": "load",
+          "label": "config_load 'cake-adapt'",
+          "kind": "process"
+        },
+        {
+          "id": "runtime",
+          "label": "prepare /tmp/cake-adapt-config\n(0700, not a symlink)",
+          "kind": "process"
+        },
+        {
+          "id": "each",
+          "label": "for each config cake_adapt section",
+          "kind": "process"
+        },
+        {
+          "id": "enabled",
+          "label": "enabled = 1?",
+          "kind": "decision"
+        },
+        {
+          "id": "skip",
+          "label": "syslog notice: disabled;\nnot started",
+          "kind": "note"
+        },
+        {
+          "id": "stage",
+          "label": "stage a copy of /etc/config/cake-adapt",
+          "kind": "process"
+        },
+        {
+          "id": "import",
+          "label": "config_file set?\nrun importer in a child Bash",
+          "kind": "decision"
+        },
+        {
+          "id": "validate",
+          "label": "cake-adapt -C stage -S section -V",
+          "kind": "process"
+        },
+        {
+          "id": "valid",
+          "label": "valid?",
+          "kind": "decision"
+        },
+        {
+          "id": "reject",
+          "label": "syslog error;\ninstance not started",
+          "kind": "error"
+        },
+        {
+          "id": "procd",
+          "label": "procd instance\nrespawn, term_timeout 5,\nreload on config file change",
+          "kind": "process"
+        },
+        {
+          "id": "cli",
+          "label": "main(): getopt -C -S -f -V -L",
+          "kind": "process"
+        },
+        {
+          "id": "config",
+          "label": "defaults_apply → uci_load → section\n→ typed options → resolve_interfaces\n→ config_validate",
+          "kind": "process"
+        },
+        {
+          "id": "configok",
+          "label": "configuration valid?",
+          "kind": "decision"
+        },
+        {
+          "id": "fail",
+          "label": "log error; exit 1",
+          "kind": "error"
+        },
+        {
+          "id": "denabled",
+          "label": "enabled?",
+          "kind": "decision"
+        },
+        {
+          "id": "disabled",
+          "label": "syslog: disabled by configuration;\nexit 0",
+          "kind": "end"
+        },
+        {
+          "id": "logs",
+          "label": "open log file\ncake-adapt[.<section>].log,\nprint record headers",
+          "kind": "io"
+        },
+        {
+          "id": "mode",
+          "label": "syslog: Starting cake-adapt …\ncontrol or observation-only",
+          "kind": "io"
+        },
+        {
+          "id": "run",
+          "label": "monitor_run()",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "load",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "load",
+          "to": "runtime",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "runtime",
+          "to": "each",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "each",
+          "to": "enabled",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "enabled",
+          "to": "skip",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "enabled",
+          "to": "stage",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "stage",
+          "to": "import",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "import",
+          "to": "validate",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "validate",
+          "to": "valid",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "valid",
+          "to": "reject",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "valid",
+          "to": "procd",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "procd",
+          "to": "cli",
+          "label": "exec",
+          "style": ""
+        },
+        {
+          "from": "cli",
+          "to": "config",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "config",
+          "to": "configok",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "configok",
+          "to": "fail",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "configok",
+          "to": "denabled",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "denabled",
+          "to": "disabled",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "denabled",
+          "to": "logs",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "logs",
+          "to": "mode",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "mode",
+          "to": "run",
+          "label": "",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "02-monitor-initialization",
+      "title": "02 — Monitor initialization and uloop event topology",
+      "refs": [
+        "src/monitor/monitor.c:monitor_run",
+        "src/monitor/pingers.c:prepare_pingers",
+        "src/monitor/control.c:start_controller",
+        "src/monitor/reflectors.c:start_reflectors",
+        "src/monitor/observe.c:watch_qdisc_events",
+        "src/monitor/monitor.c:watch_cpu",
+        "src/monitor/monitor.c:watch_log_maintenance"
+      ],
+      "notes": [
+        "All monitor state lives in one struct event_loop on monitor_run's stack. The aggregate initializer zeroes everything that is not set explicitly.",
+        "start_controller converts the per-million UCI factors to cake-autorate's per-thousand and percent rounding.",
+        "start_reflectors initializes one latency tracker per configured reflector. With randomize_reflectors it shuffles the order using getentropy.",
+        "The first traffic cycle runs before uloop_run, so CAKE discovery and the first counter baseline happen immediately.",
+        "Pinger output, pinger exits, qdisc events, timers and SIGUSR1/SIGUSR2 are all uloop callbacks. No thread or polling loop sits outside uloop."
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "monitor_run(config)",
+          "kind": "start"
+        },
+        {
+          "id": "pingers",
+          "label": "prepare_pingers\nbind pinger slots and timers",
+          "kind": "process"
+        },
+        {
+          "id": "controller",
+          "label": "start_controller\ncontroller_init",
+          "kind": "process"
+        },
+        {
+          "id": "reflectors",
+          "label": "start_reflectors\ntrackers, optional shuffle, health windows",
+          "kind": "process"
+        },
+        {
+          "id": "clocks",
+          "label": "seed reflector, response and\npinger clocks; state = RUNNING",
+          "kind": "process"
+        },
+        {
+          "id": "uloop",
+          "label": "uloop_init",
+          "kind": "process"
+        },
+        {
+          "id": "events",
+          "label": "watch_qdisc_events\nsubscribe RTNLGRP_TC",
+          "kind": "process"
+        },
+        {
+          "id": "timers",
+          "label": "traffic timer\nreflector health timer",
+          "kind": "process"
+        },
+        {
+          "id": "first",
+          "label": "observe_traffic_cycle\napply_traffic_cadence",
+          "kind": "process"
+        },
+        {
+          "id": "optional",
+          "label": "watch_cpu (if CPU stats)\nwatch_log_maintenance (if log file)",
+          "kind": "process"
+        },
+        {
+          "id": "latency",
+          "label": "watch_latency\n(starts pingers once CAKE is ready)",
+          "kind": "process"
+        },
+        {
+          "id": "run",
+          "label": "uloop_run()",
+          "kind": "end"
+        },
+        {
+          "id": "fail",
+          "label": "required setup failed\n→ cleanup, result -1",
+          "kind": "error"
+        },
+        {
+          "id": "cb",
+          "label": "callbacks:\nhandle_traffic_timer · handle_reflector_health_timer\nhandle_qdisc_events · handle_pinger_output/exit\nhandle_cpu_timer · handle_log_timer · SIGUSR1/2",
+          "kind": "note"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "pingers",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "pingers",
+          "to": "controller",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "controller",
+          "to": "reflectors",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "reflectors",
+          "to": "clocks",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "clocks",
+          "to": "uloop",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "uloop",
+          "to": "events",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "events",
+          "to": "timers",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "timers",
+          "to": "first",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "first",
+          "to": "optional",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "optional",
+          "to": "latency",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "latency",
+          "to": "run",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "controller",
+          "to": "fail",
+          "label": "error",
+          "style": "dashed"
+        },
+        {
+          "from": "events",
+          "to": "fail",
+          "label": "error",
+          "style": "dashed"
+        },
+        {
+          "from": "timers",
+          "to": "fail",
+          "label": "error",
+          "style": "dashed"
+        },
+        {
+          "from": "run",
+          "to": "cb",
+          "label": "",
+          "style": "dashed"
+        }
+      ]
+    },
+    {
+      "id": "03-cake-and-traffic",
+      "title": "03 — CAKE readiness, traffic counters, and fresh-sample IDs",
+      "refs": [
+        "src/monitor/monitor.c:handle_traffic_timer",
+        "src/monitor/observe.c:observe_traffic_cycle",
+        "src/monitor/observe.c:observe_cake",
+        "src/cake/cake.c:cake_read_all",
+        "src/monitor/observe.c:observe_traffic",
+        "src/platform/traffic.c:traffic_update",
+        "src/platform/traffic.c:traffic_compensated_interval_microseconds"
+      ],
+      "notes": [
+        "The kernel ignores tcm_ifindex in a qdisc dump, so one dump serves both directions. The interface index is cached and cleared when CAKE is not found.",
+        "The MTU is read with SIOCGIFMTU only when CAKE is discovered or replaced. Every other tick reuses the cached value.",
+        "When CAKE is not found, the direction stops dumping until an RTM_NEWQDISC event wakes discovery. A read error retries after interface_up_check_interval_s.",
+        "Achieved rate = Δbytes × 8000 / Δms, taken from CAKE's own byte counter. A counter reset, a replaced qdisc, or a bad interval re-baselines without producing a rate.",
+        "traffic_sample_id increases only for a fresh rate. The controller uses it to allow at most one high-load increase per achieved-rate sample, as upstream does.",
+        "Once both directions report MTU and bandwidth, the timer interval becomes max(configured interval, 10 × the serialization time of both maximum wire packets). This matches upstream compensation."
+      ],
+      "nodes": [
+        {
+          "id": "tick",
+          "label": "traffic timer tick",
+          "kind": "start"
+        },
+        {
+          "id": "clock",
+          "label": "CLOCK_MONOTONIC ok?",
+          "kind": "decision"
+        },
+        {
+          "id": "clockfail",
+          "label": "invalidate both directions;\nreport degraded once",
+          "kind": "error"
+        },
+        {
+          "id": "due",
+          "label": "directions due for observation\n(not parked as NOT_FOUND)",
+          "kind": "process"
+        },
+        {
+          "id": "dump",
+          "label": "cake_read_all\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",
+          "kind": "process"
+        },
+        {
+          "id": "result",
+          "label": "read result",
+          "kind": "decision"
+        },
+        {
+          "id": "found",
+          "label": "FOUND: state AVAILABLE\nlog discovered / recovered once\nMTU only if new handle or index",
+          "kind": "process"
+        },
+        {
+          "id": "notfound",
+          "label": "NOT_FOUND: log once;\npark until RTM_NEWQDISC",
+          "kind": "error"
+        },
+        {
+          "id": "error",
+          "label": "ERROR: log once;\nretry after interface_up_check_interval",
+          "kind": "error"
+        },
+        {
+          "id": "comp",
+          "label": "update_serialization_compensation\n(first time: compensated cadence)",
+          "kind": "process"
+        },
+        {
+          "id": "traffic",
+          "label": "traffic_update per direction",
+          "kind": "process"
+        },
+        {
+          "id": "tresult",
+          "label": "update result",
+          "kind": "decision"
+        },
+        {
+          "id": "rate",
+          "label": "rate = Δbytes·8000/Δms\ntraffic_valid; sample_id++",
+          "kind": "end"
+        },
+        {
+          "id": "rebase",
+          "label": "baseline / counter reset /\nqdisc replaced / invalid interval\n→ no rate this tick",
+          "kind": "note"
+        },
+        {
+          "id": "load",
+          "label": "LOAD record\n(when both directions valid)",
+          "kind": "io"
+        },
+        {
+          "id": "ready",
+          "label": "both CAKE AVAILABLE?",
+          "kind": "decision"
+        },
+        {
+          "id": "suspend",
+          "label": "close_latency;\npingers_suspended",
+          "kind": "error"
+        },
+        {
+          "id": "activity",
+          "label": "update_monitor_state\n(chart 11), watch_latency",
+          "kind": "process"
+        }
+      ],
+      "edges": [
+        {
+          "from": "tick",
+          "to": "clock",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "clock",
+          "to": "clockfail",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "clock",
+          "to": "due",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "due",
+          "to": "dump",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "dump",
+          "to": "result",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "result",
+          "to": "found",
+          "label": "found",
+          "style": ""
+        },
+        {
+          "from": "result",
+          "to": "notfound",
+          "label": "missing",
+          "style": ""
+        },
+        {
+          "from": "result",
+          "to": "error",
+          "label": "error",
+          "style": ""
+        },
+        {
+          "from": "found",
+          "to": "comp",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "notfound",
+          "to": "comp",
+          "label": "",
+          "style": "dashed"
+        },
+        {
+          "from": "error",
+          "to": "comp",
+          "label": "",
+          "style": "dashed"
+        },
+        {
+          "from": "comp",
+          "to": "traffic",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "traffic",
+          "to": "tresult",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "tresult",
+          "to": "rate",
+          "label": "RATES",
+          "style": ""
+        },
+        {
+          "from": "tresult",
+          "to": "rebase",
+          "label": "other",
+          "style": ""
+        },
+        {
+          "from": "rate",
+          "to": "load",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "load",
+          "to": "ready",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "rebase",
+          "to": "ready",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "ready",
+          "to": "suspend",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "ready",
+          "to": "activity",
+          "label": "yes",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "04-qdisc-lifecycle",
+      "title": "04 — Kernel qdisc lifecycle events",
+      "refs": [
+        "src/monitor/observe.c:handle_qdisc_events",
+        "src/monitor/observe.c:process_qdisc_event",
+        "src/monitor/observe.c:event_direction",
+        "src/platform/netlink.c:netlink_receive_qdisc_events",
+        "src/platform/netlink.c:handle_qdisc_event"
+      ],
+      "notes": [
+        "Only root qdisc events are considered. Events are matched to a direction by the cached interface index.",
+        "An unknown index falls back to if_nametoindex, which covers a recreated interface (for example a new ifb4<if>). The new index is cached and the MTU is marked for re-reading.",
+        "A bandwidth change sends RTM_NEWQDISC with the existing handle. It is ignored, so the daemon's own writes never trigger rediscovery.",
+        "Removing CAKE suspends that direction and stops the pingers. A newly created qdisc triggers an immediate traffic cycle instead of waiting for the next tick.",
+        "A truncated event payload is rejected before dispatch. A failure on the event socket itself is fatal: lifecycle tracking would otherwise be silently lost."
+      ],
+      "nodes": [
+        {
+          "id": "fd",
+          "label": "RTNLGRP_TC socket readable",
+          "kind": "start"
+        },
+        {
+          "id": "recv",
+          "label": "netlink_receive_qdisc_events",
+          "kind": "process"
+        },
+        {
+          "id": "recvok",
+          "label": "receive ok?",
+          "kind": "decision"
+        },
+        {
+          "id": "fatal",
+          "label": "log error;\nresult -1; uloop_end",
+          "kind": "error"
+        },
+        {
+          "id": "parse",
+          "label": "handle_qdisc_event\nparse tcmsg (reject truncated)",
+          "kind": "process"
+        },
+        {
+          "id": "match",
+          "label": "root qdisc on a\nmonitored interface?",
+          "kind": "decision"
+        },
+        {
+          "id": "ignore",
+          "label": "ignore",
+          "kind": "note"
+        },
+        {
+          "id": "type",
+          "label": "event type",
+          "kind": "decision"
+        },
+        {
+          "id": "delmatch",
+          "label": "AVAILABLE and same handle?",
+          "kind": "decision"
+        },
+        {
+          "id": "removed",
+          "label": "log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; close_latency",
+          "kind": "error"
+        },
+        {
+          "id": "same",
+          "label": "AVAILABLE with same handle?\n(bandwidth change)",
+          "kind": "decision"
+        },
+        {
+          "id": "refresh",
+          "label": "invalidate; reset traffic;\ndue now; qdisc_refresh = true",
+          "kind": "process"
+        },
+        {
+          "id": "cycle",
+          "label": "after the batch:\nhandle_traffic_timer() immediately",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "fd",
+          "to": "recv",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "recv",
+          "to": "recvok",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "recvok",
+          "to": "fatal",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "recvok",
+          "to": "parse",
+          "label": "per message",
+          "style": ""
+        },
+        {
+          "from": "parse",
+          "to": "match",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "match",
+          "to": "ignore",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "match",
+          "to": "type",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "type",
+          "to": "delmatch",
+          "label": "RTM_DELQDISC",
+          "style": ""
+        },
+        {
+          "from": "delmatch",
+          "to": "removed",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "delmatch",
+          "to": "ignore",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "type",
+          "to": "same",
+          "label": "RTM_NEWQDISC",
+          "style": ""
+        },
+        {
+          "from": "same",
+          "to": "ignore",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "same",
+          "to": "refresh",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "refresh",
+          "to": "cycle",
+          "label": "",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "05-fping-process",
+      "title": "05 — Pinger process ownership and reply parsing",
+      "refs": [
+        "src/monitor/pingers.c:ensure_latency_open",
+        "src/latency/fping.c:latency_open",
+        "src/monitor/pingers.c:watch_started_latency_children",
+        "src/monitor/pingers.c:handle_pinger_output",
+        "src/latency/latency.c:latency_next_line",
+        "src/latency/parser.c:parse_fping_line",
+        "src/monitor/pingers.c:handle_pinger_exit",
+        "src/monitor/pingers.c:close_latency"
+      ],
+      "notes": [
+        "Pingers start only while both CAKE qdiscs are available. A new session waits until uloop has reaped the previous children, as cake-autorate does before restarting.",
+        "fping runs as [ping_prefix_string…] /usr/bin/fping [ping_extra_args…] -I <ul_if> --timestamp --loop --period <interval> --interval <interval ÷ targets> --timeout 10000 <targets>. -I is omitted when ping_extra_args already selects an interface.",
+        "fping RTT is split evenly into download and upload OWD (RTT/2 each). ICMP_TIMESTAMP keeps fping's raw bracketed token for log compatibility.",
+        "Each child gets its own process group. Stopping sends SIGTERM to the group; a 500 ms timer escalates to SIGKILL.",
+        "A parse error or an unknown reflector reports latency as degraded once, then restarts from the loop. A stream cannot be freed inside its own read callback."
+      ],
+      "nodes": [
+        {
+          "id": "watch",
+          "label": "watch_latency",
+          "kind": "start"
+        },
+        {
+          "id": "ready",
+          "label": "CAKE ready, no old children\nstopping, retry time reached?",
+          "kind": "decision"
+        },
+        {
+          "id": "wait",
+          "label": "return; retried on the\nnext tick or child exit",
+          "kind": "note"
+        },
+        {
+          "id": "method",
+          "label": "pinger_method",
+          "kind": "decision"
+        },
+        {
+          "id": "fping",
+          "label": "latency_open\none fping for all active targets",
+          "kind": "process"
+        },
+        {
+          "id": "irtt",
+          "label": "latency_open_irtt\none irtt per target,\nstarts aligned to ping slots",
+          "kind": "process"
+        },
+        {
+          "id": "spawnok",
+          "label": "spawned?",
+          "kind": "decision"
+        },
+        {
+          "id": "degraded",
+          "label": "latency observation degraded\n(logged once); retry after\ninterface_up_check_interval",
+          "kind": "error"
+        },
+        {
+          "id": "register",
+          "label": "uloop_process_add (reaping)\nustream_fd on stdout pipe",
+          "kind": "process"
+        },
+        {
+          "id": "read",
+          "label": "handle_pinger_output\nlatency_next_line (≤512 B, CRLF ok)",
+          "kind": "process"
+        },
+        {
+          "id": "parse",
+          "label": "latency_handle_line",
+          "kind": "decision"
+        },
+        {
+          "id": "timeout",
+          "label": "timeout / pending:\nno sample",
+          "kind": "note"
+        },
+        {
+          "id": "sample",
+          "label": "sample: target, seq,\ntimestamp, OWD = RTT/2",
+          "kind": "end"
+        },
+        {
+          "id": "bad",
+          "label": "invalid line or unknown\nreflector → degraded;\nrestart via 0 ms timer",
+          "kind": "error"
+        },
+        {
+          "id": "exit",
+          "label": "handle_pinger_exit\ndrain output, then classify",
+          "kind": "process"
+        },
+        {
+          "id": "exitkind",
+          "label": "exit kind",
+          "kind": "decision"
+        },
+        {
+          "id": "stopped",
+          "label": "requested stop:\ncancel SIGKILL timer;\nstart new session if not IDLE",
+          "kind": "process"
+        },
+        {
+          "id": "irttre",
+          "label": "irtt session ended:\nrestart that child",
+          "kind": "process"
+        },
+        {
+          "id": "crash",
+          "label": "unexpected exit:\ndegraded; deferred retry",
+          "kind": "error"
+        }
+      ],
+      "edges": [
+        {
+          "from": "watch",
+          "to": "ready",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "ready",
+          "to": "wait",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "ready",
+          "to": "method",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "method",
+          "to": "fping",
+          "label": "fping",
+          "style": ""
+        },
+        {
+          "from": "method",
+          "to": "irtt",
+          "label": "irtt",
+          "style": ""
+        },
+        {
+          "from": "fping",
+          "to": "spawnok",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "irtt",
+          "to": "spawnok",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "spawnok",
+          "to": "degraded",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "spawnok",
+          "to": "register",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "register",
+          "to": "read",
+          "label": "stdout",
+          "style": ""
+        },
+        {
+          "from": "read",
+          "to": "parse",
+          "label": "per line",
+          "style": ""
+        },
+        {
+          "from": "parse",
+          "to": "timeout",
+          "label": "timed out",
+          "style": ""
+        },
+        {
+          "from": "parse",
+          "to": "sample",
+          "label": "reply",
+          "style": ""
+        },
+        {
+          "from": "parse",
+          "to": "bad",
+          "label": "error",
+          "style": ""
+        },
+        {
+          "from": "register",
+          "to": "exit",
+          "label": "SIGCHLD",
+          "style": "dashed"
+        },
+        {
+          "from": "exit",
+          "to": "exitkind",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "exitkind",
+          "to": "stopped",
+          "label": "stopping",
+          "style": ""
+        },
+        {
+          "from": "exitkind",
+          "to": "irttre",
+          "label": "irtt restart",
+          "style": ""
+        },
+        {
+          "from": "exitkind",
+          "to": "crash",
+          "label": "other",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "06-latency-tracking",
+      "title": "06 — Per-reflector baseline and delay tracking",
+      "refs": [
+        "src/monitor/pingers.c:process_latency_line",
+        "src/latency/tracker.c:tracker_update",
+        "src/latency/tracker.c:tracker_update_direction",
+        "src/latency/tracker.c:tracker_update_delta_ewma",
+        "src/monitor/control.c:direction_has_low_load",
+        "src/common/helpers.c:response_timestamp"
+      ],
+      "notes": [
+        "The baseline starts at 100 ms. It moves by alpha_baseline_increase (0.001) when the sample is at or above it, and by alpha_baseline_decrease (0.9) when below. A rising delay therefore barely moves the baseline, and an improvement is adopted almost at once.",
+        "delta = OWD − baseline, per direction. The controller sees only this delta.",
+        "The delta EWMA (alpha 0.095) is used only for reflector comparison. It updates only while both directions are below high_load_thr, using the last load percentage, which is 0 before the first rate sample. This matches upstream.",
+        "The response timestamp is converted from realtime to monotonic. A reply older than 500 ms still updates baselines and health but does not reach the controller.",
+        "irtt timestamps can roll over; a detected rollover resets the baseline to the sample and reports a zero delta."
+      ],
+      "nodes": [
+        {
+          "id": "sample",
+          "label": "parsed reply for target T",
+          "kind": "start"
+        },
+        {
+          "id": "active",
+          "label": "T is an active reflector?",
+          "kind": "decision"
+        },
+        {
+          "id": "unknown",
+          "label": "degraded: unexpected reflector;\nrestart pingers",
+          "kind": "error"
+        },
+        {
+          "id": "clock",
+          "label": "read realtime + monotonic",
+          "kind": "process"
+        },
+        {
+          "id": "load",
+          "label": "low_load = both directions\nload% < high_load_thr",
+          "kind": "process"
+        },
+        {
+          "id": "rollover",
+          "label": "timestamp rollover?",
+          "kind": "decision"
+        },
+        {
+          "id": "reset",
+          "label": "baseline = OWD;\ndelta = 0",
+          "kind": "process"
+        },
+        {
+          "id": "alpha",
+          "label": "OWD ≥ baseline ?\nα = 0.001 : α = 0.9",
+          "kind": "decision"
+        },
+        {
+          "id": "base",
+          "label": "baseline += α·(OWD − baseline)\ndelta = OWD − baseline",
+          "kind": "process"
+        },
+        {
+          "id": "ewma",
+          "label": "low_load?\ndelta_ewma += 0.095·(delta − delta_ewma)",
+          "kind": "process"
+        },
+        {
+          "id": "health",
+          "label": "last response time → activity\nhealth_record_response",
+          "kind": "process"
+        },
+        {
+          "id": "stale",
+          "label": "reply > 500 ms old?",
+          "kind": "decision"
+        },
+        {
+          "id": "skip",
+          "label": "debug: Skipping",
+          "kind": "note"
+        },
+        {
+          "id": "controller",
+          "label": "update_controller\n(chart 07)",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "sample",
+          "to": "active",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "active",
+          "to": "unknown",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "active",
+          "to": "clock",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "clock",
+          "to": "load",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "load",
+          "to": "rollover",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "rollover",
+          "to": "reset",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "rollover",
+          "to": "alpha",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "alpha",
+          "to": "base",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "base",
+          "to": "ewma",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "reset",
+          "to": "health",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "ewma",
+          "to": "health",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "health",
+          "to": "stale",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "stale",
+          "to": "skip",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "stale",
+          "to": "controller",
+          "label": "no",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "07-controller-window",
+      "title": "07 — Delay window and congestion classification",
+      "refs": [
+        "src/monitor/control.c:update_controller",
+        "src/monitor/control.c:direction_input",
+        "src/controller/controller.c:controller_update",
+        "src/controller/controller.c:update_direction",
+        "src/controller/controller.c:update_congestion",
+        "src/controller/controller.c:update_line_state"
+      ],
+      "notes": [
+        "Every reflector reply feeds both directions into a rolling window of bufferbloat_detection_window (6) samples. Its sum and delayed count are maintained incrementally.",
+        "A sample counts as delayed when its delta exceeds the compensated delay threshold. A sample keeps the classification it had when it entered the window.",
+        "Congestion is DETECTED when delayed count ≥ bufferbloat_detection_threshold (3). The average is window sum ÷ window size, so empty slots count as zero.",
+        "Thresholds include the serialization delay of one maximum wire packet at the current shaper rate (chart 09).",
+        "The saturated/below-capacity line state (90% enter, 80% exit, 3 samples each) is only logged. Rate decisions do not use it."
+      ],
+      "nodes": [
+        {
+          "id": "input",
+          "label": "update_controller(latency observation)",
+          "kind": "start"
+        },
+        {
+          "id": "dir",
+          "label": "direction_input:\nvalid = fresh rate ∧ CAKE valid ∧ bandwidth > 0\nsample_id, achieved rate, CAKE rate",
+          "kind": "process"
+        },
+        {
+          "id": "line",
+          "label": "update_line_state\n(logged only)",
+          "kind": "process"
+        },
+        {
+          "id": "lat",
+          "label": "latency valid?",
+          "kind": "decision"
+        },
+        {
+          "id": "unknown",
+          "label": "congestion UNKNOWN;\naverage 0",
+          "kind": "note"
+        },
+        {
+          "id": "slot",
+          "label": "replace oldest slot:\nsum −= old; sum += delta",
+          "kind": "process"
+        },
+        {
+          "id": "delayed",
+          "label": "delta > delay_threshold\n(+ compensation)?",
+          "kind": "decision"
+        },
+        {
+          "id": "inc",
+          "label": "mark slot delayed;\ndelayed_count++ (old mark removed)",
+          "kind": "process"
+        },
+        {
+          "id": "clr",
+          "label": "slot not delayed",
+          "kind": "process"
+        },
+        {
+          "id": "avg",
+          "label": "average = sum / window",
+          "kind": "process"
+        },
+        {
+          "id": "thr",
+          "label": "delayed_count ≥ detection_threshold?",
+          "kind": "decision"
+        },
+        {
+          "id": "det",
+          "label": "DETECTED",
+          "kind": "error"
+        },
+        {
+          "id": "clear",
+          "label": "CLEAR",
+          "kind": "end"
+        },
+        {
+          "id": "rate",
+          "label": "adjust_rate (chart 08)",
+          "kind": "process"
+        }
+      ],
+      "edges": [
+        {
+          "from": "input",
+          "to": "dir",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "dir",
+          "to": "line",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "line",
+          "to": "lat",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "lat",
+          "to": "unknown",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "lat",
+          "to": "slot",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "slot",
+          "to": "delayed",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "delayed",
+          "to": "inc",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "delayed",
+          "to": "clr",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "inc",
+          "to": "avg",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "clr",
+          "to": "avg",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "avg",
+          "to": "thr",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "thr",
+          "to": "det",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "thr",
+          "to": "clear",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "det",
+          "to": "rate",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "clear",
+          "to": "rate",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "unknown",
+          "to": "rate",
+          "label": "",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "08-exact-rate-decision",
+      "title": "08 — Exact per-direction rate decision order",
+      "refs": [
+        "src/controller/controller.c:adjust_rate",
+        "src/controller/controller.c:set_rate_output",
+        "src/common/helpers.c:interval_elapsed",
+        "src/common/helpers.c:load_percent"
+      ],
+      "notes": [
+        "The order matches cake-autorate's update_shaper_rate: a bufferbloat cut first, then a high-load increase, then low-load decay toward base.",
+        "high load means achieved rate as a percentage of the previous shaper rate > high_load_thr (75%).",
+        "Refractory comparisons are strict: an interval equal to the refractory period has not elapsed.",
+        "A congestion cut also restarts the decay clock, so decay cannot immediately undo it. An increase restarts the decay clock too.",
+        "The first valid sample writes the base rate even when CAKE already holds it, as upstream's first set_shaper_rates does. Both refractory clocks start then.",
+        "When CAKE differs from the controller's rate with no new decision (an external change), the controller's rate is rewritten and logged as reconcile."
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "adjust_rate(direction)",
+          "kind": "start"
+        },
+        {
+          "id": "adjust",
+          "label": "adjust enabled ∧ input valid?",
+          "kind": "decision"
+        },
+        {
+          "id": "unchanged",
+          "label": "UNCHANGED",
+          "kind": "note"
+        },
+        {
+          "id": "initial",
+          "label": "initial rate pending?",
+          "kind": "decision"
+        },
+        {
+          "id": "base",
+          "label": "INITIAL: write base rate;\nstart both refractory clocks",
+          "kind": "end"
+        },
+        {
+          "id": "lat",
+          "label": "latency valid?",
+          "kind": "decision"
+        },
+        {
+          "id": "load",
+          "label": "high_load = achieved / previous rate\n> high_load_thr",
+          "kind": "process"
+        },
+        {
+          "id": "cong",
+          "label": "DETECTED ∧ bufferbloat\nrefractory elapsed?",
+          "kind": "decision"
+        },
+        {
+          "id": "cut",
+          "label": "rate × downward_factor\nreset bufferbloat + decay clocks",
+          "kind": "error"
+        },
+        {
+          "id": "high",
+          "label": "not DETECTED ∧ high_load ∧\nnew sample_id ∧ bufferbloat\nrefractory elapsed?",
+          "kind": "decision"
+        },
+        {
+          "id": "up",
+          "label": "rate × upward_factor\nremember sample_id;\nreset decay clock",
+          "kind": "process"
+        },
+        {
+          "id": "low",
+          "label": "not DETECTED ∧ low load ∧\nrate ≠ base ∧ decay\nrefractory elapsed?",
+          "kind": "decision"
+        },
+        {
+          "id": "decay",
+          "label": "1% step toward base\n(never past it);\nreset decay clock",
+          "kind": "process"
+        },
+        {
+          "id": "clamp",
+          "label": "clamp to [minimum, maximum]",
+          "kind": "process"
+        },
+        {
+          "id": "changed",
+          "label": "rate changed?",
+          "kind": "decision"
+        },
+        {
+          "id": "reason",
+          "label": "reason: CONGESTION / HIGH_LOAD /\nRETURN_TO_BASE",
+          "kind": "end"
+        },
+        {
+          "id": "output",
+          "label": "set_rate_output:\nrate_changed if INITIAL or CAKE ≠ rate\n(unchanged but different → RECONCILE)",
+          "kind": "process"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "adjust",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "adjust",
+          "to": "unchanged",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "adjust",
+          "to": "initial",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "initial",
+          "to": "base",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "initial",
+          "to": "lat",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "lat",
+          "to": "unchanged",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "lat",
+          "to": "load",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "load",
+          "to": "cong",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "cong",
+          "to": "cut",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "cong",
+          "to": "high",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "high",
+          "to": "up",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "high",
+          "to": "low",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "low",
+          "to": "decay",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "low",
+          "to": "clamp",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "cut",
+          "to": "clamp",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "up",
+          "to": "clamp",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "decay",
+          "to": "clamp",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "clamp",
+          "to": "changed",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "changed",
+          "to": "reason",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "changed",
+          "to": "unchanged",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "reason",
+          "to": "output",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "unchanged",
+          "to": "output",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "base",
+          "to": "output",
+          "label": "",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "09-rate-math",
+      "title": "09 — Rate factors, thresholds, rounding, and bounds",
+      "refs": [
+        "src/controller/controller.c:downward_factor",
+        "src/controller/controller.c:upward_factor",
+        "src/controller/controller.c:interpolate_factor",
+        "src/controller/controller.c:scale_rate",
+        "src/controller/controller.c:rate_toward_base",
+        "src/controller/controller.c:compensate_direction",
+        "src/monitor/control.c:start_controller"
+      ],
+      "notes": [
+        "Rates are computed in whole kbit/s and truncated, like upstream's integer shell arithmetic. Factors are per-million: per-thousand endpoints plus three more decimal places from interpolation.",
+        "Cut: delay ≤ threshold → minimum cut (0.99). Delay ≥ adjust-down maximum → maximum cut (0.75). Linear in between.",
+        "Increase: delay ≤ adjust-up maximum → maximum increase (1.04). Delay ≥ threshold → minimum increase (1.00). Linear in between.",
+        "Decay uses 0.99 above base and 1.01 below base, and never crosses base.",
+        "compensation = serialization time of CAKE's maximum wire packet at the current shaper rate. It is added to all three delay thresholds after every decision.",
+        "Defaults match cake-autorate: thresholds 10/30/60 ms, high_load_thr 75%, refractory periods 300 ms and 1 s."
+      ],
+      "nodes": [
+        {
+          "id": "comp",
+          "label": "compensation_µs = max_wire_packet_bits\n÷ shaper rate",
+          "kind": "process"
+        },
+        {
+          "id": "thr",
+          "label": "adjust_up = 10 ms + c\ndelay_thr = 30 ms + c\nadjust_down = 60 ms + c",
+          "kind": "note"
+        },
+        {
+          "id": "down",
+          "label": "downward adjustment a ∈ [0,1000]\na = 1000·(avg − delay_thr) / (adjust_down − delay_thr)",
+          "kind": "process"
+        },
+        {
+          "id": "dfac",
+          "label": "factor = 990·1000 − a·(990 − 750)",
+          "kind": "process"
+        },
+        {
+          "id": "up",
+          "label": "upward adjustment a ∈ [0,1000]\na = 1000·(delay_thr − avg) / (delay_thr − adjust_up)",
+          "kind": "process"
+        },
+        {
+          "id": "ufac",
+          "label": "factor = 1000·1000 + a·(1040 − 1000)",
+          "kind": "process"
+        },
+        {
+          "id": "scale",
+          "label": "scale_rate: kbit = rate / 1000\nkbit·factor / 1 000 000 (truncated)\n× 1000, overflow-safe",
+          "kind": "process"
+        },
+        {
+          "id": "decay",
+          "label": "rate_toward_base\n> base: ×0.990, floor at base\n< base: ×1.010, cap at base",
+          "kind": "process"
+        },
+        {
+          "id": "clamp",
+          "label": "clamp [minimum, maximum]",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "comp",
+          "to": "thr",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "thr",
+          "to": "down",
+          "label": "congestion",
+          "style": ""
+        },
+        {
+          "from": "thr",
+          "to": "up",
+          "label": "high load",
+          "style": ""
+        },
+        {
+          "from": "down",
+          "to": "dfac",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "up",
+          "to": "ufac",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "dfac",
+          "to": "scale",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "ufac",
+          "to": "scale",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "scale",
+          "to": "clamp",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "decay",
+          "to": "clamp",
+          "label": "low load",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "10-apply-and-verify",
+      "title": "10 — CAKE update, bounded netlink, and readback verification",
+      "refs": [
+        "src/monitor/control.c:update_controller",
+        "src/monitor/control.c:apply_bandwidth",
+        "src/cake/cake.c:cake_set_bandwidth",
+        "src/platform/netlink.c:netlink_change_qdisc_option",
+        "src/platform/netlink.c:receive_response",
+        "src/cake/cake.c:cake_read"
+      ],
+      "notes": [
+        "The SHAPER record is written before the change, matching upstream's ordering. A direction with adjustment disabled still logs its base rate once at startup, as upstream does.",
+        "The change targets the existing qdisc by ifindex, handle and parent with only TCA_CAKE_BASE_RATE64 (bytes/s). Other CAKE options are left untouched.",
+        "Every netlink request shares a single 1 s deadline across all reply parts. EINTR and partial multipart replies cannot extend the wait.",
+        "The readback reuses the cached ifindex and MTU. The new state is accepted only if CAKE reports exactly the requested bandwidth.",
+        "A failed change or a mismatching readback is logged as a warning and the previous observation is kept. The next decision reconciles the difference."
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "label": "decision.rate_changed",
+          "kind": "start"
+        },
+        {
+          "id": "shaper",
+          "label": "SHAPER record\n(output_cake_changes)",
+          "kind": "io"
+        },
+        {
+          "id": "valid",
+          "label": "rate a positive multiple of 8 bit/s?",
+          "kind": "decision"
+        },
+        {
+          "id": "send",
+          "label": "RTM_NEWQDISC (ifindex, handle, parent)\nkind=cake, TCA_OPTIONS:\nTCA_CAKE_BASE_RATE64 = rate/8",
+          "kind": "process"
+        },
+        {
+          "id": "ack",
+          "label": "ACK within 1 s?",
+          "kind": "decision"
+        },
+        {
+          "id": "fail",
+          "label": "warning: bandwidth change failed\n(old, desired, reason)",
+          "kind": "error"
+        },
+        {
+          "id": "read",
+          "label": "cake_read (one dump)\nseeded with cached ifindex/MTU",
+          "kind": "process"
+        },
+        {
+          "id": "match",
+          "label": "FOUND ∧ bandwidth == desired?",
+          "kind": "decision"
+        },
+        {
+          "id": "mismatch",
+          "label": "warning: verification failed\n(error or readback mismatch)",
+          "kind": "error"
+        },
+        {
+          "id": "ok",
+          "label": "observation = verified state",
+          "kind": "end"
+        },
+        {
+          "id": "comp",
+          "label": "update_serialization_compensation\nSUMMARY / DATA records",
+          "kind": "process"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "shaper",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "shaper",
+          "to": "valid",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "valid",
+          "to": "fail",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "valid",
+          "to": "send",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "send",
+          "to": "ack",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "ack",
+          "to": "fail",
+          "label": "no / NLMSG_ERROR",
+          "style": ""
+        },
+        {
+          "from": "ack",
+          "to": "read",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "read",
+          "to": "match",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "match",
+          "to": "mismatch",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "match",
+          "to": "ok",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "ok",
+          "to": "comp",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "fail",
+          "to": "comp",
+          "label": "",
+          "style": "dashed"
+        },
+        {
+          "from": "mismatch",
+          "to": "comp",
+          "label": "",
+          "style": "dashed"
+        }
+      ]
+    },
+    {
+      "id": "11-activity-state",
+      "title": "11 — RUNNING, IDLE, STALL, and recovery state machine",
+      "refs": [
+        "src/monitor/monitor.c:update_monitor_state",
+        "src/controller/controller.c:activity_update",
+        "src/monitor/pingers.c:grant_pinger_setup_grace",
+        "src/monitor/pingers.c:restart_latency",
+        "src/monitor/control.c:enforce_minimum_rates"
+      ],
+      "notes": [
+        "The stall timeout = stall_detection_threshold × (reflector_ping_interval ÷ pingers), measured from the last reflector response.",
+        "Idle requires enable_sleep_function, valid counters in both directions, and both rates ≤ connection_active_thr for longer than sustained_idle_sleep_thr_s. Entering IDLE stops the pingers.",
+        "Rates are compared in whole kbit/s, as upstream does. STALL needs both directions at or below the 10 kbit/s stall threshold; any traffic above it keeps RUNNING.",
+        "After the pingers start (startup, IDLE wake, or CAKE returning) there is a grace of two ping intervals. Stall and reflector checks are skipped during the grace and reflector health restarts at its end.",
+        "If no response arrives for global_ping_response_timeout_s, the warning is logged once. When minimum_shaper_rates_enforcement is set, minimum rates are applied. Pingers restart at most once per timeout period.",
+        "Without CAKE in both directions, pingers are suspended and the activity machine does not run."
+      ],
+      "nodes": [
+        {
+          "id": "running",
+          "label": "RUNNING",
+          "kind": "start"
+        },
+        {
+          "id": "grace",
+          "label": "within pinger setup grace?",
+          "kind": "decision"
+        },
+        {
+          "id": "stallq",
+          "label": "response age > stall timeout?",
+          "kind": "decision"
+        },
+        {
+          "id": "loads",
+          "label": "debug: Checking loads;\nboth rates > stall_thr?",
+          "kind": "decision"
+        },
+        {
+          "id": "stall",
+          "label": "STALL",
+          "kind": "error"
+        },
+        {
+          "id": "idleq",
+          "label": "sleep enabled ∧ valid ∧\nboth ≤ active_thr?",
+          "kind": "decision"
+        },
+        {
+          "id": "timer",
+          "label": "idle for > sustained_idle_sleep_thr?",
+          "kind": "decision"
+        },
+        {
+          "id": "idle",
+          "label": "IDLE\noptional minimum rates;\nclose_latency",
+          "kind": "note"
+        },
+        {
+          "id": "wake",
+          "label": "either rate > active_thr?",
+          "kind": "decision"
+        },
+        {
+          "id": "resume",
+          "label": "RUNNING after IDLE:\ngrant pinger grace; watch_latency",
+          "kind": "end"
+        },
+        {
+          "id": "recover",
+          "label": "response age ≤ stall timeout\n∨ both rates > stall_thr?",
+          "kind": "decision"
+        },
+        {
+          "id": "global",
+          "label": "response age ≥ global timeout?",
+          "kind": "decision"
+        },
+        {
+          "id": "warn",
+          "label": "warning once; optional minimum\nrates; restart pingers once\nper timeout period",
+          "kind": "error"
+        },
+        {
+          "id": "stallend",
+          "label": "RUNNING\n(debug: connection stall ended)",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "running",
+          "to": "grace",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "grace",
+          "to": "running",
+          "label": "yes",
+          "style": "dashed"
+        },
+        {
+          "from": "grace",
+          "to": "stallq",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "stallq",
+          "to": "loads",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "loads",
+          "to": "stall",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "loads",
+          "to": "global",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "stallq",
+          "to": "idleq",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "idleq",
+          "to": "timer",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "idleq",
+          "to": "running",
+          "label": "no (reset idle clock)",
+          "style": "dashed"
+        },
+        {
+          "from": "timer",
+          "to": "idle",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "idle",
+          "to": "wake",
+          "label": "each tick",
+          "style": ""
+        },
+        {
+          "from": "wake",
+          "to": "resume",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "stall",
+          "to": "recover",
+          "label": "each tick",
+          "style": ""
+        },
+        {
+          "from": "recover",
+          "to": "stallend",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "stall",
+          "to": "global",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "global",
+          "to": "warn",
+          "label": "yes",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "12-reflector-health",
+      "title": "12 — Reflector health, comparison, and replacement",
+      "refs": [
+        "src/monitor/reflectors.c:handle_reflector_health_timer",
+        "src/monitor/reflectors.c:run_scheduled_reflector_work",
+        "src/monitor/reflectors.c:compare_active_reflectors",
+        "src/monitor/reflectors.c:replace_active_reflector",
+        "src/controller/reflector.c:health_check",
+        "src/controller/reflector.c:reflector_compare",
+        "src/controller/reflector.c:reflector_rotate"
+      ],
+      "notes": [
+        "The health timer (1 s) runs only while both CAKE qdiscs exist, the state is RUNNING, and the pinger grace has ended.",
+        "Every reflector_replacement_interval_mins (60), one random active reflector is replaced. Otherwise, every reflector_comparison_interval_mins (1), active reflectors are compared.",
+        "Comparison replaces the first reflector whose baseline sum exceeds the minimum by more than 20 ms, or whose download or upload delta EWMA exceeds the minimum by more than 10 ms.",
+        "A missed response deadline (1 s) is an offence. Three offences in a 60-check window mark the reflector misbehaving. At most one replacement happens per check cycle.",
+        "Replacement swaps in the first spare reflector and moves the bad one to the end of the order. Its tracker is discarded unless retain_reflector_stats is set. With no spare, only the offences are reset.",
+        "fping owns all active targets in one process, so any replacement restarts the pinger session."
+      ],
+      "nodes": [
+        {
+          "id": "tick",
+          "label": "reflector health timer",
+          "kind": "start"
+        },
+        {
+          "id": "gate",
+          "label": "CAKE ready ∧ RUNNING ∧\nclock ok ∧ grace over?",
+          "kind": "decision"
+        },
+        {
+          "id": "skip",
+          "label": "return",
+          "kind": "note"
+        },
+        {
+          "id": "replace",
+          "label": "replacement interval elapsed?",
+          "kind": "decision"
+        },
+        {
+          "id": "random",
+          "label": "pick a random active pinger\n(getentropy)",
+          "kind": "process"
+        },
+        {
+          "id": "compare",
+          "label": "comparison interval elapsed?",
+          "kind": "decision"
+        },
+        {
+          "id": "cmp",
+          "label": "reflector_compare:\nminimum baseline sum and delta EWMAs\nREFLECTOR records",
+          "kind": "process"
+        },
+        {
+          "id": "outlier",
+          "label": "first reflector over a threshold?",
+          "kind": "decision"
+        },
+        {
+          "id": "check",
+          "label": "health_check each pinger:\noffence if no response in deadline",
+          "kind": "process"
+        },
+        {
+          "id": "bad",
+          "label": "offences ≥ threshold in window?",
+          "kind": "decision"
+        },
+        {
+          "id": "once",
+          "label": "first replacement this cycle?",
+          "kind": "decision"
+        },
+        {
+          "id": "skiprep",
+          "label": "debug: skipping replacement",
+          "kind": "note"
+        },
+        {
+          "id": "spare",
+          "label": "spare reflector available?",
+          "kind": "decision"
+        },
+        {
+          "id": "retain",
+          "label": "keep reflector;\nreset its offences",
+          "kind": "note"
+        },
+        {
+          "id": "rotate",
+          "label": "reflector_rotate; drop tracker\nunless retain_reflector_stats;\nreset offences; restart pingers",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "tick",
+          "to": "gate",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "gate",
+          "to": "skip",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "gate",
+          "to": "replace",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "replace",
+          "to": "random",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "random",
+          "to": "spare",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "replace",
+          "to": "compare",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "compare",
+          "to": "cmp",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "cmp",
+          "to": "outlier",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "outlier",
+          "to": "spare",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "outlier",
+          "to": "check",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "compare",
+          "to": "check",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "check",
+          "to": "bad",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "bad",
+          "to": "once",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "once",
+          "to": "spare",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "once",
+          "to": "skiprep",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "spare",
+          "to": "retain",
+          "label": "no",
+          "style": ""
+        },
+        {
+          "from": "spare",
+          "to": "rotate",
+          "label": "yes",
+          "style": ""
+        }
+      ]
+    },
+    {
+      "id": "13-logging-cpu-signals",
+      "title": "13 — Structured logging, CPU sampling, rotation, export, and reset",
+      "refs": [
+        "src/logging/log.c:log_message",
+        "src/logging/log.c:write_timed_record",
+        "src/logging/log.c:log_tick",
+        "src/logging/log.c:rotate_log_file",
+        "src/logging/log.c:log_export_file",
+        "src/logging/log.c:log_reset_file",
+        "src/monitor/monitor.c:observe_cpu"
+      ],
+      "notes": [
+        "Record names, field order, units and headers follow cake-autorate's DATA, LOAD, REFLECTOR, SUMMARY, SHAPER and CPU formats so its analysis tools work on cake-adapt logs.",
+        "Syslog receives errors, warnings and the start, stop and disabled messages. Debug messages go there only with log_debug_messages_to_syslog. Every message also goes to the log file when one is open.",
+        "The local date and time text is formatted once per second and reused. The file uses a 16 KiB stdio buffer flushed by the log timer every log_file_buffer_timeout_ms.",
+        "Rotation copies the active log to cake-adapt[.<section>].log.old and truncates the active file in place. The inode is preserved, so tail -f stays attached.",
+        "SIGUSR1 exports the active and retained logs (optionally compressed with zlib). SIGUSR2 flushes and truncates them in place.",
+        "CPU records are written only while RUNNING. A failed /proc/stat read is reported once as degraded and once on recovery."
+      ],
+      "nodes": [
+        {
+          "id": "msg",
+          "label": "log_message(level, …)",
+          "kind": "start"
+        },
+        {
+          "id": "sys",
+          "label": "syslog: errors and warnings,\ndebug only with log_debug_messages_to_syslog,\nstart/stop/disabled via log_system_message",
+          "kind": "io"
+        },
+        {
+          "id": "rec",
+          "label": "DATA / LOAD / REFLECTOR /\nSUMMARY / SHAPER / CPU records",
+          "kind": "start"
+        },
+        {
+          "id": "time",
+          "label": "cached local datetime\n(reformatted once per second)",
+          "kind": "process"
+        },
+        {
+          "id": "file",
+          "label": "buffered write\nto log file or stdout (-f)",
+          "kind": "io"
+        },
+        {
+          "id": "size",
+          "label": "size > log_file_max_size_KB?",
+          "kind": "decision"
+        },
+        {
+          "id": "tick",
+          "label": "log timer: flush buffer;\nage > log_file_max_time_mins?",
+          "kind": "decision"
+        },
+        {
+          "id": "rotate",
+          "label": "rotate: copy to .old,\ntruncate in place (same inode)",
+          "kind": "process"
+        },
+        {
+          "id": "usr1",
+          "label": "SIGUSR1",
+          "kind": "start"
+        },
+        {
+          "id": "export",
+          "label": "export active + retained logs\n(optional compression)",
+          "kind": "io"
+        },
+        {
+          "id": "usr2",
+          "label": "SIGUSR2",
+          "kind": "start"
+        },
+        {
+          "id": "reset",
+          "label": "flush and truncate in place",
+          "kind": "process"
+        },
+        {
+          "id": "cpu",
+          "label": "CPU timer (RUNNING only)\n/proc/stat → CPU / CPU_RAW",
+          "kind": "process"
+        }
+      ],
+      "edges": [
+        {
+          "from": "msg",
+          "to": "sys",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "msg",
+          "to": "time",
+          "label": "if log file",
+          "style": ""
+        },
+        {
+          "from": "rec",
+          "to": "time",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "time",
+          "to": "file",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "file",
+          "to": "size",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "size",
+          "to": "rotate",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "tick",
+          "to": "rotate",
+          "label": "yes",
+          "style": ""
+        },
+        {
+          "from": "usr1",
+          "to": "export",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "usr2",
+          "to": "reset",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "cpu",
+          "to": "rec",
+          "label": "",
+          "style": "dashed"
+        }
+      ]
+    },
+    {
+      "id": "14-shutdown-and-failure",
+      "title": "14 — Shutdown, failure severity, and cleanup ownership",
+      "refs": [
+        "src/monitor/monitor.c:monitor_run",
+        "src/monitor/pingers.c:stop_pingers_now",
+        "src/latency/latency.c:latency_stop_now",
+        "src/latency/latency.c:stop_child",
+        "src/monitor/reflectors.c:stop_reflectors",
+        "src/main.c:main"
+      ],
+      "notes": [
+        "procd stops the instance with SIGTERM and allows 5 s. uloop_run returns the signal number, and SIGINT or SIGTERM count as a clean shutdown.",
+        "After the loop stops, pinger shutdown is synchronous and bounded: SIGTERM to each process group, up to 50 × 10 ms waitpid checks, then SIGKILL and a final reap.",
+        "Fatal conditions: invalid configuration, controller, tracker or health allocation failure, uloop or required timer setup, qdisc event subscription, and qdisc event socket failure.",
+        "Degraded but continuing: missing CAKE or interface, netlink dump or change failures, pinger spawn, exit or parse failures, clock failures, CPU sampling, and log maintenance. Each is logged once and again on recovery.",
+        "The daemon never removes or recreates CAKE, and leaves the last verified rate in place on exit."
+      ],
+      "nodes": [
+        {
+          "id": "sig",
+          "label": "SIGTERM / SIGINT",
+          "kind": "start"
+        },
+        {
+          "id": "fatal",
+          "label": "fatal runtime failure\n(e.g. qdisc event socket)",
+          "kind": "error"
+        },
+        {
+          "id": "end",
+          "label": "uloop_end → uloop_run returns",
+          "kind": "process"
+        },
+        {
+          "id": "pingers",
+          "label": "stop_pingers_now:\ncancel pinger timers; free streams;\nSIGTERM groups; ≤500 ms; SIGKILL; reap",
+          "kind": "process"
+        },
+        {
+          "id": "loop",
+          "label": "remove qdisc fd; cancel timers;\nremove signal handlers; uloop_done",
+          "kind": "process"
+        },
+        {
+          "id": "free",
+          "label": "stop_reflectors; netlink_close;\ncontroller_close",
+          "kind": "process"
+        },
+        {
+          "id": "log",
+          "label": "syslog: Stopped cake-adapt …\nlog_close",
+          "kind": "io"
+        },
+        {
+          "id": "exit",
+          "label": "exit 0 (signal) / 1 (failure)",
+          "kind": "end"
+        },
+        {
+          "id": "degraded",
+          "label": "degraded conditions\nlog once, continue,\nlog recovery",
+          "kind": "note"
+        }
+      ],
+      "edges": [
+        {
+          "from": "sig",
+          "to": "end",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "fatal",
+          "to": "end",
+          "label": "result -1",
+          "style": ""
+        },
+        {
+          "from": "end",
+          "to": "pingers",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "pingers",
+          "to": "loop",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "loop",
+          "to": "free",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "free",
+          "to": "log",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "log",
+          "to": "exit",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "degraded",
+          "to": "end",
+          "label": "never",
+          "style": "dashed"
+        }
+      ]
+    },
+    {
+      "id": "15-worked-20mbps",
+      "title": "15 — Worked example: 20 Mbit/s under load with a delay burst",
+      "refs": [
+        "src/controller/controller.c:adjust_rate",
+        "src/controller/controller.c:upward_factor",
+        "src/controller/controller.c:downward_factor",
+        "src/controller/controller.c:scale_rate"
+      ],
+      "notes": [
+        "Inputs: cake-autorate defaults; minimum/base/maximum 10/20/50 Mbit/s; a 12,000-bit maximum wire packet; one reply every 50 ms. Download is at 19 Mbit/s (95% of the shaper, so high load) throughout.",
+        "Every number here was produced by running the real controller (controller.c) on these inputs. The replay test checks the same arithmetic against recorded cake-autorate traces.",
+        "With 12,000 bits at 20 Mbit/s, compensation is 600 µs and the thresholds become 10.6, 30.6 and 60.6 ms. They are recomputed at each new shaper rate.",
+        "No increase happens before 350 ms: the initial write starts the bufferbloat refractory clock, and the comparison is strict.",
+        "The cut uses the minimum factor because the window average (25.0 ms) is still below the delay threshold. The 6-slot average lags the instantaneous delay.",
+        "Further cuts would need another 300 ms. The window clears at 1.80 s, so only one cut happens and increases resume."
+      ],
+      "nodes": [
+        {
+          "id": "t0",
+          "label": "t = 0: first valid sample\nINITIAL → write 20 000 kbit/s",
+          "kind": "start"
+        },
+        {
+          "id": "hold",
+          "label": "t = 50…300 ms: delta 5 ms, load 95%\nrefractory not elapsed → unchanged",
+          "kind": "note"
+        },
+        {
+          "id": "inc1",
+          "label": "t = 350 ms: delta 45 ms enters window\navg 11.67 ms, 1 delayed → CLEAR\na = ⌊1000·(30.6 − 11.667)/20⌋ = 946\nfactor 1.03784 → 20 756 kbit/s",
+          "kind": "process"
+        },
+        {
+          "id": "inc2",
+          "label": "t = 400 ms: avg 18.33 ms, 2 delayed → CLEAR\nthresholds now compensated at 20 756 kbit/s\n→ 21 264 kbit/s",
+          "kind": "process"
+        },
+        {
+          "id": "cut",
+          "label": "t = 450 ms: 3 delayed → DETECTED\navg 25.0 ms < 30.6 → minimum cut 0.99\n21 264 → 21 051 kbit/s",
+          "kind": "error"
+        },
+        {
+          "id": "wait",
+          "label": "t = 500…750 ms: still DETECTED (avg up to 45 ms)\nbut < 300 ms since the cut → unchanged",
+          "kind": "note"
+        },
+        {
+          "id": "clear",
+          "label": "t = 800 ms: delta back to 5 ms\n2 delayed → CLEAR; refractory elapsed\n→ increase to 21 565 kbit/s",
+          "kind": "process"
+        },
+        {
+          "id": "climb",
+          "label": "t = 850…950 ms: 22 379 → 23 274 → 24 204\n(factor reaches 1.04 once avg ≤ 10.6 ms)",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "t0",
+          "to": "hold",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "hold",
+          "to": "inc1",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "inc1",
+          "to": "inc2",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "inc2",
+          "to": "cut",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "cut",
+          "to": "wait",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "wait",
+          "to": "clear",
+          "label": "",
+          "style": ""
+        },
+        {
+          "from": "clear",
+          "to": "climb",
+          "label": "",
+          "style": ""
+        }
+      ]
+    }
+  ]
+}
