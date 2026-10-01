@@ -59,6 +59,9 @@ uint64_t serialization_microseconds(
     uint64_t rate_bits_per_second
 );
 
+/* Whole milliseconds, rounded up so a timer or poll never wakes early. */
+uint64_t milliseconds_rounded_up(uint64_t microseconds);
+
 /* Strict boundary: equality and backwards timestamps have not elapsed. */
 bool interval_elapsed(
     uint64_t current,

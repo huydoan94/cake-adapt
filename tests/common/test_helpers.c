@@ -72,6 +72,15 @@ static void test_saturating_signed_arithmetic(void)
     assert(signed_sum(INT64_MIN, -1) == INT64_MIN);
 }
 
+static void test_milliseconds_round_up(void)
+{
+    assert(milliseconds_rounded_up(0U) == 0U);
+    assert(milliseconds_rounded_up(1U) == 1U);
+    assert(milliseconds_rounded_up(1000U) == 1U);
+    assert(milliseconds_rounded_up(1001U) == 2U);
+    assert(milliseconds_rounded_up(UINT64_MAX) == UINT64_MAX / 1000U + 1U);
+}
+
 static void test_elapsed_interval_boundaries(void)
 {
     assert(!interval_elapsed(9U, 10U, 1U));
@@ -235,6 +244,7 @@ int main(void)
     test_percentages_and_rounding();
     test_unsigned_decimal_spans();
     test_saturating_signed_arithmetic();
+    test_milliseconds_round_up();
     test_elapsed_interval_boundaries();
     test_load_rounding_and_limits();
     test_clock_failure_preserves_output();
