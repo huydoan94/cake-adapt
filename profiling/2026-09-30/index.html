@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cake-adapt profiling results, 2026-09-30</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #080e1a;
+      --panel: #111b2e;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --link: #7dd3fc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 32px max(24px, 5vw);
+      background: linear-gradient(135deg, #082f49, #312e81);
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
+    header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
+    nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    a { color: var(--link); }
+    nav a, .actions a {
+      padding: 7px 11px;
+      border: 1px solid #64748b;
+      border-radius: 7px;
+      background: #0f172a;
+      text-decoration: none;
+    }
+    main { max-width: 1760px; margin: auto; padding: 24px; }
+    section {
+      margin-bottom: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+    section > header {
+      padding: 18px 22px;
+      background: #17233a;
+    }
+    section h2 { margin: 0 0 6px; }
+    section p { margin: 0; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px; }
+    object {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: #0b1120;
+    }
+    .flame { height: min(60vw, 900px); min-height: 520px; }
+    table { border-collapse: collapse; margin: 14px 22px 22px; }
+    th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    .wrap { overflow-x: auto; }
+    .raw { padding: 4px 22px 22px; }
+    .raw li { margin: 7px 0; }
+    footer { padding: 0 24px 28px; color: var(--muted); text-align: center; }
+    @media (max-width: 700px) { .flame { min-height: 420px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>cake-adapt profiling results, 2026-09-30</h1>
+    <p>OpenWrt 25.12 x86 VM, after the optimization pass. The written conclusion, method and end-to-end results are in <a href="README.md">README.md</a>.</p>
+    <p>The flame graphs are generated directly from the stored perf stacks. Hover over frames for values and click frames to zoom.</p>
+    <nav>
+      <a href="#summary">Summary</a>
+      <a href="#idle">Idle, probing</a>
+      <a href="#download">Download</a>
+      <a href="#upload">Upload</a>
+      <a href="#bidirectional">Bidirectional</a>
+      <a href="#latency">Latency spikes under download</a>
+      <a href="../index.html">All profiling evidence</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="summary">
+      <header>
+        <h2>CPU use before and after the optimization pass</h2>
+        <p>User + system clock ticks per 40 s workload (1 tick = 10 ms). Single runs vary by several ticks.</p>
+      </header>
+      <div class="wrap"><table>
+        <tr><th>Workload</th><th>Before</th><th>After</th><th>Change</th></tr>
+        <tr><td>Idle, probing</td><td>21</td><td>13</td><td>−38%</td></tr>
+        <tr><td>Download</td><td>31</td><td>28</td><td>−10%</td></tr>
+        <tr><td>Upload</td><td>32</td><td>27</td><td>−16%</td></tr>
+        <tr><td>Bidirectional, mean of 3</td><td>62.7</td><td>32.0</td><td>−49%</td></tr>
+        <tr><td>Latency spikes under download</td><td>41</td><td>20</td><td>−51%</td></tr>
+      </table></div>
+      <header>
+        <p>Syscalls in a 45 s window: 20,586 before the optimization series, 4,593 after. cake-adapt's own userspace code is 4–9% of its samples; the rest is mostly waiting in epoll and softirq packet processing charged to the process.</p>
+      </header>
+    </section>
+
+    <section id="idle">
+      <header>
+        <h2>Idle, probing flame graph</h2>
+        <p>40-second cpu-clock capture at 999 Hz · 99 samples · 13 ticks / 40 s.</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-idle.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/idle.folded">Folded stacks</a>
+        <a href="raw/idle.perf-script.txt.gz">perf script output (gzip)</a>
+      </div>
+      <object class="flame" data="flamegraph-idle.svg" type="image/svg+xml">
+        <a href="flamegraph-idle.svg">Open the idle, probing flame graph</a>
+      </object>
+    </section>
+    <section id="download">
+      <header>
+        <h2>Download flame graph</h2>
+        <p>40-second cpu-clock capture at 999 Hz · 192 samples · 28 ticks / 40 s.</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-download.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/download.folded">Folded stacks</a>
+        <a href="raw/download.perf-script.txt.gz">perf script output (gzip)</a>
+      </div>
+      <object class="flame" data="flamegraph-download.svg" type="image/svg+xml">
+        <a href="flamegraph-download.svg">Open the download flame graph</a>
+      </object>
+    </section>
+    <section id="upload">
+      <header>
+        <h2>Upload flame graph</h2>
+        <p>40-second cpu-clock capture at 999 Hz · 231 samples · 27 ticks / 40 s.</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-upload.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/upload.folded">Folded stacks</a>
+        <a href="raw/upload.perf-script.txt.gz">perf script output (gzip)</a>
+      </div>
+      <object class="flame" data="flamegraph-upload.svg" type="image/svg+xml">
+        <a href="flamegraph-upload.svg">Open the upload flame graph</a>
+      </object>
+    </section>
+    <section id="bidirectional">
+      <header>
+        <h2>Bidirectional flame graph</h2>
+        <p>40-second cpu-clock capture at 999 Hz · 224 samples · 32.0 ticks / 40 s (mean of 3).</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-bidirectional.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/bidirectional.folded">Folded stacks</a>
+        <a href="raw/bidirectional.perf-script.txt.gz">perf script output (gzip)</a>
+      </div>
+      <object class="flame" data="flamegraph-bidirectional.svg" type="image/svg+xml">
+        <a href="flamegraph-bidirectional.svg">Open the bidirectional flame graph</a>
+      </object>
+    </section>
+    <section id="latency">
+      <header>
+        <h2>Latency spikes under download flame graph</h2>
+        <p>40-second cpu-clock capture at 999 Hz · 160 samples · 20 ticks / 40 s.</p>
+      </header>
+      <div class="actions">
+        <a href="flamegraph-latency.svg" target="_blank">Open interactive SVG</a>
+        <a href="raw/latency.folded">Folded stacks</a>
+        <a href="raw/latency.perf-script.txt.gz">perf script output (gzip)</a>
+      </div>
+      <object class="flame" data="flamegraph-latency.svg" type="image/svg+xml">
+        <a href="flamegraph-latency.svg">Open the latency spikes under download flame graph</a>
+      </object>
+    </section>
+  </main>
+
+  <footer>Raw perf scripts, folded stacks, breakdown and CPU measurements are in raw/; scripts/ holds the VM scripts that produced them.</footer>
+</body>
+</html>
