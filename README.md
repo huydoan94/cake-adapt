@@ -43,7 +43,8 @@ cake-adapt currently:
 - runs one `fping` process against multiple reflectors;
 - tracks latency baselines and reflector health;
 - detects high load, congestion, idle periods, and stalled connectivity;
-- adjusts upload and download CAKE bandwidth independently when enabled;
+- adjusts upload and download CAKE bandwidth independently when enabled, and
+  reads each change back from the kernel to verify it;
 - reacts when CAKE qdiscs disappear or reappear;
 - integrates with OpenWrt `procd`; and
 - emits cake-autorate-style statistics for compatible analysis workflows.
@@ -59,34 +60,72 @@ cake-adapt does not source, execute, or depend on files from a cake-autorate
 installation. The upstream project is a behavioral and algorithmic reference,
 not a runtime dependency.
 
+### Intentional differences from cake-autorate
+
+Controller decisions match cake-autorate `ac75f49` exactly: recorded upstream
+traces replay through the cake-adapt controller with no mismatching decision
+and no rounding tolerance (see
+[the controller comparison](profiling/controller-comparison/README.md)). The
+differences are in integration and safety:
+
+- Rate adjustment is opt-in. `adjust_dl_shaper_rate` and
+  `adjust_ul_shaper_rate` default to `0`, so a new installation only observes.
+- There is no `startup_wait_s`. cake-adapt follows CAKE through kernel
+  `RTM_NEWQDISC`/`RTM_DELQDISC` events. While either qdisc is missing, the
+  pingers stop and control is suspended; it resumes when the qdisc returns.
+- Achieved rates come from the CAKE qdiscs' own byte counters, read with the
+  rest of the CAKE state in one rtnetlink dump, instead of from interface
+  statistics files.
+- Each bandwidth change goes to the existing qdisc through rtnetlink instead
+  of `tc`, and is read back from the kernel to verify the effective rate.
+- Reflectors come only from local configuration. Remote reflector-list
+  retrieval is not implemented.
+- `fping` is the supported pinger. The IRTT backend exists but is not yet
+  supported for production use.
+- Configuration is typed UCI. A cake-autorate configuration file can be
+  imported (see [Standalone shell configuration](#standalone-shell-configuration)),
+  but it is validated like UCI and never sourced by the daemon.
+
 ## Documentation
 
 - [Current-code flowcharts](flowchart/README.md) — architecture, event flow,
   controller decisions, CAKE updates, and lifecycle behavior.
   [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
-- [VM profiling results](profiling/README.md) — interactive flame graphs,
-  raw `perf` stacks, and the separately identified profiling conclusion.
-  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
+- [Controller comparison with cake-autorate](profiling/controller-comparison/README.md)
+  — side-by-side VM runs and the replayed upstream traces.
+- [End-to-end run and profiling, 2026-09-30](profiling/2026-09-30/README.md)
+  — the final VM run, CPU before and after the optimization pass, flame graphs,
+  and raw `perf` data.
+  [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html).
+- [All profiling evidence](profiling/README.md), including the superseded first
+  capture.
 
 ## Data flow
 
 ```text
-traffic counters     fping reflectors     current CAKE state
-       |                     |                     |
-       +---------------------+---------------------+
-                             |
-                             v
-                  load and latency tracking
-                             |
-                             v
-                 cake-autorate-derived controller
-                             |
-                             v
-                    desired shaper rates
-                             |
-                             v
-                     rtnetlink CAKE update
+ CAKE qdisc dump (traffic timer)          fping reflector replies
+   bytes, bandwidth, MTU                            |
+            |                                       v
+            v                           OWD baseline and delta
+     achieved rates                     per reflector
+            |                                       |
+            +------------------+--------------------+
+                               |  once per reply
+                               v
+                cake-autorate-derived controller
+                               |
+                               v
+                     desired shaper rates
+                               |
+                               v
+               rtnetlink CAKE update + readback
+
+ RTM_NEWQDISC / RTM_DELQDISC events -> rediscover or suspend
 ```
+
+As in cake-autorate, the controller runs once for every reflector reply,
+using the most recent achieved rates. The traffic timer refreshes CAKE state
+and achieved rates and drives the idle/stall state machine.
 
 For a normal SQM interface named `eth1`, cake-adapt uses:
 
@@ -431,15 +470,28 @@ release assets.
 
 ```text
 src/
-├── main.c, monitor.c   startup, shutdown, and uloop event orchestration
+├── main.c              CLI, configuration loading, logging setup, lifecycle
+├── monitor/            uloop event loop, split by responsibility:
+│   ├── monitor.c         loop setup and teardown, traffic timer, activity
+│   │                     state, CPU and log timers, signals
+│   ├── observe.c         CAKE discovery, achieved rates, qdisc events
+│   ├── control.c         controller input, CAKE updates and readback, records
+│   ├── pingers.c         pinger start, output, exit, restart, and grace
+│   └── reflectors.c      reflector order, health checks, and replacement
 ├── common/             shared constants, generic helpers, error formatting
-├── config/             typed UCI loading, validation, and built-in defaults
-├── controller/         rate/congestion/activity policy and reflector selection
+├── config/             typed UCI loading (config.c), validation
+│                       (validate.c), and built-in defaults
+├── controller/         rate/congestion/activity policy (controller.c) and
+│                       reflector health and selection (reflector.c)
 ├── latency/            pinger sessions, fping/IRTT backends, parsing, tracking
 ├── cake/               CAKE discovery, state decoding, and bandwidth updates
 ├── platform/           rtnetlink transport, traffic rates, CPU sampling
 └── logging/            syslog, structured records, rotation, export, reset
 ```
+
+`controller/` has no knowledge of UCI, netlink, processes, or OpenWrt, and is
+tested directly with synthetic inputs and recorded upstream traces. The
+current-code [flowcharts](flowchart/README.md) follow this layout.
 
 Headers are included relative to `src/`. The tests in `tests/` mirror the same
 directories; objects and test binaries are written below `build/`.
@@ -452,6 +504,10 @@ OpenWrt SDK:
 ```sh
 make -C tests check check-netlink
 ```
+
+`check` includes `test_replay`, which feeds two recorded cake-autorate traces
+(`tests/controller/fixtures/`) through the controller and fails on any
+decision that differs from upstream.
 
 The host needs a C compiler, `zlib`, and development headers for libnl 3. The
 optional configuration test additionally needs `libuci` and `libubox`
@@ -499,28 +555,29 @@ daemon behavior.
 
 ## Development status and deferred work
 
-The current controller has completed the main parity/refactor sequence for
-directional latency tracking, stale-response handling, serialization
-compensation, reflector health and rotation, multi-child latency ownership,
-structured logging maintenance, and redundant-state cleanup. The source and
-tests are now split by subsystem without behavioral changes. Host tests,
-sanitizer runs, and the x86 SDK build pass; full VM validation must still be
-repeated when the VM is reachable.
+The cake-autorate parity and refactor sequence is complete:
 
-The remaining work is:
+- Controller decisions match cake-autorate `ac75f49` exactly on two replayed
+  traces (2,402 and 2,301 samples), and live side-by-side VM runs behave the
+  same per phase ([comparison](profiling/controller-comparison/README.md)).
+- A final end-to-end run on the OpenWrt 25.12 x86 VM covered sustained
+  download, upload and bidirectional load, congestion and recovery within
+  bounds, qdisc removal and re-creation on both interfaces, idle sleep and
+  wake, log export and in-place reset, and clean shutdown with no leftover
+  processes ([results](profiling/2026-09-30/README.md)).
+- After the optimization pass, bidirectional CPU use roughly halved and
+  syscalls fell from 20,586 to 4,593 per 45 s. The daemon's own code is 4–9%
+  of its sampled CPU time.
+- Host tests, sanitizer runs, and the x86 SDK build pass.
 
-1. Run sequential two-minute cake-autorate and cake-adapt comparisons under
-   equivalent conditions.
-2. If live conditions are too dynamic, replay an immutable upstream trace
-   through the controller boundary and compare every decision.
-3. Run the final end-to-end VM test for load, congestion, recovery, qdisc
-   lifecycle, logging, and shutdown.
-4. Refresh the flowcharts and repeat profiling, retaining raw profiler data,
-   flame graphs, and a separate conclusion.
+Deferred work:
 
-Additional pinger backends remain future work. `fping` is the supported
-production backend until another backend has its own parser, lifecycle tests,
-and runtime verification.
+- Additional pinger backends. `fping` is the supported production backend;
+  the IRTT backend needs its own controller fixtures and runtime verification
+  before it is supported.
+- Native SQM ownership (CAKE, IFB, `ctinfo` and `mirred` setup) remains a
+  possible later phase. It requires an explicit decision and is not part of
+  the current daemon.
 
 ## License
 

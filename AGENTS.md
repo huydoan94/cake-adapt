@@ -80,10 +80,10 @@ measurement -> controller decision -> desired CAKE state -> kernel update
 - The CAKE layer does not measure traffic or latency.
 - The netlink layer contains transport and message mechanics, not policy.
 
-`src/` is organized by subsystem. `main.c` and `monitor.c` stay at the top
-level; every other module belongs to exactly one subsystem directory. Put new
-code in the directory that owns the concept, and do not create a new directory
-or nested layer without a real ownership reason. Do not add unnecessary
+`src/` is organized by subsystem. `main.c` stays at the top level; every other
+module belongs to exactly one subsystem directory. Put new code in the
+directory that owns the concept, and do not create a new directory or nested
+layer without a real ownership reason. Do not add unnecessary
 abstraction layers, wrapper libraries, or one-use helpers.
 
 Include project headers relative to `src/`, for example
@@ -94,8 +94,19 @@ in that directory and is not included from outside it.
 
 - `main.c`: CLI, startup, logging initialization, configuration loading,
   top-level lifecycle, and orderly shutdown only.
-- `monitor.c`: event-loop orchestration and coordination between measurements,
-  controller decisions, qdisc lifecycle, timers, and signals.
+- `monitor/`: uloop orchestration and coordination between measurements,
+  controller decisions, qdisc lifecycle, timers, and signals. Its files share
+  the private `loop.h` state; `monitor.h` is the only public header.
+  - `monitor.c`: loop setup and teardown, the traffic timer, the activity
+    state machine, CPU and log timers, and signals.
+  - `observe.c`: CAKE discovery, achieved-rate observation, compensated
+    traffic cadence, and qdisc lifecycle events.
+  - `control.c`: controller configuration and input, CAKE bandwidth changes
+    with readback, minimum-rate enforcement, and controller records.
+  - `pingers.c`: pinger start, output, exit, restart, setup grace, and
+    per-reply latency processing.
+  - `reflectors.c`: reflector ordering, scheduled comparison and replacement,
+    and health checks.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
@@ -104,8 +115,10 @@ in that directory and is not included from outside it.
     conversions.
   - `error.c`: shared error-buffer formatting.
 - `config/`
-  - `config.c`: typed UCI loading, conversion, and validation through
-    `libuci`; never parse `/etc/config/cake-adapt` manually.
+  - `config.c`: typed UCI loading and conversion through `libuci`; never
+    parse `/etc/config/cake-adapt` manually.
+  - `validate.c`: cross-option validation of a loaded configuration
+    (`config_validate`), run before control starts.
   - `defaults.c` and `defaults.h`: built-in application and configuration
     defaults.
 - `controller/`
@@ -114,8 +127,10 @@ in that directory and is not included from outside it.
   - `reflector.c`: reflector health, comparison, and rotation policy over
     latency trackers.
 - `latency/`
-  - `latency.c`: pinger session and child-process ownership, output buffering,
-    and dispatch to the active backend.
+  - `latency.c`: pinger session and child-process ownership, line splitting,
+    and dispatch to the active backend. Children are reaped by the monitor
+    through `uloop_process`. The only synchronous, bounded waits are shutdown
+    (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
   - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
   - `pinger.h`: private interface between the session and its backends.
   - `parser.c`: pinger output parsing into latency samples.
@@ -332,6 +347,13 @@ Use plain Make:
 Test sources mirror the `src/` subsystem directories; move a test with the
 module it covers. Test objects and binaries are written below `build/tests/`.
 
+`tests/controller/test_replay.c` replays recorded cake-autorate `ac75f49`
+traces from `tests/controller/fixtures/` and requires every decision to match.
+Keep it passing; a controller change that alters a replayed decision is a
+divergence from upstream and needs an explicit decision and documentation.
+`extract-trace.py` and `scripted-fping.sh` reproduce the fixtures; the raw
+source logs are in `profiling/controller-comparison/`.
+
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
 builds for host-only work. Use `.vscode/tasks.json` for the configured x86 and
 Filogic SDK commands; do not guess SDK locations or rewrite the user's local
@@ -371,25 +393,23 @@ Before declaring work complete:
 
 ## Project status and deferred work
 
-The main parity/refactor sequence has covered directional latency state,
-stale-response handling, timestamp/serialization compensation, reflector
-health and rotation, multi-child latency ownership, logging maintenance, and
-redundant-state cleanup. The subsystem split of `src/` and `tests/` is
-complete. Host tests, sanitizer runs, and the x86 SDK build pass. Runtime VM
-validation remains pending when the VM is unreachable.
+The cake-autorate parity and refactor sequence is complete. The controller
+replays two recorded upstream traces with no mismatching decision, live
+side-by-side VM runs agree per phase, and the final end-to-end VM run and
+profiling are recorded under `profiling/` (`controller-comparison/` and
+`2026-09-30/`). The flowcharts in `flowchart/` are generated from
+`flowchart-data.json` by `generate.mjs`; regenerate them when event ordering or
+module ownership changes.
 
 Remaining work must remain behavior-first:
 
-- compare cake-autorate and cake-adapt in sequential two-minute runs, never
-  concurrently controlling the same qdiscs;
-- use deterministic controller replay when live network conditions are too
-  dynamic;
-- complete end-to-end VM validation, then refresh flowcharts and profiling;
-- preserve raw logs, traces, profiler output, and reproducibility metadata.
+- keep raw logs, traces, profiler output, and reproducibility metadata for any
+  new runtime claim;
+- never run cake-autorate and cake-adapt concurrently against the same qdiscs.
 
-Do not claim full parity from host tests alone. `fping` remains the only
-supported production pinger until every additional backend has independent
-parser, lifecycle, fixture, and runtime verification.
+Do not claim parity for a new behavior from host tests alone. `fping` remains
+the only supported production pinger until every additional backend has
+independent parser, lifecycle, fixture, and runtime verification.
 
 ## VM testing and delegation
 
