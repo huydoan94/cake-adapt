@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=cake-adapt
-PKG_VERSION:=0.2.10
+PKG_VERSION:=0.2.11
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 PKG_LICENSE_FILES:=LICENSE
@@ -14,7 +14,7 @@ define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +irtt +bash
+  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +bash
 endef
 
 define Package/cake-adapt/description
@@ -35,7 +35,8 @@ define Build/Compile
 		LDFLAGS="$(TARGET_LDFLAGS)" \
 		NETLINK_CFLAGS="-isystem $(STAGING_DIR)/usr/include/libnl-tiny" \
 		NETLINK_LIBS="-lnl-tiny" \
-		OBJECT_DIR="$(PKG_BUILD_DIR)/build"
+		OBJECT_DIR="$(PKG_BUILD_DIR)/build" \
+		VERSION="$(PKG_VERSION)-r$(PKG_RELEASE)"
 endef
 
 define Package/cake-adapt/conffiles

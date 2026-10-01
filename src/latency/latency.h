@@ -19,6 +19,16 @@ enum latency_backend {
 
 bool target_is_valid(const char *target);
 
+/* The executable a pinger_method runs, or NULL for an unknown method. */
+const char *latency_backend_executable(const char *pinger_method);
+
+/* Like cake-autorate, refuse to start when the selected pinger cannot run. */
+int latency_check_backend(
+    const char *pinger_method,
+    char *error,
+    size_t error_size
+);
+
 struct latency_child {
     int output_descriptor;
     /* Unreaped child; cleared once its exit is reported, so it is never re-signalled. */

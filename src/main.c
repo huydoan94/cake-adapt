@@ -2,6 +2,7 @@
 #include "common/constants.h"
 #include "config/defaults.h"
 #include "common/error.h"
+#include "latency/latency.h"
 #include "logging/log.h"
 #include "monitor/monitor.h"
 
@@ -113,6 +114,18 @@ int main(int argc, char **argv)
             "configuration error: %s",
             config_error
         );
+        log_close();
+        return 1;
+    }
+    if (
+        config.enabled &&
+        latency_check_backend(
+            config.pinger_method,
+            config_error,
+            sizeof(config_error)
+        ) != 0
+    ) {
+        log_message(LOG_LEVEL_ERROR, "%s; exiting", config_error);
         log_close();
         return 1;
     }
@@ -245,7 +258,8 @@ int main(int argc, char **argv)
     }
 
     log_system_message(
-        "Starting cake-adapt with PID: %ld, config: %s, section: %s",
+        "Starting cake-adapt %s with PID: %ld, config: %s, section: %s",
+        PROGRAM_VERSION,
         (long)getpid(),
         active_config,
         section_name
