@@ -1,0 +1,5 @@
+idle user+system_ticks=21 seconds=40 rss_kb=1120
+download user+system_ticks=31 seconds=40 rss_kb=1116
+upload user+system_ticks=32 seconds=40 rss_kb=1116
+bidirectional user+system_ticks=75 seconds=40 rss_kb=1120
+latency user+system_ticks=41 seconds=40 rss_kb=1096

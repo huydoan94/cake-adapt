@@ -1,0 +1,13 @@
+6712633761f7b97791de9bf1f38f401e970ae745b6a6e3095ca97702b85c84fb  ./defaults-adapt-r1/cake-adapt.log
+00e5c4c68dd308b9750d5dfb3c70ddc3c39ce308d1ead24ba77e6dd28e992c7c  ./defaults-adapt-r2/cake-adapt.log
+04c37ac7e62923b74c029563b027694c5f87fb2f36ab42d5d5fe6bcfba1722c1  ./defaults-adapt-r3/cake-adapt.log
+60e530076153a36a7c95199e1bcaae303033ad66831afb06c73282295fbf3719  ./defaults-autorate-r1/cake-autorate.primary.log
+08f15d4d960829d9fc99b39064765370f4589785773fa81a7961f2e0bc4c775c  ./defaults-autorate-r1/cake-autorate.primary.log.old
+4d27d196b61933ef6653a4dee0fc9adcf0153f699e51a77dc8e19c51b9526161  ./defaults-autorate-r2/cake-autorate.primary.log
+8cbea49b79abc4c4df3de96e9315a2adca8213e18838f1b1e36485819cc1de03  ./defaults-autorate-r2/cake-autorate.primary.log.old
+d3819352fe01837dce18657774d9cf8cb9d68d170f06900ac8629109072cffee  ./defaults-autorate-r3/cake-autorate.primary.log
+e1eec47ae152fa3e4b4353a4ff9c1379e0c0bb836d229a82b383ddfff1d9fcb3  ./defaults-autorate-r3/cake-autorate.primary.log.old
+96e9a1fd475f46d5162a6b63a74e2a776d400738379fb232ba955889548785f9  ./driver.log
+79dddb5e275b7e0e19b1d539739312f68c931eb828fc4226a6b887e482ca00e1  ./stats-adapt-r1/cake-adapt.log
+ae4965f1a3e6081b7015ada45b9038f192b0e61bd6420cad1b1c8ff06b45b98c  ./stats-autorate-r1/cake-autorate.primary.log
+bff1d916cf2e4f66b666cf4b4f7264c8f2a45fa79fb76c27fb24bb09903206e2  ./stats-autorate-r1/cake-autorate.primary.log.old

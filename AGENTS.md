@@ -80,33 +80,68 @@ measurement -> controller decision -> desired CAKE state -> kernel update
 - The CAKE layer does not measure traffic or latency.
 - The netlink layer contains transport and message mechanics, not policy.
 
-Keep `src/` flat until a subsystem genuinely needs a directory. Do not add
-unnecessary abstraction layers, wrapper libraries, or one-use helpers.
+`src/` is organized by subsystem. `main.c` stays at the top level; every other
+module belongs to exactly one subsystem directory. Put new code in the
+directory that owns the concept, and do not create a new directory or nested
+layer without a real ownership reason. Do not add unnecessary
+abstraction layers, wrapper libraries, or one-use helpers.
+
+Include project headers relative to `src/`, for example
+`#include "latency/tracker.h"`. A header shared only inside one subsystem stays
+in that directory and is not included from outside it.
 
 ### Module boundaries
 
 - `main.c`: CLI, startup, logging initialization, configuration loading,
   top-level lifecycle, and orderly shutdown only.
-- `monitor.c`: event-loop orchestration and coordination between measurements,
-  controller decisions, qdisc lifecycle, timers, and signals.
-- `config.c`: typed UCI loading, conversion, and validation through `libuci`;
-  never parse `/etc/config/cake-adapt` manually.
-- `defaults.c` and `defaults.h`: built-in application and configuration
-  defaults.
-- `constants.h`: shared semantic names, paths, modes, and state tokens; keep
-  prose diagnostics, format strings, and module-owned record schemas local.
-- `controller.c`: platform-independent autorate, congestion, and activity
-  policy; keep it directly unit-testable with synthetic inputs.
-- `cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
-- `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
-- `traffic.c`: counter samples and achieved-rate calculations only.
-- `latency.c`: `fping` process ownership, parsing, and latency tracking only.
-- `cpu.c`: CPU sampling and usage calculations only.
-- `log.c`: all logging, cake-autorate-compatible records, rotation, export, and
-  reset behavior.
-- `helpers.c`: small genuinely generic operations shared by modules, such as
-  numeric parsing, percentages, clocks, and safe conversions.
-- `error.c`: shared error-buffer formatting.
+- `monitor/`: uloop orchestration and coordination between measurements,
+  controller decisions, qdisc lifecycle, timers, and signals. Its files share
+  the private `loop.h` state; `monitor.h` is the only public header.
+  - `monitor.c`: loop setup and teardown, the traffic timer, the activity
+    state machine, CPU and log timers, and signals.
+  - `observe.c`: CAKE discovery, achieved-rate observation, compensated
+    traffic cadence, and qdisc lifecycle events.
+  - `control.c`: controller configuration and input, CAKE bandwidth changes
+    with readback, minimum-rate enforcement, and controller records.
+  - `pingers.c`: pinger start, output, exit, restart, setup grace, and
+    per-reply latency processing.
+  - `reflectors.c`: reflector ordering, scheduled comparison and replacement,
+    and health checks.
+- `common/`
+  - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
+    prose diagnostics, format strings, and module-owned record schemas local.
+  - `helpers.c`: small genuinely generic operations shared by modules, such as
+    numeric parsing, percentages, saturating arithmetic, clocks, and safe
+    conversions.
+  - `error.c`: shared error-buffer formatting.
+- `config/`
+  - `config.c`: typed UCI loading and conversion through `libuci`; never
+    parse `/etc/config/cake-adapt` manually.
+  - `validate.c`: cross-option validation of a loaded configuration
+    (`config_validate`), run before control starts.
+  - `defaults.c` and `defaults.h`: built-in application and configuration
+    defaults.
+- `controller/`
+  - `controller.c`: platform-independent autorate, congestion, and activity
+    policy; keep it directly unit-testable with synthetic inputs.
+  - `reflector.c`: reflector health, comparison, and rotation policy over
+    latency trackers.
+- `latency/`
+  - `latency.c`: pinger session and child-process ownership, line splitting,
+    and dispatch to the active backend. Children are reaped by the monitor
+    through `uloop_process`. The only synchronous, bounded waits are shutdown
+    (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
+  - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
+  - `pinger.h`: private interface between the session and its backends.
+  - `parser.c`: pinger output parsing into latency samples.
+  - `tracker.c`: per-reflector baseline and delta EWMA tracking.
+- `cake/cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
+- `platform/`
+  - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
+  - `traffic.c`: counter samples and achieved-rate calculations only.
+  - `cpu.c`: CPU sampling and usage calculations only.
+- `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
+  export, and reset behavior.
 
 Before adding a function, search for an existing equivalent. Consolidate
 duplicate conversions, parsing, percentage, timing, and bounds logic in the
@@ -202,14 +237,15 @@ log_message();
 
 Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
 `cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
-Move generic names such as `read_u32()` or `percentage_of()` to `helpers` when
-they are shared; keep module-specific helpers local and `static`.
+Move generic names such as `read_u32()` or `percentage_of()` to
+`common/helpers` when they are shared; keep module-specific helpers local and
+`static`.
 
-Put shared semantic string values in `constants.h` and built-in defaults in
-`defaults.c`/`defaults.h`. Keep complete diagnostics, format strings, and
-module-owned schemas beside the code that uses them. Tests should keep literal
-expected values when importing the production constant would make the check
-tautological.
+Put shared semantic string values in `common/constants.h` and built-in defaults
+in `config/defaults.c`/`config/defaults.h`. Keep complete diagnostics, format
+strings, and module-owned schemas beside the code that uses them. Tests should
+keep literal expected values when importing the production constant would make
+the check tautological.
 
 Do not repeat the program name in every log message because the backend already
 identifies the service.
@@ -266,11 +302,12 @@ Keep strict warnings enabled:
 
 Disable a warning only for a narrow, documented reason.
 
-Generated `.o` and `.d` files belong in `build/`, never in `src/`.
+Generated `.o` and `.d` files and test binaries belong in `build/`, never in
+`src/` or `tests/`.
 
 ## Logging and failure behavior
 
-All application logging goes through `log.c`.
+All application logging goes through `logging/log.c`.
 
 Syslog must make these conditions visible even when detailed file output is
 disabled:
@@ -307,6 +344,16 @@ Use plain Make:
 - `src/Makefile`: daemon build; and
 - `tests/Makefile`: focused host tests.
 
+Test sources mirror the `src/` subsystem directories; move a test with the
+module it covers. Test objects and binaries are written below `build/tests/`.
+
+`tests/controller/test_replay.c` replays recorded cake-autorate `ac75f49`
+traces from `tests/controller/fixtures/` and requires every decision to match.
+Keep it passing; a controller change that alters a replayed decision is a
+divergence from upstream and needs an explicit decision and documentation.
+`extract-trace.py` and `scripted-fping.sh` reproduce the fixtures; the raw
+source logs are in `profiling/controller-comparison/`.
+
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
 builds for host-only work. Use `.vscode/tasks.json` for the configured x86 and
 Filogic SDK commands; do not guess SDK locations or rewrite the user's local
@@ -320,7 +367,9 @@ destination with checksums.
 
 When explicitly bumping `PKG_VERSION`, update any versioned artifact path in
 `.vscode/tasks.json` in the same change. The native `check-config` target needs
-both `libuci` and `libubox` development headers; missing host headers are an
+both `libuci` and `libubox` development headers but no native libraries. When
+the host lacks them, point `UCI_CFLAGS` at a directory exposing the SDK's staged
+`uci.h` and `libubox/` headers; otherwise treat the missing headers as an
 environment limitation, but the production SDK build must still pass.
 
 Unit tests are part of every behavioral change. Cover the affected branches,
@@ -336,10 +385,31 @@ Before declaring work complete:
 
 1. inspect existing behavior and relevant upstream behavior;
 2. make the smallest coherent change;
-3. run focused host tests;
+3. run focused host tests, plus sanitizer builds for structural or
+   memory-sensitive changes;
 4. build the affected SDK package when appropriate;
 5. test on the VM when runtime/kernel behavior changed; and
 6. verify actual service, process, log, and qdisc state.
+
+## Project status and deferred work
+
+The cake-autorate parity and refactor sequence is complete. The controller
+replays two recorded upstream traces with no mismatching decision, live
+side-by-side VM runs agree per phase, and the final end-to-end VM run and
+profiling are recorded under `profiling/` (`controller-comparison/` and
+`2026-09-30/`). The flowcharts in `flowchart/` are generated from
+`flowchart-data.json` by `generate.mjs`; regenerate them when event ordering or
+module ownership changes.
+
+Remaining work must remain behavior-first:
+
+- keep raw logs, traces, profiler output, and reproducibility metadata for any
+  new runtime claim;
+- never run cake-autorate and cake-adapt concurrently against the same qdiscs.
+
+Do not claim parity for a new behavior from host tests alone. `fping` remains
+the only supported production pinger until every additional backend has
+independent parser, lifecycle, fixture, and runtime verification.
 
 ## VM testing and delegation
 
@@ -395,6 +465,10 @@ unrelated legacy process merely because it owns an `fping` child.
 
 ## Change discipline
 
+- Work only on the currently checked-out local branch. Never inspect, switch,
+  modify, rewrite, delete, or otherwise touch any other branch or remote.
+  Never fetch, pull, push, force-push, or contact a remote; branch and remote
+  management belongs exclusively to the user.
 - Treat `AGENTS.md` as user-owned policy; edit it only when explicitly asked.
 - Inspect `git status` first and preserve unrelated user changes.
 - Verify a surprising observation once before changing known-working code.

@@ -1,0 +1,4 @@
+round=1 build=before bidirectional user+system_ticks=61 seconds=40 records=914
+round=1 build=profile bidirectional user+system_ticks=28 seconds=40 records=917
+round=2 build=before bidirectional user+system_ticks=52 seconds=40 records=916
+round=2 build=profile bidirectional user+system_ticks=40 seconds=40 records=888
