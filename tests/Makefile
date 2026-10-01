@@ -82,6 +82,7 @@ $(BINARIES): $(BINARY_DIR)/%: $$(addprefix $(OBJECT_DIR)/,$$($$*_OBJECTS))
 
 # Kept apart from LDFLAGS so command-line overrides cannot drop the wrappers.
 $(BINARY_DIR)/test_controller: TEST_LDFLAGS := -Wl,--wrap=calloc
+$(BINARY_DIR)/test_latency: TEST_LDFLAGS := -Wl,--wrap=access
 $(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r
 $(BINARY_DIR)/test_log: TEST_LDLIBS := -lz
 
