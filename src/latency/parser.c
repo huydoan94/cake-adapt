@@ -64,8 +64,72 @@ static bool parse_timestamp(
     return true;
 }
 
-enum latency_fping_line_result parse_fping_line(
+/* Reads "<name><milliseconds>" and the separating space, if any. */
+static bool parse_icmp_timestamp(
+    const char **cursor,
+    const char *name,
+    uint64_t *milliseconds
+)
+{
+    const char *digits;
+    const char *end;
+
+    if (strncmp(*cursor, name, strlen(name)) != 0) {
+        return false;
+    }
+    digits = *cursor + strlen(name);
+    end = digits + strspn(digits, DECIMAL_DIGITS);
+    if (
+        !parse_unsigned(digits, end, milliseconds) ||
+        *milliseconds > UINT32_MAX ||
+        (*end != '\0' && *end != ' ')
+    ) {
+        return false;
+    }
+    *cursor = *end == ' ' ? end + 1 : end;
+    return true;
+}
+
+/*
+ * ICMP timestamps are milliseconds past midnight UTC on each clock, so like
+ * cake-autorate: download = Localreceive - Transmit and upload = Receive -
+ * Originate, scaled to microseconds. Unsynchronized midnight rollovers produce
+ * huge deltas, which the tracker resets on because the sample is marked.
+ */
+static bool parse_icmp_timestamps(
+    const char *cursor,
+    struct latency_sample *sample
+)
+{
+    uint64_t originate;
+    uint64_t receive;
+    uint64_t transmit;
+    uint64_t local_receive;
+
+    cursor = strstr(cursor, FPING_TIMESTAMPS_PREFIX);
+    if (cursor == NULL) {
+        return false;
+    }
+    cursor += strlen(FPING_TIMESTAMPS_PREFIX);
+    if (
+        !parse_icmp_timestamp(&cursor, "Originate=", &originate) ||
+        !parse_icmp_timestamp(&cursor, "Receive=", &receive) ||
+        !parse_icmp_timestamp(&cursor, "Transmit=", &transmit) ||
+        !parse_icmp_timestamp(&cursor, "Localreceive=", &local_receive)
+    ) {
+        return false;
+    }
+    sample->download_owd_microseconds =
+        ((int64_t)local_receive - (int64_t)transmit) * (int64_t)MICROSECONDS_PER_MILLISECOND;
+    sample->upload_owd_microseconds =
+        ((int64_t)receive - (int64_t)originate) * (int64_t)MICROSECONDS_PER_MILLISECOND;
+    sample->timestamp_rollover_sensitive = true;
+    return true;
+}
+
+static enum latency_fping_line_result parse_fping_reply(
     const char *line,
+    bool icmp_timestamps,
     struct latency_sample *sample
 )
 {
@@ -155,6 +219,11 @@ enum latency_fping_line_result parse_fping_line(
     ) {
         return LATENCY_FPING_LINE_INVALID;
     }
+    if (icmp_timestamps) {
+        return parse_icmp_timestamps(rtt_end, sample)
+            ? LATENCY_FPING_LINE_SAMPLE
+            : LATENCY_FPING_LINE_INVALID;
+    }
 
     round_trip_microseconds =
         round_trip_milliseconds * (double)MICROSECONDS_PER_MILLISECOND;
@@ -167,6 +236,22 @@ enum latency_fping_line_result parse_fping_line(
     }
     sample->upload_owd_microseconds = sample->download_owd_microseconds;
     return LATENCY_FPING_LINE_SAMPLE;
+}
+
+enum latency_fping_line_result parse_fping_line(
+    const char *line,
+    struct latency_sample *sample
+)
+{
+    return parse_fping_reply(line, false, sample);
+}
+
+enum latency_fping_line_result parse_fping_timestamp_line(
+    const char *line,
+    struct latency_sample *sample
+)
+{
+    return parse_fping_reply(line, true, sample);
 }
 
 static bool token_has_unit(const char *token, const char *unit)

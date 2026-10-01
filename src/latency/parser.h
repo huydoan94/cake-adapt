@@ -30,6 +30,12 @@ enum latency_fping_line_result parse_fping_line(
     struct latency_sample *sample
 );
 
+/* An fping --icmp-timestamp reply, which carries separate one-way delays. */
+enum latency_fping_line_result parse_fping_timestamp_line(
+    const char *line,
+    struct latency_sample *sample
+);
+
 bool parse_irtt_line(
     const char *line,
     const char *target,

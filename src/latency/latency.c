@@ -286,6 +286,7 @@ static const struct {
     const char *executable;
 } backends[] = {
     { PINGER_METHOD_FPING, FPING_PATH },
+    { PINGER_METHOD_FPING_TS, FPING_PATH },
     { PINGER_METHOD_IRTT, IRTT_PATH }
 };
 
@@ -500,7 +501,9 @@ enum latency_probe_result latency_handle_line(
         );
         return LATENCY_PROBE_SUCCESS;
     }
-    parsed = parse_fping_line(line, sample);
+    parsed = latency->backend == LATENCY_BACKEND_FPING_TS
+        ? parse_fping_timestamp_line(line, sample)
+        : parse_fping_line(line, sample);
     if (parsed == LATENCY_FPING_LINE_INVALID) {
         error_set(error, error_size, "unexpected fping output: %.160s", line);
         return LATENCY_PROBE_ERROR;
