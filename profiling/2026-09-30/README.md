@@ -46,8 +46,13 @@ The 3 bidirectional runs alternated builds to limit drift
 by several ticks, so treat the one-way rows as small improvements, not exact
 figures. Resident memory stayed between 1.10 and 1.12 MB in every workload.
 
-The "before" binary was built with the same flags from the sources preceding
-the optimization series. Its exact commit was not recorded with the capture.
+The "before" binary is the stripped production package built from `2bddfdf`,
+the last commit before the optimization series. Rebuilding `2bddfdf` with the
+SDK's flags and `sstrip` reproduces it byte for byte (SHA-256 prefix
+`e1e98ae3ee7a7000`, 90,117 bytes), while the neighbouring `f7402f1` does not.
+The "after" binary adds `-g3 -gdwarf-4 -fno-omit-frame-pointer` so perf can
+resolve its stacks. Keeping the frame pointer costs a register on i386, so if
+anything the comparison understates the improvement.
 
 In the latency workload, `ping_prefix_string` ran fping through
 `tests/controller/fixtures/scripted-fping.sh`. That script injects
