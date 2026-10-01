@@ -1,0 +1,27 @@
+idle: 99 samples
+   99.0%    98  epoll wait (idle in the event loop)
+    1.0%     1  netlink qdisc dump
+download: 192 samples
+   57.8%   111  epoll wait (idle in the event loop)
+   29.7%    57  interrupt/softirq (packet processing charged to the task)
+    6.2%    12  netlink qdisc dump
+    5.2%    10  userspace (cake-adapt, libc, libubox)
+    1.0%     2  other kernel
+upload: 231 samples
+   59.3%   137  epoll wait (idle in the event loop)
+   34.6%    80  interrupt/softirq (packet processing charged to the task)
+    3.9%     9  userspace (cake-adapt, libc, libubox)
+    1.7%     4  netlink qdisc dump
+    0.4%     1  other kernel
+bidirectional: 224 samples
+   46.9%   105  interrupt/softirq (packet processing charged to the task)
+   44.6%   100  epoll wait (idle in the event loop)
+    4.0%     9  userspace (cake-adapt, libc, libubox)
+    4.0%     9  netlink qdisc dump
+    0.4%     1  pinger pipe read
+latency: 160 samples
+   45.6%    73  interrupt/softirq (packet processing charged to the task)
+   38.8%    62  epoll wait (idle in the event loop)
+    8.8%    14  userspace (cake-adapt, libc, libubox)
+    6.2%    10  netlink qdisc dump
+    0.6%     1  pinger pipe read

@@ -1,0 +1,13 @@
+    150 -rw-r--r--    1 root     root        110732 Sep 30 22:41 /tmp/sqm-mon-test.log
+running
+qdisc cake 800d: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- 
+qdisc cake 800e: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ifb4eth1         UNKNOWN        86:28:b1:4e:62:c3 <BROADCAST,NOARP,UP,LOWER_UP> 
+default via 10.0.3.2 dev eth1 proto static src 10.0.3.15 
+10.0.3.0/24 dev eth1 proto kernel scope link src 10.0.3.15 
+/bin/bash
+/usr/bin/fping
+/sbin/tc
+ls: /var/run/cake-autorate: No such file or directory
+1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4 9.9.9.9 9.9.9.10 9.9.9.11 94.140.14.15 94.140.14.140 94.140.14.141 94.140.15.15 94.140.15.16 64.6.65.6 156.154.70.1 156.154.70.2 156.154.70.3 156.154.70.4 156.154.70.5 156.154.71.1 156.154.71.2 156.154.71.3 156.154.71.4 156.154.71.5 208.67.220.2 208.67.220.123 208.67.220.220 208.67.222.2 208.67.222.123 185.228.168.9 185.228.168.10

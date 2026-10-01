@@ -19,18 +19,28 @@ WARNINGS := \
 TARGET := cake-adapt
 SOURCES := \
 	main.c \
-	cake.c \
-	config.c \
-	controller.c \
-	cpu.c \
-	defaults.c \
-	error.c \
-	helpers.c \
-	latency.c \
-	log.c \
-	monitor.c \
-	netlink.c \
-	traffic.c
+	cake/cake.c \
+	common/error.c \
+	common/helpers.c \
+	config/config.c \
+	config/defaults.c \
+	config/validate.c \
+	controller/controller.c \
+	controller/reflector.c \
+	latency/fping.c \
+	latency/irtt.c \
+	latency/latency.c \
+	latency/parser.c \
+	latency/tracker.c \
+	logging/log.c \
+	monitor/control.c \
+	monitor/monitor.c \
+	monitor/observe.c \
+	monitor/pingers.c \
+	monitor/reflectors.c \
+	platform/cpu.c \
+	platform/netlink.c \
+	platform/traffic.c
 OBJECT_DIR ?= ../build
 OBJECTS := $(SOURCES:%.c=$(OBJECT_DIR)/%.o)
 DEPENDENCIES := $(OBJECTS:.o=.d)
@@ -42,11 +52,10 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox -lz $(NETLINK_LIBS)
 
-$(OBJECT_DIR):
-	mkdir -p $@
-
-$(OBJECT_DIR)/%.o: %.c | $(OBJECT_DIR)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
+# Subsystem headers are included relative to this source root.
+$(OBJECT_DIR)/%.o: %.c
+	@mkdir -p $(@D)
+	$(CC) -I$(CURDIR) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 clean:
 	$(RM) $(TARGET) $(OBJECTS) $(DEPENDENCIES)
