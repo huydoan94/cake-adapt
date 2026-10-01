@@ -280,6 +280,53 @@ void latency_init(struct latency *latency)
     }
 }
 
+/* Every pinger backend and the executable it launches. */
+static const struct {
+    const char *method;
+    const char *executable;
+} backends[] = {
+    { PINGER_METHOD_FPING, FPING_PATH },
+    { PINGER_METHOD_IRTT, IRTT_PATH }
+};
+
+const char *latency_backend_executable(const char *pinger_method)
+{
+    size_t index;
+
+    for (index = 0U; index < sizeof(backends) / sizeof(backends[0]); index++) {
+        if (strcmp(backends[index].method, pinger_method) == 0) {
+            return backends[index].executable;
+        }
+    }
+    return NULL;
+}
+
+int latency_check_backend(
+    const char *pinger_method,
+    char *error,
+    size_t error_size
+)
+{
+    const char *executable = latency_backend_executable(pinger_method);
+
+    if (executable == NULL) {
+        error_set(error, error_size, "unknown pinger_method '%s'", pinger_method);
+        return -1;
+    }
+    if (access(executable, X_OK) != 0) {
+        error_set(
+            error,
+            error_size,
+            "ping binary %s for pinger_method '%s' is not available: %s",
+            executable,
+            pinger_method,
+            strerror(errno)
+        );
+        return -1;
+    }
+    return 0;
+}
+
 bool target_is_valid(const char *target)
 {
     size_t length;

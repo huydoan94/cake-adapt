@@ -4,8 +4,8 @@
 
 `cake-adapt` is an OpenWrt-native C daemon for adapting the bandwidth of
 existing CAKE qdiscs. The package, executable, service, syslog identifier, and
-UCI package are all named `cake-adapt`; the repository directory may still be
-named `sqm-mon` for historical reasons.
+UCI package are all named `cake-adapt`, as is the GitHub repository; a local
+checkout may still be named `sqm-mon` for historical reasons.
 
 CAKE remains a Linux kernel qdisc. Never reimplement packet scheduling in
 userspace.
@@ -355,22 +355,24 @@ divergence from upstream and needs an explicit decision and documentation.
 source logs are in `profiling/controller-comparison/`.
 
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
-builds for host-only work. Use `.vscode/tasks.json` for the configured x86 and
-Filogic SDK commands; do not guess SDK locations or rewrite the user's local
-task paths unless asked. OpenWrt 25.12 is the only release target for now.
-Never touch `openwrt-image-builder`.
+builds for host-only work. Use the `.vscode/tasks.json` tasks: the host test
+task runs `check`, `check-netlink` and `check-config`, and each SDK build task
+cleans and compiles the package in the SDK beside the repository
+(`../openwrt-sdk-x86`, `../openwrt-sdk-filogic`) or in `OPENWRT_SDK_X86` /
+`OPENWRT_SDK_FILOGIC`. Do not guess other SDK locations, and keep absolute or
+personal paths out of `.vscode/`. OpenWrt 25.12 is the only release target for
+now. Never touch `openwrt-image-builder`.
 
 Do not bump `PKG_VERSION` or `PKG_RELEASE`, copy artifacts, deploy, or publish a
 release unless the user explicitly asks. When asked to build both SDKs, run the
 x86 and Filogic tasks concurrently. Verify the selected artifact and its
 destination with checksums.
 
-When explicitly bumping `PKG_VERSION`, update any versioned artifact path in
-`.vscode/tasks.json` in the same change. The native `check-config` target needs
-both `libuci` and `libubox` development headers but no native libraries. When
-the host lacks them, point `UCI_CFLAGS` at a directory exposing the SDK's staged
-`uci.h` and `libubox/` headers; otherwise treat the missing headers as an
-environment limitation, but the production SDK build must still pass.
+The native `check-config` target needs both `libuci` and `libubox` development
+headers but no native libraries. When the host lacks them, point `UCI_CFLAGS` at
+a directory exposing the SDK's staged `uci.h` and `libubox/` headers; otherwise
+treat the missing headers as an environment limitation, but the production SDK
+build must still pass.
 
 Unit tests are part of every behavioral change. Cover the affected branches,
 especially controller state transitions, min/base/max bounds, congestion and
@@ -397,7 +399,8 @@ The cake-autorate parity and refactor sequence is complete. The controller
 replays two recorded upstream traces with no mismatching decision, live
 side-by-side VM runs agree per phase, and the final end-to-end VM run and
 profiling are recorded under `profiling/` (`controller-comparison/` and
-`2026-09-30/`). The flowcharts in `flowchart/` are generated from
+`2026-09-30/`), as is the resource comparison with cake-autorate
+(`cake-autorate-resources/`). The flowcharts in `flowchart/` are generated from
 `flowchart-data.json` by `generate.mjs`; regenerate them when event ordering or
 module ownership changes.
 

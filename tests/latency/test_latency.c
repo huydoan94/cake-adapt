@@ -17,6 +17,26 @@
 #include <time.h>
 #include <unistd.h>
 
+/* access() is wrapped at link time so the backend check does not depend on the host. */
+static bool fake_access;
+static int access_result;
+static int access_errno;
+static char accessed_path[64];
+
+int __real_access(const char *path, int mode);
+int __wrap_access(const char *path, int mode);
+
+int __wrap_access(const char *path, int mode)
+{
+    if (!fake_access) {
+        return __real_access(path, mode);
+    }
+    assert(mode == X_OK);
+    (void)snprintf(accessed_path, sizeof(accessed_path), "%s", path);
+    errno = access_errno;
+    return access_result;
+}
+
 /* Linux wait status encodings, as reported by waitpid() and uloop. */
 #define EXIT_STATUS(code) ((code) << 8)
 #define SIGNAL_STATUS(signal) (signal)
@@ -528,6 +548,39 @@ static void test_irtt_children_start_in_separate_slots(void)
     assert(!latency_stopping(&latency));
 }
 
+static void test_backend_executable_must_be_available(void)
+{
+    char error[256] = "";
+
+    assert(strcmp(latency_backend_executable("fping"), "/usr/bin/fping") == 0);
+    assert(strcmp(latency_backend_executable("irtt"), "/usr/bin/irtt") == 0);
+    assert(latency_backend_executable("ping") == NULL);
+
+    fake_access = true;
+    access_result = 0;
+    access_errno = 0;
+    accessed_path[0] = '\0';
+    assert(latency_check_backend("fping", error, sizeof(error)) == 0);
+    assert(strcmp(accessed_path, "/usr/bin/fping") == 0);
+
+    access_result = -1;
+    access_errno = ENOENT;
+    assert(latency_check_backend("irtt", error, sizeof(error)) == -1);
+    assert(strcmp(accessed_path, "/usr/bin/irtt") == 0);
+    assert(
+        strcmp(
+            error,
+            "ping binary /usr/bin/irtt for pinger_method 'irtt' is not available: No such file or directory"
+        ) == 0
+    );
+
+    accessed_path[0] = '\0';
+    assert(latency_check_backend("ping", error, sizeof(error)) == -1);
+    assert(accessed_path[0] == '\0');
+    assert(strcmp(error, "unknown pinger_method 'ping'") == 0);
+    fake_access = false;
+}
+
 int main(void)
 {
     test_initial_state_is_closed();
@@ -547,6 +600,7 @@ int main(void)
     test_failed_spawn_closes_pipe();
     test_prefix_and_extra_args_reach_owned_process();
     test_irtt_children_start_in_separate_slots();
+    test_backend_executable_must_be_available();
 
     (void)puts("latency tests passed");
     return 0;
