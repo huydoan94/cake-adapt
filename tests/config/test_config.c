@@ -1,4 +1,5 @@
 #include "config/config.c"
+#include "config/validate.c"
 
 #include <assert.h>
 
@@ -131,7 +132,7 @@ static void test_interface_resolution(void)
 
     config = (struct config) { .enabled = true };
     assert(resolve_interfaces(&config, error, sizeof(error)) == 0);
-    assert(validate_config(&config, error, sizeof(error)) != 0);
+    assert(config_validate(&config, error, sizeof(error)) != 0);
     assert(strstr(error, "either option 'interface' or both options") != NULL);
 }
 
