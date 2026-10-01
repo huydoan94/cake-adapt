@@ -1,41 +1,38 @@
 {
+    // SDK locations default to siblings of this repository (../openwrt-sdk-x86,
+    // ../openwrt-sdk-filogic); set OPENWRT_SDK_X86 or OPENWRT_SDK_FILOGIC to
+    // override. The host tests take the uci.h and libubox headers that
+    // check-config needs from the x86 SDK.
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build sqm-mon (host)",
+            "label": "Test cake-adapt (host)",
             "type": "shell",
-            "command": "make",
-            "args": [
-                "-C",
-                "src"
-            ],
+            "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; headers=$(cd \"$sdk\" && echo \"$PWD\"/staging_dir/target-*/usr/include); make -C tests check check-netlink check-config UCI_CFLAGS=\"-isystem $headers\"",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
-                "kind": "build",
+                "kind": "test",
                 "isDefault": true
             },
             "problemMatcher": "$gcc"
         },
         {
-            "label": "Clean sqm-mon (host)",
+            "label": "Build cake-adapt (OpenWrt SDK x86)",
             "type": "shell",
-            "command": "make",
-            "args": [
-                "-C",
-                "src",
-                "clean"
-            ],
-            "problemMatcher": []
+            "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; make -C \"$sdk\" package/cake-adapt/clean V=s && make -C \"$sdk\" package/cake-adapt/compile V=s",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": "$gcc"
         },
         {
-            "label": "Build sqm-mon (OpenWrt SDK)",
+            "label": "Build cake-adapt (OpenWrt SDK filogic)",
             "type": "shell",
-            "command": "make",
-            "args": [
-                "package/sqm-mon/compile",
-                "V=s"
-            ],
+            "command": "sdk=$OPENWRT_SDK_FILOGIC; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-filogic; make -C \"$sdk\" package/cake-adapt/clean V=s && make -C \"$sdk\" package/cake-adapt/compile V=s",
             "options": {
-                "cwd": "${env:OPENWRT_SDK}"
+                "cwd": "${workspaceFolder}"
             },
             "problemMatcher": "$gcc"
         }
