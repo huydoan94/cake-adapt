@@ -3,7 +3,7 @@
 #include "config/defaults.h"
 #include "common/error.h"
 #include "logging/log.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 #include <errno.h>
 #include <getopt.h>
