@@ -14,7 +14,7 @@ define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +irtt +bash
+  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +bash
 endef
 
 define Package/cake-adapt/description
