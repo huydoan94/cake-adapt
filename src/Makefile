@@ -19,7 +19,6 @@ WARNINGS := \
 TARGET := cake-adapt
 SOURCES := \
 	main.c \
-	monitor.c \
 	cake/cake.c \
 	common/error.c \
 	common/helpers.c \
@@ -33,6 +32,11 @@ SOURCES := \
 	latency/parser.c \
 	latency/tracker.c \
 	logging/log.c \
+	monitor/control.c \
+	monitor/monitor.c \
+	monitor/observe.c \
+	monitor/pingers.c \
+	monitor/reflectors.c \
 	platform/cpu.c \
 	platform/netlink.c \
 	platform/traffic.c
