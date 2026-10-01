@@ -1,10 +1,13 @@
 {
-    "C_Cpp.intelliSenseEngine": "disabled",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/compile_commands.json",
+    "C_Cpp.default.cStandard": "c11",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/src"
+    ],
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/src"
+        "--compile-commands-dir=${workspaceFolder}"
     ],
     "files.associations": {
         "*.h": "c"
     }
 }
-
