@@ -97,6 +97,24 @@ static void test_fping_lines_are_handled(void)
     assert(sample.sequence == 2U);
     assert(latency_handle_line(&latency, 0U, "bad", &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
     assert(strstr(error, "unexpected fping output") != NULL);
+
+    /* An fping-ts session reads one-way delays from the ICMP timestamps. */
+    latency.backend = LATENCY_BACKEND_FPING_TS;
+    assert(
+        latency_handle_line(
+            &latency,
+            0U,
+            "[123.456000] 1.1.1.1 : [3], 20 bytes, 2.50 ms (2.50 avg, 0% loss),"
+            " timestamps: Originate=1000 Receive=1004 Transmit=1004 Localreceive=1006",
+            &sample,
+            error,
+            sizeof(error)
+        ) == LATENCY_PROBE_SUCCESS
+    );
+    assert(sample.download_owd_microseconds == 2000);
+    assert(sample.upload_owd_microseconds == 4000);
+    assert(sample.timestamp_rollover_sensitive);
+    assert(latency_handle_line(&latency, 0U, "[123.456000] 1.1.1.1 : [4], 64 bytes, 2.50 ms", &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
 }
 
 static void test_exit_status_is_reported(void)
@@ -134,6 +152,7 @@ static void test_invalid_target_is_rejected_before_starting_fping(void)
         1000000U,
         "",
         "",
+        false,
         error,
         sizeof(error)
     ) != 0);
@@ -156,6 +175,7 @@ static void test_empty_target_list_is_rejected(void)
         1000000U,
         "",
         "",
+        false,
         error,
         sizeof(error)
     ) != 0);
@@ -178,6 +198,7 @@ static void test_sub_millisecond_response_spacing_is_rejected(void)
         1999U,
         "",
         "",
+        false,
         error,
         sizeof(error)
     ) != 0);
@@ -271,7 +292,7 @@ static void open_long_running_child(struct latency *latency, const char *script)
     /* The fping arguments become the shell's positional parameters. */
     (void)snprintf(prefix, sizeof(prefix), "/bin/sh -c '%s'", script);
     latency_init(latency);
-    assert(latency_open(latency, "lo", targets, 1U, 1000000U, "", prefix, error, sizeof(error)) == 0);
+    assert(latency_open(latency, "lo", targets, 1U, 1000000U, "", prefix, false, error, sizeof(error)) == 0);
     assert(latency_child_process(latency, 0U) > 0);
 }
 
@@ -345,7 +366,7 @@ static void test_pinger_arguments_reject_command_substitution(void)
     char error[256] = "";
 
     latency_init(&latency);
-    assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "$(id)", "", error, sizeof(error)) != 0);
+    assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "$(id)", "", false, error, sizeof(error)) != 0);
     assert(strstr(error, "ping_extra_args") != NULL);
     assert(!latency_is_open(&latency));
     assert(latency_open(
@@ -356,6 +377,7 @@ static void test_pinger_arguments_reject_command_substitution(void)
         1000000U,
         "",
         "'unterminated",
+        false,
         error,
         sizeof(error)
     ) != 0);
@@ -392,6 +414,7 @@ static void test_failed_spawn_closes_pipe(void)
         1000000U,
         "",
         "/nonexistent-cake-adapt-test/fping",
+        false,
         error,
         sizeof(error)
     ) != 0);
@@ -400,7 +423,8 @@ static void test_failed_spawn_closes_pipe(void)
     assert(open_descriptor_count() == descriptors);
 }
 
-static void test_prefix_and_extra_args_reach_owned_process(void)
+/* The printf prefix echoes the fping command line, one argument per line. */
+static void check_fping_arguments(bool icmp_timestamps, const char *expected)
 {
     struct latency latency;
     pid_t process_identifier;
@@ -419,9 +443,11 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
         300000U,
         "-I 'lo2' -k 768",
         "/usr/bin/printf '%s\\n'",
+        icmp_timestamps,
         error,
         sizeof(error)
     ) == 0);
+    assert(latency.backend == (icmp_timestamps ? LATENCY_BACKEND_FPING_TS : LATENCY_BACKEND_FPING));
     descriptor = (struct pollfd) { .fd = latency.children[0].output_descriptor, .events = POLLIN };
     for (;;) {
         ssize_t bytes;
@@ -436,16 +462,28 @@ static void test_prefix_and_extra_args_reach_owned_process(void)
         length += (size_t)bytes;
     }
     output[length] = '\0';
-    assert(strcmp(
-        output,
-        "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
-        "--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
-    ) == 0);
+    assert(strcmp(output, expected) == 0);
     process_identifier = latency_child_process(&latency, 0U);
     latency_close(&latency);
     assert(!latency_is_open(&latency));
     assert(latency_child_count(&latency) == 0U);
     reap_stopped_child(&latency, 0U, process_identifier);
+}
+
+static void test_prefix_and_extra_args_reach_owned_process(void)
+{
+    check_fping_arguments(
+        false,
+        "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
+        "--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
+    );
+    /* Like cake-autorate's fping-ts, --icmp-timestamp follows --timeout. */
+    check_fping_arguments(
+        true,
+        "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
+        "--period\n300\n--interval\n150\n--timeout\n10000\n--icmp-timestamp\n"
+        "1.1.1.1\n::1\n"
+    );
     assert(target_is_valid("::1"));
     assert(target_is_valid("2001:4860:4860::8888"));
 }
@@ -553,6 +591,7 @@ static void test_backend_executable_must_be_available(void)
     char error[256] = "";
 
     assert(strcmp(latency_backend_executable("fping"), "/usr/bin/fping") == 0);
+    assert(strcmp(latency_backend_executable("fping-ts"), "/usr/bin/fping") == 0);
     assert(strcmp(latency_backend_executable("irtt"), "/usr/bin/irtt") == 0);
     assert(latency_backend_executable("ping") == NULL);
 

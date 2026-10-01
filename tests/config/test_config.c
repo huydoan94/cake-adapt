@@ -182,7 +182,17 @@ static void test_supported_pinger_methods(void)
     config = valid_config();
     (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "ping");
     assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-    assert(strstr(error, "fping' or 'irtt") != NULL);
+    assert(strcmp(error, "option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'") == 0);
+
+    /* ICMP timestamps are IPv4 only, so fping-ts rejects IPv6 reflectors. */
+    config = valid_config();
+    (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping-ts");
+    assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+    assert(strcmp(error, "pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '::1' is IPv6") == 0);
+    (void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+    (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping");
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
 }
 
 static void test_reflector_list_validation(void)
