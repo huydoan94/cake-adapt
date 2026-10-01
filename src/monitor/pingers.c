@@ -15,6 +15,17 @@
 
 static bool schedule_irtt_child_start(struct event_loop *loop);
 
+static void report_latency_degraded(
+    struct observation_context *context,
+    const char *error
+)
+{
+    if (!context->latency_observation_failed) {
+        log_message(LOG_LEVEL_WARNING, "latency observation degraded: %s", error);
+    }
+    context->latency_observation_failed = true;
+}
+
 static bool ensure_latency_open(
     struct observation_context *context,
     const struct config *config
@@ -26,6 +37,8 @@ static bool ensure_latency_open(
     size_t index;
     uint64_t timestamp_microseconds;
     uint64_t first_start_microseconds;
+    enum log_level level;
+    const char *outcome;
     int result;
 
     if (!cake_ready(context)) {
@@ -83,35 +96,19 @@ static bool ensure_latency_open(
         );
     }
     if (result != 0) {
-        if (!context->latency_observation_failed) {
-            log_message(
-                LOG_LEVEL_WARNING,
-                "latency observation degraded: %s",
-                error
-            );
-        }
-        context->latency_observation_failed = true;
+        report_latency_degraded(context, error);
         return false;
     }
 
+    level = context->latency_observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
+    outcome = context->latency_observation_failed ? "recovered" : "initialized";
     if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0) {
-        log_message(
-            context->latency_observation_failed
-                ? LOG_LEVEL_NOTICE
-                : LOG_LEVEL_INFO,
-            context->latency_observation_failed
-                ? "latency observation recovered: targets=%zu pinger=irtt"
-                : "latency observation initialized: targets=%zu pinger=irtt",
-            target_count
-        );
+        log_message(level, "latency observation %s: targets=%zu pinger=irtt", outcome, target_count);
     } else {
         log_message(
-            context->latency_observation_failed
-                ? LOG_LEVEL_NOTICE
-                : LOG_LEVEL_INFO,
-            context->latency_observation_failed
-                ? "latency observation recovered: targets=%zu interface=%s"
-                : "latency observation initialized: targets=%zu interface=%s",
+            level,
+            "latency observation %s: targets=%zu interface=%s",
+            outcome,
             target_count,
             config->interface
         );
@@ -142,17 +139,6 @@ static size_t find_active_reflector(
         }
     }
     return SIZE_MAX;
-}
-
-static void report_latency_degraded(
-    struct observation_context *context,
-    const char *error
-)
-{
-    if (!context->latency_observation_failed) {
-        log_message(LOG_LEVEL_WARNING, "latency observation degraded: %s", error);
-    }
-    context->latency_observation_failed = true;
 }
 
 /* Returns false when latency observation must be restarted. */
@@ -194,12 +180,8 @@ static bool process_latency_line(
 
     reflector_index = find_active_reflector(context, config, sample.target);
     if (reflector_index == SIZE_MAX) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "latency observation degraded: unexpected reflector=%s",
-            sample.target
-        );
-        context->latency_observation_failed = true;
+        (void)snprintf(error, sizeof(error), "unexpected reflector=%s", sample.target);
+        report_latency_degraded(context, error);
         return false;
     }
 
@@ -512,12 +494,10 @@ static bool watch_started_latency_children(struct event_loop *loop)
         watch->reading = true;
         /* ustream_fd_init() does not report a failed registration itself. */
         if (!watch->output.fd.registered) {
-            log_message(
-                LOG_LEVEL_WARNING,
-                "latency observation degraded: could not monitor %s output",
-                loop->config->pinger_method
-            );
-            loop->observation.latency_observation_failed = true;
+            char error[ERROR_SIZE];
+
+            (void)snprintf(error, sizeof(error), "could not monitor %s output", loop->config->pinger_method);
+            report_latency_degraded(&loop->observation, error);
             close_latency(loop);
             return false;
         }
@@ -538,12 +518,8 @@ static bool schedule_irtt_child_start(struct event_loop *loop)
         return true;
     }
     if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "latency observation degraded: IRTT start clock failed: %s",
-            strerror(errno)
-        );
-        loop->observation.latency_observation_failed = true;
+        (void)snprintf(error, sizeof(error), "IRTT start clock failed: %s", strerror(errno));
+        report_latency_degraded(&loop->observation, error);
         defer_latency_retry(loop);
         return false;
     }
@@ -555,12 +531,7 @@ static bool schedule_irtt_child_start(struct event_loop *loop)
             sizeof(error)
         ) != 0
     ) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "latency observation degraded: %s",
-            error
-        );
-        loop->observation.latency_observation_failed = true;
+        report_latency_degraded(&loop->observation, error);
         defer_latency_retry(loop);
         return false;
     }
@@ -587,12 +558,8 @@ static bool schedule_irtt_child_start(struct event_loop *loop)
             (int)delay_milliseconds
         ) != 0
     ) {
-        log_message(
-            LOG_LEVEL_WARNING,
-            "latency observation degraded: could not schedule IRTT start: %s",
-            strerror(errno)
-        );
-        loop->observation.latency_observation_failed = true;
+        (void)snprintf(error, sizeof(error), "could not schedule IRTT start: %s", strerror(errno));
+        report_latency_degraded(&loop->observation, error);
         defer_latency_retry(loop);
         return false;
     }
