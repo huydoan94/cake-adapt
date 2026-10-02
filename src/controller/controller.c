@@ -406,11 +406,42 @@ static uint64_t upward_factor(
     );
 }
 
+/*
+ * The rate that lets a bottleneck delivering achieved_rate empty a queue of
+ * queue_delay within drain_period: (achieved - rate) * period = achieved * delay.
+ * Rounded down to whole kbit/s, which the shaper works in.
+ */
+/* At or above this share of the shaper rate, the bottleneck is not limiting. */
+#define FULL_DELIVERY_PERCENT 98U
+
+static uint64_t drain_rate(
+    uint64_t achieved_rate_bits_per_second,
+    int64_t queue_delay_microseconds,
+    uint64_t drain_period_microseconds
+)
+{
+    uint64_t remaining;
+    uint64_t rate;
+
+    if (queue_delay_microseconds <= 0) {
+        return achieved_rate_bits_per_second;
+    }
+    if ((uint64_t)queue_delay_microseconds >= drain_period_microseconds) {
+        return 0U;
+    }
+    remaining = drain_period_microseconds - (uint64_t)queue_delay_microseconds;
+    rate = achieved_rate_bits_per_second / drain_period_microseconds * remaining +
+        achieved_rate_bits_per_second % drain_period_microseconds * remaining /
+            drain_period_microseconds;
+    return rate / KILOBIT * KILOBIT;
+}
+
 static enum controller_rate_reason adjust_rate(
     struct controller_direction *direction,
     const struct controller_config *config,
     const struct controller_direction_input *input,
     bool latency_valid,
+    bool queue_here,
     int64_t average_delay_microseconds,
     uint64_t timestamp_microseconds
 )
@@ -442,6 +473,7 @@ static enum controller_rate_reason adjust_rate(
     ) > config->high_load_threshold_percent;
     if (
         direction->congestion == CONTROLLER_CONGESTION_DETECTED &&
+        queue_here &&
         interval_elapsed(
             timestamp_microseconds,
             direction->last_congestion_adjustment_microseconds,
@@ -457,6 +489,17 @@ static enum controller_rate_reason adjust_rate(
             ),
             MILLION
         );
+        if (config->queue_drain_period_microseconds != 0U) {
+            uint64_t drained = drain_rate(
+                input->traffic_rate_bits_per_second,
+                average_delay_microseconds,
+                config->queue_drain_period_microseconds
+            );
+
+            if (drained < direction->shaper_rate_bits_per_second) {
+                direction->shaper_rate_bits_per_second = drained;
+            }
+        }
         direction->last_congestion_adjustment_microseconds =
             timestamp_microseconds;
         /* Do not let low-load decay immediately undo a congestion cut. */
@@ -557,6 +600,7 @@ static void update_direction(
     const struct controller_config *config,
     const struct controller_direction_input *input,
     const struct controller_latency_input *latency,
+    bool queue_here,
     uint64_t timestamp_microseconds,
     struct controller_direction_output *output
 )
@@ -578,6 +622,7 @@ static void update_direction(
         config,
         input,
         latency->valid,
+        queue_here,
         output->average_delay_microseconds,
         timestamp_microseconds
     );
@@ -601,11 +646,29 @@ void controller_update(
     struct controller_output *output
 )
 {
+    unsigned int download_delivery = input->download.valid
+        ? load_percent(
+            input->download.traffic_rate_bits_per_second,
+            controller->download.shaper_rate_bits_per_second
+        )
+        : 0U;
+    /*
+     * With one shared delay, download delivering its full shaper rate has no
+     * standing queue, so the delay is upload's; download loaded but delivering
+     * less than its shaper rate is the bottleneck, so the delay is its own.
+     */
+    bool download_queue = !controller->config.shared_delay ||
+        download_delivery < FULL_DELIVERY_PERCENT;
+    bool upload_queue = !controller->config.shared_delay ||
+        download_delivery <= controller->config.high_load_threshold_percent ||
+        download_delivery >= FULL_DELIVERY_PERCENT;
+
     update_direction(
         &controller->download,
         &controller->config,
         &input->download,
         &input->download_latency,
+        download_queue,
         input->timestamp_microseconds,
         &output->download
     );
@@ -614,6 +677,7 @@ void controller_update(
         &controller->config,
         &input->upload,
         &input->upload_latency,
+        upload_queue,
         input->timestamp_microseconds,
         &output->upload
     );

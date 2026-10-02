@@ -78,6 +78,8 @@ struct config {
     uint64_t high_load_threshold_per_million;
     uint64_t bufferbloat_refractory_period_microseconds;
     uint64_t decay_refractory_period_microseconds;
+    /* cake-adapt only: zero keeps cake-autorate's bufferbloat cut. */
+    uint64_t queue_drain_period_microseconds;
     uint64_t reflector_health_check_interval_microseconds;
     uint64_t reflector_response_deadline_microseconds;
     uint64_t reflector_misbehaving_detection_window;

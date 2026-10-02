@@ -49,6 +49,17 @@ struct controller_config {
     uint64_t high_load_threshold_percent;
     uint64_t bufferbloat_refractory_period_microseconds;
     uint64_t decay_refractory_period_microseconds;
+    /*
+     * A bufferbloat cut also goes low enough for the bottleneck to empty the
+     * measured queue within this period. Zero keeps cake-autorate's cut.
+     */
+    uint64_t queue_drain_period_microseconds;
+    /*
+     * Both directions report the same RTT/2 delay (fping), so a queue is
+     * attributed using download, which is shaped after the bottleneck: its
+     * achieved rate is what the bottleneck delivers.
+     */
+    bool shared_delay;
 };
 
 struct controller_direction_input {

@@ -33,6 +33,7 @@ int main(void)
     assert(config.maximum_upload_rate_bits_per_second == 35000000U);
     assert(config.connection_active_threshold_bits_per_second == 2000000U);
     assert(config.monitor_achieved_rates_interval_microseconds == 200000U);
+    assert(config.queue_drain_period_microseconds == 150000U);
     assert(config.bufferbloat_detection_window == 6U);
     assert(config.bufferbloat_detection_threshold == 3U);
     assert(config.global_ping_response_timeout_microseconds == 10000000U);

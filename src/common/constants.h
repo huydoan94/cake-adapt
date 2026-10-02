@@ -203,6 +203,7 @@
 #define OPTION_HIGH_LOAD_THRESHOLD "high_load_thr"
 #define OPTION_BUFFERBLOAT_REFRACTORY "bufferbloat_refractory_period_ms"
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
+#define OPTION_QUEUE_DRAIN_PERIOD "queue_drain_period_ms"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW \

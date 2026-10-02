@@ -30,7 +30,11 @@ struct trace_sample {
     uint64_t rate_kbps[2];
 };
 
-/* cake-autorate ac75f49 defaults.sh with the trace's rate limits. */
+/*
+ * cake-autorate ac75f49 defaults.sh with the trace's rate limits. cake-adapt's
+ * own improvements are switched off, so this replay checks that the rest of the
+ * controller still decides exactly as upstream does.
+ */
 static struct controller_config upstream_config(void)
 {
     const struct controller_direction_config direction = {
@@ -56,7 +60,9 @@ static struct controller_config upstream_config(void)
         .rate_adjust_up_low_load_per_thousand = 1010U,
         .high_load_threshold_percent = 75U,
         .bufferbloat_refractory_period_microseconds = 300000U,
-        .decay_refractory_period_microseconds = 1000000U
+        .decay_refractory_period_microseconds = 1000000U,
+        .queue_drain_period_microseconds = 0U,
+        .shared_delay = false
     };
 }
 

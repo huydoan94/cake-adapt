@@ -744,6 +744,95 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
     controller_close(&controller);
 }
 
+/* Three 120 ms deltas: congestion detected with a 60 ms window average. */
+static void detect_congestion(
+    struct controller *controller,
+    struct controller_input *input,
+    struct controller_output *output
+)
+{
+    set_latency_delta(input, 120000);
+    controller_update(controller, input, output);
+    accept_rates(input, output);
+    input->timestamp_microseconds += 150001U;
+    controller_update(controller, input, output);
+    accept_rates(input, output);
+    input->timestamp_microseconds += 150001U;
+    controller_update(controller, input, output);
+}
+
+static void test_drain_cut_empties_measured_queue(void)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        7500U * 1000U,
+        8U * MEBABIT,
+        12U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    config.download.minimum_rate_bits_per_second = 2U * MEBABIT;
+    config.upload.minimum_rate_bits_per_second = 2U * MEBABIT;
+    config.queue_drain_period_microseconds = 150000U;
+    init_controller(&controller, &config);
+    detect_congestion(&controller, &input, &output);
+
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    /* 7.5 Mbit/s * (1 - 60 ms / 150 ms) is below cake-autorate's 6 Mbit/s cut. */
+    assert(output.download.rate_bits_per_second == 4500U * 1000U);
+    assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
+    /* 12 Mbit/s * 0.6 = 7.2 Mbit/s would cut less, so the 6 Mbit/s cut stays. */
+    assert(output.upload.rate_bits_per_second == 6U * MEBABIT);
+    controller_close(&controller);
+
+    /* A drain cut still respects the minimum rate. */
+    config.download.minimum_rate_bits_per_second = 5U * MEBABIT;
+    input = input_with_rates(7500U * 1000U, 8U * MEBABIT, 1U * MEBABIT, 8U * MEBABIT);
+    init_controller(&controller, &config);
+    detect_congestion(&controller, &input, &output);
+    assert(output.download.rate_bits_per_second == 5U * MEBABIT);
+    controller_close(&controller);
+}
+
+/* download, upload: expected rates after bufferbloat with one shared delay. */
+static void check_shared_delay_attribution(
+    uint64_t download_achieved,
+    uint64_t expected_download,
+    uint64_t expected_upload
+)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        download_achieved,
+        8U * MEBABIT,
+        7U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    config.shared_delay = true;
+    init_controller(&controller, &config);
+    detect_congestion(&controller, &input, &output);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.download.rate_bits_per_second == expected_download);
+    assert(output.upload.rate_bits_per_second == expected_upload);
+    controller_close(&controller);
+}
+
+static void test_shared_delay_is_attributed_by_download_delivery(void)
+{
+    /* Download delivers its full shaper rate, so the queue is upload's. */
+    check_shared_delay_attribution(8U * MEBABIT, 8U * MEBABIT, 6U * MEBABIT);
+    /* Download is loaded but delivers less: it is the bottleneck. */
+    check_shared_delay_attribution(7U * MEBABIT, 6U * MEBABIT, 8U * MEBABIT);
+    /* An app-limited download says nothing about the queue: both cut. */
+    check_shared_delay_attribution(2U * MEBABIT, 6U * MEBABIT, 6U * MEBABIT);
+}
+
 static void test_bufferbloat_reduction_scales_with_average_delay(void)
 {
     struct controller controller;
@@ -1462,6 +1551,8 @@ int main(void)
     test_noop_increase_consumes_sample();
     test_high_load_waits_for_congestion_refractory_period();
     test_configured_high_load_adjustment_is_used();
+    test_drain_cut_empties_measured_queue();
+    test_shared_delay_is_attributed_by_download_delivery();
     test_severe_bufferbloat_reduces_both_rates();
     test_bufferbloat_reduction_scales_with_average_delay();
     test_bufferbloat_reduction_observes_refractory_period();

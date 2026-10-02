@@ -74,6 +74,7 @@ void defaults_apply(struct config *config)
         .bufferbloat_refractory_period_microseconds =
             300U * MILLISECOND,
         .decay_refractory_period_microseconds = SECOND,
+        .queue_drain_period_microseconds = 150U * MILLISECOND,
         .reflector_health_check_interval_microseconds = SECOND,
         .reflector_response_deadline_microseconds = SECOND,
         .reflector_misbehaving_detection_window = 60U,

@@ -294,6 +294,11 @@ static const struct scaled_option_binding scaled_options[] = {
         MILLISECOND
     },
     {
+        OPTION_QUEUE_DRAIN_PERIOD,
+        CONFIG_OFFSET(queue_drain_period_microseconds),
+        MILLISECOND
+    },
+    {
         OPTION_REFLECTOR_HEALTH_INTERVAL,
         CONFIG_OFFSET(reflector_health_check_interval_microseconds),
         SECOND

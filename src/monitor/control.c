@@ -606,7 +606,11 @@ int start_controller(
         .bufferbloat_refractory_period_microseconds =
             config->bufferbloat_refractory_period_microseconds,
         .decay_refractory_period_microseconds =
-            config->decay_refractory_period_microseconds
+            config->decay_refractory_period_microseconds,
+        .queue_drain_period_microseconds =
+            config->queue_drain_period_microseconds,
+        /* Only fping reports one RTT/2 delay for both directions. */
+        .shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0
     };
 
     if (controller_init(controller, &controller_config) != 0) {
