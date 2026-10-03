@@ -45,7 +45,7 @@ SOURCES := \
 	logging/log.c \
 	monitor/control.c \
 	monitor/monitor.c \
-	monitor/observe.c \
+	monitor/links.c \
 	monitor/pingers.c \
 	monitor/reflectors.c \
 	monitor/tcpdelay.c \
