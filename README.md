@@ -503,13 +503,14 @@ release assets.
 ```text
 src/
 ├── main.c              CLI, configuration loading, logging setup, lifecycle
-├── monitor/            uloop event loop, split by responsibility:
-│   ├── monitor.c         loop setup and teardown, traffic timer, activity
+├── monitor/            uloop event loop; one struct monitor, a part per file:
+│   ├── monitor.c         loop setup and teardown, traffic tick, activity
 │   │                     state, CPU and log timers, signals
-│   ├── observe.c         CAKE discovery, achieved rates, qdisc events
+│   ├── links.c           both directions' CAKE, achieved rates, qdisc events
 │   ├── control.c         controller input, CAKE updates and readback, records
 │   ├── pingers.c         pinger start, output, exit, restart, and grace
-│   └── reflectors.c      reflector order, health checks, and replacement
+│   ├── reflectors.c      latency trackers, reflector order, health, replacement
+│   └── tcpdelay.c        TCP capture, queue estimate, upload ACK rate
 ├── common/             shared constants, generic helpers, error formatting
 ├── config/             typed UCI loading (config.c), validation
 │                       (validate.c), and built-in defaults

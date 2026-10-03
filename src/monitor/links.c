@@ -14,7 +14,7 @@
 #include <string.h>
 #include <time.h>
 
-static void observe_traffic(struct monitored_direction *direction, const struct timespec *timestamp)
+static void observe_traffic(struct monitor_direction *direction, const struct timespec *timestamp)
 {
 	struct traffic_sample sample;
 	enum traffic_update_result update_result;
@@ -103,7 +103,7 @@ static void log_cake_discovery(const char *interface, const struct cake_observat
 		    interface, observation->handle, observation->bandwidth_bits_per_second);
 }
 
-static void record_cake_read(struct monitored_direction *direction, const struct cake_read *read,
+static void record_cake_read(struct monitor_direction *direction, const struct cake_read *read,
 			     uint64_t timestamp_microseconds, uint64_t retry_interval_microseconds)
 {
 	switch (read->result) {
@@ -143,16 +143,16 @@ static void record_cake_read(struct monitored_direction *direction, const struct
 }
 
 /* Directions whose retry time has come share one qdisc dump. */
-static void observe_cake(struct netlink *netlink, struct monitored_direction *const directions[2],
+static void observe_cake(struct netlink *netlink, struct monitor_direction *const directions[2],
 			 uint64_t timestamp_microseconds, uint64_t retry_interval_microseconds)
 {
 	struct cake_read reads[2];
-	struct monitored_direction *due[2];
+	struct monitor_direction *due[2];
 	size_t count = 0U;
 	size_t index;
 
 	for (index = 0U; index < 2U; index++) {
-		struct monitored_direction *direction = directions[index];
+		struct monitor_direction *direction = directions[index];
 
 		direction->cake_valid = false;
 		if (timestamp_microseconds < direction->next_cake_observation_microseconds)
@@ -168,35 +168,39 @@ static void observe_cake(struct netlink *netlink, struct monitored_direction *co
 	}
 }
 
-void apply_traffic_cadence(struct event_loop *loop)
+void links_apply_cadence(struct monitor *monitor)
 {
-	if (!loop->observation.traffic_cadence_initialized || loop->traffic_cadence_applied)
+	struct monitor_links *links = &monitor->links;
+
+	if (!links->cadence_initialized || links->cadence_applied)
 		return;
-	if (uloop_interval_set(&loop->traffic_timer,
-			       traffic_interval_milliseconds(
-				       loop->observation.traffic_cadence_microseconds)) != 0) {
+	if (uloop_interval_set(&monitor->traffic_timer,
+			       traffic_interval_milliseconds(links->cadence_microseconds)) != 0) {
 		log_message(LOG_LEVEL_WARNING, "could not apply compensated traffic cadence: %s",
 			    strerror(errno));
 		return;
 	}
-	loop->traffic_cadence_applied = true;
+	links->cadence_applied = true;
 }
 
-bool cake_ready(const struct observation_context *context)
+bool links_ready(const struct monitor *monitor)
 {
-	return context->download.cake_state == CAKE_OBSERVATION_AVAILABLE &&
-	       context->upload.cake_state == CAKE_OBSERVATION_AVAILABLE;
+	return monitor->links.download.cake_state == CAKE_OBSERVATION_AVAILABLE &&
+	       monitor->links.upload.cake_state == CAKE_OBSERVATION_AVAILABLE;
 }
 
-bool wire_metadata_ready(const struct observation_context *context)
+bool links_wire_ready(const struct monitor *monitor)
 {
-	return cake_ready(context) && context->download.cake_valid && context->upload.cake_valid &&
-	       context->download.cake.has_mtu && context->upload.cake.has_mtu &&
-	       context->download.cake.has_bandwidth && context->upload.cake.has_bandwidth;
+	const struct monitor_direction *download = &monitor->links.download;
+	const struct monitor_direction *upload = &monitor->links.upload;
+
+	return links_ready(monitor) && download->cake_valid && upload->cake_valid &&
+	       download->cake.has_mtu && upload->cake.has_mtu && download->cake.has_bandwidth &&
+	       upload->cake.has_bandwidth;
 }
 
-static void log_load_stats(const struct monitored_direction *download,
-			   const struct monitored_direction *upload)
+static void log_load_stats(const struct monitor_direction *download,
+			   const struct monitor_direction *upload)
 {
 	const struct log_load_record record = {
 		.download_achieved_rate_kbps = download->traffic_rate_bits_per_second / KILOBIT,
@@ -208,63 +212,64 @@ static void log_load_stats(const struct monitored_direction *download,
 	log_load(&record);
 }
 
-void observe_traffic_cycle(struct observation_context *context, const struct config *config)
+void links_observe(struct monitor *monitor)
 {
-	struct monitored_direction *const directions[] = { &context->upload, &context->download };
+	const struct config *config = monitor->config;
+	struct monitor_links *links = &monitor->links;
+	struct monitor_direction *const directions[] = { &links->upload, &links->download };
 	struct timespec traffic_timestamp;
 	uint64_t timestamp_microseconds;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &traffic_timestamp) != 0) {
-		if (!context->traffic_clock_failed) {
+		if (!links->clock_failed) {
 			log_message(LOG_LEVEL_WARNING,
 				    "traffic observation degraded: monotonic clock failed: %s",
 				    strerror(errno));
 		}
-		context->traffic_clock_failed = true;
-		context->download.cake_valid = false;
-		context->upload.cake_valid = false;
-		context->download.traffic_valid = false;
-		context->upload.traffic_valid = false;
-		traffic_init(&context->download.traffic_monitor);
-		traffic_init(&context->upload.traffic_monitor);
+		links->clock_failed = true;
+		links->download.cake_valid = false;
+		links->upload.cake_valid = false;
+		links->download.traffic_valid = false;
+		links->upload.traffic_valid = false;
+		traffic_init(&links->download.traffic_monitor);
+		traffic_init(&links->upload.traffic_monitor);
 		return;
 	}
 
 	timestamp_microseconds = (uint64_t)traffic_timestamp.tv_sec * MICROSECONDS_PER_SECOND +
 				 (uint64_t)traffic_timestamp.tv_nsec / NANOSECONDS_PER_MICROSECOND;
-	observe_cake(&context->netlink, directions, timestamp_microseconds,
+	observe_cake(&monitor->netlink, directions, timestamp_microseconds,
 		     config->interface_up_check_interval_microseconds);
-	if (context->traffic_clock_failed) {
+	if (links->clock_failed) {
 		log_message(LOG_LEVEL_NOTICE,
 			    "traffic observation recovered: monotonic clock available");
-		context->traffic_clock_failed = false;
+		links->clock_failed = false;
 	}
-	update_serialization_compensation(context);
-	if (!context->traffic_cadence_initialized && wire_metadata_ready(context)) {
-		context->traffic_cadence_microseconds = traffic_compensated_interval_microseconds(
+	control_update_compensation(monitor);
+	if (!links->cadence_initialized && links_wire_ready(monitor)) {
+		links->cadence_microseconds = traffic_compensated_interval_microseconds(
 			config->monitor_achieved_rates_interval_microseconds,
-			cake_max_wire_packet_bits(&context->download.cake),
+			cake_max_wire_packet_bits(&links->download.cake),
 			config->base_download_rate_bits_per_second,
-			cake_max_wire_packet_bits(&context->upload.cake),
+			cake_max_wire_packet_bits(&links->upload.cake),
 			config->base_upload_rate_bits_per_second);
-		context->traffic_cadence_initialized = true;
+		links->cadence_initialized = true;
 	}
-	observe_traffic(&context->download, &traffic_timestamp);
-	observe_traffic(&context->upload, &traffic_timestamp);
+	observe_traffic(&links->download, &traffic_timestamp);
+	observe_traffic(&links->upload, &traffic_timestamp);
 
-	if (config->output_load_stats && context->download.traffic_valid &&
-	    context->upload.traffic_valid && context->download.cake_valid &&
-	    context->upload.cake_valid && context->download.cake.has_bandwidth &&
-	    context->upload.cake.has_bandwidth) {
-		log_load_stats(&context->download, &context->upload);
+	if (config->output_load_stats && links->download.traffic_valid &&
+	    links->upload.traffic_valid && links->download.cake_valid && links->upload.cake_valid &&
+	    links->download.cake.has_bandwidth && links->upload.cake.has_bandwidth) {
+		log_load_stats(&links->download, &links->upload);
 	}
 }
 
-static struct monitored_direction *event_direction(struct event_loop *loop,
-						   const struct qdisc_event *event)
+static struct monitor_direction *event_direction(struct monitor *monitor,
+						 const struct qdisc_event *event)
 {
-	struct monitored_direction *directions[] = { &loop->observation.download,
-						     &loop->observation.upload };
+	struct monitor_direction *directions[] = { &monitor->links.download,
+						   &monitor->links.upload };
 	size_t index;
 
 	if (event->parent != TC_H_ROOT)
@@ -283,7 +288,7 @@ static struct monitored_direction *event_direction(struct event_loop *loop,
 	return NULL;
 }
 
-static void reset_traffic_observation(struct monitored_direction *direction)
+static void reset_traffic_observation(struct monitor_direction *direction)
 {
 	/* Preserve the sample ID: the controller retains its last consumed ID. */
 	direction->traffic_valid = false;
@@ -294,8 +299,8 @@ static void reset_traffic_observation(struct monitored_direction *direction)
 
 static void process_qdisc_event(const struct qdisc_event *event, void *context)
 {
-	struct event_loop *loop = context;
-	struct monitored_direction *direction = event_direction(loop, event);
+	struct monitor *monitor = context;
+	struct monitor_direction *direction = event_direction(monitor, event);
 
 	if (direction == NULL)
 		return;
@@ -313,7 +318,7 @@ static void process_qdisc_event(const struct qdisc_event *event, void *context)
 		direction->cake_state = CAKE_OBSERVATION_NOT_FOUND;
 		direction->next_cake_observation_microseconds = UINT64_MAX;
 		reset_traffic_observation(direction);
-		close_latency(loop);
+		pingers_close(monitor);
 		return;
 	}
 
@@ -327,41 +332,41 @@ static void process_qdisc_event(const struct qdisc_event *event, void *context)
 	direction->cake_valid = false;
 	direction->next_cake_observation_microseconds = 0U;
 	reset_traffic_observation(direction);
-	loop->qdisc_refresh = true;
+	monitor->links.qdisc_refresh = true;
 }
 
 static void handle_qdisc_events(struct uloop_fd *descriptor, unsigned int events)
 {
-	struct event_loop *loop =
-		__extension__ container_of(descriptor, struct event_loop, qdisc_events);
+	struct monitor *monitor =
+		__extension__ container_of(descriptor, struct monitor, links.qdisc_events);
 	char error[ERROR_SIZE] = { 0 };
 
 	(void)events;
-	if (netlink_receive_qdisc_events(&loop->observation.netlink, error, sizeof(error)) != 0) {
+	if (netlink_receive_qdisc_events(&monitor->netlink, error, sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "qdisc lifecycle monitoring failed: %s", error);
-		loop->result = -1;
+		monitor->result = -1;
 		uloop_end();
 		return;
 	}
-	if (loop->qdisc_refresh) {
-		loop->qdisc_refresh = false;
-		handle_traffic_timer(&loop->traffic_timer);
+	if (monitor->links.qdisc_refresh) {
+		monitor->links.qdisc_refresh = false;
+		monitor_tick(monitor);
 	}
 }
 
-int watch_qdisc_events(struct event_loop *loop)
+int links_watch_events(struct monitor *monitor)
 {
+	struct uloop_fd *events = &monitor->links.qdisc_events;
 	char error[ERROR_SIZE] = { 0 };
 
-	loop->qdisc_events.cb = handle_qdisc_events;
-	if (netlink_subscribe_qdiscs(&loop->observation.netlink, process_qdisc_event, loop, error,
+	events->cb = handle_qdisc_events;
+	if (netlink_subscribe_qdiscs(&monitor->netlink, process_qdisc_event, monitor, error,
 				     sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "%s", error);
 		return -1;
 	}
-	loop->qdisc_events.fd = netlink_event_descriptor(&loop->observation.netlink);
-	if (loop->qdisc_events.fd < 0 ||
-	    uloop_fd_add(&loop->qdisc_events, ULOOP_READ | ULOOP_ERROR_CB) != 0) {
+	events->fd = netlink_event_descriptor(&monitor->netlink);
+	if (events->fd < 0 || uloop_fd_add(events, ULOOP_READ | ULOOP_ERROR_CB) != 0) {
 		log_message(LOG_LEVEL_ERROR, "could not monitor qdisc lifecycle: %s",
 			    strerror(errno));
 		return -1;

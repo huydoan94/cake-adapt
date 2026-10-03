@@ -95,18 +95,24 @@ in that directory and is not included from outside it.
 - `main.c`: CLI, startup, logging initialization, configuration loading,
   top-level lifecycle, and orderly shutdown only.
 - `monitor/`: uloop orchestration and coordination between measurements,
-  controller decisions, qdisc lifecycle, timers, and signals. Its files share
-  the private `loop.h` state; `monitor.h` is the only public header.
-  - `monitor.c`: loop setup and teardown, the traffic timer, the activity
-    state machine, CPU and log timers, and signals.
-  - `observe.c`: CAKE discovery, achieved-rate observation, compensated
-    traffic cadence, and qdisc lifecycle events.
-  - `control.c`: controller configuration and input, CAKE bandwidth changes
-    with readback, minimum-rate enforcement, and controller records.
-  - `pingers.c`: pinger start, output, exit, restart, setup grace, and
-    per-reply latency processing.
-  - `reflectors.c`: reflector ordering, scheduled comparison and replacement,
-    and health checks.
+  controller decisions, qdisc lifecycle, timers, and signals. All state is one
+  `struct monitor` in the private `loop.h`, passed to every function; each
+  file owns one part of it and prefixes its functions with that part's name.
+  `monitor.h` is the only public header.
+  - `monitor.c`: loop setup and teardown, the traffic tick
+    (`monitor_tick`), the activity state machine, CPU and log timers, and
+    signals.
+  - `links.c` (`links`): both directions' CAKE discovery, achieved rates,
+    compensated traffic cadence, and qdisc lifecycle events.
+  - `control.c` (`control`): controller configuration and input, CAKE
+    bandwidth changes with readback, minimum-rate enforcement, and controller
+    records.
+  - `pingers.c` (`pingers`): pinger start, output, exit, restart, setup grace,
+    and per-reply latency processing.
+  - `reflectors.c` (`reflectors`): latency trackers, reflector ordering,
+    scheduled comparison and replacement, and health checks.
+  - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, and the upload
+    ACK rate.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
