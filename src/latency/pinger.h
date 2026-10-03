@@ -10,6 +10,21 @@
 
 #include "latency/latency.h"
 
+struct pinger_ops {
+	/* Names the pinger in exit diagnostics. */
+	const char *name;
+	enum latency_probe_result (*parse)(const struct latency_child *child, const char *line,
+					   struct latency_sample *sample, char *error,
+					   size_t error_size);
+	/* After an unexpected exit, which error already describes. */
+	enum latency_probe_result (*exited)(struct latency_child *child, char *error,
+					    size_t error_size);
+};
+
+extern const struct pinger_ops fping_ops;
+extern const struct pinger_ops fping_ts_ops;
+extern const struct pinger_ops irtt_ops;
+
 /* Terminates the child's process group, escalating to SIGKILL, and reaps it. */
 void stop_child(pid_t process_identifier);
 
@@ -26,9 +41,5 @@ int validate_targets(const char *const *targets, size_t target_count, char *erro
  */
 int start_child(struct latency_child *child, char *const arguments[], const char *name, char *error,
 		size_t error_size);
-
-/* Schedule a reaped IRTT session's restart, delayed after a fast exit. */
-enum latency_probe_result schedule_irtt_restart(struct latency_child *child, char *error,
-						size_t error_size);
 
 #endif

@@ -17,6 +17,54 @@
 #include <string.h>
 #include <wordexp.h>
 
+static enum latency_probe_result probe_result(enum latency_fping_line_result parsed,
+					      const char *line, char *error, size_t error_size)
+{
+	if (parsed == LATENCY_FPING_LINE_INVALID) {
+		error_set(error, error_size, "unexpected fping output: %.160s", line);
+		return LATENCY_PROBE_ERROR;
+	}
+	return parsed == LATENCY_FPING_LINE_SAMPLE ? LATENCY_PROBE_SUCCESS : LATENCY_PROBE_TIMEOUT;
+}
+
+static enum latency_probe_result fping_parse(const struct latency_child *child, const char *line,
+					     struct latency_sample *sample, char *error,
+					     size_t error_size)
+{
+	(void)child;
+	return probe_result(parse_fping_line(line, sample), line, error, error_size);
+}
+
+static enum latency_probe_result fping_ts_parse(const struct latency_child *child, const char *line,
+						struct latency_sample *sample, char *error,
+						size_t error_size)
+{
+	(void)child;
+	return probe_result(parse_fping_timestamp_line(line, sample), line, error, error_size);
+}
+
+/* fping runs until stopped, so any exit is a failure. */
+static enum latency_probe_result fping_exited(struct latency_child *child, char *error,
+					      size_t error_size)
+{
+	(void)child;
+	(void)error;
+	(void)error_size;
+	return LATENCY_PROBE_ERROR;
+}
+
+const struct pinger_ops fping_ops = {
+	.name = PINGER_METHOD_FPING,
+	.parse = fping_parse,
+	.exited = fping_exited,
+};
+
+const struct pinger_ops fping_ts_ops = {
+	.name = PINGER_METHOD_FPING,
+	.parse = fping_ts_parse,
+	.exited = fping_exited,
+};
+
 int latency_open(struct latency *latency, const char *interface, const char *const *targets,
 		 size_t target_count, uint64_t reflector_ping_interval_microseconds,
 		 const char *extra_arguments, const char *prefix, bool icmp_timestamps, char *error,
@@ -106,7 +154,7 @@ int latency_open(struct latency *latency, const char *interface, const char *con
 	    0) {
 		goto done;
 	}
-	latency->backend = icmp_timestamps ? LATENCY_BACKEND_FPING_TS : LATENCY_BACKEND_FPING;
+	latency->ops = icmp_timestamps ? &fping_ts_ops : &fping_ops;
 	latency->active = true;
 	latency->child_count = 1U;
 	result = 0;

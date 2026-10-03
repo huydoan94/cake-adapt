@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "latency/latency.h"
+#include "latency/pinger.h"
 #include "common/constants.h"
 
 #include <assert.h>
@@ -106,7 +107,7 @@ static void test_fping_lines_are_handled(void)
 	assert(strstr(error, "unexpected fping output") != NULL);
 
 	/* An fping-ts session reads one-way delays from the ICMP timestamps. */
-	latency.backend = LATENCY_BACKEND_FPING_TS;
+	latency.ops = &fping_ts_ops;
 	assert(latency_handle_line(
 		       &latency, 0U,
 		       "[123.456000] 1.1.1.1 : [3], 20 bytes, 2.50 ms (2.50 avg, 0% loss),"
@@ -223,7 +224,7 @@ static void test_irtt_lines_ignore_non_samples(void)
 	char error[256] = "";
 
 	latency_init(&latency);
-	latency.backend = LATENCY_BACKEND_IRTT;
+	latency.ops = &irtt_ops;
 	latency.active = true;
 	latency.child_count = 1U;
 	latency.children[0].target = "9.9.9.9";
@@ -398,8 +399,7 @@ static void check_fping_arguments(bool icmp_timestamps, const char *expected)
 	latency_init(&latency);
 	assert(latency_open(&latency, "lo", targets, 2U, 300000U, "-I 'lo2' -k 768",
 			    "/usr/bin/printf '%s\\n'", icmp_timestamps, error, sizeof(error)) == 0);
-	assert(latency.backend ==
-	       (icmp_timestamps ? LATENCY_BACKEND_FPING_TS : LATENCY_BACKEND_FPING));
+	assert(latency.ops == (icmp_timestamps ? &fping_ts_ops : &fping_ops));
 	descriptor =
 		(struct pollfd){ .fd = latency.children[0].output_descriptor, .events = POLLIN };
 	for (;;) {
