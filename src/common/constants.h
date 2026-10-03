@@ -21,10 +21,8 @@
 #define MICROSECONDS_PER_SECOND SECOND
 #define MICROSECONDS_PER_MINUTE MINUTE
 #define NANOSECONDS_PER_MICROSECOND THOUSAND
-#define NANOSECONDS_PER_MILLISECOND \
-    (THOUSAND * NANOSECONDS_PER_MICROSECOND)
-#define NANOSECONDS_PER_SECOND \
-    ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
+#define NANOSECONDS_PER_MILLISECOND (THOUSAND * NANOSECONDS_PER_MICROSECOND)
+#define NANOSECONDS_PER_SECOND ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
 
 /* Shared application bounds. */
 #define CONFIG_MAX_REFLECTORS 64U
@@ -82,8 +80,7 @@
 #define TIMER_TRAFFIC "traffic"
 
 #define DECIMAL_DIGITS "0123456789"
-#define TARGET_CHARACTERS \
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-"
+#define TARGET_CHARACTERS "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-"
 #define FRACTION_ZEROES "000000"
 #define EMPTY_STRING ""
 #define NULL_VALUE "(null)"
@@ -210,18 +207,12 @@
 #define OPTION_UPLOAD_ACK_SHARE_MIN "upload_ack_share_min"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
-#define OPTION_REFLECTOR_MISBEHAVING_WINDOW \
-    "reflector_misbehaving_detection_window"
-#define OPTION_REFLECTOR_MISBEHAVING_THRESHOLD \
-    "reflector_misbehaving_detection_thr"
-#define OPTION_REFLECTOR_REPLACEMENT_INTERVAL \
-    "reflector_replacement_interval_mins"
-#define OPTION_REFLECTOR_COMPARISON_INTERVAL \
-    "reflector_comparison_interval_mins"
-#define OPTION_REFLECTOR_BASELINE_DELTA \
-    "reflector_sum_owd_baselines_delta_thr_ms"
-#define OPTION_REFLECTOR_EWMA_DELTA \
-    "reflector_owd_delta_ewma_delta_thr_ms"
+#define OPTION_REFLECTOR_MISBEHAVING_WINDOW "reflector_misbehaving_detection_window"
+#define OPTION_REFLECTOR_MISBEHAVING_THRESHOLD "reflector_misbehaving_detection_thr"
+#define OPTION_REFLECTOR_REPLACEMENT_INTERVAL "reflector_replacement_interval_mins"
+#define OPTION_REFLECTOR_COMPARISON_INTERVAL "reflector_comparison_interval_mins"
+#define OPTION_REFLECTOR_BASELINE_DELTA "reflector_sum_owd_baselines_delta_thr_ms"
+#define OPTION_REFLECTOR_EWMA_DELTA "reflector_owd_delta_ewma_delta_thr_ms"
 #define OPTION_STALL_DETECTION_THRESHOLD "stall_detection_thr"
 #define OPTION_GLOBAL_PING_TIMEOUT "global_ping_response_timeout_s"
 #define OPTION_INTERFACE_UP_INTERVAL "if_up_check_interval_s"

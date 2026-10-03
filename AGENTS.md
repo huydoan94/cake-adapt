@@ -254,47 +254,37 @@ identifies the service.
 
 ### Formatting
 
-- Use four spaces and no tabs in C.
-- Keep ordinary declarations on one line.
-- Do not impose an arbitrary 80-column limit; wrap for readability.
-- Keep a simple condition on one line.
-- Put genuinely compound conditions in the following form:
+C follows the OpenWrt/Linux kernel style used by libubox and unetd, as encoded
+in the repository's `.clang-format`. Format every changed C file with
+clang-format (the SDK's `staging_dir/host/llvm-bpf/bin/clang-format` works):
+
+- tabs for indentation, 8 columns wide, and lines up to 100 columns; string
+  literals are never split;
+- function braces on their own line, other braces on the statement line;
+- no braces around a single-statement body, unless its condition spans lines:
 
 ```c
-if (
-    result < 0 ||
-    nla_put_string(message, TCA_KIND, kind) < 0
-) {
-    return -1;
-}
+if (result < 0)
+	return -1;
 ```
 
-- Keep return-only blocks in normal multiline form; do not compress the entire
-  `if` statement onto one line.
-- For declarations, definitions, or calls with several substantial arguments,
-  place one argument on each line:
+- parameters and arguments packed onto as few lines as fit, aligned with the
+  opening parenthesis:
 
 ```c
-int controller_update(
-    struct controller *controller,
-    const struct controller_input *input,
-    struct controller_output *output
-)
+int controller_update(struct controller *controller, const struct controller_input *input,
+		      struct controller_output *output)
 {
 ```
 
-```c
-result = operation(
-    context,
-    &input,
-    &output
-);
-```
+- compound conditions break after the operator and align with the condition.
 
-- Short, obvious calls may remain on one line.
-- Comments should explain formulas, invariants, units, ownership, or non-obvious
-  kernel/upstream behavior. Do not narrate obvious syntax.
-- Do not reformat unrelated working code during a focused change.
+Write code that reads like `unetd`'s `wg-user.c`: small static functions with
+a module prefix that form a little internal API, and trivial operations from
+`common/utils.h` instead of open-coded arithmetic. Comments should explain
+formulas, invariants, units, ownership, or non-obvious kernel/upstream
+behavior. Do not narrate obvious syntax. Do not reformat unrelated working
+code during a focused change.
 
 Keep strict warnings enabled:
 
