@@ -126,6 +126,42 @@ int expand_words(const char *value, bool require_word, const char *option, worde
 	return error_set(error, error_size, "could not parse %s", option);
 }
 
+int pinger_command_init(struct pinger_command *command, const char *prefix, const char *extra,
+			size_t fixed, const char *name, char *error, size_t error_size)
+{
+	size_t index;
+
+	*command = (struct pinger_command){ 0 };
+	if (expand_words(extra, false, OPTION_PING_EXTRA_ARGS, &command->extra, error,
+			 error_size) != 0 ||
+	    expand_words(prefix, true, OPTION_PING_PREFIX_STRING, &command->prefix, error,
+			 error_size) != 0)
+		goto fail;
+	/* One more for the terminating NULL. */
+	command->argv = calloc(command->prefix.we_wordc + command->extra.we_wordc + fixed + 1U,
+			       sizeof(*command->argv));
+	if (command->argv == NULL) {
+		error_set(error, error_size, "could not allocate %s arguments: %s", name,
+			  strerror(errno));
+		goto fail;
+	}
+	for (index = 0U; index < command->prefix.we_wordc; index++)
+		pinger_command_add(command, command->prefix.we_wordv[index]);
+	return 0;
+
+fail:
+	pinger_command_free(command);
+	return -1;
+}
+
+void pinger_command_free(struct pinger_command *command)
+{
+	free(command->argv);
+	wordfree(&command->prefix);
+	wordfree(&command->extra);
+	*command = (struct pinger_command){ 0 };
+}
+
 int validate_targets(const char *const *targets, size_t target_count, char *error,
 		     size_t error_size)
 {
