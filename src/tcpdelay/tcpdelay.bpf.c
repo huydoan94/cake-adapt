@@ -76,8 +76,8 @@ static __always_inline int load(struct __sk_buff *skb, __u32 offset, void *to, _
 }
 
 /* Returns 1 and fills tsval/tsecr when the options carry a timestamp. */
-static __always_inline int find_timestamp(const __u8 *options, __u32 length, __u32 *tsval,
-					  __u32 *tsecr)
+static __always_inline int
+find_timestamp(const __u8 *options, __u32 length, __u32 *tsval, __u32 *tsecr)
 {
 	__u32 index = 0;
 	__u32 value;
@@ -127,8 +127,12 @@ found:
  * Fills the flow as (source, destination), the TCP header offset and the IP
  * payload length (TCP header plus data).
  */
-static __always_inline int parse_ip(struct __sk_buff *skb, struct tcpdelay_record_flow *flow,
-				    __u32 *tcp_offset, __u32 *ip_payload)
+static __always_inline int parse_ip(
+	struct __sk_buff *skb,
+	struct tcpdelay_record_flow *flow,
+	__u32 *tcp_offset,
+	__u32 *ip_payload
+)
 {
 	if (skb->protocol == bpf_htons(ETH_P_IP)) {
 		struct iphdr ip;
@@ -194,9 +198,12 @@ static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __
 	bpf_map_update_elem(&departures, &key, &now, BPF_NOEXIST);
 }
 
-static __always_inline void incoming(struct tcpdelay_counters *totals,
-				     const struct tcpdelay_record_flow *flow, __u32 tsval,
-				     __u32 tsecr)
+static __always_inline void incoming(
+	struct tcpdelay_counters *totals,
+	const struct tcpdelay_record_flow *flow,
+	__u32 tsval,
+	__u32 tsecr
+)
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsecr };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);

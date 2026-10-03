@@ -102,7 +102,12 @@ const char *config_option_name(size_t index);
 /* Checks a loaded configuration for consistency; config_load() calls it. */
 int config_validate(const struct config *config, char *error, size_t error_size);
 
-int config_load(struct config *config, const char *config_directory, const char *section_name,
-		char *error, size_t error_size);
+int config_load(
+	struct config *config,
+	const char *config_directory,
+	const char *section_name,
+	char *error,
+	size_t error_size
+);
 
 #endif

@@ -175,15 +175,22 @@ void control_update_compensation(struct monitor *monitor);
 
 bool control_low_load(const struct monitor *monitor);
 
-void control_update(struct monitor *monitor, const struct latency_observation *latency,
-		    const struct latency_sample *sample);
+void control_update(
+	struct monitor *monitor,
+	const struct latency_observation *latency,
+	const struct latency_sample *sample
+);
 
 void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds);
 
 /* tcpdelay.c */
 
-void tcp_observe(struct monitor *monitor, uint64_t timestamp_microseconds,
-		 struct controller_queue_input *queue, struct controller_ack_input *acks);
+void tcp_observe(
+	struct monitor *monitor,
+	uint64_t timestamp_microseconds,
+	struct controller_queue_input *queue,
+	struct controller_ack_input *acks
+);
 
 void tcp_close(struct monitor *monitor);
 
@@ -226,9 +233,14 @@ size_t reflectors_find(const struct monitor *monitor, const char *target);
  * Feeds one reply into its reflector's latency tracker, whose delay EWMA moves
  * only under low load, and into the slot's health record.
  */
-void reflectors_record(struct monitor *monitor, size_t slot, const struct latency_sample *sample,
-		       bool low_load, uint64_t response_microseconds,
-		       struct latency_observation *observation);
+void reflectors_record(
+	struct monitor *monitor,
+	size_t slot,
+	const struct latency_sample *sample,
+	bool low_load,
+	uint64_t response_microseconds,
+	struct latency_observation *observation
+);
 
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds);
 

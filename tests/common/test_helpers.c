@@ -200,8 +200,13 @@ static void test_response_timestamp_boundaries(void)
 	response_timestamp(realtime, monotonic, realtime + 123U, &response_monotonic, &stale);
 	assert(!stale);
 	assert(response_monotonic == monotonic + 123U);
-	response_timestamp(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX, &response_monotonic,
-			   &stale);
+	response_timestamp(
+		UINT64_MAX - 1U,
+		UINT64_MAX - 1U,
+		UINT64_MAX,
+		&response_monotonic,
+		&stale
+	);
 	assert(!stale);
 	assert(response_monotonic == UINT64_MAX);
 }

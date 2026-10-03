@@ -71,11 +71,16 @@ struct tcpdelay_estimate {
 
 void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator);
 
-void tcpdelay_estimator_add(struct tcpdelay_estimator *estimator,
-			    const struct tcpdelay_sample *sample);
+void tcpdelay_estimator_add(
+	struct tcpdelay_estimator *estimator,
+	const struct tcpdelay_sample *sample
+);
 
 /* Queueing delay per direction over the last two windows before now_ns. */
-void tcpdelay_estimator_result(const struct tcpdelay_estimator *estimator, uint64_t now_ns,
-			       struct tcpdelay_estimate *estimate);
+void tcpdelay_estimator_result(
+	const struct tcpdelay_estimator *estimator,
+	uint64_t now_ns,
+	struct tcpdelay_estimate *estimate
+);
 
 #endif

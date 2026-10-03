@@ -92,8 +92,13 @@ void log_init(const char *identifier, bool foreground);
 
 void log_close(void);
 
-int log_set_file(const char *path, uint64_t maximum_time_minutes, uint64_t maximum_size_kilobytes,
-		 uint64_t buffer_timeout_microseconds, bool compress_exports);
+int log_set_file(
+	const char *path,
+	uint64_t maximum_time_minutes,
+	uint64_t maximum_size_kilobytes,
+	uint64_t buffer_timeout_microseconds,
+	bool compress_exports
+);
 
 void log_set_level(enum log_level level);
 
@@ -105,8 +110,12 @@ int log_reset_file(void);
 
 void log_set_debug_syslog(bool enabled);
 
-void log_print_headers(bool output_processing_stats, bool output_load_stats,
-		       bool output_reflector_stats, bool output_summary_stats);
+void log_print_headers(
+	bool output_processing_stats,
+	bool output_load_stats,
+	bool output_reflector_stats,
+	bool output_summary_stats
+);
 
 /* cake-adapt only: per-direction queues measured from TCP timestamps. */
 struct log_tcp_queue_record {
@@ -128,8 +137,11 @@ void log_summary(const struct log_summary_record *record);
 
 void log_reflector(const struct log_reflector_record *record);
 
-void log_print_cpu_headers(const struct cpu_sample *sample, bool output_cpu_stats,
-			   bool output_cpu_raw_stats);
+void log_print_cpu_headers(
+	const struct cpu_sample *sample,
+	bool output_cpu_stats,
+	bool output_cpu_raw_stats
+);
 
 void log_cpu(const struct cpu_sample *sample, const unsigned int *usage);
 

@@ -53,13 +53,22 @@ struct cake_read {
 void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t count);
 
 /* Pass the previous observation (or zeroes) to reuse its index and MTU. */
-enum cake_read_result cake_read(struct netlink *netlink, const char *interface,
-				struct cake_observation *observation, char *error,
-				size_t error_size);
+enum cake_read_result cake_read(
+	struct netlink *netlink,
+	const char *interface,
+	struct cake_observation *observation,
+	char *error,
+	size_t error_size
+);
 
 /* The observation must come from a successful cake_read(). */
-int cake_set_bandwidth(struct netlink *netlink, const struct cake_observation *observation,
-		       uint64_t bandwidth_bits_per_second, char *error, size_t error_size);
+int cake_set_bandwidth(
+	struct netlink *netlink,
+	const struct cake_observation *observation,
+	uint64_t bandwidth_bits_per_second,
+	char *error,
+	size_t error_size
+);
 
 /* Matches pinned cake-autorate's tc-text parser, including PTM/raw fallback. */
 uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation);

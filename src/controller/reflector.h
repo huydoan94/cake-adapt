@@ -38,8 +38,11 @@ struct reflector_comparison {
 	int64_t upload_delta_ewma_delta_microseconds;
 };
 
-int health_init(struct reflector_health *health, const struct reflector_health_config *config,
-		uint64_t start_microseconds);
+int health_init(
+	struct reflector_health *health,
+	const struct reflector_health_config *config,
+	uint64_t start_microseconds
+);
 
 void health_cleanup(struct reflector_health *health);
 
@@ -47,15 +50,23 @@ void health_reset(struct reflector_health *health, uint64_t start_microseconds);
 
 void health_record_response(struct reflector_health *health, uint64_t timestamp_microseconds);
 
-enum reflector_health_result health_check(struct reflector_health *health,
-					  uint64_t timestamp_microseconds);
+enum reflector_health_result
+health_check(struct reflector_health *health, uint64_t timestamp_microseconds);
 
 /* Validated, nonempty active order; indices refer to initialized trackers. */
-void reflector_compare(const struct latency_tracker *trackers, const size_t *reflector_order,
-		       size_t active_count, struct reflector_comparison *comparisons);
+void reflector_compare(
+	const struct latency_tracker *trackers,
+	const size_t *reflector_order,
+	size_t active_count,
+	struct reflector_comparison *comparisons
+);
 
 /* Caller supplies an active pinger and at least one standby reflector. */
-void reflector_rotate(size_t *reflector_order, size_t reflector_count, size_t active_count,
-		      size_t pinger);
+void reflector_rotate(
+	size_t *reflector_order,
+	size_t reflector_count,
+	size_t active_count,
+	size_t pinger
+);
 
 #endif

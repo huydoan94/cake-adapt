@@ -116,8 +116,19 @@ if (result < 0)
 	return -1;
 ```
 
-- Pack parameters and arguments onto as few lines as fit, aligned with the
-  opening parenthesis.
+- When a declaration, definition or call does not fit on one line, put each
+  parameter or argument on its own line, one indent in, and the closing
+  parenthesis on its own line:
+
+```c
+int tcpdelay_capture_open(
+	struct tcpdelay_capture *capture,
+	const char *object_path,
+	char *error,
+	size_t error_size
+)
+{
+```
 - Keep functions small, with a module prefix, so each operation reads as a few
   obvious calls; put trivial arithmetic in a shared inline utilities header.
 - Comments should explain formulas, invariants, units, ownership, or non-obvious
