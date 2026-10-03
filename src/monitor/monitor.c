@@ -481,6 +481,7 @@ uloop_done:
     uloop_done();
 
 done:
+    close_tcp_delay(&loop.observation);
     stop_reflectors(&loop.observation, config);
     netlink_close(&loop.observation.netlink);
     controller_close(&loop.observation.controller);

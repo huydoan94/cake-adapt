@@ -33,7 +33,8 @@ static const char *const rate_reason_names[] = {
     [CONTROLLER_RATE_CONGESTION] = STATE_CONGESTION,
     [CONTROLLER_RATE_HIGH_LOAD] = STATE_HIGH_LOAD,
     [CONTROLLER_RATE_RETURN_TO_BASE] = STATE_RETURN_TO_BASE,
-    [CONTROLLER_RATE_RECONCILE] = STATE_RECONCILE
+    [CONTROLLER_RATE_RECONCILE] = STATE_RECONCILE,
+    [CONTROLLER_RATE_ACK_SHARE] = STATE_ACK_SHARE
 };
 
 void update_serialization_compensation(
@@ -443,6 +444,13 @@ void update_controller(
     };
 
     (void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
+    observe_tcp_capture(
+        context,
+        config,
+        input.timestamp_microseconds,
+        &input.queue,
+        &input.acks
+    );
 
     controller_update(
         &context->controller,
@@ -458,6 +466,18 @@ void update_controller(
         }
         if (decision->congestion_changed) {
             log_congestion_state(direction->name, decision->congestion, latency);
+        }
+        if (decision->bufferbloat_attribution_changed) {
+            log_message(
+                LOG_LEVEL_DEBUG,
+                "bufferbloat attribution changed: direction=%s attributed=%s"
+                " tcp_queues=%s download_queue=%" PRId64 " us upload_queue=%" PRId64 " us",
+                direction->name,
+                decision->bufferbloat_attributed ? "yes" : "no",
+                input.queue.valid ? "valid" : "unavailable",
+                input.queue.download_microseconds,
+                input.queue.upload_microseconds
+            );
         }
         /* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
         if (
@@ -606,7 +626,13 @@ int start_controller(
         .bufferbloat_refractory_period_microseconds =
             config->bufferbloat_refractory_period_microseconds,
         .decay_refractory_period_microseconds =
-            config->decay_refractory_period_microseconds
+            config->decay_refractory_period_microseconds,
+        /* Only fping reports one RTT/2 delay for both directions. */
+        .shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0,
+        .upload_ack_share_min_percent = rounded_divide(
+            config->upload_ack_share_min_per_million,
+            FACTOR_PER_PERCENT
+        )
     };
 
     if (controller_init(controller, &controller_config) != 0) {

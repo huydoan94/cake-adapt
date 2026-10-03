@@ -9,12 +9,13 @@ PKG_LICENSE_FILES:=LICENSE
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/bpf.mk
 
 define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libnl-tiny +zlib +fping +bash
+  DEPENDS:=+libuci +libubox +libnl-tiny +libbpf +zlib +fping +bash $(BPF_DEPENDS)
 endef
 
 define Package/cake-adapt/description
@@ -35,6 +36,11 @@ define Build/Compile
 		LDFLAGS="$(TARGET_LDFLAGS)" \
 		NETLINK_CFLAGS="-isystem $(STAGING_DIR)/usr/include/libnl-tiny" \
 		NETLINK_LIBS="-lnl-tiny" \
+		LIBBPF_CFLAGS="-isystem $(STAGING_DIR)/usr/include" \
+		BPF_CLANG="$(CLANG)" \
+		BPF_TARGET="$(BPF_TARGET)" \
+		BPF_STRIP="$(LLVM_STRIP)" \
+		BPF_INCLUDES="-I$(STAGING_DIR)/usr/include -I$(TOOLCHAIN_DIR)/include" \
 		OBJECT_DIR="$(PKG_BUILD_DIR)/build" \
 		VERSION="$(PKG_VERSION)-r$(PKG_RELEASE)"
 endef
@@ -46,6 +52,8 @@ endef
 define Package/cake-adapt/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/cake-adapt $(1)/usr/sbin/cake-adapt
+	$(INSTALL_DIR) $(1)/lib/bpf
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/build/tcpdelay.bpf.o $(1)/lib/bpf/cake-adapt-tcpdelay.o
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/cake-adapt.init $(1)/etc/init.d/cake-adapt
 	$(INSTALL_DIR) $(1)/usr/libexec/cake-adapt
