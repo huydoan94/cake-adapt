@@ -46,7 +46,7 @@
 <g id="node4" class="node">
 <title>pingers</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M408.53,-394C408.53,-394 198.39,-394 198.39,-394 192.39,-394 186.39,-388 186.39,-382 186.39,-382 186.39,-353.44 186.39,-353.44 186.39,-347.44 192.39,-341.44 198.39,-341.44 198.39,-341.44 408.53,-341.44 408.53,-341.44 414.53,-341.44 420.53,-347.44 420.53,-353.44 420.53,-353.44 420.53,-382 420.53,-382 420.53,-388 414.53,-394 408.53,-394"/>
-<text xml:space="preserve" text-anchor="middle" x="303.46" y="-377.62" font-family="Arial" font-size="11.00">stop_pingers_now:</text>
+<text xml:space="preserve" text-anchor="middle" x="303.46" y="-377.62" font-family="Arial" font-size="11.00">pingers_stop_now:</text>
 <text xml:space="preserve" text-anchor="middle" x="303.46" y="-364.42" font-family="Arial" font-size="11.00">cancel pinger timers; free streams;</text>
 <text xml:space="preserve" text-anchor="middle" x="303.46" y="-351.22" font-family="Arial" font-size="11.00">SIGTERM groups; ≤500 ms; SIGKILL; reap</text>
 </g>
@@ -73,7 +73,7 @@
 <g id="node6" class="node">
 <title>free</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M373.99,-228.08C373.99,-228.08 232.93,-228.08 232.93,-228.08 226.93,-228.08 220.93,-222.08 220.93,-216.08 220.93,-216.08 220.93,-200.72 220.93,-200.72 220.93,-194.72 226.93,-188.72 232.93,-188.72 232.93,-188.72 373.99,-188.72 373.99,-188.72 379.99,-188.72 385.99,-194.72 385.99,-200.72 385.99,-200.72 385.99,-216.08 385.99,-216.08 385.99,-222.08 379.99,-228.08 373.99,-228.08"/>
-<text xml:space="preserve" text-anchor="middle" x="303.46" y="-211.7" font-family="Arial" font-size="11.00">stop_reflectors; netlink_close;</text>
+<text xml:space="preserve" text-anchor="middle" x="303.46" y="-211.7" font-family="Arial" font-size="11.00">reflectors_stop; netlink_close;</text>
 <text xml:space="preserve" text-anchor="middle" x="303.46" y="-198.5" font-family="Arial" font-size="11.00">controller_close</text>
 </g>
 <!-- loop&#45;&gt;free -->

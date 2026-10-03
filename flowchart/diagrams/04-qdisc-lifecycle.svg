@@ -149,7 +149,7 @@
 <path fill="#ffe3e0" stroke="#c2413b" stroke-width="1.2" d="M911.96,-128.92C911.96,-128.92 754.42,-128.92 754.42,-128.92 748.42,-128.92 742.42,-122.92 742.42,-116.92 742.42,-116.92 742.42,-88.36 742.42,-88.36 742.42,-82.36 748.42,-76.36 754.42,-76.36 754.42,-76.36 911.96,-76.36 911.96,-76.36 917.96,-76.36 923.96,-82.36 923.96,-88.36 923.96,-88.36 923.96,-116.92 923.96,-116.92 923.96,-122.92 917.96,-128.92 911.96,-128.92"/>
 <text xml:space="preserve" text-anchor="middle" x="833.19" y="-112.54" font-family="Arial" font-size="11.00">log CAKE removed;</text>
 <text xml:space="preserve" text-anchor="middle" x="833.19" y="-99.34" font-family="Arial" font-size="11.00">clear observation; NOT_FOUND;</text>
-<text xml:space="preserve" text-anchor="middle" x="833.19" y="-86.14" font-family="Arial" font-size="11.00">reset traffic; close_latency</text>
+<text xml:space="preserve" text-anchor="middle" x="833.19" y="-86.14" font-family="Arial" font-size="11.00">reset traffic; pingers_close</text>
 </g>
 <!-- delmatch&#45;&gt;removed -->
 <g id="edge9" class="edge">
@@ -182,9 +182,9 @@
 <!-- cycle -->
 <g id="node13" class="node">
 <title>cycle</title>
-<path fill="#dcfce7" stroke="#15803d" stroke-width="1.2" d="M468.11,-39.36C468.11,-39.36 306.28,-39.36 306.28,-39.36 300.28,-39.36 294.28,-33.36 294.28,-27.36 294.28,-27.36 294.28,-12 294.28,-12 294.28,-6 300.28,0 306.28,0 306.28,0 468.11,0 468.11,0 474.11,0 480.11,-6 480.11,-12 480.11,-12 480.11,-27.36 480.11,-27.36 480.11,-33.36 474.11,-39.36 468.11,-39.36"/>
+<path fill="#dcfce7" stroke="#15803d" stroke-width="1.2" d="M449.45,-39.36C449.45,-39.36 324.93,-39.36 324.93,-39.36 318.93,-39.36 312.93,-33.36 312.93,-27.36 312.93,-27.36 312.93,-12 312.93,-12 312.93,-6 318.93,0 324.93,0 324.93,0 449.45,0 449.45,0 455.45,0 461.45,-6 461.45,-12 461.45,-12 461.45,-27.36 461.45,-27.36 461.45,-33.36 455.45,-39.36 449.45,-39.36"/>
 <text xml:space="preserve" text-anchor="middle" x="387.19" y="-22.98" font-family="Arial" font-size="11.00">after the batch:</text>
-<text xml:space="preserve" text-anchor="middle" x="387.19" y="-9.78" font-family="Arial" font-size="11.00">handle_traffic_timer() immediately</text>
+<text xml:space="preserve" text-anchor="middle" x="387.19" y="-9.78" font-family="Arial" font-size="11.00">monitor_tick() immediately</text>
 </g>
 <!-- refresh&#45;&gt;cycle -->
 <g id="edge14" class="edge">

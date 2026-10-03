@@ -106,8 +106,8 @@
 <!-- comp -->
 <g id="node11" class="node">
 <title>comp</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M438.42,-39.36C438.42,-39.36 269.81,-39.36 269.81,-39.36 263.81,-39.36 257.81,-33.36 257.81,-27.36 257.81,-27.36 257.81,-12 257.81,-12 257.81,-6 263.81,0 269.81,0 269.81,0 438.42,0 438.42,0 444.42,0 450.42,-6 450.42,-12 450.42,-12 450.42,-27.36 450.42,-27.36 450.42,-33.36 444.42,-39.36 438.42,-39.36"/>
-<text xml:space="preserve" text-anchor="middle" x="354.12" y="-22.98" font-family="Arial" font-size="11.00">update_serialization_compensation</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M425.89,-39.36C425.89,-39.36 282.35,-39.36 282.35,-39.36 276.35,-39.36 270.35,-33.36 270.35,-27.36 270.35,-27.36 270.35,-12 270.35,-12 270.35,-6 276.35,0 282.35,0 282.35,0 425.89,0 425.89,0 431.89,0 437.89,-6 437.89,-12 437.89,-12 437.89,-27.36 437.89,-27.36 437.89,-33.36 431.89,-39.36 425.89,-39.36"/>
+<text xml:space="preserve" text-anchor="middle" x="354.12" y="-22.98" font-family="Arial" font-size="11.00">control_update_compensation</text>
 <text xml:space="preserve" text-anchor="middle" x="354.12" y="-9.78" font-family="Arial" font-size="11.00">SUMMARY / DATA records</text>
 </g>
 <!-- fail&#45;&gt;comp -->
