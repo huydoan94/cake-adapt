@@ -32,6 +32,28 @@ void stop_child(pid_t process_identifier);
 int expand_words(const char *value, bool require_word, const char *option, wordexp_t *words,
 		 char *error, size_t error_size);
 
+/* A pinger's argument vector: the prefix words, then what the backend adds. */
+struct pinger_command {
+	wordexp_t prefix;
+	wordexp_t extra;
+	char **argv;
+	size_t count;
+};
+
+/*
+ * Expands the prefix and extra-argument options and allocates room for their
+ * words plus fixed more arguments; argv already starts with the prefix.
+ */
+int pinger_command_init(struct pinger_command *command, const char *prefix, const char *extra,
+			size_t fixed, const char *name, char *error, size_t error_size);
+
+static inline void pinger_command_add(struct pinger_command *command, const char *argument)
+{
+	command->argv[command->count++] = (char *)argument;
+}
+
+void pinger_command_free(struct pinger_command *command);
+
 int validate_targets(const char *const *targets, size_t target_count, char *error,
 		     size_t error_size);
 
