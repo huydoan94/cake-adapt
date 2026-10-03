@@ -237,10 +237,10 @@ int tcpdelay(struct __sk_buff *skb)
 	__u8 options[TCP_OPTIONS_MAX] = {};
 	struct tcphdr tcp;
 	/*
-     * Initialized although parse_ip() sets them on success: otherwise clang
-     * may spill an undefined value from a register a helper call clobbered,
-     * and the verifier rejects the read.
-     */
+	 * Initialized although parse_ip() sets them on success: otherwise clang
+	 * may spill an undefined value from a register a helper call clobbered,
+	 * and the verifier rejects the read.
+	 */
 	__u32 tcp_offset = 0;
 	__u32 ip_payload = 0;
 	__u32 options_length;
