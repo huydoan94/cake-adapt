@@ -4,6 +4,7 @@
 
 #include "common/constants.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <limits.h>
 
@@ -24,14 +25,7 @@ uint64_t traffic_compensated_interval_microseconds(
         upload_rate_bits_per_second
     );
 
-    if (UINT64_MAX - round_trip < upload) {
-        return UINT64_MAX;
-    }
-    round_trip += upload;
-    if (round_trip > UINT64_MAX / 10U) {
-        return UINT64_MAX;
-    }
-    round_trip *= 10U;
+    round_trip = saturating_mul(saturating_add(round_trip, upload), 10U);
     return configured_interval_microseconds > round_trip
         ? configured_interval_microseconds
         : round_trip;
