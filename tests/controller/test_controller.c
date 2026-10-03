@@ -694,9 +694,9 @@ static struct controller_queue_input measured_queue(int64_t download_microsecond
 static void test_measured_queues_attribute_shared_delay(void)
 {
 	/*
-     * Download delivers fully, which alone would blame upload. Upload, with no
-     * measured queue, also sees no delay and raises its rate under high load.
-     */
+	 * Download delivers fully, which alone would blame upload. Upload, with no
+	 * measured queue, also sees no delay and raises its rate under high load.
+	 */
 	check_queue_attribution(true, 8U * MEBABIT, measured_queue(40000, 0), 6U * MEBABIT,
 				8320U * 1000U);
 	/* Download delivers less, which alone would blame download. */
@@ -779,10 +779,10 @@ static void test_ack_share_follows_other_traffic(void)
 	struct controller_direction_output download;
 
 	/*
-     * Upload saturated (7.9 of 8 Mbit/s). ACKs may use what other traffic
-     * leaves, less 5% (400 kbit/s) headroom: with 100 kbit/s of other
-     * traffic, 7.5 Mbit/s, so download is held at 8 * 7.5 / 7.8.
-     */
+	 * Upload saturated (7.9 of 8 Mbit/s). ACKs may use what other traffic
+	 * leaves, less 5% (400 kbit/s) headroom: with 100 kbit/s of other
+	 * traffic, 7.5 Mbit/s, so download is held at 8 * 7.5 / 7.8.
+	 */
 	download = ack_capped_download(45U, KBIT(7900U), true, KBIT(100U), KBIT(7800U));
 	assert(download.rate_bits_per_second == KBIT(7692U));
 	assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);

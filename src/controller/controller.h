@@ -52,17 +52,17 @@ struct controller_config {
 	uint64_t bufferbloat_refractory_period_microseconds;
 	uint64_t decay_refractory_period_microseconds;
 	/*
-     * Both directions report the same RTT/2 delay (fping), so a queue is
-     * attributed using download, which is shaped after the bottleneck: its
-     * achieved rate is what the bottleneck delivers.
-     */
+	 * Both directions report the same RTT/2 delay (fping), so a queue is
+	 * attributed using download, which is shaped after the bottleneck: its
+	 * achieved rate is what the bottleneck delivers.
+	 */
 	bool shared_delay;
 	/*
-     * While upload is under high load, download is held so that its ACKs use
-     * no more than the upload left by other traffic (less a headroom), but
-     * never below this share of the upload shaper rate. Not a reservation:
-     * ACKs needing less leave the rest to other traffic. Zero disables it.
-     */
+	 * While upload is under high load, download is held so that its ACKs use
+	 * no more than the upload left by other traffic (less a headroom), but
+	 * never below this share of the upload shaper rate. Not a reservation:
+	 * ACKs needing less leave the rest to other traffic. Zero disables it.
+	 */
 	uint64_t upload_ack_share_min_percent;
 };
 
@@ -99,10 +99,10 @@ struct controller_input {
 	struct controller_latency_input download_latency;
 	struct controller_latency_input upload_latency;
 	/*
-     * Used only with shared_delay. When valid and large enough, it replaces
-     * the delivery heuristic and splits the round-trip delta between the
-     * directions by their measured shares.
-     */
+	 * Used only with shared_delay. When valid and large enough, it replaces
+	 * the delivery heuristic and splits the round-trip delta between the
+	 * directions by their measured shares.
+	 */
 	struct controller_queue_input queue;
 	/* Used only with upload_ack_share_min_percent. */
 	struct controller_ack_input acks;
@@ -118,9 +118,9 @@ struct controller_direction_output {
 	int64_t average_delay_microseconds;
 	unsigned int delayed_sample_count;
 	/*
-     * Bufferbloat is blamed on this direction, so a detected bufferbloat may
-     * cut its rate. Always true unless one shared delay must be attributed.
-     */
+	 * Bufferbloat is blamed on this direction, so a detected bufferbloat may
+	 * cut its rate. Always true unless one shared delay must be attributed.
+	 */
 	bool bufferbloat_attributed;
 	bool state_changed;
 	bool congestion_changed;

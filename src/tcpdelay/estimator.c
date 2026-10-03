@@ -149,10 +149,10 @@ static void measure(struct tcpdelay_flow *flow, size_t tick_index,
 		floor_update(&flow->download_floor[tick_index], *download_ns, sample->arrival_ns);
 
 	/*
-     * Remote receive time minus our departure of the echoed TSval: only the
-     * upstream delay varies. Delayed ACKs only add, which the window minimum
-     * removes.
-     */
+	 * Remote receive time minus our departure of the echoed TSval: only the
+	 * upstream delay varies. Delayed ACKs only add, which the window minimum
+	 * removes.
+	 */
 	*upload_ns = -1;
 	if (sample->departure_ns != 0U) {
 		int64_t departed_ns =
@@ -174,9 +174,9 @@ void tcpdelay_estimator_add(struct tcpdelay_estimator *estimator,
 {
 	struct tcpdelay_flow *flow = flow_for(estimator, sample);
 	/*
-     * TSval wraps at 32 bits, so progress is the difference read as signed
-     * (RFC 7323). A reordered packet carries an older TSval and is skipped.
-     */
+	 * TSval wraps at 32 bits, so progress is the difference read as signed
+	 * (RFC 7323). A reordered packet carries an older TSval and is skipped.
+	 */
 	int32_t step = (int32_t)(sample->tsval - flow->last_tsval);
 	int64_t download_ns;
 	int64_t upload_ns;

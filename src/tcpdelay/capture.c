@@ -103,10 +103,10 @@ int tcpdelay_capture_open(struct tcpdelay_capture *capture, const char *object_p
 	program_descriptor = bpf_program__fd(program);
 
 	/*
-     * Protocol 0 receives nothing until bind(), so no packet is queued before
-     * the filter is attached. The filter accepts no packet, so the socket's
-     * receive queue stays empty.
-     */
+	 * Protocol 0 receives nothing until bind(), so no packet is queued before
+	 * the filter is attached. The filter accepts no packet, so the socket's
+	 * receive queue stays empty.
+	 */
 	capture->socket_descriptor = socket(AF_PACKET, SOCK_RAW | SOCK_CLOEXEC, 0);
 	if (capture->socket_descriptor < 0 ||
 	    setsockopt(capture->socket_descriptor, SOL_SOCKET, SO_ATTACH_BPF, &program_descriptor,

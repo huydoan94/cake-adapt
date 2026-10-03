@@ -43,7 +43,7 @@ int test_poll(struct pollfd *descriptors, nfds_t count, int timeout)
 	polls++;
 	now += 600000U;
 	/* Without the shared deadline, a partial reply used to reach this timeout
-     * and return the preceding successful receive result. */
+	 * and return the preceding successful receive result. */
 	if (polls >= 3U)
 		return 0;
 	if (interrupt_wait) {

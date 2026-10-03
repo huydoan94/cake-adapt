@@ -227,9 +227,9 @@ static uint64_t interpolate_factor(uint64_t minimum_factor_per_thousand,
 	uint64_t base = minimum_factor_per_thousand * THOUSAND;
 
 	/*
-     * cake-autorate keeps the configured endpoints per-thousand, then keeps
-     * three additional decimal places while interpolating between them.
-     */
+	 * cake-autorate keeps the configured endpoints per-thousand, then keeps
+	 * three additional decimal places while interpolating between them.
+	 */
 	if (minimum_factor_per_thousand >= maximum_factor_per_thousand) {
 		difference = minimum_factor_per_thousand - maximum_factor_per_thousand;
 		return base - adjustment * difference;
@@ -340,7 +340,7 @@ adjust_rate(struct controller_direction *direction, const struct controller_conf
 				    direction->last_congestion_adjustment_microseconds,
 				    config->bufferbloat_refractory_period_microseconds)) {
 		/* Like upstream achieved_rate_updated: one increase per load sample,
-             * even when the factor is one or the maximum rate clips the result. */
+		 * even when the factor is one or the maximum rate clips the result. */
 		direction->last_increase_sample_id = input->traffic_sample_id;
 		direction->shaper_rate_bits_per_second = scale_rate(
 			previous_rate,
@@ -391,7 +391,7 @@ static void set_rate_output(const struct controller_direction *direction,
 
 	output->rate_bits_per_second = direction->shaper_rate_bits_per_second;
 	/* Like cake-autorate's first set_shaper_rates(), the base rate is written once
-     * even when CAKE already holds it. */
+	 * even when CAKE already holds it. */
 	output->rate_changed =
 		input->valid && (reason == CONTROLLER_RATE_INITIAL ||
 				 input->cake_rate_bits_per_second != output->rate_bits_per_second);
@@ -478,10 +478,10 @@ void controller_update(struct controller *controller, const struct controller_in
 	struct controller_latency_input download_latency = input->download_latency;
 	struct controller_latency_input upload_latency = input->upload_latency;
 	/*
-     * With one shared delay, download delivering its full shaper rate has no
-     * standing queue, so the delay is upload's; download loaded but delivering
-     * less than its shaper rate is the bottleneck, so the delay is its own.
-     */
+	 * With one shared delay, download delivering its full shaper rate has no
+	 * standing queue, so the delay is upload's; download loaded but delivering
+	 * less than its shaper rate is the bottleneck, so the delay is its own.
+	 */
 	bool download_attributed =
 		!controller->config.shared_delay || download_delivery < FULL_DELIVERY_PERCENT;
 	bool upload_attributed =
@@ -490,10 +490,10 @@ void controller_update(struct controller *controller, const struct controller_in
 		download_delivery >= FULL_DELIVERY_PERCENT;
 
 	/*
-     * Measured per-direction queues replace the heuristic, unless they are too
-     * small to explain the shared delay, which then arose outside the paths
-     * TCP observes.
-     */
+	 * Measured per-direction queues replace the heuristic, unless they are too
+	 * small to explain the shared delay, which then arose outside the paths
+	 * TCP observes.
+	 */
 	if (controller->config.shared_delay && queue->valid &&
 	    queue->download_microseconds + queue->upload_microseconds >=
 		    QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS) {
@@ -502,9 +502,9 @@ void controller_update(struct controller *controller, const struct controller_in
 		download_attributed = queue->download_microseconds * QUEUE_SHARE_DIVISOR >= total;
 		upload_attributed = queue->upload_microseconds * QUEUE_SHARE_DIVISOR >= total;
 		/*
-         * Split the round-trip delta by the measured shares instead of RTT/2
-         * each way, so a one-sided queue counts at its full size.
-         */
+		 * Split the round-trip delta by the measured shares instead of RTT/2
+		 * each way, so a one-sided queue counts at its full size.
+		 */
 		if (download_latency.valid && upload_latency.valid) {
 			int64_t round_trip = download_latency.owd_delta_microseconds +
 					     upload_latency.owd_delta_microseconds;
