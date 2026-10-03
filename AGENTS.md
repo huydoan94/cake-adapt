@@ -134,7 +134,9 @@ in that directory and is not included from outside it.
     through `uloop_process`. The only synchronous, bounded waits are shutdown
     (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
   - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
-  - `pinger.h`: private interface between the session and its backends.
+  - `pinger.h`: private interface between the session and its backends;
+    each backend exports a `struct pinger_ops` (name, line parser, exit
+    handler) that the session calls through.
   - `parser.c`: pinger output parsing into latency samples.
   - `tracker.c`: per-reflector baseline and delta EWMA tracking.
 - `cake/cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.

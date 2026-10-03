@@ -12,12 +12,6 @@
 /* Longest pinger output line, including its newline. */
 #define LATENCY_OUTPUT_SIZE 512U
 
-enum latency_backend {
-	LATENCY_BACKEND_FPING,
-	LATENCY_BACKEND_FPING_TS,
-	LATENCY_BACKEND_IRTT
-};
-
 bool target_is_valid(const char *target);
 
 /* The executable a pinger_method runs, or NULL for an unknown method. */
@@ -38,8 +32,11 @@ struct latency_child {
 	const char *target;
 };
 
+struct pinger_ops;
+
 struct latency {
-	enum latency_backend backend;
+	/* The running backend: fping_ops, fping_ts_ops or irtt_ops. */
+	const struct pinger_ops *ops;
 	bool active;
 	uint64_t irtt_session_duration_minutes;
 	uint64_t reflector_ping_interval_microseconds;

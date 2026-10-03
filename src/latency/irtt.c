@@ -109,7 +109,7 @@ int latency_open_irtt(struct latency *latency, const char *const *targets, size_
 		latency->children[index].next_start_microseconds =
 			first_start_microseconds + index * child_start_spacing_microseconds;
 	}
-	latency->backend = LATENCY_BACKEND_IRTT;
+	latency->ops = &irtt_ops;
 	latency->active = true;
 	latency->irtt_session_duration_minutes = session_duration_minutes;
 	latency->reflector_ping_interval_microseconds = reflector_ping_interval_microseconds;
@@ -124,7 +124,7 @@ int latency_start_irtt_children(struct latency *latency, uint64_t timestamp_micr
 {
 	size_t index;
 
-	if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT)
+	if (!latency->active || latency->ops != &irtt_ops)
 		return error_set(error, error_size, "irtt session is not active");
 	for (index = 0U; index < latency->child_count; index++) {
 		struct latency_child *child = &latency->children[index];
@@ -146,7 +146,7 @@ bool latency_irtt_start_pending(const struct latency *latency)
 {
 	size_t index;
 
-	if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT)
+	if (!latency->active || latency->ops != &irtt_ops)
 		return false;
 	for (index = 0U; index < latency->child_count; index++)
 		if (latency->children[index].output_descriptor < 0)
@@ -168,8 +168,28 @@ uint64_t latency_irtt_next_start_microseconds(const struct latency *latency)
 	return next;
 }
 
-enum latency_probe_result schedule_irtt_restart(struct latency_child *child, char *error,
-						size_t error_size)
+static enum latency_probe_result irtt_parse(const struct latency_child *child, const char *line,
+					    struct latency_sample *sample, char *error,
+					    size_t error_size)
+{
+	uint64_t timestamp_microseconds;
+
+	if (!parse_irtt_line(line, child->target, 0U, sample))
+		return LATENCY_PROBE_PENDING;
+	if (!read_clock_microseconds(CLOCK_REALTIME, &timestamp_microseconds)) {
+		error_set(error, error_size, "could not timestamp irtt output: %s",
+			  strerror(errno));
+		return LATENCY_PROBE_ERROR;
+	}
+	sample->timestamp_microseconds = timestamp_microseconds;
+	(void)snprintf(sample->timestamp_text, sizeof(sample->timestamp_text), "%" PRIu64,
+		       timestamp_microseconds);
+	return LATENCY_PROBE_SUCCESS;
+}
+
+/* IRTT sessions end by design: restart, delayed after a fast exit. */
+static enum latency_probe_result irtt_exited(struct latency_child *child, char *error,
+					     size_t error_size)
 {
 	uint64_t timestamp_microseconds;
 	uint64_t runtime_microseconds;
@@ -187,3 +207,9 @@ enum latency_probe_result schedule_irtt_restart(struct latency_child *child, cha
 		child->next_start_microseconds += IRTT_FAST_EXIT_RETRY_MICROSECONDS;
 	return LATENCY_PROBE_RESTART;
 }
+
+const struct pinger_ops irtt_ops = {
+	.name = PINGER_METHOD_IRTT,
+	.parse = irtt_parse,
+	.exited = irtt_exited,
+};
