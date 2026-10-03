@@ -1,0 +1,29 @@
+[ 1486.093660] cake-adapt-test: matrix A1 rep 23 end
+[ 1486.099762] cake-adapt-test: matrix A1 rep 24 start: mode=none stats=0 jit=1
+[ 1546.366635] Oops: iret exception: 0000 [#1] SMP PTI
+[ 1546.371757] CPU: 0 UID: 0 PID: 5413 Comm: sh Tainted: G           O       6.12.108 #0
+[ 1546.377964] Tainted: [O]=OOT_MODULE
+[ 1546.381904] Hardware name: innotek GmbH VirtualBox/VirtualBox, BIOS VirtualBox 12/01/2006
+[ 1546.389834] EIP: 0xbfda49ac
+[ 1546.393199] Code: Unable to access opcode bytes at 0xbfda4982.
+[ 1546.400099] EAX: 00001527 EBX: ffffffff ECX: 00000000 EDX: 00000011
+[ 1546.406541] ESI: 00000000 EDI: 00000000 EBP: 00000000 ESP: ffa03ff8
+[ 1546.411726] DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 0068 EFLAGS: 00000000
+[ 1546.417815] CR0: 80050033 CR2: b7d8f000 CR3: 032fa000 CR4: 000506f0
+[ 1546.423350] Call Trace:
+[ 1546.425914]  <ENTRY_TRAMPOLINE>
+[ 1546.429296]  </ENTRY_TRAMPOLINE>
+[ 1546.432661] Modules linked in: sch_netem pppoe ppp_async nft_fib_inet nf_flow_table_inet i915 video pppox ppp_generic nft_reject_ipv6 nft_reject_ipv4 nft_reject_inet nft_reject nft_redir nft_quota nft_numgen nft_nat nft_masq nft_log nft_limit nft_hash nft_flow_offload nft_fib_ipv6 nft_fib_ipv4 nft_fib nft_ct nft_compat nft_chain_nat nf_tables nf_nat nf_flow_table nf_conntrack iptable_mangle iptable_filter ipt_REJECT ipt_ECN ip_tables xt_time xt_tcpudp xt_tcpmss xt_statistic xt_multiport xt_mark xt_mac xt_limit xt_length xt_hl xt_ecn xt_dscp xt_comment xt_TCPMSS xt_LOG xt_HL xt_DSCP xt_CLASSIFY x_tables wmi via_velocity via_rhine ts_kmp ts_fsm ts_bm slhc sis900 sch_cake pcnet32 nfnetlink nf_reject_ipv6 nf_reject_ipv4 nf_log_syslog nf_defrag_ipv6 nf_defrag_ipv4 ne2k_pci forcedeth e100 drm_display_helper drm_buddy crc_ccitt 8390 8139too sch_teql sch_sfq sch_multiq sch_gred sch_fq sch_ets sch_codel em_text em_nbyte em_meta em_cmp act_skbmod act_simple act_pedit act_csum libcrc32c sch_tbf sch_ingress sch_htb sch_hfsc
+[ 1546.433553]  em_u32 cls_u32 cls_route cls_matchall cls_fw cls_flow cls_basic act_skbedit act_mirred act_gact i2c_dev 3c59x e1000 ifb veth ramoops pstore reed_solomon nls_utf8 nls_iso8859_1 nls_cp437 natsemi r8169 mdio_devres vfat fat button_hotplug(O) tg3 realtek mii libphy
+[ 1546.526510] ---[ end trace 0000000000000000 ]---
+[ 1546.532944] EIP: 0xbfda49ac
+[ 1546.535605] Code: Unable to access opcode bytes at 0xbfda4982.
+[ 1546.541201] EAX: 00001527 EBX: ffffffff ECX: 00000000 EDX: 00000011
+[ 1546.547014] ESI: 00000000 EDI: 00000000 EBP: 00000000 ESP: ffa03ff8
+[ 1546.552918] DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 0068 EFLAGS: 00000000
+[ 1546.558841] CR0: 80050033 CR2: b7d8f000 CR3: 032fa000 CR4: 000506f0
+[ 1546.564403] Kernel panic - not syncing: Fatal exception
+[ 1546.570961] Kernel Offset: disabled
+[ 1546.575544] Rebooting in 3 seconds..
+[H[J[1;1H[?25l[m[H[J[1;1H[2;30HGNU GRUB  version 2.12
+
