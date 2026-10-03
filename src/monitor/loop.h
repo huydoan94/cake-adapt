@@ -197,7 +197,16 @@ void pingers_stop_now(struct monitor *monitor);
 
 bool pingers_watch(struct monitor *monitor);
 
-void pingers_grant_grace(struct monitor *monitor, uint64_t timestamp_microseconds);
+/* CAKE is missing: stop the pingers until pingers_unsuspend(). */
+void pingers_suspend(struct monitor *monitor);
+
+void pingers_unsuspend(struct monitor *monitor, uint64_t timestamp_microseconds);
+
+/* Leaving IDLE: start again with setup grace. */
+void pingers_resume(struct monitor *monitor, uint64_t timestamp_microseconds);
+
+/* Restart now with the current reflectors, as after a rotation. */
+void pingers_reopen(struct monitor *monitor);
 
 void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds);
 
@@ -206,6 +215,20 @@ void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds);
 int reflectors_start(struct monitor *monitor, uint64_t start_microseconds);
 
 void reflectors_stop(struct monitor *monitor);
+
+/* Fills targets with the reflectors in the no_pingers active slots, in slot order. */
+void reflectors_active(const struct monitor *monitor, const char *targets[]);
+
+/* The active pinger slot polling target, or SIZE_MAX when none does. */
+size_t reflectors_find(const struct monitor *monitor, const char *target);
+
+/*
+ * Feeds one reply into its reflector's latency tracker, whose delay EWMA moves
+ * only under low load, and into the slot's health record.
+ */
+void reflectors_record(struct monitor *monitor, size_t slot, const struct latency_sample *sample,
+		       bool low_load, uint64_t response_microseconds,
+		       struct latency_observation *observation);
 
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds);
 

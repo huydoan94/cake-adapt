@@ -2122,7 +2122,7 @@
       "refs": [
         "src/monitor/monitor.c:update_activity",
         "src/controller/controller.c:activity_update",
-        "src/monitor/pingers.c:pingers_grant_grace",
+        "src/monitor/pingers.c:pingers_resume",
         "src/monitor/pingers.c:pingers_restart",
         "src/monitor/control.c:control_enforce_minimum"
       ],
