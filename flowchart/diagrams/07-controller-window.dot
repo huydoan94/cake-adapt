@@ -2,7 +2,7 @@ digraph G {
   graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="07 — Delay window and congestion classification",labelloc=t,fontsize=22,fontcolor="#0f172a"];
   node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
-  input [label="update_controller(latency observation)",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  input [label="control_update(latency observation)",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   dir [label="direction_input:\nvalid = fresh rate ∧ CAKE valid ∧ bandwidth > 0\nsample_id, achieved rate, CAKE rate",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   line [label="update_line_state\n(logged only)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   lat [label="latency valid?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];

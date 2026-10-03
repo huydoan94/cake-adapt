@@ -128,8 +128,8 @@
 <!-- comp -->
 <g id="node10" class="node">
 <title>comp</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M397.71,-630.6C397.71,-630.6 229.1,-630.6 229.1,-630.6 223.1,-630.6 217.1,-624.6 217.1,-618.6 217.1,-618.6 217.1,-603.24 217.1,-603.24 217.1,-597.24 223.1,-591.24 229.1,-591.24 229.1,-591.24 397.71,-591.24 397.71,-591.24 403.71,-591.24 409.71,-597.24 409.71,-603.24 409.71,-603.24 409.71,-618.6 409.71,-618.6 409.71,-624.6 403.71,-630.6 397.71,-630.6"/>
-<text xml:space="preserve" text-anchor="middle" x="313.41" y="-614.22" font-family="Arial" font-size="11.00">update_serialization_compensation</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M394.33,-630.6C394.33,-630.6 232.49,-630.6 232.49,-630.6 226.49,-630.6 220.49,-624.6 220.49,-618.6 220.49,-618.6 220.49,-603.24 220.49,-603.24 220.49,-597.24 226.49,-591.24 232.49,-591.24 232.49,-591.24 394.33,-591.24 394.33,-591.24 400.33,-591.24 406.33,-597.24 406.33,-603.24 406.33,-603.24 406.33,-618.6 406.33,-618.6 406.33,-624.6 400.33,-630.6 394.33,-630.6"/>
+<text xml:space="preserve" text-anchor="middle" x="313.41" y="-614.22" font-family="Arial" font-size="11.00">control_update_compensation</text>
 <text xml:space="preserve" text-anchor="middle" x="313.41" y="-601.02" font-family="Arial" font-size="11.00">(first time: compensated cadence)</text>
 </g>
 <!-- found&#45;&gt;comp -->
@@ -240,7 +240,7 @@
 <g id="node17" class="node">
 <title>suspend</title>
 <path fill="#ffe3e0" stroke="#c2413b" stroke-width="1.2" d="M254.5,-39.36C254.5,-39.36 162.32,-39.36 162.32,-39.36 156.32,-39.36 150.32,-33.36 150.32,-27.36 150.32,-27.36 150.32,-12 150.32,-12 150.32,-6 156.32,0 162.32,0 162.32,0 254.5,0 254.5,0 260.5,0 266.5,-6 266.5,-12 266.5,-12 266.5,-27.36 266.5,-27.36 266.5,-33.36 260.5,-39.36 254.5,-39.36"/>
-<text xml:space="preserve" text-anchor="middle" x="208.41" y="-22.98" font-family="Arial" font-size="11.00">close_latency;</text>
+<text xml:space="preserve" text-anchor="middle" x="208.41" y="-22.98" font-family="Arial" font-size="11.00">pingers_close;</text>
 <text xml:space="preserve" text-anchor="middle" x="208.41" y="-9.78" font-family="Arial" font-size="11.00">pingers_suspended</text>
 </g>
 <!-- ready&#45;&gt;suspend -->
@@ -253,9 +253,9 @@
 <!-- activity -->
 <g id="node18" class="node">
 <title>activity</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M422.93,-39.36C422.93,-39.36 303.88,-39.36 303.88,-39.36 297.88,-39.36 291.88,-33.36 291.88,-27.36 291.88,-27.36 291.88,-12 291.88,-12 291.88,-6 297.88,0 303.88,0 303.88,0 422.93,0 422.93,0 428.93,0 434.93,-6 434.93,-12 434.93,-12 434.93,-27.36 434.93,-27.36 434.93,-33.36 428.93,-39.36 422.93,-39.36"/>
-<text xml:space="preserve" text-anchor="middle" x="363.41" y="-22.98" font-family="Arial" font-size="11.00">update_monitor_state</text>
-<text xml:space="preserve" text-anchor="middle" x="363.41" y="-9.78" font-family="Arial" font-size="11.00">(chart 11), watch_latency</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M423.54,-39.36C423.54,-39.36 303.27,-39.36 303.27,-39.36 297.27,-39.36 291.27,-33.36 291.27,-27.36 291.27,-27.36 291.27,-12 291.27,-12 291.27,-6 297.27,0 303.27,0 303.27,0 423.54,0 423.54,0 429.54,0 435.54,-6 435.54,-12 435.54,-12 435.54,-27.36 435.54,-27.36 435.54,-33.36 429.54,-39.36 423.54,-39.36"/>
+<text xml:space="preserve" text-anchor="middle" x="363.41" y="-22.98" font-family="Arial" font-size="11.00">update_activity</text>
+<text xml:space="preserve" text-anchor="middle" x="363.41" y="-9.78" font-family="Arial" font-size="11.00">(chart 11), pingers_watch</text>
 </g>
 <!-- ready&#45;&gt;activity -->
 <g id="edge20" class="edge">

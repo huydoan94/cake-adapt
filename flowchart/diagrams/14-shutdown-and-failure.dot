@@ -5,9 +5,9 @@ digraph G {
   sig [label="SIGTERM / SIGINT",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   fatal [label="fatal runtime failure\n(e.g. qdisc event socket)",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   end [label="uloop_end → uloop_run returns",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  pingers [label="stop_pingers_now:\ncancel pinger timers; free streams;\nSIGTERM groups; ≤500 ms; SIGKILL; reap",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  pingers [label="pingers_stop_now:\ncancel pinger timers; free streams;\nSIGTERM groups; ≤500 ms; SIGKILL; reap",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   loop [label="remove qdisc fd; cancel timers;\nremove signal handlers; uloop_done",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  free [label="stop_reflectors; netlink_close;\ncontroller_close",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  free [label="reflectors_stop; netlink_close;\ncontroller_close",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   log [label="syslog: Stopped cake-adapt …\nlog_close",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   exit [label="exit 0 (signal) / 1 (failure)",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   degraded [label="degraded conditions\nlog once, continue,\nlog recovery",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
