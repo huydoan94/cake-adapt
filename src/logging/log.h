@@ -123,6 +123,18 @@ void log_print_headers(
     bool output_summary_stats
 );
 
+/* cake-adapt only: per-direction queues measured from TCP timestamps. */
+struct log_tcp_queue_record {
+    bool download_valid;
+    bool upload_valid;
+    int64_t download_queue_microseconds;
+    int64_t upload_queue_microseconds;
+};
+
+void log_print_tcp_queue_header(void);
+
+void log_tcp_queue(const struct log_tcp_queue_record *record);
+
 void log_load(const struct log_load_record *record);
 
 void log_data(const struct log_data_record *record);

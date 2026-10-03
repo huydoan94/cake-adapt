@@ -73,7 +73,8 @@ static const struct boolean_option_binding boolean_options[] = {
     {
         OPTION_LOG_FILE_EXPORT_COMPRESS,
         CONFIG_OFFSET(log_file_export_compress)
-    }
+    },
+    { OPTION_TCP_DELAY_ATTRIBUTION, CONFIG_OFFSET(tcp_delay_attribution) }
 };
 
 static const struct string_option_binding string_options[] = {
@@ -281,6 +282,11 @@ static const struct scaled_option_binding scaled_options[] = {
     {
         OPTION_HIGH_LOAD_THRESHOLD,
         CONFIG_OFFSET(high_load_threshold_per_million),
+        MILLION
+    },
+    {
+        OPTION_UPLOAD_ACK_SHARE_MIN,
+        CONFIG_OFFSET(upload_ack_share_min_per_million),
         MILLION
     },
     {

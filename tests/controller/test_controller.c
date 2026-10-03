@@ -744,6 +744,257 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
     controller_close(&controller);
 }
 
+/* Three 120 ms deltas: congestion detected with a 60 ms window average. */
+static void detect_congestion(
+    struct controller *controller,
+    struct controller_input *input,
+    struct controller_output *output
+)
+{
+    set_latency_delta(input, 120000);
+    controller_update(controller, input, output);
+    accept_rates(input, output);
+    input->timestamp_microseconds += 150001U;
+    controller_update(controller, input, output);
+    accept_rates(input, output);
+    input->timestamp_microseconds += 150001U;
+    controller_update(controller, input, output);
+}
+
+/* download, upload: expected rates after bufferbloat with one shared delay. */
+static void check_queue_attribution(
+    bool shared_delay,
+    uint64_t download_achieved,
+    struct controller_queue_input queue,
+    uint64_t expected_download,
+    uint64_t expected_upload
+)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        download_achieved,
+        8U * MEBABIT,
+        7U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    config.shared_delay = shared_delay;
+    input.queue = queue;
+    init_controller(&controller, &config);
+    detect_congestion(&controller, &input, &output);
+    /* A measured split can leave one direction too little delay to detect. */
+    if (!queue.valid || !shared_delay) {
+        assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+        assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
+    }
+    assert(output.download.rate_bits_per_second == expected_download);
+    assert(output.upload.rate_bits_per_second == expected_upload);
+    controller_close(&controller);
+}
+
+static void check_shared_delay_attribution(
+    uint64_t download_achieved,
+    uint64_t expected_download,
+    uint64_t expected_upload
+)
+{
+    const struct controller_queue_input no_queue = { .valid = false };
+
+    check_queue_attribution(
+        true,
+        download_achieved,
+        no_queue,
+        expected_download,
+        expected_upload
+    );
+}
+
+static void test_shared_delay_is_attributed_by_download_delivery(void)
+{
+    /* Download delivers its full shaper rate, so the queue is upload's. */
+    check_shared_delay_attribution(8U * MEBABIT, 8U * MEBABIT, 6U * MEBABIT);
+    /* Download is loaded but delivers less: it is the bottleneck. */
+    check_shared_delay_attribution(7U * MEBABIT, 6U * MEBABIT, 8U * MEBABIT);
+    /* An app-limited download says nothing about the queue: both cut. */
+    check_shared_delay_attribution(2U * MEBABIT, 6U * MEBABIT, 6U * MEBABIT);
+}
+
+static struct controller_queue_input measured_queue(
+    int64_t download_microseconds,
+    int64_t upload_microseconds
+)
+{
+    const struct controller_queue_input queue = {
+        .valid = true,
+        .download_microseconds = download_microseconds,
+        .upload_microseconds = upload_microseconds
+    };
+
+    return queue;
+}
+
+static void test_measured_queues_attribute_shared_delay(void)
+{
+    /*
+     * Download delivers fully, which alone would blame upload. Upload, with no
+     * measured queue, also sees no delay and raises its rate under high load.
+     */
+    check_queue_attribution(true, 8U * MEBABIT, measured_queue(40000, 0), 6U * MEBABIT, 8320U * 1000U);
+    /* Download delivers less, which alone would blame download. */
+    check_queue_attribution(true, 7U * MEBABIT, measured_queue(1000, 60000), 8320U * 1000U, 6U * MEBABIT);
+    /* Both hold at least a quarter; download's smaller share cuts less. */
+    check_queue_attribution(true, 8U * MEBABIT, measured_queue(10000, 30000), 7920U * 1000U, 6U * MEBABIT);
+    /* Less than a quarter is not blamed. */
+    check_queue_attribution(true, 7U * MEBABIT, measured_queue(9000, 30000), 8U * MEBABIT, 6U * MEBABIT);
+    /* Too little measured queue to explain the delay: delivery decides. */
+    check_queue_attribution(true, 8U * MEBABIT, measured_queue(4000, 0), 8U * MEBABIT, 6U * MEBABIT);
+    /* Separate one-way delays need no attribution. */
+    check_queue_attribution(false, 8U * MEBABIT, measured_queue(40000, 0), 6U * MEBABIT, 6U * MEBABIT);
+}
+
+static void test_measured_queues_split_round_trip_delta(void)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        8U * MEBABIT,
+        8U * MEBABIT,
+        7U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    config.shared_delay = true;
+    init_controller(&controller, &config);
+    /* 25 ms each way is below the 30 ms threshold. */
+    set_latency_delta(&input, 25000);
+    update_repeatedly(&controller, &input, &output, 6U);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
+
+    /* The 50 ms round trip splits by the 10/40 ms shares: 10 ms down, 40 ms up. */
+    input.queue = measured_queue(10000, 40000);
+    update_repeatedly(&controller, &input, &output, 6U);
+    assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
+    assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
+    assert(output.upload.average_delay_microseconds == 40000);
+
+    /* Below the attribution floor, RTT/2 applies again. */
+    input.queue = measured_queue(1000, 3000);
+    update_repeatedly(&controller, &input, &output, 6U);
+    assert(output.upload.average_delay_microseconds == 25000);
+    controller_close(&controller);
+}
+
+/* Download after one update, with upload's shaper at 8 Mbit/s. */
+static struct controller_direction_output ack_capped_download(
+    uint64_t share_percent,
+    uint64_t upload_achieved,
+    bool acks_valid,
+    uint64_t other_rate,
+    uint64_t ack_rate
+)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        8U * MEBABIT,
+        8U * MEBABIT,
+        upload_achieved,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    config.upload_ack_share_min_percent = share_percent;
+    input.acks.valid = acks_valid;
+    input.acks.upload_ack_rate_bits_per_second = ack_rate;
+    input.acks.upload_rate_bits_per_second = other_rate + ack_rate;
+    init_controller(&controller, &config);
+    /* The first update only writes the base rates. */
+    controller_update(&controller, &input, &output);
+    accept_rates(&input, &output);
+    input.timestamp_microseconds += 1000000U;
+    controller_update(&controller, &input, &output);
+    controller_close(&controller);
+    return output.download;
+}
+
+#define KBIT(value) ((value) * 1000U)
+
+static void test_ack_share_follows_other_traffic(void)
+{
+    struct controller_direction_output download;
+
+    /*
+     * Upload saturated (7.9 of 8 Mbit/s). ACKs may use what other traffic
+     * leaves, less 5% (400 kbit/s) headroom: with 100 kbit/s of other
+     * traffic, 7.5 Mbit/s, so download is held at 8 * 7.5 / 7.8.
+     */
+    download = ack_capped_download(45U, KBIT(7900U), true, KBIT(100U), KBIT(7800U));
+    assert(download.rate_bits_per_second == KBIT(7692U));
+    assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);
+    assert(download.rate_changed);
+
+    /* Other traffic grows to 3 Mbit/s: ACKs get 4.6, download 8 * 4.6 / 4.9. */
+    download = ack_capped_download(45U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
+    assert(download.rate_bits_per_second == KBIT(7510U));
+
+    /* At 4.2 Mbit/s of other traffic ACKs reach their 45% minimum, 3.6. */
+    download = ack_capped_download(45U, KBIT(7900U), true, KBIT(4200U), KBIT(3700U));
+    assert(download.rate_bits_per_second == KBIT(7783U));
+
+    /* ACKs below their minimum are never held. */
+    download = ack_capped_download(45U, KBIT(7900U), true, KBIT(5000U), KBIT(2900U));
+    assert(download.rate_bits_per_second == KBIT(8320U));
+    assert(download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
+
+    /* The download minimum still wins (8 * 3.6 / 6 = 4.8 < 5 Mbit/s). */
+    download = ack_capped_download(45U, KBIT(7900U), true, KBIT(4200U), KBIT(6000U));
+    assert(download.rate_bits_per_second == 5U * MEBABIT);
+    assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);
+
+    /* No hold without high upload load, without a valid ACK rate, or when off. */
+    download = ack_capped_download(45U, KBIT(5000U), true, KBIT(3000U), KBIT(4900U));
+    assert(download.rate_bits_per_second == KBIT(8320U));
+    download = ack_capped_download(45U, KBIT(7900U), false, KBIT(3000U), KBIT(4900U));
+    assert(download.rate_bits_per_second == KBIT(8320U));
+    download = ack_capped_download(0U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
+    assert(download.rate_bits_per_second == KBIT(8320U));
+}
+
+static void test_attribution_changes_are_reported(void)
+{
+    struct controller controller;
+    struct controller_config config = adjusting_config();
+    struct controller_input input = input_with_rates(
+        8U * MEBABIT,
+        8U * MEBABIT,
+        7U * MEBABIT,
+        8U * MEBABIT
+    );
+    struct controller_output output;
+
+    config.shared_delay = true;
+    init_controller(&controller, &config);
+    controller_update(&controller, &input, &output);
+    assert(!output.download.bufferbloat_attributed);
+    assert(output.download.bufferbloat_attribution_changed);
+    assert(output.upload.bufferbloat_attributed);
+    assert(!output.upload.bufferbloat_attribution_changed);
+
+    input.queue = measured_queue(40000, 0);
+    controller_update(&controller, &input, &output);
+    assert(output.download.bufferbloat_attributed && output.download.bufferbloat_attribution_changed);
+    assert(!output.upload.bufferbloat_attributed && output.upload.bufferbloat_attribution_changed);
+
+    controller_update(&controller, &input, &output);
+    assert(!output.download.bufferbloat_attribution_changed);
+    assert(!output.upload.bufferbloat_attribution_changed);
+    controller_close(&controller);
+}
+
 static void test_bufferbloat_reduction_scales_with_average_delay(void)
 {
     struct controller controller;
@@ -1462,6 +1713,11 @@ int main(void)
     test_noop_increase_consumes_sample();
     test_high_load_waits_for_congestion_refractory_period();
     test_configured_high_load_adjustment_is_used();
+    test_shared_delay_is_attributed_by_download_delivery();
+    test_measured_queues_attribute_shared_delay();
+    test_measured_queues_split_round_trip_delta();
+    test_ack_share_follows_other_traffic();
+    test_attribution_changes_are_reported();
     test_severe_bufferbloat_reduces_both_rates();
     test_bufferbloat_reduction_scales_with_average_delay();
     test_bufferbloat_reduction_observes_refractory_period();

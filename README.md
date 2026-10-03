@@ -85,6 +85,28 @@ differences are in integration and safety:
   are implemented as in cake-autorate but not yet verified for production use.
   `fping-ts` accepts only IPv4 reflectors, because ICMP timestamps are IPv4
   only; cake-autorate leaves fping to fail on IPv6 targets at runtime.
+- Deliberate departures aimed at less bufferbloat (the replayed upstream
+  traces still match with them off):
+  - With `fping`, whose RTT/2 is one delay for both directions, a detected
+    bufferbloat is attributed to a direction by download delivery: download
+    delivering its full shaper rate has no standing queue.
+  - `tcp_delay_attribution` (default off, `fping` only): measure each
+    direction's queueing delay from TCP timestamps with an eBPF socket filter
+    on the upload interface (`/lib/bpf/cake-adapt-tcpdelay.o`, loaded with
+    libbpf). It sees packets after the upload CAKE and before the ingress IFB,
+    so it measures the ISP's queues, not ours. Once the measured queues total
+    at least 5 ms, fping's round-trip delay is split between the directions by
+    their measured shares instead of RTT/2 each way, and only a direction
+    holding at least a quarter of the queue is cut. With `output_processing_stats`
+    the estimates are logged as `TCP_QUEUE` records.
+  - `upload_ack_share_min` (default `0`, off): download ACKs can fill a slow
+    upload. The same eBPF filter splits upload, after the upload CAKE, into
+    pure ACKs and everything else. While upload is above `high_load_thr`,
+    ACKs may use what the other traffic leaves free, less 5% headroom so its
+    growth shows; download is held so its ACKs fit, but never so far that
+    they fall below this share of the upload shaper rate (for example
+    `0.45`). It is not a reservation: while ACKs need less, other traffic
+    uses the rest. Download is never held below its minimum rate.
 - Configuration is typed UCI. A cake-autorate configuration file can be
   imported (see [Standalone shell configuration](#standalone-shell-configuration)),
   but it is validated like UCI and never sourced by the daemon.

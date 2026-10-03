@@ -154,6 +154,14 @@ static int validate_latency_config(
             }
         }
     }
+    /* Only fping reports one shared delay that needs attributing. */
+    if (
+        config->tcp_delay_attribution &&
+        strcmp(config->pinger_method, PINGER_METHOD_FPING) != 0
+    ) {
+        error_set(error, error_size, "option 'tcp_delay_attribution' needs pinger_method 'fping'");
+        return -1;
+    }
     if (
         config->reflector_ping_interval_microseconds /
             config->no_pingers < MILLISECOND
@@ -218,6 +226,10 @@ static int validate_latency_config(
             "option 'bufferbloat_detection_thr' cannot be greater than"
             " 'bufferbloat_detection_window'"
         );
+        return -1;
+    }
+    if (config->upload_ack_share_min_per_million > MILLION) {
+        error_set(error, error_size, "option 'upload_ack_share_min' must be between 0 and 1");
         return -1;
     }
     if (

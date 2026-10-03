@@ -30,6 +30,8 @@ struct config {
     bool enable_sleep_function;
     bool minimum_shaper_rates_enforcement;
     bool log_file_export_compress;
+    /* Attribute fping's shared delay with per-direction TCP-timestamp queues. */
+    bool tcp_delay_attribution;
     bool interface_overridden;
     char interface[IF_NAMESIZE];
     char ingress_interface[IF_NAMESIZE];
@@ -76,6 +78,8 @@ struct config {
     uint64_t shaper_rate_adjust_down_load_low_per_million;
     uint64_t shaper_rate_adjust_up_load_low_per_million;
     uint64_t high_load_threshold_per_million;
+    /* cake-adapt only: ACKs' minimum share of upload; zero disables the hold. */
+    uint64_t upload_ack_share_min_per_million;
     uint64_t bufferbloat_refractory_period_microseconds;
     uint64_t decay_refractory_period_microseconds;
     uint64_t reflector_health_check_interval_microseconds;
