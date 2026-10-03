@@ -82,9 +82,14 @@ differences are in integration and safety:
   retrieval is not implemented.
 - `fping` is the supported pinger. The `fping-ts` method (fping with ICMP
   timestamps, giving separate download and upload delays) is implemented as in
-  cake-autorate but not yet verified for production use. `fping-ts` accepts
-  only IPv4 reflectors, because ICMP timestamps are IPv4 only; cake-autorate
-  leaves fping to fail on IPv6 targets at runtime.
+  cake-autorate and verified on the emulated testbed, where its one-way delays
+  track the real queues and it beats fping's RTT/2 in every phase but a sudden
+  capacity drop
+  ([evidence](profiling/2026-10-03-fping-ts-testbed/README.md)). It is not yet
+  verified on internet reflectors, whose clocks and timestamp support vary, so
+  it is not yet supported for production use. `fping-ts` accepts only IPv4
+  reflectors, because ICMP timestamps are IPv4 only; cake-autorate leaves
+  fping to fail on IPv6 targets at runtime.
 - **The IRTT backend (`pinger_method 'irtt'`) is experimental.** It follows
   cake-autorate and passes its host tests, but it has never run against a
   real IRTT server and no runtime behavior has been verified. Do not use it
