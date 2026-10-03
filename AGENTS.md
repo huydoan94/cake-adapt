@@ -130,8 +130,9 @@ in that directory and is not included from outside it.
   - `defaults.c` and `defaults.h`: built-in application and configuration
     defaults.
 - `controller/`
-  - `controller.c`: platform-independent autorate, congestion, and activity
-    policy; keep it directly unit-testable with synthetic inputs.
+  - `controller.c`: platform-independent load classification, autorate,
+    congestion, and activity policy; keep it directly unit-testable with
+    synthetic inputs.
   - `reflector.c`: reflector health, comparison, and rotation policy over
     latency trackers.
 - `latency/`
