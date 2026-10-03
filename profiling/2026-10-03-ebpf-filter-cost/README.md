@@ -19,8 +19,8 @@ The only large lever left is thinning the samples: recording a departure and
 emitting a record at most once per N ms per flow instead of on every TSval.
 In this testbed most packets carry a new TSval (Linux ticks every 1 ms and
 each flow sends under one packet per ms), so the "once per TSval" limit
-barely limits. Thinning changes what the estimator sees, so it needs the
-queue validation below redone before it can ship; it is not done.
+barely limits. Thinning was later validated and shipped at 4 ms; see
+[`2026-10-03-sample-thinning`](../2026-10-03-sample-thinning/README.md).
 
 For scale: at the owner's 70 Mbit/s download (about 8,700 packets/s both
 ways) 1.9 µs per packet is about 1.7% of one core of this VM.

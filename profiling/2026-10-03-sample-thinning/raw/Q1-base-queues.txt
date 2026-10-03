@@ -1,0 +1,26 @@
+Per phase and direction, in ms: true and estimated queue p50/p90/p99, their
+correlation, detection (estimate > 15 ms while the true queue is > 30 ms)
+and false alarms (estimate > 15 ms while the true queue is < 5 ms).
+
+TCP_QUEUE estimates
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    531 |       0.0/54.7/80.4 |       1.2/49.1/75.7 |  0.90 |   92% /119 |   0.6%
+upload-steady    down  531 |         0.0/0.0/0.0 |         0.2/0.4/0.6 |   -   |         - |   0.0%
+upload-step      up    534 |      0.0/63.7/213.1 |      2.1/52.6/213.5 |  0.90 |   92% /117 |   0.2%
+upload-step      down  534 |         0.0/0.0/0.0 |         0.2/0.3/0.6 |  0.08 |         - |   0.0%
+download-steady  up    523 |         0.0/0.0/0.0 |         0.1/0.3/0.5 |  0.04 |         - |   0.0%
+download-steady  down  523 |      11.8/20.3/23.1 |       8.7/18.5/21.8 |  0.94 |         - |   0.0%
+bidirectional    up    522 |       0.0/39.8/62.2 |       0.4/34.0/53.0 |  0.88 |   89% /108 |   0.2%
+bidirectional    down  522 |       3.1/20.1/25.6 |       0.4/16.8/22.5 |  0.91 |         - |   0.0%
+
+fping per-direction delta (RTT/2, DATA records)
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    533 |       0.0/54.7/80.4 |       2.0/27.4/40.2 |  0.96 |   89% /119 |   0.0%
+upload-steady    down  533 |         0.0/0.0/0.0 |       2.0/27.4/40.2 |   -   |         - |  22.0%
+upload-step      up    535 |      0.0/63.7/213.1 |      1.9/31.5/105.8 |  0.96 |   91% /117 |   0.0%
+upload-step      down  535 |         0.0/0.0/0.0 |      1.9/31.5/105.8 |  0.11 |         - |  22.1%
+download-steady  up    524 |         0.0/0.0/0.0 |       7.1/13.3/17.7 | -0.02 |         - |   5.5%
+download-steady  down  524 |      11.8/20.3/23.1 |       7.1/13.3/17.7 |  0.85 |         - |   0.0%
+bidirectional    up    523 |       0.0/39.8/62.2 |      10.8/21.1/31.0 |  0.79 |   85% /108 |   2.3%
+bidirectional    down  523 |       3.1/20.1/25.6 |      10.8/21.1/31.0 | -0.13 |         - |  21.2%
+
