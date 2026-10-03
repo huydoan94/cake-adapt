@@ -198,12 +198,15 @@ static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __
 	bpf_map_update_elem(&departures, &key, &now, BPF_NOEXIST);
 }
 
-static __always_inline void incoming(
-	struct tcpdelay_counters *totals,
-	const struct tcpdelay_record_flow *flow,
-	__u32 tsval,
-	__u32 tsecr
-)
+static __always_inline struct tcpdelay_counters *counters_entry(void)
+{
+	__u32 zero = 0;
+
+	return bpf_map_lookup_elem(&counters, &zero);
+}
+
+static __always_inline void
+incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsecr };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
@@ -223,7 +226,10 @@ static __always_inline void incoming(
 	departure = tsecr != 0 ? bpf_map_lookup_elem(&departures, &key) : NULL;
 	record = bpf_ringbuf_reserve(&samples, sizeof(*record), 0);
 	if (record == NULL) {
-		totals->ring_full++;
+		struct tcpdelay_counters *totals = counters_entry();
+
+		if (totals != NULL)
+			totals->ring_full++;
 		return;
 	}
 	record->arrival_ns = bpf_ktime_get_ns();
@@ -238,8 +244,8 @@ static __always_inline void incoming(
 SEC("socket")
 int tcpdelay(struct __sk_buff *skb)
 {
-	__u32 zero = 0;
-	struct tcpdelay_counters *totals = bpf_map_lookup_elem(&counters, &zero);
+	/* Only outgoing packets are counted, so only they look the counters up. */
+	struct tcpdelay_counters *totals = NULL;
 	struct tcpdelay_record_flow flow = {};
 	__u8 options[TCP_OPTIONS_MAX] = {};
 	struct tcphdr tcp;
@@ -254,18 +260,20 @@ int tcpdelay(struct __sk_buff *skb)
 	__u32 tsval;
 	__u32 tsecr;
 
-	/* For the verifier; the array's one entry exists from creation. */
-	if (totals == NULL)
-		return 0;
-	if (skb->pkt_type == PACKET_OUTGOING)
+	if (skb->pkt_type == PACKET_OUTGOING) {
+		totals = counters_entry();
+		/* For the verifier; the array's one entry exists from creation. */
+		if (totals == NULL)
+			return 0;
 		totals->upload_bytes += skb->len;
+	}
 	if (parse_ip(skb, &flow, &tcp_offset, &ip_payload) < 0 ||
 	    load(skb, tcp_offset, &tcp, sizeof(tcp)) < 0) {
 		return 0;
 	}
 	/* A pure ACK carries no data and none of SYN, FIN or RST. */
-	if (skb->pkt_type == PACKET_OUTGOING && ip_payload == tcp.doff * 4U && tcp.ack &&
-	    !tcp.syn && !tcp.fin && !tcp.rst) {
+	if (totals != NULL && ip_payload == tcp.doff * 4U && tcp.ack && !tcp.syn && !tcp.fin &&
+	    !tcp.rst) {
 		totals->ack_bytes += skb->len;
 	}
 	options_length = tcp.doff * 4U;
@@ -284,7 +292,7 @@ int tcpdelay(struct __sk_buff *skb)
 		outgoing(&flow, tsval);
 	} else {
 		swap_flow(&flow);
-		incoming(totals, &flow, tsval, tsecr);
+		incoming(&flow, tsval, tsecr);
 	}
 	return 0;
 }
