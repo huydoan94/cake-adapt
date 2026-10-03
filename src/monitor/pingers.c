@@ -29,7 +29,6 @@ static bool ensure_latency_open(struct monitor *monitor)
 	const char *targets[CONFIG_MAX_REFLECTORS];
 	char error[ERROR_SIZE] = { 0 };
 	size_t target_count = (size_t)config->no_pingers;
-	size_t index;
 	uint64_t timestamp_microseconds;
 	uint64_t first_start_microseconds;
 	enum log_level level;
@@ -49,8 +48,7 @@ static bool ensure_latency_open(struct monitor *monitor)
 	}
 	monitor->pingers.next_attempt_microseconds =
 		timestamp_microseconds + config->interface_up_check_interval_microseconds;
-	for (index = 0U; index < target_count; index++)
-		targets[index] = config->reflectors[monitor->reflectors.order[index]];
+	reflectors_active(monitor, targets);
 	if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0) {
 		uint64_t elapsed =
 			timestamp_microseconds - monitor->pingers.slot_origin_microseconds;
@@ -90,18 +88,6 @@ static bool ensure_latency_open(struct monitor *monitor)
 	return true;
 }
 
-static size_t find_active_reflector(const struct monitor *monitor, const char *target)
-{
-	const struct config *config = monitor->config;
-	size_t target_count = (size_t)config->no_pingers;
-	size_t index;
-
-	for (index = 0U; index < target_count; index++)
-		if (strcmp(config->reflectors[monitor->reflectors.order[index]], target) == 0)
-			return index;
-	return SIZE_MAX;
-}
-
 /* Returns false when latency observation must be restarted. */
 static bool process_latency_line(struct monitor *monitor, size_t child_index, const char *line)
 {
@@ -114,8 +100,7 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 	uint64_t response_monotonic_microseconds;
 	enum latency_probe_result result = latency_handle_line(
 		&monitor->pingers.latency, child_index, line, &sample, error, sizeof(error));
-	size_t reflector_index;
-	bool low_load;
+	size_t slot;
 
 	if (result == LATENCY_PROBE_PENDING || result == LATENCY_PROBE_TIMEOUT)
 		return true;
@@ -124,8 +109,8 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 		return false;
 	}
 
-	reflector_index = find_active_reflector(monitor, sample.target);
-	if (reflector_index == SIZE_MAX) {
+	slot = reflectors_find(monitor, sample.target);
+	if (slot == SIZE_MAX) {
 		(void)snprintf(error, sizeof(error), "unexpected reflector=%s", sample.target);
 		report_latency_degraded(monitor, error);
 		return false;
@@ -145,19 +130,11 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
 		monitor->pingers.response_clock_failed = false;
 	}
-	low_load = control_low_load(monitor);
-
-	tracker_update(&monitor->reflectors.trackers[monitor->reflectors.order[reflector_index]],
-		       &sample, &observation);
-
-	tracker_update_delta_ewma(
-		&monitor->reflectors.trackers[monitor->reflectors.order[reflector_index]], low_load,
-		&observation);
 	response_timestamp(processing_realtime_microseconds, processing_monotonic_microseconds,
 			   sample.timestamp_microseconds, &response_monotonic_microseconds, &stale);
+	reflectors_record(monitor, slot, &sample, control_low_load(monitor),
+			  response_monotonic_microseconds, &observation);
 	monitor->pingers.last_response_microseconds = response_monotonic_microseconds;
-	health_record_response(&monitor->reflectors.health[reflector_index],
-			       response_monotonic_microseconds);
 	if (stale) {
 		log_message(LOG_LEVEL_DEBUG,
 			    "processed response from [%s] that is > 500ms old. Skipping.",
@@ -427,7 +404,7 @@ bool pingers_watch(struct monitor *monitor)
 }
 
 /* Match cake-autorate's two-period setup grace after (re)starting pingers. */
-void pingers_grant_grace(struct monitor *monitor, uint64_t timestamp_microseconds)
+static void grant_grace(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
 	const struct config *config = monitor->config;
 
@@ -435,6 +412,35 @@ void pingers_grant_grace(struct monitor *monitor, uint64_t timestamp_microsecond
 	monitor->pingers.grace_until_microseconds =
 		timestamp_microseconds + 2U * config->reflector_ping_interval_microseconds;
 	reflectors_reset_health(monitor, monitor->pingers.grace_until_microseconds);
+}
+
+void pingers_suspend(struct monitor *monitor)
+{
+	pingers_close(monitor);
+	monitor->pingers.suspended = true;
+}
+
+/* Pingers stopped while CAKE was missing restart like after IDLE. */
+void pingers_unsuspend(struct monitor *monitor, uint64_t timestamp_microseconds)
+{
+	if (!monitor->pingers.suspended)
+		return;
+	grant_grace(monitor, timestamp_microseconds);
+	monitor->pingers.suspended = false;
+}
+
+void pingers_resume(struct monitor *monitor, uint64_t timestamp_microseconds)
+{
+	grant_grace(monitor, timestamp_microseconds);
+	monitor->pingers.next_attempt_microseconds = 0U;
+	(void)pingers_watch(monitor);
+}
+
+void pingers_reopen(struct monitor *monitor)
+{
+	pingers_close(monitor);
+	monitor->pingers.next_attempt_microseconds = 0U;
+	(void)pingers_watch(monitor);
 }
 
 void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds)

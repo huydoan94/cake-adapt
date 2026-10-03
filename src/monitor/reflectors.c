@@ -19,6 +19,38 @@ static bool entropy_u32(uint32_t *value, void *context)
 	return getentropy(value, sizeof(*value)) == 0;
 }
 
+void reflectors_active(const struct monitor *monitor, const char *targets[])
+{
+	const struct config *config = monitor->config;
+	size_t index;
+
+	for (index = 0U; index < (size_t)config->no_pingers; index++)
+		targets[index] = config->reflectors[monitor->reflectors.order[index]];
+}
+
+size_t reflectors_find(const struct monitor *monitor, const char *target)
+{
+	const struct config *config = monitor->config;
+	size_t index;
+
+	for (index = 0U; index < (size_t)config->no_pingers; index++)
+		if (strcmp(config->reflectors[monitor->reflectors.order[index]], target) == 0)
+			return index;
+	return SIZE_MAX;
+}
+
+void reflectors_record(struct monitor *monitor, size_t slot, const struct latency_sample *sample,
+		       bool low_load, uint64_t response_microseconds,
+		       struct latency_observation *observation)
+{
+	struct latency_tracker *tracker =
+		&monitor->reflectors.trackers[monitor->reflectors.order[slot]];
+
+	tracker_update(tracker, sample, observation);
+	tracker_update_delta_ewma(tracker, low_load, observation);
+	health_record_response(&monitor->reflectors.health[slot], response_microseconds);
+}
+
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
 	const struct config *config = monitor->config;
@@ -65,9 +97,7 @@ static void replace_active_reflector(struct monitor *monitor, size_t pinger,
 		    config->reflectors[monitor->reflectors.order[pinger]]);
 
 	/* fping owns all active targets in one process, so rotate them together. */
-	pingers_close(monitor);
-	monitor->pingers.next_attempt_microseconds = 0U;
-	(void)pingers_watch(monitor);
+	pingers_reopen(monitor);
 }
 
 static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestamp_microseconds)
@@ -239,8 +269,8 @@ static void handle_health_timer(struct uloop_interval *timer)
 					    "Warning: skipping replacement of reflector: %s given"
 					    " prior replacement within this reflector health check"
 					    " cycle.",
-					    monitor->config->reflectors
-						    [monitor->reflectors.order[index]]);
+					    monitor->config
+						    ->reflectors[monitor->reflectors.order[index]]);
 			}
 		}
 	}
