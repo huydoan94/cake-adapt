@@ -17,7 +17,8 @@
 
 static void update_activity(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	static const char *const names[] = { STATE_RUNNING_UPPER, STATE_IDLE_UPPER,
+	static const char *const names[] = { STATE_RUNNING_UPPER,
+					     STATE_IDLE_UPPER,
 					     STATE_STALL_UPPER };
 	const struct monitor_links *links = &monitor->links;
 	const struct config *config = monitor->config;
@@ -50,22 +51,26 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 
 	activity_update(&monitor->activity, &activity_config, &input, &output);
 	if (output.check_stall_loads) {
-		log_message(LOG_LEVEL_DEBUG,
-			    "Warning: no reflector response within: %.2f seconds. Checking loads.",
-			    (double)activity_config.stall_timeout_microseconds /
-				    (double)MICROSECONDS_PER_SECOND);
-		log_message(LOG_LEVEL_DEBUG,
-			    "load check is: (( %" PRIu64 " kbps > %" PRIu64
-			    " kbps for download && %" PRIu64 " kbps > %" PRIu64
-			    " kbps for upload ))",
-			    links->download.traffic_rate_bits_per_second / KILOBIT,
-			    config->connection_stall_threshold_bits_per_second / KILOBIT,
-			    links->upload.traffic_rate_bits_per_second / KILOBIT,
-			    config->connection_stall_threshold_bits_per_second / KILOBIT);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"Warning: no reflector response within: %.2f seconds. Checking loads.",
+			(double)activity_config.stall_timeout_microseconds /
+				(double)MICROSECONDS_PER_SECOND
+		);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"load check is: (( %" PRIu64 " kbps > %" PRIu64
+			" kbps for download && %" PRIu64 " kbps > %" PRIu64 " kbps for upload ))",
+			links->download.traffic_rate_bits_per_second / KILOBIT,
+			config->connection_stall_threshold_bits_per_second / KILOBIT,
+			links->upload.traffic_rate_bits_per_second / KILOBIT,
+			config->connection_stall_threshold_bits_per_second / KILOBIT
+		);
 		if (monitor->activity.state == CONTROLLER_RUNNING) {
 			log_message(
 				LOG_LEVEL_DEBUG,
-				"load above connection stall threshold so resuming normal operation.");
+				"load above connection stall threshold so resuming normal operation."
+			);
 		}
 	}
 	if (output.global_timeout_started) {
@@ -74,7 +79,8 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		log_system_message(
 			"Warning: Configured global ping response timeout: %.3f seconds exceeded.",
 			(double)activity_config.global_timeout_microseconds /
-				(double)MICROSECONDS_PER_SECOND);
+				(double)MICROSECONDS_PER_SECOND
+		);
 	}
 	if (output.state_changed) {
 		if (monitor->activity.state == CONTROLLER_RUNNING) {
@@ -82,10 +88,15 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 				LOG_LEVEL_DEBUG,
 				previous == CONTROLLER_IDLE
 					? "Connection load exceeded active threshold. Resuming normal operation."
-					: "Connection stall ended. Resuming normal operation.");
+					: "Connection stall ended. Resuming normal operation."
+			);
 		}
-		log_message(LOG_LEVEL_DEBUG, "Changing main state from: %s to: %s", names[previous],
-			    names[monitor->activity.state]);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"Changing main state from: %s to: %s",
+			names[previous],
+			names[monitor->activity.state]
+		);
 		if (monitor->activity.state == CONTROLLER_IDLE) {
 			log_message(LOG_LEVEL_DEBUG, "Connection idle. Waiting for minimum load.");
 			if (config->minimum_shaper_rates_enforcement) {
@@ -148,8 +159,11 @@ static void observe_cpu(struct monitor *monitor, bool emit_records)
 		monitor->cpu_count = sample.count;
 		cpu_init(&monitor->cpu_monitor);
 		log_message(LOG_LEVEL_DEBUG, "Detected %zu CPU cores.", sample.count - 1U);
-		log_print_cpu_headers(&sample, monitor->config->output_cpu_stats,
-				      monitor->config->output_cpu_raw_stats);
+		log_print_cpu_headers(
+			&sample,
+			monitor->config->output_cpu_stats,
+			monitor->config->output_cpu_raw_stats
+		);
 	}
 	if (!emit_records)
 		return;
@@ -188,8 +202,10 @@ static void handle_log_export_signal(struct uloop_signal *signal)
 static void handle_log_reset_signal(struct uloop_signal *signal)
 {
 	(void)signal;
-	log_message(LOG_LEVEL_DEBUG,
-		    "received log file reset signal so flushing log and resetting log file.");
+	log_message(
+		LOG_LEVEL_DEBUG,
+		"received log file reset signal so flushing log and resetting log file."
+	);
 	if (log_reset_file() != 0)
 		log_message(LOG_LEVEL_WARNING, "log file reset failed: %s", strerror(errno));
 }
@@ -201,9 +217,11 @@ static void watch_cpu(struct monitor *monitor)
 	if (!config->output_cpu_stats && !config->output_cpu_raw_stats)
 		return;
 	observe_cpu(monitor, false);
-	if (uloop_interval_set(&monitor->cpu_timer,
-			       (unsigned int)(config->monitor_cpu_usage_interval_microseconds /
-					      MICROSECONDS_PER_MILLISECOND)) != 0) {
+	if (uloop_interval_set(
+		    &monitor->cpu_timer,
+		    (unsigned int)(config->monitor_cpu_usage_interval_microseconds /
+				   MICROSECONDS_PER_MILLISECOND)
+	    ) != 0) {
 		log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
 	}
 }
@@ -260,12 +278,12 @@ int monitor_run(const struct config *config)
 		struct uloop_interval *timer;
 		uint64_t interval_microseconds;
 		const char *name;
-	} required_timers[] = {
-		{ &monitor.traffic_timer, config->monitor_achieved_rates_interval_microseconds,
-		  TIMER_TRAFFIC },
-		{ &monitor.reflectors.health_timer,
-		  config->reflector_health_check_interval_microseconds, TIMER_REFLECTOR_HEALTH }
-	};
+	} required_timers[] = { { &monitor.traffic_timer,
+				  config->monitor_achieved_rates_interval_microseconds,
+				  TIMER_TRAFFIC },
+				{ &monitor.reflectors.health_timer,
+				  config->reflector_health_check_interval_microseconds,
+				  TIMER_REFLECTOR_HEALTH } };
 	int run_status;
 	uint64_t start_microseconds;
 	size_t index;
@@ -274,8 +292,11 @@ int monitor_run(const struct config *config)
 	if (control_start(&monitor) != 0)
 		goto done;
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &start_microseconds)) {
-		log_message(LOG_LEVEL_ERROR, "could not initialize reflector health clock: %s",
-			    strerror(errno));
+		log_message(
+			LOG_LEVEL_ERROR,
+			"could not initialize reflector health clock: %s",
+			strerror(errno)
+		);
 		goto done;
 	}
 	if (reflectors_start(&monitor, start_microseconds) != 0)
@@ -285,8 +306,11 @@ int monitor_run(const struct config *config)
 
 	/* uloop reaps pinger children and reports each exit to pingers.c. */
 	if (uloop_init() != 0) {
-		log_message(LOG_LEVEL_ERROR, "could not initialize event loop: %s",
-			    strerror(errno));
+		log_message(
+			LOG_LEVEL_ERROR,
+			"could not initialize event loop: %s",
+			strerror(errno)
+		);
 		goto done;
 	}
 
@@ -294,11 +318,17 @@ int monitor_run(const struct config *config)
 		goto uloop_done;
 
 	for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
-		if (uloop_interval_set(required_timers[index].timer,
-				       (unsigned int)(required_timers[index].interval_microseconds /
-						      MICROSECONDS_PER_MILLISECOND)) != 0) {
-			log_message(LOG_LEVEL_ERROR, "could not monitor %s timer: %s",
-				    required_timers[index].name, strerror(errno));
+		if (uloop_interval_set(
+			    required_timers[index].timer,
+			    (unsigned int)(required_timers[index].interval_microseconds /
+					   MICROSECONDS_PER_MILLISECOND)
+		    ) != 0) {
+			log_message(
+				LOG_LEVEL_ERROR,
+				"could not monitor %s timer: %s",
+				required_timers[index].name,
+				strerror(errno)
+			);
 			goto uloop_done;
 		}
 	}

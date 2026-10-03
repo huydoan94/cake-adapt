@@ -6,8 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-int health_init(struct reflector_health *health, const struct reflector_health_config *config,
-		uint64_t start_microseconds)
+int health_init(
+	struct reflector_health *health,
+	const struct reflector_health_config *config,
+	uint64_t start_microseconds
+)
 {
 	if (health == NULL || config == NULL || config->detection_window == 0U ||
 	    config->detection_threshold == 0U ||
@@ -47,11 +50,14 @@ void health_record_response(struct reflector_health *health, uint64_t timestamp_
 	health->last_response_microseconds = timestamp_microseconds;
 }
 
-enum reflector_health_result health_check(struct reflector_health *health,
-					  uint64_t timestamp_microseconds)
+enum reflector_health_result
+health_check(struct reflector_health *health, uint64_t timestamp_microseconds)
 {
-	bool offence = interval_elapsed(timestamp_microseconds, health->last_response_microseconds,
-					health->config.response_deadline_microseconds);
+	bool offence = interval_elapsed(
+		timestamp_microseconds,
+		health->last_response_microseconds,
+		health->config.response_deadline_microseconds
+	);
 
 	if (health->offences[health->offence_index] != 0U)
 		health->offence_count--;
@@ -67,22 +73,30 @@ enum reflector_health_result health_check(struct reflector_health *health,
 	return offence ? REFLECTOR_OFFENCE : REFLECTOR_HEALTHY;
 }
 
-void reflector_compare(const struct latency_tracker *trackers, const size_t *reflector_order,
-		       size_t active_count, struct reflector_comparison *comparisons)
+void reflector_compare(
+	const struct latency_tracker *trackers,
+	const size_t *reflector_order,
+	size_t active_count,
+	struct reflector_comparison *comparisons
+)
 {
 	int64_t minimum_baseline;
 	int64_t minimum_download_delta_ewma;
 	int64_t minimum_upload_delta_ewma;
 	size_t index;
 
-	minimum_baseline = signed_sum(trackers[reflector_order[0]].download.baseline_microseconds,
-				      trackers[reflector_order[0]].upload.baseline_microseconds);
+	minimum_baseline = signed_sum(
+		trackers[reflector_order[0]].download.baseline_microseconds,
+		trackers[reflector_order[0]].upload.baseline_microseconds
+	);
 	minimum_download_delta_ewma = trackers[reflector_order[0]].download.delta_ewma_microseconds;
 	minimum_upload_delta_ewma = trackers[reflector_order[0]].upload.delta_ewma_microseconds;
 	for (index = 1U; index < active_count; index++) {
 		const struct latency_tracker *tracker = &trackers[reflector_order[index]];
-		int64_t sum_baselines = signed_sum(tracker->download.baseline_microseconds,
-						   tracker->upload.baseline_microseconds);
+		int64_t sum_baselines = signed_sum(
+			tracker->download.baseline_microseconds,
+			tracker->upload.baseline_microseconds
+		);
 
 		if (sum_baselines < minimum_baseline)
 			minimum_baseline = sum_baselines;
@@ -94,8 +108,10 @@ void reflector_compare(const struct latency_tracker *trackers, const size_t *ref
 
 	for (index = 0U; index < active_count; index++) {
 		const struct latency_tracker *tracker = &trackers[reflector_order[index]];
-		int64_t sum_baselines = signed_sum(tracker->download.baseline_microseconds,
-						   tracker->upload.baseline_microseconds);
+		int64_t sum_baselines = signed_sum(
+			tracker->download.baseline_microseconds,
+			tracker->upload.baseline_microseconds
+		);
 		int64_t download_delta_ewma = tracker->download.delta_ewma_microseconds;
 		int64_t upload_delta_ewma = tracker->upload.delta_ewma_microseconds;
 
@@ -116,14 +132,19 @@ void reflector_compare(const struct latency_tracker *trackers, const size_t *ref
 	}
 }
 
-void reflector_rotate(size_t *reflector_order, size_t reflector_count, size_t active_count,
-		      size_t pinger)
+void reflector_rotate(
+	size_t *reflector_order,
+	size_t reflector_count,
+	size_t active_count,
+	size_t pinger
+)
 {
 	size_t bad_reflector;
 
 	bad_reflector = reflector_order[pinger];
 	reflector_order[pinger] = reflector_order[active_count];
-	memmove(&reflector_order[active_count], &reflector_order[active_count + 1U],
+	memmove(&reflector_order[active_count],
+		&reflector_order[active_count + 1U],
 		(reflector_count - active_count - 1U) * sizeof(*reflector_order));
 	reflector_order[reflector_count - 1U] = bad_reflector;
 }

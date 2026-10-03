@@ -67,8 +67,12 @@ static void test_output_is_split_into_lines(void)
 	       LATENCY_LINE_READY);
 	assert(strcmp(line, "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms") == 0);
 	assert(consumed == strlen(line) + 2U);
-	assert(latency_next_line(output + consumed, sizeof(output) - 1U - consumed, line,
-				 &consumed) == LATENCY_LINE_INCOMPLETE);
+	assert(latency_next_line(
+		       output + consumed,
+		       sizeof(output) - 1U - consumed,
+		       line,
+		       &consumed
+	       ) == LATENCY_LINE_INCOMPLETE);
 	assert(latency_next_line("", 0U, line, &consumed) == LATENCY_LINE_INCOMPLETE);
 
 	/* The newline must fall within LATENCY_OUTPUT_SIZE bytes. */
@@ -94,13 +98,25 @@ static void test_fping_lines_are_handled(void)
 
 	latency_init(&latency);
 	latency.child_count = 1U;
-	assert(latency_handle_line(&latency, 0U, "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms",
-				   &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
+	assert(latency_handle_line(
+		       &latency,
+		       0U,
+		       "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms",
+		       &sample,
+		       error,
+		       sizeof(error)
+	       ) == LATENCY_PROBE_SUCCESS);
 	assert(sample.sequence == 1U);
 	assert(sample.download_owd_microseconds == 1250U);
 	assert(sample.upload_owd_microseconds == 1250U);
-	assert(latency_handle_line(&latency, 0U, "[123.756000] 1.1.1.1 : [2], timed out", &sample,
-				   error, sizeof(error)) == LATENCY_PROBE_TIMEOUT);
+	assert(latency_handle_line(
+		       &latency,
+		       0U,
+		       "[123.756000] 1.1.1.1 : [2], timed out",
+		       &sample,
+		       error,
+		       sizeof(error)
+	       ) == LATENCY_PROBE_TIMEOUT);
 	assert(sample.sequence == 2U);
 	assert(latency_handle_line(&latency, 0U, "bad", &sample, error, sizeof(error)) ==
 	       LATENCY_PROBE_ERROR);
@@ -109,15 +125,25 @@ static void test_fping_lines_are_handled(void)
 	/* An fping-ts session reads one-way delays from the ICMP timestamps. */
 	latency.ops = &fping_ts_ops;
 	assert(latency_handle_line(
-		       &latency, 0U,
+		       &latency,
+		       0U,
 		       "[123.456000] 1.1.1.1 : [3], 20 bytes, 2.50 ms (2.50 avg, 0% loss),"
 		       " timestamps: Originate=1000 Receive=1004 Transmit=1004 Localreceive=1006",
-		       &sample, error, sizeof(error)) == LATENCY_PROBE_SUCCESS);
+		       &sample,
+		       error,
+		       sizeof(error)
+	       ) == LATENCY_PROBE_SUCCESS);
 	assert(sample.download_owd_microseconds == 2000);
 	assert(sample.upload_owd_microseconds == 4000);
 	assert(sample.timestamp_rollover_sensitive);
-	assert(latency_handle_line(&latency, 0U, "[123.456000] 1.1.1.1 : [4], 64 bytes, 2.50 ms",
-				   &sample, error, sizeof(error)) == LATENCY_PROBE_ERROR);
+	assert(latency_handle_line(
+		       &latency,
+		       0U,
+		       "[123.456000] 1.1.1.1 : [4], 64 bytes, 2.50 ms",
+		       &sample,
+		       error,
+		       sizeof(error)
+	       ) == LATENCY_PROBE_ERROR);
 }
 
 static void test_exit_status_is_reported(void)
@@ -149,8 +175,18 @@ static void test_invalid_target_is_rejected_before_starting_fping(void)
 
 	latency_init(&latency);
 
-	assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "", "", false, error,
-			    sizeof(error)) != 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       targets,
+		       1U,
+		       1000000U,
+		       "",
+		       "",
+		       false,
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(latency.children[0].output_descriptor == -1);
 	assert(latency.children[0].process_identifier == -1);
 	assert(strlen(error) > 0U);
@@ -162,8 +198,18 @@ static void test_empty_target_list_is_rejected(void)
 	char error[256] = "";
 
 	latency_init(&latency);
-	assert(latency_open(&latency, "lo", NULL, 0U, 1000000U, "", "", false, error,
-			    sizeof(error)) != 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       NULL,
+		       0U,
+		       1000000U,
+		       "",
+		       "",
+		       false,
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "at least one target") != NULL);
 	assert(!latency_is_open(&latency));
 }
@@ -175,8 +221,18 @@ static void test_sub_millisecond_response_spacing_is_rejected(void)
 	char error[256] = "";
 
 	latency_init(&latency);
-	assert(latency_open(&latency, "lo", targets, 2U, 1999U, "", "", false, error,
-			    sizeof(error)) != 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       targets,
+		       2U,
+		       1999U,
+		       "",
+		       "",
+		       false,
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "at least 1 ms per target") != NULL);
 	assert(!latency_is_open(&latency));
 }
@@ -230,8 +286,14 @@ static void test_irtt_lines_ignore_non_samples(void)
 	latency.children[0].target = "9.9.9.9";
 	assert(latency_handle_line(&latency, 0U, "IRTT client", &sample, error, sizeof(error)) ==
 	       LATENCY_PROBE_PENDING);
-	assert(latency_handle_line(&latency, 0U, "seq=7 rtt=3ms rd=1ms sd=2ms", &sample, error,
-				   sizeof(error)) == LATENCY_PROBE_SUCCESS);
+	assert(latency_handle_line(
+		       &latency,
+		       0U,
+		       "seq=7 rtt=3ms rd=1ms sd=2ms",
+		       &sample,
+		       error,
+		       sizeof(error)
+	       ) == LATENCY_PROBE_SUCCESS);
 	assert(strcmp(sample.target, "9.9.9.9") == 0);
 	assert(sample.sequence == 7U);
 	assert(sample.download_owd_microseconds == 1000);
@@ -242,8 +304,8 @@ static void test_irtt_lines_ignore_non_samples(void)
 }
 
 /* The test stands in for uloop: it reaps the child and reports the exit. */
-static void reap_stopped_child(struct latency *latency, size_t child_index,
-			       pid_t process_identifier)
+static void
+reap_stopped_child(struct latency *latency, size_t child_index, pid_t process_identifier)
 {
 	char error[256] = "";
 	int status;
@@ -271,8 +333,18 @@ static void open_long_running_child(struct latency *latency, const char *script)
 	/* The fping arguments become the shell's positional parameters. */
 	(void)snprintf(prefix, sizeof(prefix), "/bin/sh -c '%s'", script);
 	latency_init(latency);
-	assert(latency_open(latency, "lo", targets, 1U, 1000000U, "", prefix, false, error,
-			    sizeof(error)) == 0);
+	assert(latency_open(
+		       latency,
+		       "lo",
+		       targets,
+		       1U,
+		       1000000U,
+		       "",
+		       prefix,
+		       false,
+		       error,
+		       sizeof(error)
+	       ) == 0);
 	assert(latency_child_process(latency, 0U) > 0);
 }
 
@@ -347,12 +419,32 @@ static void test_pinger_arguments_reject_command_substitution(void)
 	char error[256] = "";
 
 	latency_init(&latency);
-	assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "$(id)", "", false, error,
-			    sizeof(error)) != 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       targets,
+		       1U,
+		       1000000U,
+		       "$(id)",
+		       "",
+		       false,
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "ping_extra_args") != NULL);
 	assert(!latency_is_open(&latency));
-	assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "", "'unterminated", false,
-			    error, sizeof(error)) != 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       targets,
+		       1U,
+		       1000000U,
+		       "",
+		       "'unterminated",
+		       false,
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "ping_prefix_string") != NULL);
 	assert(!latency_is_open(&latency));
 }
@@ -377,9 +469,18 @@ static void test_failed_spawn_closes_pipe(void)
 	size_t descriptors = open_descriptor_count();
 
 	latency_init(&latency);
-	assert(latency_open(&latency, "lo", targets, 1U, 1000000U, "",
-			    "/nonexistent-cake-adapt-test/fping", false, error,
-			    sizeof(error)) != 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       targets,
+		       1U,
+		       1000000U,
+		       "",
+		       "/nonexistent-cake-adapt-test/fping",
+		       false,
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "could not start fping") != NULL);
 	assert(!latency_is_open(&latency));
 	assert(open_descriptor_count() == descriptors);
@@ -397,8 +498,18 @@ static void check_fping_arguments(bool icmp_timestamps, const char *expected)
 	struct pollfd descriptor;
 
 	latency_init(&latency);
-	assert(latency_open(&latency, "lo", targets, 2U, 300000U, "-I 'lo2' -k 768",
-			    "/usr/bin/printf '%s\\n'", icmp_timestamps, error, sizeof(error)) == 0);
+	assert(latency_open(
+		       &latency,
+		       "lo",
+		       targets,
+		       2U,
+		       300000U,
+		       "-I 'lo2' -k 768",
+		       "/usr/bin/printf '%s\\n'",
+		       icmp_timestamps,
+		       error,
+		       sizeof(error)
+	       ) == 0);
 	assert(latency.ops == (icmp_timestamps ? &fping_ts_ops : &fping_ops));
 	descriptor =
 		(struct pollfd){ .fd = latency.children[0].output_descriptor, .events = POLLIN };
@@ -407,7 +518,9 @@ static void check_fping_arguments(bool icmp_timestamps, const char *expected)
 
 		assert(poll(&descriptor, 1U, 1000) > 0);
 		assert(length < sizeof(output) - 1U);
-		bytes = read(latency.children[0].output_descriptor, output + length,
+		bytes =
+			read(latency.children[0].output_descriptor,
+			     output + length,
 			     sizeof(output) - 1U - length);
 		assert(bytes >= 0);
 		if (bytes == 0)
@@ -425,14 +538,18 @@ static void check_fping_arguments(bool icmp_timestamps, const char *expected)
 
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
-	check_fping_arguments(false,
-			      "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
-			      "--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n");
+	check_fping_arguments(
+		false,
+		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
+		"--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
+	);
 	/* Like cake-autorate's fping-ts, --icmp-timestamp follows --timeout. */
-	check_fping_arguments(true,
-			      "/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
-			      "--period\n300\n--interval\n150\n--timeout\n10000\n--icmp-timestamp\n"
-			      "1.1.1.1\n::1\n");
+	check_fping_arguments(
+		true,
+		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
+		"--period\n300\n--interval\n150\n--timeout\n10000\n--icmp-timestamp\n"
+		"1.1.1.1\n::1\n"
+	);
 	assert(target_is_valid("::1"));
 	assert(target_is_valid("2001:4860:4860::8888"));
 }
@@ -450,8 +567,18 @@ static void test_irtt_children_start_in_separate_slots(void)
 	struct pollfd descriptor;
 
 	latency_init(&latency);
-	assert(latency_open_irtt(&latency, targets, 2U, 300U * MILLISECOND, 10U, "--fill=rand",
-				 "/usr/bin/printf '%s\\n'", 1000U, error, sizeof(error)) == 0);
+	assert(latency_open_irtt(
+		       &latency,
+		       targets,
+		       2U,
+		       300U * MILLISECOND,
+		       10U,
+		       "--fill=rand",
+		       "/usr/bin/printf '%s\\n'",
+		       1000U,
+		       error,
+		       sizeof(error)
+	       ) == 0);
 	assert(latency_is_open(&latency));
 	assert(latency_child_count(&latency) == 2U);
 	assert(latency_child_descriptor(&latency, 0U) == -1);
@@ -478,8 +605,9 @@ static void test_irtt_children_start_in_separate_slots(void)
 		length += (size_t)bytes;
 	}
 	output[length] = '\0';
-	assert(strcmp(output, "/usr/bin/irtt\nclient\n--fill=rand\n-i\n0.300000s\n"
-			      "-d\n10m\n1.1.1.1\n") == 0);
+	assert(strcmp(output,
+		      "/usr/bin/irtt\nclient\n--fill=rand\n-i\n0.300000s\n"
+		      "-d\n10m\n1.1.1.1\n") == 0);
 
 	assert(latency_start_irtt_children(&latency, 151000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 1U) >= 0);
@@ -521,9 +649,10 @@ static void test_backend_executable_must_be_available(void)
 	access_errno = ENOENT;
 	assert(latency_check_backend("irtt", error, sizeof(error)) == -1);
 	assert(strcmp(accessed_path, "/usr/bin/irtt") == 0);
-	assert(strcmp(error,
-		      "ping binary /usr/bin/irtt for pinger_method 'irtt' is not available: No such file or directory") ==
-	       0);
+	assert(strcmp(
+		       error,
+		       "ping binary /usr/bin/irtt for pinger_method 'irtt' is not available: No such file or directory"
+	       ) == 0);
 
 	accessed_path[0] = '\0';
 	assert(latency_check_backend("ping", error, sizeof(error)) == -1);

@@ -89,10 +89,13 @@ uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bit
 	return saturating_add(whole, fractional);
 }
 
-void response_timestamp(uint64_t processing_realtime_microseconds,
-			uint64_t processing_monotonic_microseconds,
-			uint64_t response_realtime_microseconds,
-			uint64_t *response_monotonic_microseconds, bool *stale)
+void response_timestamp(
+	uint64_t processing_realtime_microseconds,
+	uint64_t processing_monotonic_microseconds,
+	uint64_t response_realtime_microseconds,
+	uint64_t *response_monotonic_microseconds,
+	bool *stale
+)
 {
 	uint64_t age_microseconds = 0U;
 
@@ -146,8 +149,11 @@ unsigned int load_percent(uint64_t traffic_rate, uint64_t shaper_rate)
 	return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
 }
 
-bool elapsed_milliseconds(const struct timespec *previous, const struct timespec *current,
-			  uint64_t *elapsed)
+bool elapsed_milliseconds(
+	const struct timespec *previous,
+	const struct timespec *current,
+	uint64_t *elapsed
+)
 {
 	time_t seconds = current->tv_sec - previous->tv_sec;
 	long nanoseconds = current->tv_nsec - previous->tv_nsec;

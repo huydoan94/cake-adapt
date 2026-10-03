@@ -26,15 +26,21 @@ uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bit
  * timestamps retain their offset; stale means strictly older than 500 ms.
  * This keeps health/activity timers monotonic without changing response age.
  */
-void response_timestamp(uint64_t processing_realtime_microseconds,
-			uint64_t processing_monotonic_microseconds,
-			uint64_t response_realtime_microseconds,
-			uint64_t *response_monotonic_microseconds, bool *stale);
+void response_timestamp(
+	uint64_t processing_realtime_microseconds,
+	uint64_t processing_monotonic_microseconds,
+	uint64_t response_realtime_microseconds,
+	uint64_t *response_monotonic_microseconds,
+	bool *stale
+);
 
 bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp);
 
-bool elapsed_milliseconds(const struct timespec *previous, const struct timespec *current,
-			  uint64_t *elapsed);
+bool elapsed_milliseconds(
+	const struct timespec *previous,
+	const struct timespec *current,
+	uint64_t *elapsed
+);
 
 /* Positive elapsed milliseconds; overflow is saturated at UINT64_MAX. */
 uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_ms);

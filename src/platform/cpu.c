@@ -34,8 +34,12 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 	int result = -1;
 
 	if (!read_clock_microseconds(CLOCK_REALTIME, &sample->timestamp_microseconds)) {
-		return error_set(error, error_size, "could not read CPU timestamp: %s",
-				 strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not read CPU timestamp: %s",
+			strerror(errno)
+		);
 	}
 	file = fopen(path, FILE_MODE_READ);
 	if (file == NULL)
@@ -47,8 +51,13 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 		if (strncmp(line, CPU_PREFIX, sizeof(CPU_PREFIX) - 1U) != 0)
 			break;
 		if (sample->count == CPU_MAX_COUNT) {
-			error_set(error, error_size, "more than %u CPU counters in %s",
-				  CPU_MAX_COUNT, path);
+			error_set(
+				error,
+				error_size,
+				"more than %u CPU counters in %s",
+				CPU_MAX_COUNT,
+				path
+			);
 			goto done;
 		}
 		counter = &sample->counters[sample->count];
@@ -56,9 +65,17 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 		if (sscanf(line,
 			   "%15s %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
 			   " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64,
-			   counter->identifier, &counter->user, &counter->nice, &counter->system,
-			   &counter->idle, &counter->iowait, &counter->irq, &counter->softirq,
-			   &counter->steal, &counter->guest, &counter->guest_nice) < 5) {
+			   counter->identifier,
+			   &counter->user,
+			   &counter->nice,
+			   &counter->system,
+			   &counter->idle,
+			   &counter->iowait,
+			   &counter->irq,
+			   &counter->softirq,
+			   &counter->steal,
+			   &counter->guest,
+			   &counter->guest_nice) < 5) {
 			error_set(error, error_size, "invalid CPU counters in %s", path);
 			goto done;
 		}
@@ -75,8 +92,11 @@ done:
 	return result;
 }
 
-void cpu_usage(struct cpu_monitor *monitor, const struct cpu_sample *sample,
-	       unsigned int usage[CPU_MAX_COUNT])
+void cpu_usage(
+	struct cpu_monitor *monitor,
+	const struct cpu_sample *sample,
+	unsigned int usage[CPU_MAX_COUNT]
+)
 {
 	size_t index;
 

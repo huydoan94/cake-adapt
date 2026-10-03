@@ -19,8 +19,8 @@
 
 #define FILTER_PROGRAM "tcpdelay"
 
-static int forward_libbpf_message(enum libbpf_print_level level, const char *format,
-				  va_list arguments)
+static int
+forward_libbpf_message(enum libbpf_print_level level, const char *format, va_list arguments)
 {
 	char message[ERROR_SIZE];
 	size_t length;
@@ -52,26 +52,47 @@ static int add_record(void *context, void *data, size_t size)
 }
 
 /* Returns the filter's program descriptor, or -1. */
-static int load_program(struct tcpdelay_capture *capture, const char *object_path, char *error,
-			size_t error_size)
+static int load_program(
+	struct tcpdelay_capture *capture,
+	const char *object_path,
+	char *error,
+	size_t error_size
+)
 {
 	struct bpf_program *program;
 
 	capture->object = bpf_object__open_file(object_path, NULL);
 	if (capture->object == NULL)
-		return error_set(error, error_size, "could not open TCP delay program %s: %s",
-				 object_path, strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not open TCP delay program %s: %s",
+			object_path,
+			strerror(errno)
+		);
 	if (bpf_object__load(capture->object) != 0)
-		return error_set(error, error_size, "could not load TCP delay program %s: %s",
-				 object_path, strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not load TCP delay program %s: %s",
+			object_path,
+			strerror(errno)
+		);
 	program = bpf_object__find_program_by_name(capture->object, FILTER_PROGRAM);
 	capture->counters_descriptor = bpf_object__find_map_fd_by_name(capture->object, "counters");
-	capture->ring =
-		ring_buffer__new(bpf_object__find_map_fd_by_name(capture->object, "samples"),
-				 add_record, capture->estimator, NULL);
+	capture->ring = ring_buffer__new(
+		bpf_object__find_map_fd_by_name(capture->object, "samples"),
+		add_record,
+		capture->estimator,
+		NULL
+	);
 	if (program == NULL || capture->counters_descriptor < 0 || capture->ring == NULL)
-		return error_set(error, error_size,
-				 "TCP delay program %s lacks its program or maps", object_path);
+		return error_set(
+			error,
+			error_size,
+			"TCP delay program %s lacks its program or maps",
+			object_path
+		);
 	return bpf_program__fd(program);
 }
 
@@ -80,8 +101,13 @@ static int load_program(struct tcpdelay_capture *capture, const char *object_pat
  * filter is attached. The filter accepts no packet, so the socket's receive
  * queue stays empty.
  */
-static int attach_socket(struct tcpdelay_capture *capture, int program, const char *interface,
-			 char *error, size_t error_size)
+static int attach_socket(
+	struct tcpdelay_capture *capture,
+	int program,
+	const char *interface,
+	char *error,
+	size_t error_size
+)
 {
 	struct sockaddr_ll address = {
 		.sll_family = AF_PACKET,
@@ -91,17 +117,32 @@ static int attach_socket(struct tcpdelay_capture *capture, int program, const ch
 
 	capture->socket_descriptor = socket(AF_PACKET, SOCK_RAW | SOCK_CLOEXEC, 0);
 	if (capture->socket_descriptor < 0 ||
-	    setsockopt(capture->socket_descriptor, SOL_SOCKET, SO_ATTACH_BPF, &program,
-		       sizeof(program)) != 0 ||
+	    setsockopt(
+		    capture->socket_descriptor,
+		    SOL_SOCKET,
+		    SO_ATTACH_BPF,
+		    &program,
+		    sizeof(program)
+	    ) != 0 ||
 	    bind(capture->socket_descriptor, (struct sockaddr *)&address, sizeof(address)) != 0)
-		return error_set(error, error_size, "could not attach TCP delay program to %s: %s",
-				 interface, strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not attach TCP delay program to %s: %s",
+			interface,
+			strerror(errno)
+		);
 	return 0;
 }
 
-int tcpdelay_capture_open(struct tcpdelay_capture *capture, const char *object_path,
-			  const char *interface, struct tcpdelay_estimator *estimator, char *error,
-			  size_t error_size)
+int tcpdelay_capture_open(
+	struct tcpdelay_capture *capture,
+	const char *object_path,
+	const char *interface,
+	struct tcpdelay_estimator *estimator,
+	char *error,
+	size_t error_size
+)
 {
 	int program;
 	int cpus;
@@ -113,18 +154,31 @@ int tcpdelay_capture_open(struct tcpdelay_capture *capture, const char *object_p
 
 	capture->interface_index = if_nametoindex(interface);
 	if (capture->interface_index == 0U)
-		return error_set(error, error_size, "TCP delay interface %s: %s", interface,
-				 strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"TCP delay interface %s: %s",
+			interface,
+			strerror(errno)
+		);
 	cpus = libbpf_num_possible_cpus();
 	if (cpus <= 0)
-		return error_set(error, error_size,
-				 "could not count CPUs for TCP delay counters: %s",
-				 strerror(-cpus));
+		return error_set(
+			error,
+			error_size,
+			"could not count CPUs for TCP delay counters: %s",
+			strerror(-cpus)
+		);
 	capture->cpu_count = (size_t)cpus;
 	capture->counter_values = calloc(capture->cpu_count, sizeof(*capture->counter_values));
 	if (capture->counter_values == NULL) {
-		error_set(error, error_size, "could not open TCP delay program %s: %s", object_path,
-			  strerror(errno));
+		error_set(
+			error,
+			error_size,
+			"could not open TCP delay program %s: %s",
+			object_path,
+			strerror(errno)
+		);
 		goto fail;
 	}
 	program = load_program(capture, object_path, error, error_size);
@@ -142,8 +196,10 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 	return ring_buffer__consume(capture->ring);
 }
 
-int tcpdelay_capture_counters(const struct tcpdelay_capture *capture,
-			      struct tcpdelay_counters *counters)
+int tcpdelay_capture_counters(
+	const struct tcpdelay_capture *capture,
+	struct tcpdelay_counters *counters
+)
 {
 	uint32_t key = 0U;
 	size_t cpu;

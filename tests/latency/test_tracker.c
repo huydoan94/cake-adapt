@@ -20,8 +20,8 @@ static void init_tracker(struct latency_tracker *tracker)
 	assert(tracker_init(tracker, &default_tracker_config) == 0);
 }
 
-static struct latency_observation track(struct latency_tracker *tracker,
-					uint32_t round_trip_microseconds)
+static struct latency_observation
+track(struct latency_tracker *tracker, uint32_t round_trip_microseconds)
 {
 	struct latency_sample sample = { .download_owd_microseconds = round_trip_microseconds / 2U,
 					 .upload_owd_microseconds = round_trip_microseconds / 2U };
