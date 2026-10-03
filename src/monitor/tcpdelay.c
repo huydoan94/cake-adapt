@@ -50,23 +50,23 @@ static void report_dropped_records(
     uint64_t timestamp_microseconds
 )
 {
-    uint64_t counters[TCPDELAY_COUNTERS];
+    struct tcpdelay_counters counters;
 
     if (timestamp_microseconds < context->next_tcp_counter_check_microseconds) {
         return;
     }
     context->next_tcp_counter_check_microseconds =
         timestamp_microseconds + TCPDELAY_COUNTER_CHECK_MICROSECONDS;
-    if (tcpdelay_capture_counters(&context->tcp_capture, counters) != 0) {
+    if (tcpdelay_capture_counters(&context->tcp_capture, &counters) != 0) {
         return;
     }
-    if (counters[TCPDELAY_COUNTER_RING_FULL] > context->tcp_dropped_records) {
+    if (counters.ring_full > context->tcp_dropped_records) {
         log_message(
             LOG_LEVEL_WARNING,
             "TCP delay records dropped: %" PRIu64 " since the last check",
-            counters[TCPDELAY_COUNTER_RING_FULL] - context->tcp_dropped_records
+            (uint64_t)(counters.ring_full - context->tcp_dropped_records)
         );
-        context->tcp_dropped_records = counters[TCPDELAY_COUNTER_RING_FULL];
+        context->tcp_dropped_records = counters.ring_full;
     }
 }
 
@@ -149,29 +149,29 @@ static void measure_ack_rate(
     struct controller_ack_input *acks
 )
 {
-    uint64_t counters[TCPDELAY_COUNTERS];
+    struct tcpdelay_counters counters;
     uint64_t elapsed;
 
     if (
         timestamp_microseconds >= context->ack_sampled_microseconds + TCPDELAY_ACK_RATE_INTERVAL_MICROSECONDS &&
-        tcpdelay_capture_counters(&context->tcp_capture, counters) == 0
+        tcpdelay_capture_counters(&context->tcp_capture, &counters) == 0
     ) {
         elapsed = timestamp_microseconds - context->ack_sampled_microseconds;
         if (
             context->ack_sampled &&
-            counters[TCPDELAY_COUNTER_ACK_BYTES] >= context->ack_bytes &&
-            counters[TCPDELAY_COUNTER_UPLOAD_BYTES] >= context->upload_bytes
+            counters.ack_bytes >= context->ack_bytes &&
+            counters.upload_bytes >= context->upload_bytes
         ) {
             context->ack_rate_bits_per_second =
-                (counters[TCPDELAY_COUNTER_ACK_BYTES] - context->ack_bytes) * BITS_PER_BYTE *
+                (counters.ack_bytes - context->ack_bytes) * BITS_PER_BYTE *
                 MICROSECONDS_PER_SECOND / elapsed;
             context->upload_rate_bits_per_second =
-                (counters[TCPDELAY_COUNTER_UPLOAD_BYTES] - context->upload_bytes) * BITS_PER_BYTE *
+                (counters.upload_bytes - context->upload_bytes) * BITS_PER_BYTE *
                 MICROSECONDS_PER_SECOND / elapsed;
             context->ack_rate_valid = true;
         }
-        context->ack_bytes = counters[TCPDELAY_COUNTER_ACK_BYTES];
-        context->upload_bytes = counters[TCPDELAY_COUNTER_UPLOAD_BYTES];
+        context->ack_bytes = counters.ack_bytes;
+        context->upload_bytes = counters.upload_bytes;
         context->ack_sampled_microseconds = timestamp_microseconds;
         context->ack_sampled = true;
     }

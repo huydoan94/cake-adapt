@@ -65,24 +65,10 @@ struct {
 
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-    __uint(max_entries, TCPDELAY_COUNTERS);
+    __uint(max_entries, 1);
     __type(key, __u32);
-    __type(value, __u64);
+    __type(value, struct tcpdelay_counters);
 } counters SEC(".maps");
-
-static __always_inline void add(__u32 index, __u64 amount)
-{
-    __u64 *value = bpf_map_lookup_elem(&counters, &index);
-
-    if (value != NULL) {
-        *value += amount;
-    }
-}
-
-static __always_inline void count(__u32 index)
-{
-    add(index, 1);
-}
 
 static __always_inline int load(struct __sk_buff *skb, __u32 offset, void *to, __u32 length)
 {
@@ -217,7 +203,6 @@ static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __
     struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
     __u64 now = bpf_ktime_get_ns();
 
-    count(TCPDELAY_COUNTER_OUTGOING);
     if (state == NULL) {
         struct flow_state initial = { .outgoing_tsval = tsval };
 
@@ -230,14 +215,18 @@ static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __
     bpf_map_update_elem(&departures, &key, &now, BPF_NOEXIST);
 }
 
-static __always_inline void incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
+static __always_inline void incoming(
+    struct tcpdelay_counters *totals,
+    const struct tcpdelay_record_flow *flow,
+    __u32 tsval,
+    __u32 tsecr
+)
 {
     struct departure_key key = { .flow = *flow, .tsval = tsecr };
     struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
     struct tcpdelay_record *record;
     __u64 *departure;
 
-    count(TCPDELAY_COUNTER_INCOMING);
     if (state == NULL) {
         struct flow_state initial = { .incoming_tsval = tsval, .incoming_tsecr = tsecr };
 
@@ -251,7 +240,7 @@ static __always_inline void incoming(const struct tcpdelay_record_flow *flow, __
     departure = tsecr != 0 ? bpf_map_lookup_elem(&departures, &key) : NULL;
     record = bpf_ringbuf_reserve(&samples, sizeof(*record), 0);
     if (record == NULL) {
-        count(TCPDELAY_COUNTER_RING_FULL);
+        totals->ring_full++;
         return;
     }
     record->arrival_ns = bpf_ktime_get_ns();
@@ -259,9 +248,6 @@ static __always_inline void incoming(const struct tcpdelay_record_flow *flow, __
     record->flow = *flow;
     record->tsval = tsval;
     record->tsecr = tsecr;
-    if (departure != NULL) {
-        count(TCPDELAY_COUNTER_MATCHED);
-    }
     /* Userspace drains the ring on its own timer. */
     bpf_ringbuf_submit(record, BPF_RB_NO_WAKEUP);
 }
@@ -269,17 +255,28 @@ static __always_inline void incoming(const struct tcpdelay_record_flow *flow, __
 SEC("socket")
 int tcpdelay(struct __sk_buff *skb)
 {
+    __u32 zero = 0;
+    struct tcpdelay_counters *totals = bpf_map_lookup_elem(&counters, &zero);
     struct tcpdelay_record_flow flow = {};
     __u8 options[TCP_OPTIONS_MAX] = {};
     struct tcphdr tcp;
-    __u32 tcp_offset;
-    __u32 ip_payload;
+    /*
+     * Initialized although parse_ip() sets them on success: otherwise clang
+     * may spill an undefined value from a register a helper call clobbered,
+     * and the verifier rejects the read.
+     */
+    __u32 tcp_offset = 0;
+    __u32 ip_payload = 0;
     __u32 options_length;
     __u32 tsval;
     __u32 tsecr;
 
+    /* For the verifier; the array's one entry exists from creation. */
+    if (totals == NULL) {
+        return 0;
+    }
     if (skb->pkt_type == PACKET_OUTGOING) {
-        add(TCPDELAY_COUNTER_UPLOAD_BYTES, skb->len);
+        totals->upload_bytes += skb->len;
     }
     if (
         parse_ip(skb, &flow, &tcp_offset, &ip_payload) < 0 ||
@@ -293,7 +290,7 @@ int tcpdelay(struct __sk_buff *skb)
         ip_payload == tcp.doff * 4U &&
         tcp.ack && !tcp.syn && !tcp.fin && !tcp.rst
     ) {
-        add(TCPDELAY_COUNTER_ACK_BYTES, skb->len);
+        totals->ack_bytes += skb->len;
     }
     options_length = tcp.doff * 4U;
     if (options_length < sizeof(tcp) + TCP_OPTION_TIMESTAMP_LENGTH) {
@@ -315,7 +312,7 @@ int tcpdelay(struct __sk_buff *skb)
         outgoing(&flow, tsval);
     } else {
         swap_flow(&flow);
-        incoming(&flow, tsval, tsecr);
+        incoming(totals, &flow, tsval, tsecr);
     }
     return 0;
 }

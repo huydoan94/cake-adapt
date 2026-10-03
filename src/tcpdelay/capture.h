@@ -16,8 +16,8 @@ struct tcpdelay_capture {
     int counters_descriptor;
     /* The interface the socket is bound to; a recreated one needs a new socket. */
     unsigned int interface_index;
-    /* One value per possible CPU, for reading the per-CPU counters. */
-    uint64_t *counter_values;
+    /* One copy per possible CPU, for reading the per-CPU counters. */
+    struct tcpdelay_counters *counter_values;
     size_t cpu_count;
     /* Borrowed; every drained record is added to it. */
     struct tcpdelay_estimator *estimator;
@@ -39,10 +39,10 @@ int tcpdelay_capture_open(
 /* Adds every pending record to the estimator; returns the count or -1. */
 int tcpdelay_capture_drain(struct tcpdelay_capture *capture);
 
-/* Totals of the filter's counters, indexed by TCPDELAY_COUNTER_*. */
+/* The filter's counters summed over all CPUs, in one map lookup. */
 int tcpdelay_capture_counters(
     const struct tcpdelay_capture *capture,
-    uint64_t counters[TCPDELAY_COUNTERS]
+    struct tcpdelay_counters *counters
 );
 
 /* Safe after any tcpdelay_capture_open(), successful or not, and repeatable. */
