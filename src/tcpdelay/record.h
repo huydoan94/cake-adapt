@@ -23,7 +23,7 @@ struct tcpdelay_record_flow {
 struct tcpdelay_counters {
 	__u64 ring_full;
 	/* Bytes of outgoing pure ACKs, and of all outgoing packets; link-layer
-     * header included, as CAKE counts them. */
+	 * header included, as CAKE counts them. */
 	__u64 ack_bytes;
 	__u64 upload_bytes;
 };

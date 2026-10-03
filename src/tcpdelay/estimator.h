@@ -41,10 +41,10 @@ struct tcpdelay_flow {
 	uint64_t tick_ns;
 	size_t tick_index;
 	/*
-     * Floors for every standard period from the first sample, so the empty
-     * queue at the start of a flow sets the floor even though the period is
-     * only known seconds later.
-     */
+	 * Floors for every standard period from the first sample, so the empty
+	 * queue at the start of a flow sets the floor even though the period is
+	 * only known seconds later.
+	 */
 	struct tcpdelay_floor download_floor[TCPDELAY_TICKS];
 	struct tcpdelay_floor upload_floor[TCPDELAY_TICKS];
 };
