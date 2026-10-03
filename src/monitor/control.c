@@ -93,42 +93,15 @@ static void log_congestion_state(const char *direction, enum controller_congesti
 		    baseline_microseconds, delay_microseconds);
 }
 
-/*
- * cake-autorate gates the delay EWMA on its last load percentage, which is 0
- * before the first achieved-rate sample; an unavailable rate here is also 0.
- */
-static bool direction_has_low_load(const struct monitor_direction *direction,
-				   uint64_t high_load_threshold_percent)
-{
-	return load_percent(direction->traffic_rate_bits_per_second,
-			    direction->cake_valid ? direction->cake.bandwidth_bits_per_second
-						  : 0U) < high_load_threshold_percent;
-}
+static const char *const load_names[] = { [CONTROLLER_LOAD_IDLE] = STATE_IDLE,
+					  [CONTROLLER_LOAD_LOW] = STATE_LOW,
+					  [CONTROLLER_LOAD_HIGH] = STATE_HIGH };
 
-bool control_low_load(const struct monitor *monitor)
-{
-	uint64_t threshold = monitor->control.controller.config.high_load_threshold_percent;
-
-	return direction_has_low_load(&monitor->links.download, threshold) &&
-	       direction_has_low_load(&monitor->links.upload, threshold);
-}
-
+/* The DATA and SUMMARY load column, such as "dl_high_bb". */
 static void load_condition(char *condition, size_t condition_size, const char *direction,
-			   uint64_t traffic_rate, unsigned int load,
-			   uint64_t connection_active_threshold,
-			   uint64_t high_load_threshold_percent,
-			   enum controller_congestion_state congestion)
+			   enum controller_load load, enum controller_congestion_state congestion)
 {
-	const char *state;
-
-	if (load > high_load_threshold_percent)
-		state = STATE_HIGH;
-	else if (traffic_rate > connection_active_threshold)
-		state = STATE_LOW;
-	else
-		state = STATE_IDLE;
-
-	(void)snprintf(condition, condition_size, "%s_%s%s", direction, state,
+	(void)snprintf(condition, condition_size, "%s_%s%s", direction, load_names[load],
 		       congestion == CONTROLLER_CONGESTION_DETECTED ? BUFFERBLOAT_SUFFIX
 								    : EMPTY_STRING);
 }
@@ -142,7 +115,6 @@ static void log_controller_stats(const struct config *config, const struct contr
 	/* Records report the serialization-compensated thresholds in effect. */
 	const struct controller_direction_config *download_effective = &controller->download.config;
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
-	uint64_t high_load_threshold_percent = controller->config.high_load_threshold_percent;
 	char download_condition[LOAD_CONDITION_SIZE];
 	char upload_condition[LOAD_CONDITION_SIZE];
 	uint64_t download_rate = output->download.rate_bits_per_second / KILOBIT;
@@ -158,13 +130,13 @@ static void log_controller_stats(const struct config *config, const struct contr
 				   input->upload.cake_rate_bits_per_second);
 
 	load_condition(download_condition, sizeof(download_condition), DIRECTION_DOWNLOAD_SHORT,
-		       input->download.traffic_rate_bits_per_second, download_load,
-		       config->connection_active_threshold_bits_per_second,
-		       high_load_threshold_percent, output->download.congestion);
+		       controller_load(controller, &input->download,
+				       config->connection_active_threshold_bits_per_second),
+		       output->download.congestion);
 	load_condition(upload_condition, sizeof(upload_condition), DIRECTION_UPLOAD_SHORT,
-		       input->upload.traffic_rate_bits_per_second, upload_load,
-		       config->connection_active_threshold_bits_per_second,
-		       high_load_threshold_percent, output->upload.congestion);
+		       controller_load(controller, &input->upload,
+				       config->connection_active_threshold_bits_per_second),
+		       output->upload.congestion);
 
 	if (config->output_processing_stats) {
 		/*
@@ -294,6 +266,15 @@ static struct controller_direction_input direction_input(const struct monitor_di
 	};
 
 	return input;
+}
+
+bool control_low_load(const struct monitor *monitor)
+{
+	const struct controller_direction_input download =
+		direction_input(&monitor->links.download);
+	const struct controller_direction_input upload = direction_input(&monitor->links.upload);
+
+	return controller_low_load(&monitor->control.controller, &download, &upload);
 }
 
 void control_update(struct monitor *monitor, const struct latency_observation *latency,

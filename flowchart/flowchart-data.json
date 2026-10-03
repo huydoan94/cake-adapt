@@ -1230,10 +1230,11 @@
       "title": "06 — Per-reflector baseline and delay tracking",
       "refs": [
         "src/monitor/pingers.c:process_latency_line",
+        "src/monitor/reflectors.c:reflectors_record",
         "src/latency/tracker.c:tracker_update",
         "src/latency/tracker.c:tracker_update_direction",
         "src/latency/tracker.c:tracker_update_delta_ewma",
-        "src/monitor/control.c:direction_has_low_load",
+        "src/controller/controller.c:controller_low_load",
         "src/common/helpers.c:response_timestamp"
       ],
       "notes": [

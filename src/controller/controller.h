@@ -10,6 +10,13 @@ enum controller_line_state {
 	CONTROLLER_LINE_SATURATED
 };
 
+/* cake-autorate's per-direction load class, as its DATA and SUMMARY records print it. */
+enum controller_load {
+	CONTROLLER_LOAD_IDLE,
+	CONTROLLER_LOAD_LOW,
+	CONTROLLER_LOAD_HIGH
+};
+
 enum controller_congestion_state {
 	CONTROLLER_CONGESTION_UNKNOWN,
 	CONTROLLER_CONGESTION_CLEAR,
@@ -210,6 +217,23 @@ void controller_set_serialization_compensation(struct controller *controller,
 					       uint64_t upload_rate_bits_per_second);
 
 void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_microseconds);
+
+/*
+ * High above the high-load threshold; otherwise low while traffic exceeds the
+ * connection active threshold, else idle.
+ */
+enum controller_load controller_load(const struct controller *controller,
+				     const struct controller_direction_input *input,
+				     uint64_t active_threshold_bits_per_second);
+
+/*
+ * Both directions strictly below the high-load threshold. cake-autorate gates
+ * the delay EWMA on its last load percentage, which is 0 before the first
+ * achieved-rate sample; an input without a CAKE rate also counts as 0.
+ */
+bool controller_low_load(const struct controller *controller,
+			 const struct controller_direction_input *download,
+			 const struct controller_direction_input *upload);
 
 void activity_update(struct controller_activity *activity,
 		     const struct controller_activity_config *config,

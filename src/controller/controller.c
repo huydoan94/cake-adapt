@@ -551,6 +551,31 @@ void controller_set_serialization_compensation(struct controller *controller,
 			     upload_wire_packet_bits, upload_rate_bits_per_second);
 }
 
+static unsigned int input_load_percent(const struct controller_direction_input *input)
+{
+	return load_percent(input->traffic_rate_bits_per_second, input->cake_rate_bits_per_second);
+}
+
+enum controller_load controller_load(const struct controller *controller,
+				     const struct controller_direction_input *input,
+				     uint64_t active_threshold_bits_per_second)
+{
+	if (input_load_percent(input) > controller->config.high_load_threshold_percent)
+		return CONTROLLER_LOAD_HIGH;
+	if (input->traffic_rate_bits_per_second > active_threshold_bits_per_second)
+		return CONTROLLER_LOAD_LOW;
+	return CONTROLLER_LOAD_IDLE;
+}
+
+bool controller_low_load(const struct controller *controller,
+			 const struct controller_direction_input *download,
+			 const struct controller_direction_input *upload)
+{
+	uint64_t threshold = controller->config.high_load_threshold_percent;
+
+	return input_load_percent(download) < threshold && input_load_percent(upload) < threshold;
+}
+
 void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_microseconds)
 {
 	struct controller_direction *directions[] = { &controller->download, &controller->upload };
