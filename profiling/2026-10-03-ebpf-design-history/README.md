@@ -140,8 +140,10 @@ was matched to its departure, no ring-buffer overflow, and:
 
 The spike emitted one sample and one wakeup per incoming packet and
 attempted an LRU-map insert per outgoing packet — both since optimized away
-in the shipped filter (`tcpdelay.bpf.c`), which rate-limits samples to once
-per TSval/TSecr change and submits without wakeups
+in the shipped filter (`tcpdelay.bpf.c`), which rate-limits samples (first to
+once per TSval/TSecr change, since
+[`2026-10-03-sample-thinning`](../2026-10-03-sample-thinning/README.md) to at
+most one per flow per 4 ms) and submits without wakeups
 (`BPF_RB_NO_WAKEUP`). This spike result is why those two optimizations were
 made non-negotiable in the real implementation rather than left as later
 cleanup.

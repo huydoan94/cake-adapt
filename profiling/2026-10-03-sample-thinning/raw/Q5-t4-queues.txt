@@ -1,0 +1,26 @@
+Per phase and direction, in ms: true and estimated queue p50/p90/p99, their
+correlation, detection (estimate > 15 ms while the true queue is > 30 ms)
+and false alarms (estimate > 15 ms while the true queue is < 5 ms).
+
+TCP_QUEUE estimates
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    514 |       0.0/53.2/77.5 |       1.2/47.5/71.7 |  0.90 |   95% /105 |   0.2%
+upload-steady    down  514 |         0.0/0.0/0.0 |         0.3/0.5/0.9 |   -   |         - |   0.0%
+upload-step      up    531 |      0.0/60.8/201.0 |      1.7/54.2/198.4 |  0.92 |   96% /116 |   0.6%
+upload-step      down  531 |         0.0/0.0/0.0 |         0.2/0.4/0.6 |   -   |         - |   0.0%
+download-steady  up    519 |         0.0/0.0/0.0 |         0.2/0.4/0.6 |   -   |         - |   0.0%
+download-steady  down  519 |      12.1/20.9/25.1 |       9.9/19.6/24.7 |  0.93 |         - |   0.0%
+bidirectional    up    518 |       0.0/43.2/73.1 |       0.5/37.3/65.6 |  0.90 |   91% /125 |   0.8%
+bidirectional    down  518 |       1.2/20.4/35.3 |       0.4/17.5/35.0 |  0.88 |   83% /  6 |   0.0%
+
+fping per-direction delta (RTT/2, DATA records)
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    515 |       0.0/53.2/77.5 |       2.9/26.2/40.9 |  0.92 |   95% /105 |   0.6%
+upload-steady    down  515 |         0.0/0.0/0.0 |       2.9/26.2/40.9 |   -   |         - |  22.7%
+upload-step      up    532 |      0.0/60.8/201.0 |      1.7/30.6/105.1 |  0.96 |   93% /116 |   0.0%
+upload-step      down  532 |         0.0/0.0/0.0 |      1.7/30.6/105.1 |   -   |         - |  21.6%
+download-steady  up    520 |         0.0/0.0/0.0 |       7.1/14.4/18.9 |   -   |         - |   7.3%
+download-steady  down  520 |      12.1/20.9/25.1 |       7.1/14.4/18.9 |  0.84 |         - |   0.0%
+bidirectional    up    519 |       0.0/43.2/73.1 |      10.2/23.3/38.5 |  0.79 |   89% /125 |   6.0%
+bidirectional    down  519 |       1.2/20.4/35.3 |      10.2/23.3/38.5 |  0.03 |  100% /  6 |  23.9%
+

@@ -1,0 +1,61 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+Q1-base                upload-steady     2.5   64.2   76.6   28.7   21.4     0      87.1       nan
+Q1-base                upload-step       2.1   75.1  209.6   26.7   19.9     0      83.6       nan
+Q1-base                download-steady   11.9   29.3   35.6   36.9    4.0     0       nan      85.0
+Q1-base                bidirectional    20.1   48.0   60.1   66.9   23.1     0      82.7      74.7
+                       (idle base RTT 23.4 ms; delays are added RTT in ms)
+Q1-t10                 upload-steady     5.1   62.3   76.1   30.3   22.6     0      87.6       nan
+Q1-t10                 upload-step       4.4   78.0  145.1   29.6   23.6     0      85.4       nan
+Q1-t10                 download-steady   15.0   33.1   37.3   49.8    8.1     0       nan      84.1
+Q1-t10                 bidirectional    24.8   53.1   75.2   73.9   36.5     0      82.1      76.4
+                       (idle base RTT 20.9 ms; delays are added RTT in ms)
+Q1-t4                  upload-steady     2.4   67.1   79.6   29.3   21.8     0      86.7       nan
+Q1-t4                  upload-step       4.0   82.6  214.6   28.2   21.1     0      83.0       nan
+Q1-t4                  download-steady   14.3   31.7   36.9   47.5    7.3     0       nan      83.7
+Q1-t4                  bidirectional    22.4   56.3   72.2   67.6   34.2     0      83.6      73.6
+                       (idle base RTT 21.4 ms; delays are added RTT in ms)
+Q2-base                upload-steady     2.7   66.3   78.7   30.6   21.3     0      87.3       nan
+Q2-base                upload-step       2.4   78.7  208.7   27.6   21.3     0      84.1       nan
+Q2-base                download-steady   13.0   28.5   33.7   40.9    3.3     0       nan      84.6
+Q2-base                bidirectional    21.3   51.4   64.4   67.4   28.1     0      84.7      72.8
+                       (idle base RTT 22.3 ms; delays are added RTT in ms)
+Q2-t10                 upload-steady     3.4   68.7   82.9   29.9   21.7     0      86.7       nan
+Q2-t10                 upload-step       3.4   86.9  171.9   26.9   21.2     0      84.3       nan
+Q2-t10                 download-steady   13.5   30.9   38.5   43.8    5.5     0       nan      82.3
+Q2-t10                 bidirectional    23.6   53.4   80.9   72.3   32.6     0      82.5      76.4
+                       (idle base RTT 21.1 ms; delays are added RTT in ms)
+Q2-t4                  upload-steady     4.9   63.0   79.6   29.4   21.6     0      87.3       nan
+Q2-t4                  upload-step       4.2   86.6  465.6   32.3   22.4     0      85.1       nan
+Q2-t4                  download-steady   12.8   30.5   37.1   42.9    5.5     0       nan      84.5
+Q2-t4                  bidirectional    22.4   50.1   77.5   64.9   26.4     0      83.0      73.7
+                       (idle base RTT 21.4 ms; delays are added RTT in ms)
+Q3-base                upload-steady     2.9   66.8   75.4   28.9   22.1     0      86.6       nan
+Q3-base                upload-step       5.0   78.7  182.7   29.4   21.3     0      84.1       nan
+Q3-base                download-steady   13.6   30.3   37.0   45.4    5.3     0       nan      82.4
+Q3-base                bidirectional    22.2   52.2   69.7   70.5   31.1     0      82.7      74.4
+                       (idle base RTT 21.3 ms; delays are added RTT in ms)
+Q3-t4                  upload-steady     4.6   64.2   77.7   29.9   21.6     0      86.6       nan
+Q3-t4                  upload-step       5.6   76.9  179.2   28.1   21.6     0      83.6       nan
+Q3-t4                  download-steady   14.0   34.4   41.2   46.0    9.8     0       nan      83.7
+Q3-t4                  bidirectional    23.0   53.1   83.2   68.6   34.2     0      82.7      73.5
+                       (idle base RTT 20.8 ms; delays are added RTT in ms)
+Q4-base                upload-steady     1.9   65.0   78.2   28.4   20.8     0      86.6       nan
+Q4-base                upload-step       3.6   76.2  175.5   28.9   22.6     0      84.1       nan
+Q4-base                download-steady   12.4   30.2   34.6   41.4    5.3     0       nan      84.0
+Q4-base                bidirectional    21.9   55.0   71.3   65.9   32.4     0      83.2      73.5
+                       (idle base RTT 21.5 ms; delays are added RTT in ms)
+Q4-t4                  upload-steady     2.5   70.7   81.9   28.9   21.1     0      86.5       nan
+Q4-t4                  upload-step       3.2   85.9  263.9   27.7   22.9     0      82.5       nan
+Q4-t4                  download-steady   13.2   30.3   40.1   43.8    5.3     0       nan      85.3
+Q4-t4                  bidirectional    20.6   57.4   78.0   67.9   29.0     0      82.1      72.0
+                       (idle base RTT 21.1 ms; delays are added RTT in ms)
+Q5-base                upload-steady     1.9   68.2   79.8   27.7   21.2     0      86.4       nan
+Q5-base                upload-step       3.1   75.0  267.8   27.7   21.4     0      84.9       nan
+Q5-base                download-steady   12.1   30.7   37.8   41.3    5.7     0       nan      83.6
+Q5-base                bidirectional    22.7   48.1   72.2   69.1   33.9     0      82.5      77.0
+                       (idle base RTT 22.2 ms; delays are added RTT in ms)
+Q5-t4                  upload-steady     5.9   64.0   78.8   33.1   22.0     0      86.7       nan
+Q5-t4                  upload-step       3.9   74.8  204.8   25.9   21.4     0      84.1       nan
+Q5-t4                  download-steady   13.8   33.4   38.1   46.2    8.1     0       nan      83.9
+Q5-t4                  bidirectional    22.2   54.8   74.2   65.4   32.4     0      83.8      70.3
+                       (idle base RTT 21.2 ms; delays are added RTT in ms)
