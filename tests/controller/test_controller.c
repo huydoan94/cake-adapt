@@ -1476,9 +1476,44 @@ static void test_compensation_is_directional_and_preserves_history(void)
 	controller_close(&controller);
 }
 
+static void test_load_classification(void)
+{
+	struct controller controller;
+	const struct controller_config config = default_config();
+	struct controller_direction_input input = { .valid = true,
+						    .traffic_rate_bits_per_second = 0U,
+						    .cake_rate_bits_per_second = 8U * MEBABIT };
+	struct controller_direction_input other = input;
+
+	init_controller(&controller, &config);
+	/* 75% is not above the 75% threshold; 76% is. */
+	input.traffic_rate_bits_per_second = 6U * MEBABIT;
+	assert(controller_load(&controller, &input, 2U * MEBABIT) == CONTROLLER_LOAD_LOW);
+	input.traffic_rate_bits_per_second = 6080U * 1000U;
+	assert(controller_load(&controller, &input, 2U * MEBABIT) == CONTROLLER_LOAD_HIGH);
+	/* Traffic must exceed the active threshold to be low rather than idle. */
+	input.traffic_rate_bits_per_second = 2U * MEBABIT;
+	assert(controller_load(&controller, &input, 2U * MEBABIT) == CONTROLLER_LOAD_IDLE);
+	input.traffic_rate_bits_per_second = 2001U * 1000U;
+	assert(controller_load(&controller, &input, 2U * MEBABIT) == CONTROLLER_LOAD_LOW);
+
+	/* Low load needs both directions strictly below the threshold. */
+	input.traffic_rate_bits_per_second = 5920U * 1000U;
+	other.traffic_rate_bits_per_second = 1U * MEBABIT;
+	assert(controller_low_load(&controller, &input, &other));
+	input.traffic_rate_bits_per_second = 6U * MEBABIT;
+	assert(!controller_low_load(&controller, &input, &other));
+	assert(!controller_low_load(&controller, &other, &input));
+	/* Without a CAKE rate the load counts as zero, like cake-autorate's first sample. */
+	input.cake_rate_bits_per_second = 0U;
+	assert(controller_low_load(&controller, &input, &other));
+	controller_close(&controller);
+}
+
 int main(void)
 {
 	test_initial_state_is_unknown();
+	test_load_classification();
 	test_allocation_failure_releases_every_window();
 	test_compensation_saturates_thresholds();
 	test_compensation_is_directional_and_preserves_history();
