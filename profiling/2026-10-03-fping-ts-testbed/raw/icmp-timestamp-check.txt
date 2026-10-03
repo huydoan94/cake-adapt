@@ -1,0 +1,4 @@
+10.99.0.11 : [0], 20 bytes, 42.4 ms (42.4 avg, 0% loss), timestamps: Originate=78280652 Receive=78280684 Transmit=78280684 Localreceive=78280694
+10.99.0.11 : [1], 20 bytes, 20.9 ms (31.7 avg, 0% loss), timestamps: Originate=78281654 Receive=78281664 Transmit=78281664 Localreceive=78281675
+10.99.0.11 : [2], 20 bytes, 22.0 ms (28.5 avg, 0% loss), timestamps: Originate=78282654 Receive=78282665 Transmit=78282665 Localreceive=78282676
+10.99.0.11 : xmt/rcv/%loss = 3/3/0%, min/avg/max = 20.9/28.5/42.4
