@@ -121,6 +121,8 @@ static int initialize_direction(
     direction->shaper_rate_bits_per_second =
         config->base_rate_bits_per_second;
     direction->initial_rate_pending = config->adjust;
+    /* Without attribution, every detected bufferbloat may cut this direction. */
+    direction->bufferbloat_attributed = true;
     return 0;
 }
 
@@ -411,12 +413,15 @@ static enum controller_rate_reason adjust_rate(
     const struct controller_config *config,
     const struct controller_direction_input *input,
     bool latency_valid,
+    bool bufferbloat_attributed,
+    uint64_t ceiling_bits_per_second,
     int64_t average_delay_microseconds,
     uint64_t timestamp_microseconds
 )
 {
     uint64_t previous_rate = direction->shaper_rate_bits_per_second;
     bool high_load;
+    bool capped = false;
 
     if (
         !direction->config.adjust ||
@@ -442,6 +447,7 @@ static enum controller_rate_reason adjust_rate(
     ) > config->high_load_threshold_percent;
     if (
         direction->congestion == CONTROLLER_CONGESTION_DETECTED &&
+        bufferbloat_attributed &&
         interval_elapsed(
             timestamp_microseconds,
             direction->last_congestion_adjustment_microseconds,
@@ -509,12 +515,20 @@ static enum controller_rate_reason adjust_rate(
         }
     }
 
+    if (direction->shaper_rate_bits_per_second > ceiling_bits_per_second) {
+        direction->shaper_rate_bits_per_second = ceiling_bits_per_second;
+        capped = true;
+    }
+    /* The minimum rate still wins over the ceiling. */
     direction->shaper_rate_bits_per_second = clamp_rate(
         direction->shaper_rate_bits_per_second,
         &direction->config
     );
     if (direction->shaper_rate_bits_per_second == previous_rate) {
         return CONTROLLER_RATE_UNCHANGED;
+    }
+    if (capped) {
+        return CONTROLLER_RATE_ACK_SHARE;
     }
     if (direction->congestion == CONTROLLER_CONGESTION_DETECTED) {
         return CONTROLLER_RATE_CONGESTION;
@@ -557,6 +571,8 @@ static void update_direction(
     const struct controller_config *config,
     const struct controller_direction_input *input,
     const struct controller_latency_input *latency,
+    bool bufferbloat_attributed,
+    uint64_t ceiling_bits_per_second,
     uint64_t timestamp_microseconds,
     struct controller_direction_output *output
 )
@@ -578,6 +594,8 @@ static void update_direction(
         config,
         input,
         latency->valid,
+        bufferbloat_attributed,
+        ceiling_bits_per_second,
         output->average_delay_microseconds,
         timestamp_microseconds
     );
@@ -593,6 +611,60 @@ static void update_direction(
     output->state_changed = output->state != previous_state;
     output->congestion_changed =
         output->congestion != previous_congestion;
+    output->bufferbloat_attributed = bufferbloat_attributed;
+    output->bufferbloat_attribution_changed =
+        bufferbloat_attributed != direction->bufferbloat_attributed;
+    direction->bufferbloat_attributed = bufferbloat_attributed;
+}
+
+/* x * numerator / denominator without overflow, for rates and percentages. */
+static uint64_t scale(uint64_t value, uint64_t numerator, uint64_t denominator)
+{
+    return value / denominator * numerator + value % denominator * numerator / denominator;
+}
+
+/*
+ * While upload is under high load, ACKs may use what the other traffic leaves
+ * free, less a headroom in which that traffic's growth shows, but never less
+ * than their minimum share. ACK rate follows download rate, so download is
+ * held at the rate whose ACKs fill exactly that allowance.
+ */
+static uint64_t download_ceiling(
+    const struct controller *controller,
+    const struct controller_input *input
+)
+{
+    uint64_t room = controller->upload.shaper_rate_bits_per_second;
+    uint64_t ack_rate = input->acks.upload_ack_rate_bits_per_second;
+    uint64_t minimum = scale(room, controller->config.upload_ack_share_min_percent, PERCENT);
+    uint64_t other;
+    uint64_t taken;
+    uint64_t allowed;
+
+    if (
+        controller->config.upload_ack_share_min_percent == 0U ||
+        !input->acks.valid ||
+        ack_rate == 0U ||
+        !input->upload.valid ||
+        !input->download.valid ||
+        load_percent(input->upload.traffic_rate_bits_per_second, room) <=
+            controller->config.high_load_threshold_percent
+    ) {
+        return UINT64_MAX;
+    }
+    other = input->acks.upload_rate_bits_per_second > ack_rate
+        ? input->acks.upload_rate_bits_per_second - ack_rate
+        : 0U;
+    taken = other + scale(room, UPLOAD_ACK_HEADROOM_PERCENT, PERCENT);
+    allowed = room > taken ? room - taken : 0U;
+    if (allowed < minimum) {
+        allowed = minimum;
+    }
+    if (ack_rate <= allowed) {
+        return UINT64_MAX;
+    }
+    /* Whole kbit/s like other rates. */
+    return scale(input->download.traffic_rate_bits_per_second, allowed, ack_rate) / KILOBIT * KILOBIT;
 }
 
 void controller_update(
@@ -601,11 +673,62 @@ void controller_update(
     struct controller_output *output
 )
 {
+    unsigned int download_delivery = input->download.valid
+        ? load_percent(
+            input->download.traffic_rate_bits_per_second,
+            controller->download.shaper_rate_bits_per_second
+        )
+        : 0U;
+    const struct controller_queue_input *queue = &input->queue;
+    struct controller_latency_input download_latency = input->download_latency;
+    struct controller_latency_input upload_latency = input->upload_latency;
+    /*
+     * With one shared delay, download delivering its full shaper rate has no
+     * standing queue, so the delay is upload's; download loaded but delivering
+     * less than its shaper rate is the bottleneck, so the delay is its own.
+     */
+    bool download_attributed = !controller->config.shared_delay ||
+        download_delivery < FULL_DELIVERY_PERCENT;
+    bool upload_attributed = !controller->config.shared_delay ||
+        download_delivery <= controller->config.high_load_threshold_percent ||
+        download_delivery >= FULL_DELIVERY_PERCENT;
+
+    /*
+     * Measured per-direction queues replace the heuristic, unless they are too
+     * small to explain the shared delay, which then arose outside the paths
+     * TCP observes.
+     */
+    if (
+        controller->config.shared_delay &&
+        queue->valid &&
+        queue->download_microseconds + queue->upload_microseconds >= QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS
+    ) {
+        int64_t total = queue->download_microseconds + queue->upload_microseconds;
+
+        download_attributed = queue->download_microseconds * QUEUE_SHARE_DIVISOR >= total;
+        upload_attributed = queue->upload_microseconds * QUEUE_SHARE_DIVISOR >= total;
+        /*
+         * Split the round-trip delta by the measured shares instead of RTT/2
+         * each way, so a one-sided queue counts at its full size.
+         */
+        if (download_latency.valid && upload_latency.valid) {
+            int64_t round_trip = download_latency.owd_delta_microseconds +
+                upload_latency.owd_delta_microseconds;
+
+            download_latency.owd_delta_microseconds =
+                round_trip * queue->download_microseconds / total;
+            upload_latency.owd_delta_microseconds =
+                round_trip - download_latency.owd_delta_microseconds;
+        }
+    }
+
     update_direction(
         &controller->download,
         &controller->config,
         &input->download,
-        &input->download_latency,
+        &download_latency,
+        download_attributed,
+        download_ceiling(controller, input),
         input->timestamp_microseconds,
         &output->download
     );
@@ -613,7 +736,9 @@ void controller_update(
         &controller->upload,
         &controller->config,
         &input->upload,
-        &input->upload_latency,
+        &upload_latency,
+        upload_attributed,
+        UINT64_MAX,
         input->timestamp_microseconds,
         &output->upload
     );

@@ -16,6 +16,10 @@ void defaults_apply(struct config *config)
         .retain_reflector_stats = true,
         .enable_sleep_function = true,
         .log_file_export_compress = true,
+        /* Not in cake-autorate; opt-in until verified on real lines. */
+        .tcp_delay_attribution = false,
+        /* Not in cake-autorate; off until measured on real lines. */
+        .upload_ack_share_min_per_million = 0U,
         .log_file_max_time_minutes = 10U,
         .log_file_max_size_kilobytes = 2000U,
         .no_pingers = 6U,

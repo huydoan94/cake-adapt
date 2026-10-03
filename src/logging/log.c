@@ -39,6 +39,7 @@ static bool header_data;
 static bool header_load;
 static bool header_reflector;
 static bool header_summary;
+static bool header_tcp_queue;
 static char *cpu_header;
 static bool header_cpu_raw;
 static bool log_maintenance_active;
@@ -82,6 +83,11 @@ static const char reflector_header[] =
     " MIN_DL_DELTA_EWMA_US; DL_DELTA_EWMA_US; DL_DELTA_EWMA_DELTA_US;"
     " DL_DELTA_EWMA_DELTA_THR; MIN_UL_DELTA_EWMA_US; UL_DELTA_EWMA_US;"
     " UL_DELTA_EWMA_DELTA_US; UL_DELTA_EWMA_DELTA_THR";
+
+/* Not in cake-autorate; analyzers that do not know it skip the record. */
+static const char tcp_queue_header[] =
+    "TCP_QUEUE_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
+    " DL_QUEUE_VALID; DL_QUEUE_US; UL_QUEUE_VALID; UL_QUEUE_US";
 
 static const char cpu_raw_header[] =
     "CPU_RAW_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_ID;"
@@ -139,6 +145,9 @@ static void write_headers_to_file(void)
     }
     if (header_summary) {
         write_file_line(summary_header);
+    }
+    if (header_tcp_queue) {
+        write_file_line(tcp_queue_header);
     }
     if (cpu_header != NULL) {
         write_file_line(cpu_header);
@@ -429,6 +438,7 @@ void log_close(void)
     free(cpu_header);
     cpu_header = NULL;
     header_cpu_raw = false;
+    header_tcp_queue = false;
 
     if (log_to_syslog) {
         closelog();
@@ -642,6 +652,24 @@ static void write_timed_record(
     );
     va_end(arguments);
     write_record(type, message);
+}
+
+void log_print_tcp_queue_header(void)
+{
+    header_tcp_queue = true;
+    write_line(tcp_queue_header);
+}
+
+void log_tcp_queue(const struct log_tcp_queue_record *record)
+{
+    write_timed_record(
+        RECORD_TCP_QUEUE,
+        "%d; %" PRId64 "; %d; %" PRId64,
+        record->download_valid ? 1 : 0,
+        record->download_queue_microseconds,
+        record->upload_valid ? 1 : 0,
+        record->upload_queue_microseconds
+    );
 }
 
 void log_load(const struct log_load_record *record)

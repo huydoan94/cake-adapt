@@ -52,6 +52,7 @@
 
 /* Runtime states, directions, timers, and generic text tokens. */
 #define STATE_BELOW_CAPACITY "below-capacity"
+#define STATE_ACK_SHARE "ack-share"
 #define STATE_CLEAR "clear"
 #define STATE_CONGESTION "congestion"
 #define STATE_DETECTED "detected"
@@ -109,6 +110,7 @@
 #define IRTT_INTERVAL "-i"
 #define IRTT_PATH "/usr/bin/irtt"
 #define NULL_DEVICE_PATH "/dev/null"
+#define TCPDELAY_OBJECT_PATH "/lib/bpf/cake-adapt-tcpdelay.o"
 
 /* Proc, file, archive, and log-format constants. */
 #define CPU_PREFIX "cpu"
@@ -137,6 +139,7 @@
 #define RECORD_SHAPER "SHAPER"
 #define RECORD_SYSLOG "SYSLOG"
 #define RECORD_SUMMARY "SUMMARY"
+#define RECORD_TCP_QUEUE "TCP_QUEUE"
 #define RECORD_WARNING "WARNING"
 
 /* UCI option names, grouped in the same order as the configuration model. */
@@ -203,6 +206,8 @@
 #define OPTION_HIGH_LOAD_THRESHOLD "high_load_thr"
 #define OPTION_BUFFERBLOAT_REFRACTORY "bufferbloat_refractory_period_ms"
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
+#define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
+#define OPTION_UPLOAD_ACK_SHARE_MIN "upload_ack_share_min"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW \
