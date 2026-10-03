@@ -94,9 +94,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 			}
 			pingers_close(monitor);
 		} else if (previous == CONTROLLER_IDLE) {
-			pingers_grant_grace(monitor, timestamp_microseconds);
-			monitor->pingers.next_attempt_microseconds = 0U;
-			(void)pingers_watch(monitor);
+			pingers_resume(monitor, timestamp_microseconds);
 		}
 	}
 	if (output.restart_pingers) {
@@ -113,16 +111,11 @@ void monitor_tick(struct monitor *monitor)
 	links_observe(monitor);
 	links_apply_cadence(monitor);
 	if (!links_ready(monitor)) {
-		pingers_close(monitor);
-		monitor->pingers.suspended = true;
+		pingers_suspend(monitor);
 		return;
 	}
 	if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		/* Pingers stopped while CAKE was missing restart like after IDLE. */
-		if (monitor->pingers.suspended) {
-			pingers_grant_grace(monitor, timestamp_microseconds);
-			monitor->pingers.suspended = false;
-		}
+		pingers_unsuspend(monitor, timestamp_microseconds);
 		update_activity(monitor, timestamp_microseconds);
 	}
 	if (monitor->activity.state != CONTROLLER_IDLE)
