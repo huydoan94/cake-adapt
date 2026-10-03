@@ -1,0 +1,18 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+Q1-validation  upload-steady        4370    3892     76.5    69353   40643       5      16
+S1-off         upload-steady        3404    3439     27.6    50696      97      23      46
+S1-off         upload-step          2841    2820     16.7    50694      85      21      52
+S1-off         download-steady      2892     845      0.0    68623   56381      23      15
+S1-off         bidirectional        4380    3973     71.4    55627   27357      57      65
+S1-split       upload-steady        3557    3609     29.7    60000     101       0      52
+S1-split       upload-step          2910    2926     18.8    60000      88       0      52
+S1-split       download-steady      3130     856      0.0    68309   56672      32      26
+S1-split       bidirectional        4272    3864     64.1    65112   44283      38      62
+S2-off         upload-steady        3399    3438     26.5    50729      98      24      47
+S2-off         upload-step          3005    2979     20.3    50680      89      23      55
+S2-off         download-steady      2423     886      0.0    68224   56582      19      10
+S2-off         bidirectional        4379    3954     71.7    56284   26839      56      66
+S2-split       upload-steady        3550    3582     29.7    60000     100       0      51
+S2-split       upload-step          2830    2847     18.1    60000      88       0      53
+S2-split       download-steady      3000     699      0.0    65852   51424      30       1
+S2-split       bidirectional        4191    3834     62.1    67833   47987      43      66

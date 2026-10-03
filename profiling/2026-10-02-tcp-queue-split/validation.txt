@@ -1,0 +1,26 @@
+Per phase and direction, in ms: true and estimated queue p50/p90/p99, their
+correlation, detection (estimate > 15 ms while the true queue is > 30 ms)
+and false alarms (estimate > 15 ms while the true queue is < 5 ms).
+
+TCP_QUEUE estimates
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    520 |     0.0/134.1/176.6 |     4.4/119.8/173.3 |  0.92 |   97% /199 |   0.4%
+upload-steady    down  520 |         0.0/0.0/0.0 |         0.2/0.4/0.8 |   -   |         - |   0.0%
+upload-step      up    507 |     0.0/130.8/195.4 |     5.5/111.8/192.1 |  0.93 |   95% /183 |   0.4%
+upload-step      down  507 |         0.0/0.0/0.0 |         0.3/0.5/1.2 |   -   |         - |   0.0%
+download-steady  up    492 |         0.0/0.0/0.0 |         0.2/0.3/0.5 |   -   |         - |   0.0%
+download-steady  down  492 |      13.6/45.9/79.6 |     11.7/45.6/109.3 |  0.95 |  100% / 93 |   0.0%
+bidirectional    up    497 |      42.6/81.2/91.3 |      30.8/74.8/85.3 |  0.94 |   96% /277 |   0.2%
+bidirectional    down  497 |       2.0/39.2/70.7 |       0.3/36.9/69.6 |  0.95 |   94% / 68 |   0.0%
+
+fping per-direction delta (RTT/2, DATA records)
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    521 |     0.0/134.0/176.6 |       3.2/64.2/87.3 |  0.96 |   95% /199 |   0.0%
+upload-steady    down  521 |         0.0/0.0/0.0 |       3.2/64.2/87.3 |   -   |         - |  37.0%
+upload-step      up    508 |     0.0/130.8/195.4 |       3.5/63.3/99.5 |  0.97 |   97% /183 |   0.0%
+upload-step      down  508 |         0.0/0.0/0.0 |       3.5/63.3/99.5 |   -   |         - |  35.4%
+download-steady  up    493 |         0.0/0.0/0.0 |       8.9/29.2/63.8 |   -   |         - |  28.0%
+download-steady  down  493 |      13.6/45.9/79.6 |       8.9/29.2/63.8 |  0.93 |   99% / 93 |   0.0%
+bidirectional    up    498 |      42.6/81.2/91.3 |      26.4/40.3/46.4 |  0.69 |   97% /277 |  17.5%
+bidirectional    down  498 |       2.2/39.4/70.7 |      26.4/40.3/46.4 | -0.07 |   99% / 69 |  51.8%
+
