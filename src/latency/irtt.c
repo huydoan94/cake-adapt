@@ -21,22 +21,16 @@ static int spawn_irtt_child(struct latency *latency, size_t child_index, char *e
 			    size_t error_size)
 {
 	struct latency_child *child = &latency->children[child_index];
+	struct pinger_command command;
+	char endpoint[LATENCY_TARGET_SIZE + 3U];
 	char interval[32];
 	char duration[32];
-	char endpoint[LATENCY_TARGET_SIZE + 3U];
-	char **arguments = NULL;
-	wordexp_t extra_words = { 0 };
-	wordexp_t prefix_words = { 0 };
-	size_t cursor = 0U;
 	size_t index;
-	int result = -1;
+	int ret;
 
-	if (expand_words(latency->ping_extra_args, false, OPTION_PING_EXTRA_ARGS, &extra_words,
-			 error, error_size) != 0 ||
-	    expand_words(latency->ping_prefix_string, true, OPTION_PING_PREFIX_STRING,
-			 &prefix_words, error, error_size) != 0) {
-		goto done;
-	}
+	if (pinger_command_init(&command, latency->ping_prefix_string, latency->ping_extra_args, 7U,
+				PINGER_METHOD_IRTT, error, error_size) != 0)
+		return -1;
 
 	(void)snprintf(interval, sizeof(interval), "%" PRIu64 ".%06" PRIu64 "s",
 		       latency->reflector_ping_interval_microseconds / SECOND,
@@ -48,31 +42,19 @@ static int spawn_irtt_child(struct latency *latency, size_t child_index, char *e
 	else
 		(void)snprintf(endpoint, sizeof(endpoint), "[%s]", child->target);
 
-	arguments = calloc(prefix_words.we_wordc + extra_words.we_wordc + 8U, sizeof(*arguments));
-	if (arguments == NULL) {
-		error_set(error, error_size, "could not allocate irtt arguments: %s",
-			  strerror(errno));
-		goto done;
-	}
-	for (index = 0U; index < prefix_words.we_wordc; index++)
-		arguments[cursor++] = prefix_words.we_wordv[index];
-	arguments[cursor++] = (char *)IRTT_PATH;
-	arguments[cursor++] = (char *)IRTT_CLIENT;
-	for (index = 0U; index < extra_words.we_wordc; index++)
-		arguments[cursor++] = extra_words.we_wordv[index];
-	arguments[cursor++] = (char *)IRTT_INTERVAL;
-	arguments[cursor++] = interval;
-	arguments[cursor++] = (char *)IRTT_DURATION;
-	arguments[cursor++] = duration;
-	arguments[cursor++] = endpoint;
+	pinger_command_add(&command, IRTT_PATH);
+	pinger_command_add(&command, IRTT_CLIENT);
+	for (index = 0U; index < command.extra.we_wordc; index++)
+		pinger_command_add(&command, command.extra.we_wordv[index]);
+	pinger_command_add(&command, IRTT_INTERVAL);
+	pinger_command_add(&command, interval);
+	pinger_command_add(&command, IRTT_DURATION);
+	pinger_command_add(&command, duration);
+	pinger_command_add(&command, endpoint);
 
-	result = start_child(child, arguments, PINGER_METHOD_IRTT, error, error_size);
-
-done:
-	free(arguments);
-	wordfree(&prefix_words);
-	wordfree(&extra_words);
-	return result;
+	ret = start_child(child, command.argv, PINGER_METHOD_IRTT, error, error_size);
+	pinger_command_free(&command);
+	return ret;
 }
 
 int latency_open_irtt(struct latency *latency, const char *const *targets, size_t target_count,
