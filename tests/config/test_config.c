@@ -182,7 +182,39 @@ static void test_supported_pinger_methods(void)
     config = valid_config();
     (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "ping");
     assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-    assert(strstr(error, "fping' or 'irtt") != NULL);
+    assert(strcmp(error, "option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'") == 0);
+
+    /* ICMP timestamps are IPv4 only, so fping-ts rejects IPv6 reflectors. */
+    config = valid_config();
+    (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping-ts");
+    assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+    assert(strcmp(error, "pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '::1' is IPv6") == 0);
+    (void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+    (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping");
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+
+    /* Only fping's shared delay needs TCP-delay attribution. */
+    config.tcp_delay_attribution = true;
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+    (void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping-ts");
+    assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+    assert(strcmp(error, "option 'tcp_delay_attribution' needs pinger_method 'fping'") == 0);
+}
+
+static void test_upload_ack_share_bounds(void)
+{
+    struct config config = valid_config();
+    char error[256] = "";
+
+    (void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
+    config.upload_ack_share_min_per_million = 450000U;
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+    config.upload_ack_share_min_per_million = 1000000U;
+    assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+    config.upload_ack_share_min_per_million = 1000001U;
+    assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+    assert(strcmp(error, "option 'upload_ack_share_min' must be between 0 and 1") == 0);
 }
 
 static void test_reflector_list_validation(void)
@@ -269,6 +301,7 @@ int main(void)
     assert(strstr(error, "whole kbit/s") != NULL);
 
     test_supported_pinger_methods();
+    test_upload_ack_share_bounds();
     test_option_copy_boundaries();
     test_scalar_option_types();
     test_supported_option_names();

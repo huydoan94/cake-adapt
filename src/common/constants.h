@@ -39,6 +39,7 @@
 #define CLI_OPTIONS "C:LfS:Vh"
 #define IFB_PREFIX "ifb4"
 #define PINGER_METHOD_FPING "fping"
+#define PINGER_METHOD_FPING_TS "fping-ts"
 #define PINGER_METHOD_IRTT "irtt"
 #define PROGRAM_NAME "cake-adapt"
 /* Set by the build from the package version; other builds report "unknown". */
@@ -51,6 +52,7 @@
 
 /* Runtime states, directions, timers, and generic text tokens. */
 #define STATE_BELOW_CAPACITY "below-capacity"
+#define STATE_ACK_SHARE "ack-share"
 #define STATE_CLEAR "clear"
 #define STATE_CONGESTION "congestion"
 #define STATE_DETECTED "detected"
@@ -89,6 +91,7 @@
 /* fping command-line arguments and output grammar. */
 #define FPING_BYTES_SEPARATOR " bytes, "
 #define FPING_FIELD_SEPARATOR ", "
+#define FPING_ICMP_TIMESTAMP "--icmp-timestamp"
 #define FPING_INTERFACE_LONG "--iface"
 #define FPING_INTERFACE_LONG_PREFIX "--iface="
 #define FPING_INTERFACE_SHORT "-I"
@@ -101,11 +104,13 @@
 #define FPING_TIMEOUT "--timeout"
 #define FPING_TIMEOUT_SUFFIX ", timed out"
 #define FPING_TIMESTAMP "--timestamp"
+#define FPING_TIMESTAMPS_PREFIX " timestamps: "
 #define IRTT_CLIENT "client"
 #define IRTT_DURATION "-d"
 #define IRTT_INTERVAL "-i"
 #define IRTT_PATH "/usr/bin/irtt"
 #define NULL_DEVICE_PATH "/dev/null"
+#define TCPDELAY_OBJECT_PATH "/lib/bpf/cake-adapt-tcpdelay.o"
 
 /* Proc, file, archive, and log-format constants. */
 #define CPU_PREFIX "cpu"
@@ -134,6 +139,7 @@
 #define RECORD_SHAPER "SHAPER"
 #define RECORD_SYSLOG "SYSLOG"
 #define RECORD_SUMMARY "SUMMARY"
+#define RECORD_TCP_QUEUE "TCP_QUEUE"
 #define RECORD_WARNING "WARNING"
 
 /* UCI option names, grouped in the same order as the configuration model. */
@@ -200,6 +206,8 @@
 #define OPTION_HIGH_LOAD_THRESHOLD "high_load_thr"
 #define OPTION_BUFFERBLOAT_REFRACTORY "bufferbloat_refractory_period_ms"
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
+#define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
+#define OPTION_UPLOAD_ACK_SHARE_MIN "upload_ack_share_min"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW \

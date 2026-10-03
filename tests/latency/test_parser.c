@@ -28,6 +28,80 @@ static void test_fping_reply_is_parsed(void)
     assert(!sample.timestamp_rollover_sensitive);
 }
 
+/* fping 5.3's reply format with --timestamp --loop --icmp-timestamp. */
+static void test_fping_icmp_timestamp_reply_is_parsed_directionally(void)
+{
+    struct latency_sample sample;
+
+    assert(parse_fping_timestamp_line(
+        "[1789284242.09616] 1.1.1.1 : [7], 20 bytes, 54.1 ms (54.1 avg, 0% loss),"
+            " timestamps: Originate=60120684 Receive=60120713 Transmit=60120713"
+            " Localreceive=60120738",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.timestamp_microseconds == UINT64_C(1789284242096160));
+    assert(strcmp(sample.timestamp_text, "[1789284242.09616]") == 0);
+    assert(strcmp(sample.target, "1.1.1.1") == 0);
+    assert(sample.sequence == 7U);
+    /* download = Localreceive - Transmit, upload = Receive - Originate. */
+    assert(sample.download_owd_microseconds == 25000);
+    assert(sample.upload_owd_microseconds == 29000);
+    assert(sample.timestamp_rollover_sensitive);
+
+    /* An unsynchronized remote clock can make a direction negative. */
+    assert(parse_fping_timestamp_line(
+        "[100.5] 9.9.9.9 : [0], 20 bytes, 3.0 ms (3.0 avg, 0% loss),"
+            " timestamps: Originate=5000 Receive=4990 Transmit=4990 Localreceive=5003",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.download_owd_microseconds == 13000);
+    assert(sample.upload_owd_microseconds == -10000);
+
+    /* A remote midnight rollover yields a huge delay for the tracker to reset on. */
+    assert(parse_fping_timestamp_line(
+        "[100.5] 9.9.9.9 : [1], 20 bytes, 3.0 ms (3.0 avg, 0% loss),"
+            " timestamps: Originate=86399998 Receive=1 Transmit=1 Localreceive=86400000",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.upload_owd_microseconds == INT64_C(-86399997000));
+    assert(sample.download_owd_microseconds == INT64_C(86399999000));
+    assert(parse_fping_timestamp_line(
+        "[100.5] 9.9.9.9 : [2], 20 bytes, 3.0 ms (3.0 avg, 0% loss),"
+            " timestamps: Originate=0 Receive=4294967295 Transmit=4294967295 Localreceive=0",
+        &sample
+    ) == LATENCY_FPING_LINE_SAMPLE);
+    assert(sample.upload_owd_microseconds == INT64_C(4294967295000));
+}
+
+static void test_fping_icmp_timestamp_reply_rejects_malformed_fields(void)
+{
+    static const char prefix[] =
+        "[100.5] 1.1.1.1 : [0], 20 bytes, 3.0 ms (3.0 avg, 0% loss),";
+    static const char *const invalid[] = {
+        "",
+        " timestamps:",
+        " timestamps: Originate=1 Receive=2 Transmit=3",
+        " timestamps: Receive=2 Originate=1 Transmit=3 Localreceive=4",
+        " timestamps: Originate=4294967296 Receive=2 Transmit=3 Localreceive=4",
+        " timestamps: Originate=1 Receive=2 Transmit=3 Localreceive=4x",
+        " timestamps: Originate=-1 Receive=2 Transmit=3 Localreceive=4",
+        " timestamps: Originate= Receive=2 Transmit=3 Localreceive=4"
+    };
+    struct latency_sample sample;
+    char line[256];
+    size_t index;
+
+    for (index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); index++) {
+        (void)snprintf(line, sizeof(line), "%s%s", prefix, invalid[index]);
+        assert(parse_fping_timestamp_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
+    }
+    assert(parse_fping_timestamp_line(
+        "[100.8] 1.1.1.1 : [1], timed out (NaN avg, 50% loss)",
+        &sample
+    ) == LATENCY_FPING_LINE_TIMEOUT);
+    assert(sample.sequence == 1U);
+}
+
 static void test_irtt_reply_is_parsed_directionally(void)
 {
     struct latency_sample sample;
@@ -181,6 +255,8 @@ static void test_fping_reply_identifies_each_target(void)
 
 int main(void)
 {
+    test_fping_icmp_timestamp_reply_is_parsed_directionally();
+    test_fping_icmp_timestamp_reply_rejects_malformed_fields();
     test_fping_reply_is_parsed();
     test_irtt_reply_is_parsed_directionally();
     test_fping_six_digit_timestamp_is_preserved();

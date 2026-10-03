@@ -12,6 +12,8 @@
 #include "platform/cpu.h"
 #include "platform/netlink.h"
 #include "platform/traffic.h"
+#include "tcpdelay/capture.h"
+#include "tcpdelay/estimator.h"
 
 #include <libubox/uloop.h>
 #include <libubox/ustream.h>
@@ -72,6 +74,21 @@ struct observation_context {
     uint64_t next_latency_attempt_microseconds;
     uint64_t pinger_grace_until_microseconds;
     struct controller_activity activity;
+    struct tcpdelay_capture tcp_capture;
+    struct tcpdelay_estimator tcp_estimator;
+    bool tcp_capture_open;
+    /* Upload interface whose capture failed; retried once it is recreated. */
+    unsigned int tcp_capture_failed_index;
+    uint64_t tcp_dropped_records;
+    uint64_t next_tcp_counter_check_microseconds;
+    /* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
+    bool ack_sampled;
+    bool ack_rate_valid;
+    uint64_t ack_bytes;
+    uint64_t upload_bytes;
+    uint64_t ack_sampled_microseconds;
+    uint64_t ack_rate_bits_per_second;
+    uint64_t upload_rate_bits_per_second;
 };
 
 struct event_loop;
@@ -150,6 +167,18 @@ void enforce_minimum_rates(
     const struct config *config,
     uint64_t timestamp_microseconds
 );
+
+/* tcpdelay.c: per-direction queues and the upload ACK rate from TCP */
+
+void observe_tcp_capture(
+    struct observation_context *context,
+    const struct config *config,
+    uint64_t timestamp_microseconds,
+    struct controller_queue_input *queue,
+    struct controller_ack_input *acks
+);
+
+void close_tcp_delay(struct observation_context *context);
 
 /* pingers.c: pinger sessions and latency samples */
 

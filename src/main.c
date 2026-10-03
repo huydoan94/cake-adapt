@@ -215,6 +215,9 @@ int main(int argc, char **argv)
         config.output_reflector_stats,
         config.output_summary_stats
     );
+    if (config.output_processing_stats && config.tcp_delay_attribution) {
+        log_print_tcp_queue_header();
+    }
     log_message(
         LOG_LEVEL_DEBUG,
         "Local list of reflectors contains %" PRIu64 " entries.",

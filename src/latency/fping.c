@@ -24,6 +24,7 @@ int latency_open(
     uint64_t reflector_ping_interval_microseconds,
     const char *extra_arguments,
     const char *prefix,
+    bool icmp_timestamps,
     char *error,
     size_t error_size
 )
@@ -119,7 +120,8 @@ int latency_open(
         goto done;
     }
     arguments = calloc(
-        prefix_words.we_wordc + extra_words.we_wordc + target_count + 13U,
+        /* Up to 13 fixed fping arguments and the terminating NULL. */
+        prefix_words.we_wordc + extra_words.we_wordc + target_count + 14U,
         sizeof(*arguments)
     );
     if (arguments == NULL) {
@@ -166,6 +168,9 @@ int latency_open(
     arguments[cursor++] = response_interval_milliseconds;
     arguments[cursor++] = (char *)FPING_TIMEOUT;
     arguments[cursor++] = (char *)DEFAULT_FPING_TIMEOUT_MILLISECONDS;
+    if (icmp_timestamps) {
+        arguments[cursor++] = (char *)FPING_ICMP_TIMESTAMP;
+    }
     for (index = 0U; index < target_count; index++) {
         arguments[cursor++] = (char *)targets[index];
     }
@@ -181,7 +186,7 @@ int latency_open(
     ) {
         goto done;
     }
-    latency->backend = LATENCY_BACKEND_FPING;
+    latency->backend = icmp_timestamps ? LATENCY_BACKEND_FPING_TS : LATENCY_BACKEND_FPING;
     latency->active = true;
     latency->child_count = 1U;
     result = 0;

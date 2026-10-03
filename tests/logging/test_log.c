@@ -516,6 +516,36 @@ static void test_cpu_schema_matches_cake_autorate(void)
     assert(unlink(path) == 0);
 }
 
+static void test_tcp_queue_record(void)
+{
+    char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
+    char contents[4096];
+    const struct log_tcp_queue_record record = {
+        .download_valid = true,
+        .upload_valid = false,
+        .download_queue_microseconds = 1500,
+        .upload_queue_microseconds = -20
+    };
+    int descriptor = mkstemp(path);
+
+    assert(descriptor >= 0);
+    assert(close(descriptor) == 0);
+    log_init("cake-adapt-test", false);
+    assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+    log_print_tcp_queue_header();
+    log_tcp_queue(&record);
+    log_close();
+    read_log(path, contents, sizeof(contents));
+    assert(strstr(
+        contents,
+        "TCP_QUEUE_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
+        " DL_QUEUE_VALID; DL_QUEUE_US; UL_QUEUE_VALID; UL_QUEUE_US\nTCP_QUEUE; "
+    ) == contents);
+    assert_record_delimiter_count(strstr(contents, "\nTCP_QUEUE; ") + 1, 7U);
+    assert(strstr(contents, "; 1; 1500; 0; -20\n") != NULL);
+    assert(unlink(path) == 0);
+}
+
 static void test_rotation_export_and_reset_preserve_live_inode(bool compress)
 {
     char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
@@ -817,6 +847,7 @@ int main(void)
     test_cake_autorate_headers_and_record_format();
     test_cpu_schema_matches_cake_autorate();
     test_cpu_log_allocation_failures();
+    test_tcp_queue_record();
     test_rotation_export_and_reset_preserve_live_inode(false);
     test_rotation_export_and_reset_preserve_live_inode(true);
     test_buffer_timeout_and_time_rotation();
