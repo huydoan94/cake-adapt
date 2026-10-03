@@ -6,6 +6,7 @@
 #include "common/constants.h"
 #include "config/defaults.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -294,7 +295,7 @@ const char *latency_backend_executable(const char *pinger_method)
 {
     size_t index;
 
-    for (index = 0U; index < sizeof(backends) / sizeof(backends[0]); index++) {
+    for (index = 0U; index < ARRAY_SIZE(backends); index++) {
         if (strcmp(backends[index].method, pinger_method) == 0) {
             return backends[index].executable;
         }

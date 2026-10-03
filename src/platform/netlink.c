@@ -4,6 +4,7 @@
 #include "config/defaults.h"
 #include "common/error.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -354,7 +355,7 @@ static int configure_response_callbacks(
     struct nl_cb *callbacks;
     int result = 0;
 
-    for (size_t index = 0; index < sizeof(handlers) / sizeof(handlers[0]); ++index) {
+    for (size_t index = 0; index < ARRAY_SIZE(handlers); ++index) {
         result = nl_socket_modify_cb(
             socket,
             handlers[index].type,

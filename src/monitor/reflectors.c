@@ -3,6 +3,7 @@
 #include "monitor/loop.h"
 
 #include "common/helpers.h"
+#include "common/utils.h"
 #include "logging/log.h"
 
 #include <libubox/utils.h>

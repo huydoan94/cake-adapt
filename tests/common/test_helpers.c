@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -70,6 +71,19 @@ static void test_saturating_signed_arithmetic(void)
     assert(signed_sum(-3, 5) == 2);
     assert(signed_sum(INT64_MAX, 1) == INT64_MAX);
     assert(signed_sum(INT64_MIN, -1) == INT64_MIN);
+}
+
+static void test_saturating_unsigned_arithmetic(void)
+{
+    assert(saturating_add(2U, 3U) == 5U);
+    assert(saturating_add(UINT64_MAX - 1U, 1U) == UINT64_MAX);
+    assert(saturating_add(UINT64_MAX - 1U, 2U) == UINT64_MAX);
+    assert(saturating_mul(6U, 7U) == 42U);
+    assert(saturating_mul(UINT64_MAX / 2U, 2U) == UINT64_MAX - 1U);
+    assert(saturating_mul(UINT64_MAX / 2U + 1U, 2U) == UINT64_MAX);
+    assert(mul_div(1000U, 45U, 100U) == 450U);
+    assert(mul_div(999U, 1U, 2U) == 499U);
+    assert(mul_div(UINT64_MAX, 3U, 4U) == UINT64_MAX / 4U * 3U + 2U);
 }
 
 static void test_milliseconds_round_up(void)
@@ -244,6 +258,7 @@ int main(void)
     test_percentages_and_rounding();
     test_unsigned_decimal_spans();
     test_saturating_signed_arithmetic();
+    test_saturating_unsigned_arithmetic();
     test_milliseconds_round_up();
     test_elapsed_interval_boundaries();
     test_load_rounding_and_limits();

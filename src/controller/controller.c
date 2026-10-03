@@ -3,6 +3,7 @@
 #include "controller/controller.h"
 #include "config/defaults.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -617,12 +618,6 @@ static void update_direction(
     direction->bufferbloat_attributed = bufferbloat_attributed;
 }
 
-/* x * numerator / denominator without overflow, for rates and percentages. */
-static uint64_t scale(uint64_t value, uint64_t numerator, uint64_t denominator)
-{
-    return value / denominator * numerator + value % denominator * numerator / denominator;
-}
-
 /*
  * While upload is under high load, ACKs may use what the other traffic leaves
  * free, less a headroom in which that traffic's growth shows, but never less
@@ -636,7 +631,7 @@ static uint64_t download_ceiling(
 {
     uint64_t room = controller->upload.shaper_rate_bits_per_second;
     uint64_t ack_rate = input->acks.upload_ack_rate_bits_per_second;
-    uint64_t minimum = scale(room, controller->config.upload_ack_share_min_percent, PERCENT);
+    uint64_t minimum = mul_div(room, controller->config.upload_ack_share_min_percent, PERCENT);
     uint64_t other;
     uint64_t taken;
     uint64_t allowed;
@@ -655,7 +650,7 @@ static uint64_t download_ceiling(
     other = input->acks.upload_rate_bits_per_second > ack_rate
         ? input->acks.upload_rate_bits_per_second - ack_rate
         : 0U;
-    taken = other + scale(room, UPLOAD_ACK_HEADROOM_PERCENT, PERCENT);
+    taken = other + mul_div(room, UPLOAD_ACK_HEADROOM_PERCENT, PERCENT);
     allowed = room > taken ? room - taken : 0U;
     if (allowed < minimum) {
         allowed = minimum;
@@ -664,7 +659,7 @@ static uint64_t download_ceiling(
         return UINT64_MAX;
     }
     /* Whole kbit/s like other rates. */
-    return scale(input->download.traffic_rate_bits_per_second, allowed, ack_rate) / KILOBIT * KILOBIT;
+    return mul_div(input->download.traffic_rate_bits_per_second, allowed, ack_rate) / KILOBIT * KILOBIT;
 }
 
 void controller_update(
@@ -744,11 +739,6 @@ void controller_update(
     );
 }
 
-static uint64_t saturating_add(uint64_t value, uint64_t increment)
-{
-    return UINT64_MAX - value < increment ? UINT64_MAX : value + increment;
-}
-
 static void compensate_direction(
     struct controller_direction *direction,
     struct controller_direction_config *configured,
@@ -811,7 +801,7 @@ void controller_set_minimum_rates(
     };
     size_t index;
 
-    for (index = 0U; index < sizeof(directions) / sizeof(directions[0]); index++) {
+    for (index = 0U; index < ARRAY_SIZE(directions); index++) {
         struct controller_direction *direction = directions[index];
 
         if (!direction->config.adjust) {

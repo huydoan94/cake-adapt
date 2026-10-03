@@ -2,6 +2,7 @@
 
 #include "common/helpers.h"
 #include "common/constants.h"
+#include "common/utils.h"
 
 #include <limits.h>
 #include <errno.h>
@@ -33,57 +34,6 @@ bool parse_unsigned(
     }
     *value = (uint64_t)parsed;
     return true;
-}
-
-uint64_t percentage_of(
-    uint64_t value,
-    unsigned int percentage
-)
-{
-    /* Split before multiplying to avoid overflowing the full-width value. */
-    return value / PERCENT * percentage +
-        (value % PERCENT * percentage + PERCENT - 1U) / PERCENT;
-}
-
-uint64_t rounded_divide(
-    uint64_t value,
-    uint64_t divisor
-)
-{
-    return value / divisor +
-        (value % divisor >= divisor / 2U + divisor % 2U ? 1U : 0U);
-}
-
-uint64_t absolute_difference(int64_t first, int64_t second)
-{
-    if (first >= second) {
-        return (uint64_t)first - (uint64_t)second;
-    }
-    return (uint64_t)second - (uint64_t)first;
-}
-
-int64_t signed_difference(int64_t first, int64_t second)
-{
-    uint64_t difference = absolute_difference(first, second);
-
-    if (first >= second) {
-        return difference > (uint64_t)INT64_MAX
-            ? INT64_MAX
-            : (int64_t)difference;
-    }
-    return difference > (uint64_t)INT64_MAX
-        ? INT64_MIN
-        : -(int64_t)difference;
-}
-
-int64_t signed_sum(int64_t first, int64_t second)
-{
-    int64_t sum;
-
-    if (!__builtin_add_overflow(first, second, &sum)) {
-        return sum;
-    }
-    return first < 0 ? INT64_MIN : INT64_MAX;
 }
 
 bool random_below(
@@ -169,22 +119,7 @@ uint64_t serialization_microseconds(
     }
     whole *= MICROSECONDS_PER_SECOND;
     fractional /= rate_bits_per_second;
-    return UINT64_MAX - whole < fractional ? UINT64_MAX : whole + fractional;
-}
-
-uint64_t milliseconds_rounded_up(uint64_t microseconds)
-{
-    return microseconds / MICROSECONDS_PER_MILLISECOND +
-        (microseconds % MICROSECONDS_PER_MILLISECOND != 0U ? 1U : 0U);
-}
-
-bool interval_elapsed(
-    uint64_t current,
-    uint64_t previous,
-    uint64_t interval
-)
-{
-    return current > previous && current - previous > interval;
+    return saturating_add(whole, fractional);
 }
 
 void response_timestamp(
@@ -202,9 +137,7 @@ void response_timestamp(
             processing_realtime_microseconds;
         *stale = false;
         *response_monotonic_microseconds =
-            UINT64_MAX - processing_monotonic_microseconds < age_microseconds
-                ? UINT64_MAX
-                : processing_monotonic_microseconds + age_microseconds;
+            saturating_add(processing_monotonic_microseconds, age_microseconds);
         return;
     }
     if (processing_realtime_microseconds > response_realtime_microseconds) {
