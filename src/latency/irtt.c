@@ -89,8 +89,7 @@ int latency_open_irtt(struct latency *latency, const char *const *targets, size_
 	    reflector_ping_interval_microseconds == 0U ||
 	    reflector_ping_interval_microseconds / target_count < MILLISECOND ||
 	    session_duration_minutes == 0U || extra_arguments == NULL || prefix == NULL) {
-		error_set(error, error_size, "invalid irtt session configuration");
-		return -1;
+		return error_set(error, error_size, "invalid irtt session configuration");
 	}
 	if (expand_words(extra_arguments, false, OPTION_PING_EXTRA_ARGS, &words, error,
 			 error_size) != 0) {
@@ -125,10 +124,8 @@ int latency_start_irtt_children(struct latency *latency, uint64_t timestamp_micr
 {
 	size_t index;
 
-	if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT) {
-		error_set(error, error_size, "irtt session is not active");
-		return -1;
-	}
+	if (!latency->active || latency->backend != LATENCY_BACKEND_IRTT)
+		return error_set(error, error_size, "irtt session is not active");
 	for (index = 0U; index < latency->child_count; index++) {
 		struct latency_child *child = &latency->children[index];
 

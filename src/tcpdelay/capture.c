@@ -68,15 +68,14 @@ int tcpdelay_capture_open(struct tcpdelay_capture *capture, const char *object_p
 	capture->interface_index = if_nametoindex(interface);
 	address.sll_ifindex = (int)capture->interface_index;
 	if (address.sll_ifindex == 0) {
-		error_set(error, error_size, "TCP delay interface %s: %s", interface,
-			  strerror(errno));
-		return -1;
+		return error_set(error, error_size, "TCP delay interface %s: %s", interface,
+				 strerror(errno));
 	}
 	cpus = libbpf_num_possible_cpus();
 	if (cpus <= 0) {
-		error_set(error, error_size, "could not count CPUs for TCP delay counters: %s",
-			  strerror(-cpus));
-		return -1;
+		return error_set(error, error_size,
+				 "could not count CPUs for TCP delay counters: %s",
+				 strerror(-cpus));
 	}
 	capture->cpu_count = (size_t)cpus;
 	capture->counter_values = calloc(capture->cpu_count, sizeof(*capture->counter_values));
