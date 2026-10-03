@@ -5,11 +5,12 @@
  * the ingress redirect to the IFB, so the delays measured from these times
  * exclude our own CAKE queues and include the ISP's.
  *
- * Outgoing: count all bytes and pure-ACK bytes, and record when each new TSval
- * of a flow first left.
+ * Outgoing: count all bytes and pure-ACK bytes, and record when a new TSval of
+ * a flow first left, at most once per TCPDELAY_SAMPLE_INTERVAL_NS.
  * Incoming: emit the remote TSval and the departure of the TSval it echoes
- * (TSecr), once per change of either; the first packet after a change carries
- * the minimum delay of its group, which is all the estimator keeps.
+ * (TSecr) when a new TSecr echoes a recorded departure, and otherwise at most
+ * once per interval on a change of either. The first packet after a change
+ * carries the minimum delay of its group, which is all the estimator keeps.
  *
  * The filter always returns 0, so no packet is copied to the socket.
  */
@@ -38,6 +39,8 @@ struct departure_key {
 
 /* Racy updates from several CPUs only cost an extra or a skipped sample. */
 struct flow_state {
+	__u64 departure_ns;
+	__u64 sample_ns;
 	__u32 outgoing_tsval;
 	__u32 incoming_tsval;
 	__u32 incoming_tsecr;
@@ -184,16 +187,20 @@ static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsval };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
-	__u64 now = bpf_ktime_get_ns();
+	__u64 now;
 
+	if (state != NULL && state->outgoing_tsval == tsval)
+		return;
+	now = bpf_ktime_get_ns();
 	if (state == NULL) {
-		struct flow_state initial = { .outgoing_tsval = tsval };
+		struct flow_state initial = { .outgoing_tsval = tsval, .departure_ns = now };
 
 		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
-	} else if (state->outgoing_tsval != tsval) {
-		state->outgoing_tsval = tsval;
 	} else {
-		return;
+		state->outgoing_tsval = tsval;
+		if (now - state->departure_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
+			return;
+		state->departure_ns = now;
 	}
 	bpf_map_update_elem(&departures, &key, &now, BPF_NOEXIST);
 }
@@ -205,25 +212,41 @@ static __always_inline struct tcpdelay_counters *counters_entry(void)
 	return bpf_map_lookup_elem(&counters, &zero);
 }
 
+/*
+ * A reply whose new TSecr echoes a recorded departure is always sampled; any
+ * other change of TSval or TSecr at most once per interval, which still feeds
+ * the downstream estimate of flows that send no data.
+ */
 static __always_inline void
 incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsecr };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
 	struct tcpdelay_record *record;
-	__u64 *departure;
+	__u64 *departure = NULL;
+	__u64 now = bpf_ktime_get_ns();
 
 	if (state == NULL) {
-		struct flow_state initial = { .incoming_tsval = tsval, .incoming_tsecr = tsecr };
+		struct flow_state initial = {
+			.incoming_tsval = tsval,
+			.incoming_tsecr = tsecr,
+			.sample_ns = now,
+		};
 
 		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
-	} else if (state->incoming_tsval != tsval || state->incoming_tsecr != tsecr) {
+		if (tsecr != 0)
+			departure = bpf_map_lookup_elem(&departures, &key);
+	} else {
+		if (state->incoming_tsval == tsval && state->incoming_tsecr == tsecr)
+			return;
+		if (state->incoming_tsecr != tsecr && tsecr != 0)
+			departure = bpf_map_lookup_elem(&departures, &key);
 		state->incoming_tsval = tsval;
 		state->incoming_tsecr = tsecr;
-	} else {
-		return;
+		if (departure == NULL && now - state->sample_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
+			return;
+		state->sample_ns = now;
 	}
-	departure = tsecr != 0 ? bpf_map_lookup_elem(&departures, &key) : NULL;
 	record = bpf_ringbuf_reserve(&samples, sizeof(*record), 0);
 	if (record == NULL) {
 		struct tcpdelay_counters *totals = counters_entry();
@@ -232,12 +255,12 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 			totals->ring_full++;
 		return;
 	}
-	record->arrival_ns = bpf_ktime_get_ns();
+	record->arrival_ns = now;
 	record->departure_ns = departure != NULL ? *departure : 0;
 	record->flow = *flow;
 	record->tsval = tsval;
 	record->tsecr = tsecr;
-	/* Userspace drains the ring on its own timer. */
+	/* Userspace drains the ring before each controller run. */
 	bpf_ringbuf_submit(record, BPF_RB_NO_WAKEUP);
 }
 

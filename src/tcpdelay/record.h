@@ -7,6 +7,11 @@
 #define TCPDELAY_DEPARTURES 8192
 #define TCPDELAY_FLOW_STATES 1024
 #define TCPDELAY_RING_BYTES (256 * 1024)
+/*
+ * Per flow, at most one departure is recorded per interval, and at most one
+ * reply that echoes no recorded departure is sampled per interval.
+ */
+#define TCPDELAY_SAMPLE_INTERVAL_NS (4ULL * 1000ULL * 1000ULL)
 
 /* Addresses are IPv4-mapped IPv6; ports are in network byte order. */
 struct tcpdelay_record_flow {
