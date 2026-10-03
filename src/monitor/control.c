@@ -36,15 +36,17 @@ static const char *const rate_reason_names[] = { [CONTROLLER_RATE_UNCHANGED] = S
 						 [CONTROLLER_RATE_RECONCILE] = STATE_RECONCILE,
 						 [CONTROLLER_RATE_ACK_SHARE] = STATE_ACK_SHARE };
 
-void update_serialization_compensation(struct observation_context *context)
+void control_update_compensation(struct monitor *monitor)
 {
-	if (!wire_metadata_ready(context))
+	struct controller *controller = &monitor->control.controller;
+
+	if (!links_wire_ready(monitor))
 		return;
 	controller_set_serialization_compensation(
-		&context->controller, cake_max_wire_packet_bits(&context->download.cake),
-		cake_max_wire_packet_bits(&context->upload.cake),
-		context->controller.download.shaper_rate_bits_per_second,
-		context->controller.upload.shaper_rate_bits_per_second);
+		controller, cake_max_wire_packet_bits(&monitor->links.download.cake),
+		cake_max_wire_packet_bits(&monitor->links.upload.cake),
+		controller->download.shaper_rate_bits_per_second,
+		controller->upload.shaper_rate_bits_per_second);
 }
 
 static void log_line_state(const char *direction, enum controller_line_state state,
@@ -95,12 +97,20 @@ static void log_congestion_state(const char *direction, enum controller_congesti
  * cake-autorate gates the delay EWMA on its last load percentage, which is 0
  * before the first achieved-rate sample; an unavailable rate here is also 0.
  */
-bool direction_has_low_load(const struct monitored_direction *direction,
-			    uint64_t high_load_threshold_percent)
+static bool direction_has_low_load(const struct monitor_direction *direction,
+				   uint64_t high_load_threshold_percent)
 {
 	return load_percent(direction->traffic_rate_bits_per_second,
 			    direction->cake_valid ? direction->cake.bandwidth_bits_per_second
 						  : 0U) < high_load_threshold_percent;
+}
+
+bool control_low_load(const struct monitor *monitor)
+{
+	uint64_t threshold = monitor->control.controller.config.high_load_threshold_percent;
+
+	return direction_has_low_load(&monitor->links.download, threshold) &&
+	       direction_has_low_load(&monitor->links.upload, threshold);
 }
 
 static void load_condition(char *condition, size_t condition_size, const char *direction,
@@ -233,7 +243,7 @@ static void log_controller_stats(const struct config *config, const struct contr
 	}
 }
 
-static void apply_bandwidth(struct netlink *netlink, struct monitored_direction *direction,
+static void apply_bandwidth(struct netlink *netlink, struct monitor_direction *direction,
 			    uint64_t desired_rate, enum controller_rate_reason reason,
 			    bool output_cake_changes)
 {
@@ -271,8 +281,7 @@ static void apply_bandwidth(struct netlink *netlink, struct monitored_direction 
 	direction->cake = verified;
 }
 
-static struct controller_direction_input
-direction_input(const struct monitored_direction *direction)
+static struct controller_direction_input direction_input(const struct monitor_direction *direction)
 {
 	const struct controller_direction_input input = {
 		.traffic_sample_id = direction->traffic_sample_id,
@@ -287,13 +296,15 @@ direction_input(const struct monitored_direction *direction)
 	return input;
 }
 
-void update_controller(struct observation_context *context, const struct config *config,
-		       const struct latency_observation *latency,
-		       const struct latency_sample *sample)
+void control_update(struct monitor *monitor, const struct latency_observation *latency,
+		    const struct latency_sample *sample)
 {
+	const struct config *config = monitor->config;
+	struct monitor_control *control = &monitor->control;
+	struct monitor_links *links = &monitor->links;
 	struct controller_input input = {
-		.download = direction_input(&context->download),
-		.upload = direction_input(&context->upload),
+		.download = direction_input(&links->download),
+		.upload = direction_input(&links->upload),
 		.download_latency = { .valid = true,
 				      .owd_delta_microseconds =
 					      latency->download_owd_delta_microseconds },
@@ -304,23 +315,22 @@ void update_controller(struct observation_context *context, const struct config 
 	};
 	struct controller_output output;
 	const struct {
-		struct monitored_direction *direction;
+		struct monitor_direction *direction;
 		const struct controller_direction *controller;
 		const struct controller_direction_input *input;
 		const struct controller_direction_output *output;
 		const char *short_name;
-	} directions[] = { { &context->download, &context->controller.download, &input.download,
+	} directions[] = { { &links->download, &control->controller.download, &input.download,
 			     &output.download, DIRECTION_DOWNLOAD_SHORT },
-			   { &context->upload, &context->controller.upload, &input.upload,
+			   { &links->upload, &control->controller.upload, &input.upload,
 			     &output.upload, DIRECTION_UPLOAD_SHORT } };
 
 	(void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
-	observe_tcp_capture(context, config, input.timestamp_microseconds, &input.queue,
-			    &input.acks);
+	tcp_observe(monitor, input.timestamp_microseconds, &input.queue, &input.acks);
 
-	controller_update(&context->controller, &input, &output);
+	controller_update(&control->controller, &input, &output);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
-		struct monitored_direction *direction = directions[index].direction;
+		struct monitor_direction *direction = directions[index].direction;
 		const struct controller_direction_output *decision = directions[index].output;
 
 		if (decision->state_changed)
@@ -338,7 +348,7 @@ void update_controller(struct observation_context *context, const struct config 
 				input.queue.download_microseconds, input.queue.upload_microseconds);
 		}
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
-		if (!context->initial_shaper_reported &&
+		if (!control->initial_shaper_reported &&
 		    !directions[index].controller->config.adjust && config->output_cake_changes) {
 			log_shaper(direction->interface,
 				   directions[index].controller->config.base_rate_bits_per_second /
@@ -350,34 +360,37 @@ void update_controller(struct observation_context *context, const struct config 
 		}
 		/* The controller never requests changes for an observation-only link. */
 		if (decision->rate_changed) {
-			apply_bandwidth(&context->netlink, direction,
+			apply_bandwidth(&monitor->netlink, direction,
 					decision->rate_bits_per_second, decision->rate_reason,
 					config->output_cake_changes);
 		}
 	}
-	context->initial_shaper_reported = true;
-	update_serialization_compensation(context);
-	log_controller_stats(config, &context->controller, &input, &output, latency, sample);
+	control->initial_shaper_reported = true;
+	control_update_compensation(monitor);
+	log_controller_stats(config, &control->controller, &input, &output, latency, sample);
 }
 
-void enforce_minimum_rates(struct observation_context *context, const struct config *config,
-			   uint64_t timestamp_microseconds)
+void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	controller_set_minimum_rates(&context->controller, timestamp_microseconds);
-	if (config->adjust_download && context->download.cake_valid) {
-		apply_bandwidth(&context->netlink, &context->download,
+	const struct config *config = monitor->config;
+	struct monitor_links *links = &monitor->links;
+
+	controller_set_minimum_rates(&monitor->control.controller, timestamp_microseconds);
+	if (config->adjust_download && links->download.cake_valid) {
+		apply_bandwidth(&monitor->netlink, &links->download,
 				config->minimum_download_rate_bits_per_second,
 				CONTROLLER_RATE_RECONCILE, config->output_cake_changes);
 	}
-	if (config->adjust_upload && context->upload.cake_valid) {
-		apply_bandwidth(&context->netlink, &context->upload,
+	if (config->adjust_upload && links->upload.cake_valid) {
+		apply_bandwidth(&monitor->netlink, &links->upload,
 				config->minimum_upload_rate_bits_per_second,
 				CONTROLLER_RATE_RECONCILE, config->output_cake_changes);
 	}
 }
 
-int start_controller(struct controller *controller, const struct config *config)
+int control_start(struct monitor *monitor)
 {
+	const struct config *config = monitor->config;
 	/* Match cake-autorate's startup rounding to per-thousand and percent. */
 	const struct controller_config controller_config = {
 		.download = { .adjust = config->adjust_download,
@@ -432,7 +445,7 @@ int start_controller(struct controller *controller, const struct config *config)
 			rounded_divide(config->upload_ack_share_min_per_million, FACTOR_PER_PERCENT)
 	};
 
-	if (controller_init(controller, &controller_config) != 0) {
+	if (controller_init(&monitor->control.controller, &controller_config) != 0) {
 		log_message(LOG_LEVEL_ERROR, "could not initialize controller: %s",
 			    strerror(errno));
 		return -1;
