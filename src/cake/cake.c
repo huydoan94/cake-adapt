@@ -178,15 +178,12 @@ static int read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *
 	struct ifreq request = { 0 };
 	int socket_fd;
 
-	if (strlen(interface) >= sizeof(request.ifr_name)) {
-		error_set(error, error_size, "interface name is too long");
-		return -1;
-	}
+	if (strlen(interface) >= sizeof(request.ifr_name))
+		return error_set(error, error_size, "interface name is too long");
 	socket_fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (socket_fd < 0) {
-		error_set(error, error_size, "could not open interface control socket: %s",
-			  strerror(errno));
-		return -1;
+		return error_set(error, error_size, "could not open interface control socket: %s",
+				 strerror(errno));
 	}
 	memcpy(request.ifr_name, interface, strlen(interface) + 1U);
 	if (ioctl(socket_fd, SIOCGIFMTU, &request) != 0) {
@@ -297,9 +294,8 @@ int cake_set_bandwidth(struct netlink *netlink, const struct cake_observation *o
 	uint64_t bandwidth_bytes_per_second;
 
 	if (bandwidth_bits_per_second < 8U || bandwidth_bits_per_second % 8U != 0U) {
-		error_set(error, error_size,
-			  "CAKE bandwidth must be a positive multiple of 8 bit/s");
-		return -1;
+		return error_set(error, error_size,
+				 "CAKE bandwidth must be a positive multiple of 8 bit/s");
 	}
 	if (netlink_open(netlink, error, error_size) != 0)
 		return -1;

@@ -44,10 +44,8 @@ int netlink_open(struct netlink *netlink, char *error, size_t error_size)
 		return 0;
 
 	socket = nl_socket_alloc();
-	if (socket == NULL) {
-		error_set(error, error_size, "could not allocate rtnetlink socket");
-		return -1;
-	}
+	if (socket == NULL)
+		return error_set(error, error_size, "could not allocate rtnetlink socket");
 
 	result = nl_connect(socket, NETLINK_ROUTE);
 	if (result < 0) {
@@ -97,17 +95,13 @@ int netlink_subscribe_qdiscs(struct netlink *netlink, qdisc_event_handler handle
 	struct nl_sock *events;
 	int result;
 
-	if (handler == NULL) {
-		error_set(error, error_size, "qdisc event handler is null");
-		return -1;
-	}
+	if (handler == NULL)
+		return error_set(error, error_size, "qdisc event handler is null");
 	if (netlink->events != NULL)
 		return 0;
 	events = nl_socket_alloc();
-	if (events == NULL) {
-		error_set(error, error_size, "could not allocate qdisc event socket");
-		return -1;
-	}
+	if (events == NULL)
+		return error_set(error, error_size, "could not allocate qdisc event socket");
 	result = nl_connect(events, NETLINK_ROUTE);
 	if (result == 0)
 		result = nl_socket_add_memberships(events, RTNLGRP_TC, 0);
@@ -164,22 +158,17 @@ int netlink_receive_qdisc_events(struct netlink *netlink, char *error, size_t er
 {
 	int result;
 
-	if (netlink->events == NULL || netlink->event_handler == NULL) {
-		error_set(error, error_size, "qdisc event socket is not open");
-		return -1;
-	}
+	if (netlink->events == NULL || netlink->event_handler == NULL)
+		return error_set(error, error_size, "qdisc event socket is not open");
 	netlink->event_parse_failed = false;
 	result = nl_recvmsgs_default(netlink->events);
-	if (netlink->event_parse_failed) {
-		error_set(error, error_size, "could not parse qdisc event");
-		return -1;
-	}
+	if (netlink->event_parse_failed)
+		return error_set(error, error_size, "could not parse qdisc event");
 	if (result == -NLE_AGAIN || result == -NLE_INTR)
 		return 0;
 	if (result < 0) {
-		error_set(error, error_size, "could not receive qdisc event: %s",
-			  nl_geterror(result));
-		return -1;
+		return error_set(error, error_size, "could not receive qdisc event: %s",
+				 nl_geterror(result));
 	}
 	return 0;
 }
@@ -196,32 +185,26 @@ static int wait_for_response(const struct netlink *netlink, uint64_t deadline_mi
 		uint64_t now;
 
 		if (!read_clock_microseconds(CLOCK_MONOTONIC, &now)) {
-			error_set(error, error_size, "could not read rtnetlink deadline clock: %s",
-				  strerror(errno));
-			return -1;
+			return error_set(error, error_size,
+					 "could not read rtnetlink deadline clock: %s",
+					 strerror(errno));
 		}
-		if (now >= deadline_microseconds) {
-			error_set(error, error_size, "rtnetlink response timed out");
-			return -1;
-		}
+		if (now >= deadline_microseconds)
+			return error_set(error, error_size, "rtnetlink response timed out");
 		result = poll(
 			&descriptor, 1U,
 			/* The remaining time is within NETLINK_RESPONSE_TIMEOUT_MILLISECONDS. */
 			(int)milliseconds_rounded_up(deadline_microseconds - now));
 	} while (result < 0 && errno == EINTR);
 
-	if (result < 0) {
-		error_set(error, error_size, "rtnetlink poll failed: %s", strerror(errno));
-		return -1;
-	}
-	if (result == 0) {
-		error_set(error, error_size, "rtnetlink response timed out");
-		return -1;
-	}
+	if (result < 0)
+		return error_set(error, error_size, "rtnetlink poll failed: %s", strerror(errno));
+	if (result == 0)
+		return error_set(error, error_size, "rtnetlink response timed out");
 	if ((descriptor.revents & POLLIN) == 0) {
-		error_set(error, error_size, "rtnetlink socket reported an error (revents=0x%x)",
-			  (unsigned int)descriptor.revents);
-		return -1;
+		return error_set(error, error_size,
+				 "rtnetlink socket reported an error (revents=0x%x)",
+				 (unsigned int)descriptor.revents);
 	}
 	return 0;
 }
@@ -282,9 +265,8 @@ static int configure_response_callbacks(struct nl_sock *socket, struct response_
 		nl_cb_put(callbacks);
 	}
 	if (result < 0) {
-		error_set(error, error_size, "could not configure rtnetlink callbacks: %s",
-			  nl_geterror(result));
-		return -1;
+		return error_set(error, error_size, "could not configure rtnetlink callbacks: %s",
+				 nl_geterror(result));
 	}
 	return 0;
 }
@@ -296,9 +278,8 @@ static int receive_response(struct netlink *netlink, struct response_context *co
 	int result;
 
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &started)) {
-		error_set(error, error_size, "could not read rtnetlink deadline clock: %s",
-			  strerror(errno));
-		return -1;
+		return error_set(error, error_size, "could not read rtnetlink deadline clock: %s",
+				 strerror(errno));
 	}
 
 	if (configure_response_callbacks(netlink->socket, context, error, error_size) != 0)
@@ -314,26 +295,24 @@ static int receive_response(struct netlink *netlink, struct response_context *co
 		}
 
 		result = nl_recvmsgs_default(netlink->socket);
-		if (context->parse_failed) {
-			error_set(error, error_size, "could not parse qdisc response");
-			return -1;
-		}
+		if (context->parse_failed)
+			return error_set(error, error_size, "could not parse qdisc response");
 		if (context->kernel_error != 0) {
-			error_set(error, error_size,
-				  context->type == RESPONSE_QDISC_DUMP ? "qdisc dump failed: %s"
-								       : "qdisc change failed: %s",
-				  strerror(-context->kernel_error));
-			return -1;
+			return error_set(error, error_size,
+					 context->type == RESPONSE_QDISC_DUMP
+						 ? "qdisc dump failed: %s"
+						 : "qdisc change failed: %s",
+					 strerror(-context->kernel_error));
 		}
 		if (result == -NLE_AGAIN || result == -NLE_INTR)
 			continue;
 		if (result < 0) {
-			error_set(error, error_size,
-				  context->type == RESPONSE_QDISC_DUMP
-					  ? "could not receive qdisc dump: %s"
-					  : "could not receive rtnetlink acknowledgement: %s",
-				  nl_geterror(result));
-			return -1;
+			return error_set(
+				error, error_size,
+				context->type == RESPONSE_QDISC_DUMP
+					? "could not receive qdisc dump: %s"
+					: "could not receive rtnetlink acknowledgement: %s",
+				nl_geterror(result));
 		}
 	}
 
@@ -348,11 +327,11 @@ static int send_request(struct netlink *netlink, struct nl_msg *message,
 	/* Consume the request even when sending fails; replies own no message data. */
 	nlmsg_free(message);
 	if (result < 0) {
-		error_set(error, error_size,
-			  response->type == RESPONSE_QDISC_DUMP ? "could not request qdisc dump: %s"
-								: "could not send qdisc change: %s",
-			  nl_geterror(result));
-		return -1;
+		return error_set(error, error_size,
+				 response->type == RESPONSE_QDISC_DUMP
+					 ? "could not request qdisc dump: %s"
+					 : "could not send qdisc change: %s",
+				 nl_geterror(result));
 	}
 	return receive_response(netlink, response, error, error_size);
 }
@@ -367,16 +346,12 @@ int netlink_dump_qdiscs(struct netlink *netlink, netlink_message_handler handler
 	struct nl_msg *message;
 	int result;
 
-	if (netlink->socket == NULL) {
-		error_set(error, error_size, "rtnetlink socket is not open");
-		return -1;
-	}
+	if (netlink->socket == NULL)
+		return error_set(error, error_size, "rtnetlink socket is not open");
 
 	message = nlmsg_alloc_simple(RTM_GETQDISC, NLM_F_DUMP);
-	if (message == NULL) {
-		error_set(error, error_size, "could not allocate qdisc dump request");
-		return -1;
-	}
+	if (message == NULL)
+		return error_set(error, error_size, "could not allocate qdisc dump request");
 	result = nlmsg_append(message, &traffic_control, sizeof(traffic_control), NLMSG_ALIGNTO);
 	if (result < 0) {
 		error_set(error, error_size, "could not construct qdisc dump request: %s",
@@ -404,20 +379,14 @@ int netlink_change_qdisc_option(struct netlink *netlink, unsigned int interface_
 	struct nl_msg *message;
 	int result;
 
-	if (netlink->socket == NULL) {
-		error_set(error, error_size, "rtnetlink socket is not open");
-		return -1;
-	}
-	if (option_size > INT_MAX) {
-		error_set(error, error_size, "qdisc option is too large");
-		return -1;
-	}
+	if (netlink->socket == NULL)
+		return error_set(error, error_size, "rtnetlink socket is not open");
+	if (option_size > INT_MAX)
+		return error_set(error, error_size, "qdisc option is too large");
 
 	message = nlmsg_alloc_simple(RTM_NEWQDISC, NLM_F_ACK);
-	if (message == NULL) {
-		error_set(error, error_size, "could not allocate qdisc change request");
-		return -1;
-	}
+	if (message == NULL)
+		return error_set(error, error_size, "could not allocate qdisc change request");
 	result = nlmsg_append(message, &traffic_control, sizeof(traffic_control), NLMSG_ALIGNTO);
 	if (result < 0 || nla_put_string(message, TCA_KIND, kind) < 0) {
 		error_set(error, error_size, "could not construct qdisc change request");
