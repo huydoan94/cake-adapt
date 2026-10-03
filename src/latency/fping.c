@@ -5,6 +5,7 @@
 #include "common/constants.h"
 #include "common/error.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 #include "config/defaults.h"
 
 #include <errno.h>

@@ -3,6 +3,7 @@
 #include "logging/log.h"
 #include "common/constants.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -120,11 +121,7 @@ static void write_file_line(const char *line)
     if (written < 0) {
         return;
     }
-    if ((uint64_t)written > UINT64_MAX - log_size_bytes) {
-        log_size_bytes = UINT64_MAX;
-    } else {
-        log_size_bytes += (uint64_t)written;
-    }
+    log_size_bytes = saturating_add(log_size_bytes, (uint64_t)written);
 }
 
 static uint64_t log_realtime_microseconds(void)
@@ -886,7 +883,7 @@ void log_message(
     if (level > minimum_log_level) {
         return;
     }
-    if ((unsigned int)level >= sizeof(levels) / sizeof(levels[0])) {
+    if ((unsigned int)level >= ARRAY_SIZE(levels)) {
         level = LOG_LEVEL_ERROR;
     }
     send_syslog = log_to_syslog &&

@@ -3,6 +3,7 @@
 #include "cake/cake.h"
 #include "common/constants.h"
 #include "common/error.h"
+#include "common/utils.h"
 
 #include <errno.h>
 #include <limits.h>
@@ -22,22 +23,6 @@ struct cake_read_context {
     struct cake_read *reads;
     size_t count;
 };
-
-static uint64_t rate_to_bits_per_second(uint64_t bytes_per_second)
-{
-    uint64_t bits_per_second;
-
-    if (
-        __builtin_mul_overflow(
-            bytes_per_second,
-            UINT64_C(8),
-            &bits_per_second
-        )
-    ) {
-        return UINT64_MAX;
-    }
-    return bits_per_second;
-}
 
 static void parse_options(
     struct nlattr *options,
@@ -65,7 +50,7 @@ static void parse_options(
     }
     if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
         observation->bandwidth_bits_per_second =
-            rate_to_bits_per_second(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]));
+            saturating_mul(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]), BITS_PER_BYTE);
         observation->has_bandwidth = true;
     }
     if (attributes[TCA_CAKE_ATM] != NULL) {
@@ -81,15 +66,12 @@ static void parse_options(
 
 uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
 {
-    uint64_t bytes = observation->mtu_bytes;
     uint64_t bits;
 
     if (!observation->has_mtu) {
         return 0U;
     }
-    if (__builtin_mul_overflow(bytes, UINT64_C(8), &bits)) {
-        return UINT64_MAX;
-    }
+    bits = saturating_mul(observation->mtu_bytes, BITS_PER_BYTE);
     if (
         observation->raw ||
         observation->overhead_bytes < 0 ||
@@ -100,26 +82,15 @@ uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
     ) {
         return bits;
     }
-    if (
-        __builtin_add_overflow(
-            bytes,
-            (uint64_t)observation->overhead_bytes,
-            &bytes
-        ) ||
-        __builtin_mul_overflow(bytes, UINT64_C(8), &bits)
-    ) {
-        return UINT64_MAX;
-    }
+    bits = saturating_mul(
+        saturating_add(observation->mtu_bytes, (uint64_t)observation->overhead_bytes),
+        BITS_PER_BYTE
+    );
     if (observation->atm_mode != CAKE_ATM_ATM) {
         return bits;
     }
-    if (bits > UINT64_MAX - UINT64_C(376)) {
-        return UINT64_MAX;
-    }
-    bits = (bits + UINT64_C(376)) / UINT64_C(384);
-    return bits > UINT64_MAX / UINT64_C(424)
-        ? UINT64_MAX
-        : bits * UINT64_C(424);
+    /* Whole 48-byte ATM cell payloads, each sent as a 53-byte cell. */
+    return saturating_mul(saturating_add(bits, UINT64_C(376)) / UINT64_C(384), UINT64_C(424));
 }
 
 static void parse_cake_stats(
@@ -147,7 +118,7 @@ static void parse_cake_stats(
     }
     if (attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] != NULL) {
         observation->capacity_estimate_bits_per_second =
-            rate_to_bits_per_second(nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]));
+            saturating_mul(nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]), BITS_PER_BYTE);
     }
     if (attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL) {
         observation->memory_limit_bytes = nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_LIMIT]);

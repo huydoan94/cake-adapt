@@ -110,9 +110,11 @@ in that directory and is not included from outside it.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
-  - `helpers.c`: small genuinely generic operations shared by modules, such as
-    numeric parsing, percentages, saturating arithmetic, clocks, and safe
-    conversions.
+  - `utils.h`: trivial operations as `static inline` functions, such as
+    saturating arithmetic, `mul_div`, percentages, rounding, and
+    `ARRAY_SIZE`. A module never keeps its own copy of one.
+  - `helpers.c`: generic operations too large to inline, such as numeric
+    parsing, random selection, clocks, and rate conversions.
   - `error.c`: shared error-buffer formatting.
 - `config/`
   - `config.c`: typed UCI loading and conversion through `libuci`; never

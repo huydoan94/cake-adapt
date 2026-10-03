@@ -14,27 +14,6 @@ bool parse_unsigned(
     uint64_t *value
 );
 
-/* percentage is 0..100; rounded upward without multiplying the full value. */
-uint64_t percentage_of(
-    uint64_t value,
-    unsigned int percentage
-);
-
-/* Positive divisor; nearest integer, with ties rounded upward. */
-uint64_t rounded_divide(
-    uint64_t value,
-    uint64_t divisor
-);
-
-/* Exact |first - second|; every int64_t difference fits in uint64_t. */
-uint64_t absolute_difference(int64_t first, int64_t second);
-
-/* first - second, saturated to the int64_t range. */
-int64_t signed_difference(int64_t first, int64_t second);
-
-/* first + second, saturated to the int64_t range. */
-int64_t signed_sum(int64_t first, int64_t second);
-
 typedef bool (*random_u32_source)(uint32_t *value, void *context);
 
 /* Uniformly select an index below count using the supplied entropy source. */
@@ -57,16 +36,6 @@ bool shuffle(
 uint64_t serialization_microseconds(
     uint64_t wire_packet_bits,
     uint64_t rate_bits_per_second
-);
-
-/* Whole milliseconds, rounded up so a timer or poll never wakes early. */
-uint64_t milliseconds_rounded_up(uint64_t microseconds);
-
-/* Strict boundary: equality and backwards timestamps have not elapsed. */
-bool interval_elapsed(
-    uint64_t current,
-    uint64_t previous,
-    uint64_t interval
 );
 
 /*
