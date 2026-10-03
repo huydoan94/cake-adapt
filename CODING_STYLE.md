@@ -104,44 +104,22 @@ log_message();
 
 ## Formatting
 
-- Use four spaces and no tabs in C.
-- Keep ordinary declarations on one line.
-- Do not impose an arbitrary 80-column limit; wrap for readability.
-- Keep a simple condition on one line.
-- Format a genuinely compound condition like this:
+- Follow the platform's established C style; for OpenWrt that is the Linux
+  kernel style of libubox and unetd, encoded in the repository's
+  `.clang-format`, and every changed file is formatted with clang-format.
+- Indent with tabs; wrap lines at 100 columns, never splitting string literals.
+- Leave a single-statement body without braces unless its condition spans
+  several lines:
 
 ```c
-if (
-    result < 0 ||
-    operation(context) < 0
-) {
-    return -1;
-}
+if (result < 0)
+	return -1;
 ```
 
-- Keep return-only blocks in normal multiline form; do not compress the entire
-  `if` statement onto one line.
-- For declarations, definitions, and calls with several substantial arguments,
-  put one argument on each line:
-
-```c
-int controller_update(
-    struct controller *controller,
-    const struct controller_input *input,
-    struct controller_output *output
-)
-{
-```
-
-```c
-result = operation(
-    context,
-    &input,
-    &output
-);
-```
-
-- Short, obvious calls may stay on one line.
+- Pack parameters and arguments onto as few lines as fit, aligned with the
+  opening parenthesis.
+- Keep functions small, with a module prefix, so each operation reads as a few
+  obvious calls; put trivial arithmetic in a shared inline utilities header.
 - Comments should explain formulas, invariants, units, ownership, or non-obvious
   platform behavior. Do not narrate obvious syntax.
 - Do not reformat unrelated working code during a focused change.
