@@ -29,9 +29,8 @@ static int set_nonblocking(int descriptor, const char *name, char *error, size_t
 {
 	int flags = fcntl(descriptor, F_GETFL);
 	if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
-		error_set(error, error_size, "could not make %s pipe nonblocking: %s", name,
-			  strerror(errno));
-		return -1;
+		return error_set(error, error_size, "could not make %s pipe nonblocking: %s", name,
+				 strerror(errno));
 	}
 	return 0;
 }
@@ -104,8 +103,8 @@ destroy_actions:
 	(void)posix_spawn_file_actions_destroy(&actions);
 failed:
 	if (result != 0) {
-		error_set(error, error_size, "could not start %s: %s", name, strerror(result));
-		return -1;
+		return error_set(error, error_size, "could not start %s: %s", name,
+				 strerror(result));
 	}
 	return 0;
 }
@@ -124,8 +123,7 @@ int expand_words(const char *value, bool require_word, const char *option, worde
 		wordfree(words);
 		*words = (wordexp_t){ 0 };
 	}
-	error_set(error, error_size, "could not parse %s", option);
-	return -1;
+	return error_set(error, error_size, "could not parse %s", option);
 }
 
 int validate_targets(const char *const *targets, size_t target_count, char *error,
@@ -135,10 +133,10 @@ int validate_targets(const char *const *targets, size_t target_count, char *erro
 
 	for (index = 0U; index < target_count; index++) {
 		if (!target_is_valid(targets[index])) {
-			error_set(error, error_size,
-				  "latency target '%s' is not a valid IP address or hostname",
-				  targets[index] == NULL ? NULL_VALUE : targets[index]);
-			return -1;
+			return error_set(
+				error, error_size,
+				"latency target '%s' is not a valid IP address or hostname",
+				targets[index] == NULL ? NULL_VALUE : targets[index]);
 		}
 	}
 	return 0;
@@ -151,8 +149,8 @@ int start_child(struct latency_child *child, char *const arguments[], const char
 	pid_t process_identifier;
 
 	if (pipe2(output_pipe, O_CLOEXEC) != 0) {
-		error_set(error, error_size, "could not create %s pipe: %s", name, strerror(errno));
-		return -1;
+		return error_set(error, error_size, "could not create %s pipe: %s", name,
+				 strerror(errno));
 	}
 	if (spawn_child(&process_identifier, output_pipe, arguments[0], arguments, name, error,
 			error_size) != 0) {
@@ -204,15 +202,12 @@ int latency_check_backend(const char *pinger_method, char *error, size_t error_s
 {
 	const char *executable = latency_backend_executable(pinger_method);
 
-	if (executable == NULL) {
-		error_set(error, error_size, "unknown pinger_method '%s'", pinger_method);
-		return -1;
-	}
+	if (executable == NULL)
+		return error_set(error, error_size, "unknown pinger_method '%s'", pinger_method);
 	if (access(executable, X_OK) != 0) {
-		error_set(error, error_size,
-			  "ping binary %s for pinger_method '%s' is not available: %s", executable,
-			  pinger_method, strerror(errno));
-		return -1;
+		return error_set(error, error_size,
+				 "ping binary %s for pinger_method '%s' is not available: %s",
+				 executable, pinger_method, strerror(errno));
 	}
 	return 0;
 }

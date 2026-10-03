@@ -34,14 +34,12 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 	int result = -1;
 
 	if (!read_clock_microseconds(CLOCK_REALTIME, &sample->timestamp_microseconds)) {
-		error_set(error, error_size, "could not read CPU timestamp: %s", strerror(errno));
-		return -1;
+		return error_set(error, error_size, "could not read CPU timestamp: %s",
+				 strerror(errno));
 	}
 	file = fopen(path, FILE_MODE_READ);
-	if (file == NULL) {
-		error_set(error, error_size, "could not open %s: %s", path, strerror(errno));
-		return -1;
-	}
+	if (file == NULL)
+		return error_set(error, error_size, "could not open %s: %s", path, strerror(errno));
 	sample->count = 0U;
 	while (getline(&line, &capacity, file) >= 0) {
 		struct cpu_counter *counter;

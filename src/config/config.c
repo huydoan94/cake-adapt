@@ -196,10 +196,8 @@ static int copy_option(char *destination, size_t destination_size, const char *v
 {
 	size_t length = strlen(value);
 
-	if (length >= destination_size) {
-		error_set(error, error_size, "option '%s' is too long", option_name);
-		return -1;
-	}
+	if (length >= destination_size)
+		return error_set(error, error_size, "option '%s' is too long", option_name);
 
 	memcpy(destination, value, length + 1U);
 	return 0;
@@ -212,9 +210,8 @@ static int resolve_interfaces(struct config *config, char *error, size_t error_s
 
 	config->interface_overridden = false;
 	if (upload_configured != download_configured) {
-		error_set(error, error_size,
-			  "options 'ul_if' and 'dl_if' must be configured together");
-		return -1;
+		return error_set(error, error_size,
+				 "options 'ul_if' and 'dl_if' must be configured together");
 	}
 	/* The mismatch check above guarantees dl_if is configured here too. */
 	if (upload_configured) {
@@ -262,9 +259,8 @@ static int lookup_string_option(struct uci_context *context, struct uci_section 
 	if (option == NULL)
 		return 0;
 	if (option->type != UCI_TYPE_STRING) {
-		error_set(error, error_size, "option '%s' must be a scalar UCI option, not a list",
-			  name);
-		return -1;
+		return error_set(error, error_size,
+				 "option '%s' must be a scalar UCI option, not a list", name);
 	}
 	*value = option->v.string;
 	return 0;
@@ -285,9 +281,8 @@ static int load_boolean_options(struct uci_context *context, struct uci_section 
 		}
 
 		if (value != NULL && parse_boolean(value, destination) != 0) {
-			error_set(error, error_size, "option '%s' is not a boolean",
-				  boolean_options[index].name);
-			return -1;
+			return error_set(error, error_size, "option '%s' is not a boolean",
+					 boolean_options[index].name);
 		}
 	}
 	return 0;
@@ -301,21 +296,16 @@ static int parse_scaled_decimal(const char *value, uint64_t scale, uint64_t *res
 	uint64_t fractional_place;
 	size_t integer_digits;
 
-	if (value[0] == '\0') {
-		error_set(error, error_size, "option '%s' is empty", option_name);
-		return -1;
-	}
+	if (value[0] == '\0')
+		return error_set(error, error_size, "option '%s' is empty", option_name);
 
 	integer_digits = strspn(value, DECIMAL_DIGITS);
 	character = value + integer_digits;
-	if (integer_digits != 0U && !parse_unsigned(value, character, &scaled_value)) {
-		error_set(error, error_size, "option '%s' is too large", option_name);
-		return -1;
-	}
+	if (integer_digits != 0U && !parse_unsigned(value, character, &scaled_value))
+		return error_set(error, error_size, "option '%s' is too large", option_name);
 	if (character == value || (scaled_value > UINT64_MAX / scale)) {
-		error_set(error, error_size, "option '%s' is not a non-negative decimal",
-			  option_name);
-		return -1;
+		return error_set(error, error_size, "option '%s' is not a non-negative decimal",
+				 option_name);
 	}
 	scaled_value *= scale;
 
@@ -324,9 +314,8 @@ static int parse_scaled_decimal(const char *value, uint64_t scale, uint64_t *res
 		return 0;
 	}
 	if (*character != '.' || character[1] == '\0') {
-		error_set(error, error_size, "option '%s' is not a non-negative decimal",
-			  option_name);
-		return -1;
+		return error_set(error, error_size, "option '%s' is not a non-negative decimal",
+				 option_name);
 	}
 
 	fractional_place = scale;
@@ -334,9 +323,8 @@ static int parse_scaled_decimal(const char *value, uint64_t scale, uint64_t *res
 		unsigned int digit;
 
 		if (*character < '0' || *character > '9') {
-			error_set(error, error_size, "option '%s' is not a non-negative decimal",
-				  option_name);
-			return -1;
+			return error_set(error, error_size,
+					 "option '%s' is not a non-negative decimal", option_name);
 		}
 		digit = (unsigned int)(*character - '0');
 		if (fractional_place > 1U) {
@@ -345,16 +333,14 @@ static int parse_scaled_decimal(const char *value, uint64_t scale, uint64_t *res
 			fractional_place /= 10U;
 			contribution = (uint64_t)digit * fractional_place;
 			if (scaled_value > UINT64_MAX - contribution) {
-				error_set(error, error_size, "option '%s' is too large",
-					  option_name);
-				return -1;
+				return error_set(error, error_size, "option '%s' is too large",
+						 option_name);
 			}
 			scaled_value += contribution;
 		} else if (digit != 0U) {
-			error_set(error, error_size,
-				  "option '%s' has more precision than cake-adapt stores",
-				  option_name);
-			return -1;
+			return error_set(error, error_size,
+					 "option '%s' has more precision than cake-adapt stores",
+					 option_name);
 		}
 	}
 
@@ -414,9 +400,9 @@ static int copy_reflector(struct config *config, const char *reflector, char *er
 	uint64_t index = config->reflector_count;
 
 	if (index >= CONFIG_MAX_REFLECTORS) {
-		error_set(error, error_size, "option 'reflectors' contains more than %u entries",
-			  CONFIG_MAX_REFLECTORS);
-		return -1;
+		return error_set(error, error_size,
+				 "option 'reflectors' contains more than %u entries",
+				 CONFIG_MAX_REFLECTORS);
 	}
 	if (copy_option(config->reflectors[index], sizeof(config->reflectors[index]), reflector,
 			OPTION_REFLECTORS, error, error_size) != 0) {
@@ -434,10 +420,8 @@ static int load_reflectors(struct uci_context *context, struct uci_section *sect
 
 	if (option == NULL)
 		return 0;
-	if (option->type != UCI_TYPE_LIST) {
-		error_set(error, error_size, "option 'reflectors' must be a UCI list");
-		return -1;
-	}
+	if (option->type != UCI_TYPE_LIST)
+		return error_set(error, error_size, "option 'reflectors' must be a UCI list");
 
 	config->reflector_count = 0U;
 	uci_foreach_element(&option->v.list, element)
@@ -494,18 +478,14 @@ int config_load(struct config *config, const char *config_directory, const char 
 	struct uci_section *section;
 	int result = -1;
 
-	if (section_name == NULL || section_name[0] == '\0') {
-		error_set(error, error_size, "UCI section name is empty");
-		return -1;
-	}
+	if (section_name == NULL || section_name[0] == '\0')
+		return error_set(error, error_size, "UCI section name is empty");
 
 	defaults_apply(config);
 
 	context = uci_alloc_context();
-	if (context == NULL) {
-		error_set(error, error_size, "could not allocate a UCI context");
-		return -1;
-	}
+	if (context == NULL)
+		return error_set(error, error_size, "could not allocate a UCI context");
 
 	if (config_directory != NULL) {
 		if (uci_set_confdir(context, config_directory) != UCI_OK) {

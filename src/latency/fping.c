@@ -34,23 +34,17 @@ int latency_open(struct latency *latency, const char *interface, const char *con
 	bool interface_configured = false;
 	int result = -1;
 
-	if (interface == NULL || interface[0] == '\0') {
-		error_set(error, error_size, "fping interface is empty");
-		return -1;
-	}
-	if (targets == NULL || target_count == 0U || extra_arguments == NULL || prefix == NULL) {
-		error_set(error, error_size, "fping requires at least one target");
-		return -1;
-	}
+	if (interface == NULL || interface[0] == '\0')
+		return error_set(error, error_size, "fping interface is empty");
+	if (targets == NULL || target_count == 0U || extra_arguments == NULL || prefix == NULL)
+		return error_set(error, error_size, "fping requires at least one target");
 	if (target_count > CONFIG_MAX_REFLECTORS) {
-		error_set(error, error_size, "fping supports at most %u targets",
-			  CONFIG_MAX_REFLECTORS);
-		return -1;
+		return error_set(error, error_size, "fping supports at most %u targets",
+				 CONFIG_MAX_REFLECTORS);
 	}
 	if (reflector_ping_interval_microseconds / target_count < MICROSECONDS_PER_MILLISECOND) {
-		error_set(error, error_size,
-			  "reflector ping interval must provide at least 1 ms per target");
-		return -1;
+		return error_set(error, error_size,
+				 "reflector ping interval must provide at least 1 ms per target");
 	}
 	if (validate_targets(targets, target_count, error, error_size) != 0)
 		return -1;
