@@ -81,10 +81,14 @@ differences are in integration and safety:
 - Reflectors come only from local configuration. Remote reflector-list
   retrieval is not implemented.
 - `fping` is the supported pinger. The `fping-ts` method (fping with ICMP
-  timestamps, giving separate download and upload delays) and the IRTT backend
-  are implemented as in cake-autorate but not yet verified for production use.
-  `fping-ts` accepts only IPv4 reflectors, because ICMP timestamps are IPv4
-  only; cake-autorate leaves fping to fail on IPv6 targets at runtime.
+  timestamps, giving separate download and upload delays) is implemented as in
+  cake-autorate but not yet verified for production use. `fping-ts` accepts
+  only IPv4 reflectors, because ICMP timestamps are IPv4 only; cake-autorate
+  leaves fping to fail on IPv6 targets at runtime.
+- **The IRTT backend (`pinger_method 'irtt'`) is experimental.** It follows
+  cake-autorate and passes its host tests, but it has never run against a
+  real IRTT server and no runtime behavior has been verified. Do not use it
+  for production shaping.
 - Deliberate departures aimed at less bufferbloat (the replayed upstream
   traces still match with them off):
   - With `fping`, whose RTT/2 is one delay for both directions, a detected
@@ -184,9 +188,8 @@ warning that `interface` was overridden.
 - `zlib`
 - `bash`, for importing a cake-autorate configuration file
 
-The OpenWrt package declares these runtime dependencies. The IRTT pinger
-backend (`pinger_method 'irtt'`), which is not yet supported for production use,
-additionally needs the `irtt` package; install it separately only if you select
+The OpenWrt package declares these runtime dependencies. The experimental IRTT
+pinger backend (`pinger_method 'irtt'`) additionally needs the `irtt` package; install it separately only if you select
 that backend. As in cake-autorate, an enabled instance refuses to start, with
 an error in syslog, when the selected pinger's executable is missing.
 
@@ -610,8 +613,9 @@ The cake-autorate parity and refactor sequence is complete:
 Deferred work:
 
 - Additional pinger backends. `fping` is the supported production backend;
-  `fping-ts` and the IRTT backend need their own fixtures and runtime
-  verification before they are supported.
+  `fping-ts` needs verification on internet reflectors, and the experimental
+  IRTT backend needs fixtures and runtime verification against an IRTT
+  server before either is supported.
 - Native SQM ownership (CAKE, IFB, `ctinfo` and `mirred` setup) remains a
   possible later phase. It requires an explicit decision and is not part of
   the current daemon.
