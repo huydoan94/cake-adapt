@@ -13,8 +13,8 @@
 <!-- watch -->
 <g id="node1" class="node">
 <title>watch</title>
-<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="162.62" cy="-806.02" rx="63.54" ry="18.5"/>
-<text xml:space="preserve" text-anchor="middle" x="162.62" y="-802.72" font-family="Arial" font-size="11.00">watch_latency</text>
+<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="162.62" cy="-806.02" rx="64.41" ry="18.5"/>
+<text xml:space="preserve" text-anchor="middle" x="162.62" y="-802.72" font-family="Arial" font-size="11.00">pingers_watch</text>
 </g>
 <!-- ready -->
 <g id="node2" class="node">

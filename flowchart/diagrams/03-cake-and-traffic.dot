@@ -11,15 +11,15 @@ digraph G {
   found [label="FOUND: state AVAILABLE\nlog discovered / recovered once\nMTU only if new handle or index",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   notfound [label="NOT_FOUND: log once;\npark until RTM_NEWQDISC",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   error [label="ERROR: log once;\nretry after interface_up_check_interval",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
-  comp [label="update_serialization_compensation\n(first time: compensated cadence)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  comp [label="control_update_compensation\n(first time: compensated cadence)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   traffic [label="traffic_update per direction",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   tresult [label="update result",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   rate [label="rate = Δbytes·8000/Δms\ntraffic_valid; sample_id++",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   rebase [label="baseline / counter reset /\nqdisc replaced / invalid interval\n→ no rate this tick",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   load [label="LOAD record\n(when both directions valid)",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   ready [label="both CAKE AVAILABLE?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  suspend [label="close_latency;\npingers_suspended",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
-  activity [label="update_monitor_state\n(chart 11), watch_latency",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  suspend [label="pingers_close;\npingers_suspended",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
+  activity [label="update_activity\n(chart 11), pingers_watch",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   tick -> clock;
   clock -> clockfail [label="no"];
   clock -> due [label="yes"];
