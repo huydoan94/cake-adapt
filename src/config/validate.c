@@ -64,10 +64,8 @@ static int validate_reflectors(const struct config *config, char *error, size_t 
 	return 0;
 }
 
-static int validate_latency_config(const struct config *config, char *error, size_t error_size)
+static int validate_pinger(const struct config *config, char *error, size_t error_size)
 {
-	if (!config->enabled && !config->adjust_download && !config->adjust_upload)
-		return 0;
 	if (latency_backend_executable(config->pinger_method) == NULL) {
 		return error_set(error, error_size,
 				 "option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'");
@@ -104,6 +102,11 @@ static int validate_latency_config(const struct config *config, char *error, siz
 				 "option 'reflector_ping_interval_s' must provide at least"
 				 " 1 ms per active reflector");
 	}
+	return 0;
+}
+
+static int validate_detection(const struct config *config, char *error, size_t error_size)
+{
 	if (config->monitor_achieved_rates_interval_microseconds == 0U) {
 		return error_set(error, error_size,
 				 "option 'monitor_achieved_rates_interval_ms' must be positive");
@@ -137,6 +140,11 @@ static int validate_latency_config(const struct config *config, char *error, siz
 	    config->alpha_delta_ewma_per_million > MILLION) {
 		return error_set(error, error_size, "alpha options must be between 0 and 1");
 	}
+	return 0;
+}
+
+static int validate_reflector_policy(const struct config *config, char *error, size_t error_size)
+{
 	if (config->reflector_health_check_interval_microseconds == 0U ||
 	    config->reflector_response_deadline_microseconds == 0U) {
 		return error_set(
@@ -173,6 +181,11 @@ static int validate_latency_config(const struct config *config, char *error, siz
 				 "stall, global ping timeout and interface retry settings must be"
 				 " positive and representable");
 	}
+	return 0;
+}
+
+static int validate_monitoring(const struct config *config, char *error, size_t error_size)
+{
 	if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
 	    (config->monitor_cpu_usage_interval_microseconds == 0U ||
 	     config->monitor_cpu_usage_interval_microseconds % MILLISECOND != 0U ||
@@ -198,6 +211,17 @@ static int validate_latency_config(const struct config *config, char *error, siz
 			"connection active threshold cannot exceed either minimum shaper rate");
 	}
 	return 0;
+}
+
+static int validate_latency_config(const struct config *config, char *error, size_t error_size)
+{
+	if (!config->enabled && !config->adjust_download && !config->adjust_upload)
+		return 0;
+	if (validate_pinger(config, error, error_size) != 0 ||
+	    validate_detection(config, error, error_size) != 0 ||
+	    validate_reflector_policy(config, error, error_size) != 0)
+		return -1;
+	return validate_monitoring(config, error, error_size);
 }
 
 int config_validate(const struct config *config, char *error, size_t error_size)
