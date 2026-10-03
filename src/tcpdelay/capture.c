@@ -149,20 +149,20 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 
 int tcpdelay_capture_counters(
     const struct tcpdelay_capture *capture,
-    uint64_t counters[TCPDELAY_COUNTERS]
+    struct tcpdelay_counters *counters
 )
 {
-    uint32_t key;
+    uint32_t key = 0U;
     size_t cpu;
 
-    for (key = 0U; key < TCPDELAY_COUNTERS; key++) {
-        counters[key] = 0U;
-        if (bpf_map_lookup_elem(capture->counters_descriptor, &key, capture->counter_values) != 0) {
-            return -1;
-        }
-        for (cpu = 0U; cpu < capture->cpu_count; cpu++) {
-            counters[key] += capture->counter_values[cpu];
-        }
+    memset(counters, 0, sizeof(*counters));
+    if (bpf_map_lookup_elem(capture->counters_descriptor, &key, capture->counter_values) != 0) {
+        return -1;
+    }
+    for (cpu = 0U; cpu < capture->cpu_count; cpu++) {
+        counters->ring_full += capture->counter_values[cpu].ring_full;
+        counters->ack_bytes += capture->counter_values[cpu].ack_bytes;
+        counters->upload_bytes += capture->counter_values[cpu].upload_bytes;
     }
     return 0;
 }

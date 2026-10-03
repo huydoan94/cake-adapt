@@ -8,15 +8,6 @@
 #define TCPDELAY_FLOW_STATES 1024
 #define TCPDELAY_RING_BYTES (256 * 1024)
 
-#define TCPDELAY_COUNTER_OUTGOING 0
-#define TCPDELAY_COUNTER_INCOMING 1
-#define TCPDELAY_COUNTER_MATCHED 2
-#define TCPDELAY_COUNTER_RING_FULL 3
-/* Bytes of outgoing pure ACKs, and of all outgoing packets; link-layer header
- * included, as CAKE counts them. */
-#define TCPDELAY_COUNTER_ACK_BYTES 4
-#define TCPDELAY_COUNTER_UPLOAD_BYTES 5
-#define TCPDELAY_COUNTERS 6
 
 /* Addresses are IPv4-mapped IPv6; ports are in network byte order. */
 struct tcpdelay_record_flow {
@@ -24,6 +15,18 @@ struct tcpdelay_record_flow {
     __u8 remote_address[16];
     __u16 local_port;
     __u16 remote_port;
+};
+
+/*
+ * The filter's counters, one copy per CPU in a single map entry, so a packet
+ * and a userspace read each need one lookup.
+ */
+struct tcpdelay_counters {
+    __u64 ring_full;
+    /* Bytes of outgoing pure ACKs, and of all outgoing packets; link-layer
+     * header included, as CAKE counts them. */
+    __u64 ack_bytes;
+    __u64 upload_bytes;
 };
 
 /*
