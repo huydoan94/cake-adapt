@@ -10,6 +10,39 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Advances *cursor past prefix when the text there starts with it. */
+static bool skip_prefix(const char **cursor, const char *prefix)
+{
+	size_t length = strlen(prefix);
+
+	if (strncmp(*cursor, prefix, length) != 0)
+		return false;
+	*cursor += length;
+	return true;
+}
+
+/* Copies [start, end) as a string; false when empty or too long for size. */
+static bool copy_token(char *destination, size_t size, const char *start, const char *end)
+{
+	size_t length = (size_t)(end - start);
+
+	if (length == 0U || length >= size)
+		return false;
+	memcpy(destination, start, length);
+	destination[length] = '\0';
+	return true;
+}
+
+/* fping's RTT halved into each one-way delay, as cake-autorate records it. */
+static int64_t half_round_trip(double round_trip_milliseconds)
+{
+	double microseconds = round_trip_milliseconds * (double)MICROSECONDS_PER_MILLISECOND;
+
+	if (microseconds > (double)UINT32_MAX)
+		return (int64_t)(UINT32_MAX / 2U);
+	return (int64_t)((uint32_t)(microseconds + 0.5) / 2U);
+}
+
 static bool parse_timestamp(const char *line, const char **remainder,
 			    uint64_t *timestamp_microseconds)
 {
@@ -46,12 +79,11 @@ static bool parse_timestamp(const char *line, const char **remainder,
 /* Reads "<name><milliseconds>" and the separating space, if any. */
 static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t *milliseconds)
 {
-	const char *digits;
+	const char *digits = *cursor;
 	const char *end;
 
-	if (strncmp(*cursor, name, strlen(name)) != 0)
+	if (!skip_prefix(&digits, name))
 		return false;
-	digits = *cursor + strlen(name);
 	end = digits + strspn(digits, DECIMAL_DIGITS);
 	if (!parse_unsigned(digits, end, milliseconds) || *milliseconds > UINT32_MAX ||
 	    (*end != '\0' && *end != ' ')) {
@@ -75,10 +107,8 @@ static bool parse_icmp_timestamps(const char *cursor, struct latency_sample *sam
 	uint64_t local_receive;
 
 	cursor = strstr(cursor, FPING_TIMESTAMPS_PREFIX);
-	if (cursor == NULL)
-		return false;
-	cursor += strlen(FPING_TIMESTAMPS_PREFIX);
-	if (!parse_icmp_timestamp(&cursor, "Originate=", &originate) ||
+	if (cursor == NULL || !skip_prefix(&cursor, FPING_TIMESTAMPS_PREFIX) ||
+	    !parse_icmp_timestamp(&cursor, "Originate=", &originate) ||
 	    !parse_icmp_timestamp(&cursor, "Receive=", &receive) ||
 	    !parse_icmp_timestamp(&cursor, "Transmit=", &transmit) ||
 	    !parse_icmp_timestamp(&cursor, "Localreceive=", &local_receive)) {
@@ -97,81 +127,60 @@ static enum latency_fping_line_result parse_fping_reply(const char *line, bool i
 {
 	const char *cursor;
 	const char *separator;
-	const char *sequence_end;
-	const char *target_end;
+	const char *end;
 	char *rtt_end;
 	uint64_t sequence;
 	uint64_t timestamp_microseconds;
 	double round_trip_milliseconds;
-	double round_trip_microseconds;
-	size_t target_length;
-	size_t token_length;
 
 	if (line == NULL || sample == NULL ||
-	    !parse_timestamp(line, &cursor, &timestamp_microseconds)) {
+	    !parse_timestamp(line, &cursor, &timestamp_microseconds))
 		return LATENCY_FPING_LINE_INVALID;
-	}
 	/* The bracketed token ends two bytes before cursor, at "] ". */
-	token_length = (size_t)(cursor - 1 - line);
-	if (token_length >= sizeof(sample->timestamp_text))
+	if (!copy_token(sample->timestamp_text, sizeof(sample->timestamp_text), line, cursor - 1))
 		return LATENCY_FPING_LINE_INVALID;
-	memcpy(sample->timestamp_text, line, token_length);
-	sample->timestamp_text[token_length] = '\0';
 
 	separator = strstr(cursor, FPING_SEQUENCE_SEPARATOR);
 	if (separator == NULL)
 		return LATENCY_FPING_LINE_INVALID;
-	target_end = separator;
-	while (target_end > cursor && (target_end[-1] == ' ' || target_end[-1] == '\t'))
-		target_end--;
-	target_length = (size_t)(target_end - cursor);
-	if (target_length == 0U || target_length >= sizeof(sample->target))
+	end = separator;
+	while (end > cursor && (end[-1] == ' ' || end[-1] == '\t'))
+		end--;
+	if (!copy_token(sample->target, sizeof(sample->target), cursor, end))
 		return LATENCY_FPING_LINE_INVALID;
-	memcpy(sample->target, cursor, target_length);
-	sample->target[target_length] = '\0';
 
 	cursor = separator + strlen(FPING_SEQUENCE_SEPARATOR);
-	sequence_end = strchr(cursor, ']');
-	if (sequence_end == NULL || !parse_unsigned(cursor, sequence_end, &sequence))
+	end = strchr(cursor, ']');
+	if (end == NULL || !parse_unsigned(cursor, end, &sequence))
 		return LATENCY_FPING_LINE_INVALID;
 	sample->download_owd_microseconds = 0U;
 	sample->upload_owd_microseconds = 0U;
 	sample->timestamp_microseconds = timestamp_microseconds;
 	sample->timestamp_rollover_sensitive = false;
 	sample->sequence = sequence;
-	cursor = sequence_end + 1;
-	if (strncmp(cursor, FPING_TIMEOUT_SUFFIX, strlen(FPING_TIMEOUT_SUFFIX)) == 0)
+	cursor = end + 1;
+	if (skip_prefix(&cursor, FPING_TIMEOUT_SUFFIX))
 		return LATENCY_FPING_LINE_TIMEOUT;
-	if (strncmp(cursor, FPING_FIELD_SEPARATOR, strlen(FPING_FIELD_SEPARATOR)) != 0)
+	if (!skip_prefix(&cursor, FPING_FIELD_SEPARATOR))
 		return LATENCY_FPING_LINE_INVALID;
 
-	cursor += strlen(FPING_FIELD_SEPARATOR);
-	target_end = cursor;
-	cursor += strspn(cursor, DECIMAL_DIGITS);
-	if (cursor == target_end ||
-	    strncmp(cursor, FPING_BYTES_SEPARATOR, strlen(FPING_BYTES_SEPARATOR)) != 0) {
+	end = cursor + strspn(cursor, DECIMAL_DIGITS);
+	if (end == cursor)
 		return LATENCY_FPING_LINE_INVALID;
-	}
-	cursor += strlen(FPING_BYTES_SEPARATOR);
+	cursor = end;
+	if (!skip_prefix(&cursor, FPING_BYTES_SEPARATOR))
+		return LATENCY_FPING_LINE_INVALID;
 	errno = 0;
 	round_trip_milliseconds = strtod(cursor, &rtt_end);
 	if (errno == ERANGE || rtt_end == cursor || !isfinite(round_trip_milliseconds) ||
 	    round_trip_milliseconds < 0.0 ||
-	    strncmp(rtt_end, FPING_MILLISECONDS_SUFFIX, strlen(FPING_MILLISECONDS_SUFFIX)) != 0) {
+	    strncmp(rtt_end, FPING_MILLISECONDS_SUFFIX, strlen(FPING_MILLISECONDS_SUFFIX)) != 0)
 		return LATENCY_FPING_LINE_INVALID;
-	}
-	if (icmp_timestamps) {
+	if (icmp_timestamps)
 		return parse_icmp_timestamps(rtt_end, sample) ? LATENCY_FPING_LINE_SAMPLE
 							      : LATENCY_FPING_LINE_INVALID;
-	}
 
-	round_trip_microseconds = round_trip_milliseconds * (double)MICROSECONDS_PER_MILLISECOND;
-	if (round_trip_microseconds > (double)UINT32_MAX) {
-		sample->download_owd_microseconds = (int64_t)(UINT32_MAX / 2U);
-	} else {
-		sample->download_owd_microseconds =
-			(int64_t)((uint32_t)(round_trip_microseconds + 0.5) / 2U);
-	}
+	sample->download_owd_microseconds = half_round_trip(round_trip_milliseconds);
 	sample->upload_owd_microseconds = sample->download_owd_microseconds;
 	return LATENCY_FPING_LINE_SAMPLE;
 }
