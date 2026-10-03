@@ -212,9 +212,15 @@ int log_export_file(char *export_path, size_t export_path_size)
 	    strcmp(log_path + path_length - (sizeof(LOG_EXTENSION) - 1U), LOG_EXTENSION) == 0) {
 		path_length -= sizeof(LOG_EXTENSION) - 1U;
 	}
-	written = snprintf(export_path, export_path_size, "%.*s_%s" LOG_EXTENSION "%s",
-			   (int)path_length, log_path, stamp,
-			   log_compress_exports ? GZIP_EXTENSION : EMPTY_STRING);
+	written = snprintf(
+		export_path,
+		export_path_size,
+		"%.*s_%s" LOG_EXTENSION "%s",
+		(int)path_length,
+		log_path,
+		stamp,
+		log_compress_exports ? GZIP_EXTENSION : EMPTY_STRING
+	);
 	if (written < 0 || (size_t)written >= export_path_size) {
 		errno = ENAMETOOLONG;
 		return -1;
@@ -246,16 +252,20 @@ static void rotate_log_file(bool maximum_age_reached)
 		return;
 	log_maintenance_active = true;
 	if (maximum_age_reached) {
-		log_message(LOG_LEVEL_DEBUG,
-			    "log file maximum time: %" PRIu64
-			    " minutes has elapsed so flushing and rotating log file.",
-			    log_maximum_age_microseconds / MICROSECONDS_PER_MINUTE);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"log file maximum time: %" PRIu64
+			" minutes has elapsed so flushing and rotating log file.",
+			log_maximum_age_microseconds / MICROSECONDS_PER_MINUTE
+		);
 	} else {
-		log_message(LOG_LEVEL_DEBUG,
-			    "log file size: %" PRIu64
-			    " KB has exceeded configured maximum: %" PRIu64
-			    " KB so flushing and rotating log file.",
-			    log_size_bytes / KIBIBYTE, log_maximum_size_bytes / KIBIBYTE);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"log file size: %" PRIu64 " KB has exceeded configured maximum: %" PRIu64
+			" KB so flushing and rotating log file.",
+			log_size_bytes / KIBIBYTE,
+			log_maximum_size_bytes / KIBIBYTE
+		);
 	}
 	if (fflush(log_file) == 0 && export_log(previous_log_path, false, false))
 		(void)truncate_log_file();
@@ -320,10 +330,16 @@ static void write_record_at(const char *type, const char *message, uint64_t time
 {
 	char line[LOG_MESSAGE_SIZE];
 
-	(void)snprintf(line, sizeof(line), "%s; %s; %" PRIu64 ".%06" PRIu64 "; %s", type,
-		       local_datetime((time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND)),
-		       timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		       timestamp_microseconds % MICROSECONDS_PER_SECOND, message);
+	(void)snprintf(
+		line,
+		sizeof(line),
+		"%s; %s; %" PRIu64 ".%06" PRIu64 "; %s",
+		type,
+		local_datetime((time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND)),
+		timestamp_microseconds / MICROSECONDS_PER_SECOND,
+		timestamp_microseconds % MICROSECONDS_PER_SECOND,
+		message
+	);
 	write_line(line);
 }
 
@@ -359,8 +375,13 @@ void log_close(void)
 	}
 }
 
-int log_set_file(const char *path, uint64_t maximum_time_minutes, uint64_t maximum_size_kilobytes,
-		 uint64_t buffer_timeout_microseconds, bool compress_exports)
+int log_set_file(
+	const char *path,
+	uint64_t maximum_time_minutes,
+	uint64_t maximum_size_kilobytes,
+	uint64_t buffer_timeout_microseconds,
+	bool compress_exports
+)
 {
 	FILE *file;
 	struct stat file_status;
@@ -390,8 +411,13 @@ int log_set_file(const char *path, uint64_t maximum_time_minutes, uint64_t maxim
 		(void)fclose(log_file);
 	(void)setvbuf(file, log_file_buffer, _IOFBF, sizeof(log_file_buffer));
 	(void)snprintf(log_path, sizeof(log_path), "%s", path);
-	(void)snprintf(previous_log_path, sizeof(previous_log_path), "%s%s", log_path,
-		       LOG_PREVIOUS_SUFFIX);
+	(void)snprintf(
+		previous_log_path,
+		sizeof(previous_log_path),
+		"%s%s",
+		log_path,
+		LOG_PREVIOUS_SUFFIX
+	);
 	log_file = file;
 	log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
 	log_last_flush_microseconds = log_opened_microseconds;
@@ -414,8 +440,12 @@ void log_set_debug_syslog(bool enabled)
 	debug_to_syslog = enabled;
 }
 
-void log_print_headers(bool output_processing_stats, bool output_load_stats,
-		       bool output_reflector_stats, bool output_summary_stats)
+void log_print_headers(
+	bool output_processing_stats,
+	bool output_load_stats,
+	bool output_reflector_stats,
+	bool output_summary_stats
+)
 {
 	header_data = output_processing_stats;
 	header_load = output_load_stats;
@@ -431,8 +461,11 @@ void log_print_headers(bool output_processing_stats, bool output_load_stats,
 		write_line(summary_header);
 }
 
-void log_print_cpu_headers(const struct cpu_sample *sample, bool output_cpu_stats,
-			   bool output_cpu_raw_stats)
+void log_print_cpu_headers(
+	const struct cpu_sample *sample,
+	bool output_cpu_stats,
+	bool output_cpu_raw_stats
+)
 {
 	size_t index;
 	size_t size;
@@ -447,8 +480,9 @@ void log_print_cpu_headers(const struct cpu_sample *sample, bool output_cpu_stat
 		if (stream == NULL) {
 			log_message(LOG_LEVEL_WARNING, "could not allocate CPU log header");
 		} else {
-			(void)fputs("CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME",
-				    stream);
+			(
+				void
+			)fputs("CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME", stream);
 			for (index = 0U; index < sample->count; index++) {
 				const char *identifier = sample->counters[index].identifier;
 
@@ -496,14 +530,22 @@ static void write_timed_record(const char *type, const char *format, ...)
 	if (!log_to_stdout && log_file == NULL)
 		return;
 	processing_time_microseconds = log_realtime_microseconds();
-	prefix_length = snprintf(message, sizeof(message), "%" PRIu64 ".%06" PRIu64 "; ",
-				 processing_time_microseconds / MICROSECONDS_PER_SECOND,
-				 processing_time_microseconds % MICROSECONDS_PER_SECOND);
+	prefix_length = snprintf(
+		message,
+		sizeof(message),
+		"%" PRIu64 ".%06" PRIu64 "; ",
+		processing_time_microseconds / MICROSECONDS_PER_SECOND,
+		processing_time_microseconds % MICROSECONDS_PER_SECOND
+	);
 	if (prefix_length < 0 || (size_t)prefix_length >= sizeof(message))
 		return;
 	va_start(arguments, format);
-	(void)vsnprintf(message + prefix_length, sizeof(message) - (size_t)prefix_length, format,
-			arguments);
+	(void)vsnprintf(
+		message + prefix_length,
+		sizeof(message) - (size_t)prefix_length,
+		format,
+		arguments
+	);
 	va_end(arguments);
 	write_record(type, message);
 }
@@ -516,16 +558,26 @@ void log_print_tcp_queue_header(void)
 
 void log_tcp_queue(const struct log_tcp_queue_record *record)
 {
-	write_timed_record(RECORD_TCP_QUEUE, "%d; %" PRId64 "; %d; %" PRId64,
-			   record->download_valid ? 1 : 0, record->download_queue_microseconds,
-			   record->upload_valid ? 1 : 0, record->upload_queue_microseconds);
+	write_timed_record(
+		RECORD_TCP_QUEUE,
+		"%d; %" PRId64 "; %d; %" PRId64,
+		record->download_valid ? 1 : 0,
+		record->download_queue_microseconds,
+		record->upload_valid ? 1 : 0,
+		record->upload_queue_microseconds
+	);
 }
 
 void log_load(const struct log_load_record *record)
 {
-	write_timed_record(RECORD_LOAD, "%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-			   record->download_achieved_rate_kbps, record->upload_achieved_rate_kbps,
-			   record->cake_download_rate_kbps, record->cake_upload_rate_kbps);
+	write_timed_record(
+		RECORD_LOAD,
+		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
+		record->download_achieved_rate_kbps,
+		record->upload_achieved_rate_kbps,
+		record->cake_download_rate_kbps,
+		record->cake_upload_rate_kbps
+	);
 }
 
 void log_data(const struct log_data_record *record)
@@ -538,57 +590,77 @@ void log_data(const struct log_data_record *record)
 		"; %" PRId64 "; %" PRId64 ";"
 		" %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %u; %" PRId64
 		"; %" PRIu64 "; %" PRIu64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		record->download_achieved_rate_kbps, record->upload_achieved_rate_kbps,
-		record->download_load_percent, record->upload_load_percent, record->icmp_timestamp,
-		record->reflector, record->sequence, record->download_owd_baseline_microseconds,
-		record->download_owd_microseconds, record->download_owd_delta_ewma_microseconds,
+		record->download_achieved_rate_kbps,
+		record->upload_achieved_rate_kbps,
+		record->download_load_percent,
+		record->upload_load_percent,
+		record->icmp_timestamp,
+		record->reflector,
+		record->sequence,
+		record->download_owd_baseline_microseconds,
+		record->download_owd_microseconds,
+		record->download_owd_delta_ewma_microseconds,
 		record->download_owd_delta_microseconds,
 		record->download_adjust_delay_threshold_microseconds,
-		record->upload_owd_baseline_microseconds, record->upload_owd_microseconds,
-		record->upload_owd_delta_ewma_microseconds, record->upload_owd_delta_microseconds,
-		record->upload_adjust_delay_threshold_microseconds, record->download_sum_delays,
+		record->upload_owd_baseline_microseconds,
+		record->upload_owd_microseconds,
+		record->upload_owd_delta_ewma_microseconds,
+		record->upload_owd_delta_microseconds,
+		record->upload_adjust_delay_threshold_microseconds,
+		record->download_sum_delays,
 		record->download_average_owd_delta_microseconds,
 		record->download_maximum_adjust_up_threshold_microseconds,
 		record->download_maximum_adjust_down_threshold_microseconds,
-		record->upload_sum_delays, record->upload_average_owd_delta_microseconds,
+		record->upload_sum_delays,
+		record->upload_average_owd_delta_microseconds,
 		record->upload_maximum_adjust_up_threshold_microseconds,
 		record->upload_maximum_adjust_down_threshold_microseconds,
-		record->download_load_condition, record->upload_load_condition,
-		record->cake_download_rate_kbps, record->cake_upload_rate_kbps);
+		record->download_load_condition,
+		record->upload_load_condition,
+		record->cake_download_rate_kbps,
+		record->cake_upload_rate_kbps
+	);
 }
 
 void log_summary(const struct log_summary_record *record)
 {
-	write_formatted_record(RECORD_SUMMARY,
-			       "%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
-			       " %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-			       record->download_achieved_rate_kbps,
-			       record->upload_achieved_rate_kbps, record->download_sum_delays,
-			       record->upload_sum_delays,
-			       record->download_average_owd_delta_microseconds,
-			       record->upload_average_owd_delta_microseconds,
-			       record->download_load_condition, record->upload_load_condition,
-			       record->cake_download_rate_kbps, record->cake_upload_rate_kbps);
+	write_formatted_record(
+		RECORD_SUMMARY,
+		"%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
+		" %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
+		record->download_achieved_rate_kbps,
+		record->upload_achieved_rate_kbps,
+		record->download_sum_delays,
+		record->upload_sum_delays,
+		record->download_average_owd_delta_microseconds,
+		record->upload_average_owd_delta_microseconds,
+		record->download_load_condition,
+		record->upload_load_condition,
+		record->cake_download_rate_kbps,
+		record->cake_upload_rate_kbps
+	);
 }
 
 void log_reflector(const struct log_reflector_record *record)
 {
-	write_timed_record(RECORD_REFLECTOR,
-			   "%s; %" PRId64 "; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %" PRId64
-			   "; %" PRId64 "; %" PRId64 "; %" PRIu64 "; %" PRId64 "; %" PRId64
-			   "; %" PRId64 "; %" PRIu64,
-			   record->reflector, record->minimum_sum_owd_baselines_microseconds,
-			   record->sum_owd_baselines_microseconds,
-			   record->sum_owd_baselines_delta_microseconds,
-			   record->sum_owd_baselines_delta_threshold_microseconds,
-			   record->minimum_download_delta_ewma_microseconds,
-			   record->download_delta_ewma_microseconds,
-			   record->download_delta_ewma_delta_microseconds,
-			   record->delta_ewma_delta_threshold_microseconds,
-			   record->minimum_upload_delta_ewma_microseconds,
-			   record->upload_delta_ewma_microseconds,
-			   record->upload_delta_ewma_delta_microseconds,
-			   record->delta_ewma_delta_threshold_microseconds);
+	write_timed_record(
+		RECORD_REFLECTOR,
+		"%s; %" PRId64 "; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %" PRId64 "; %" PRId64
+		"; %" PRId64 "; %" PRIu64 "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64,
+		record->reflector,
+		record->minimum_sum_owd_baselines_microseconds,
+		record->sum_owd_baselines_microseconds,
+		record->sum_owd_baselines_delta_microseconds,
+		record->sum_owd_baselines_delta_threshold_microseconds,
+		record->minimum_download_delta_ewma_microseconds,
+		record->download_delta_ewma_microseconds,
+		record->download_delta_ewma_delta_microseconds,
+		record->delta_ewma_delta_threshold_microseconds,
+		record->minimum_upload_delta_ewma_microseconds,
+		record->upload_delta_ewma_microseconds,
+		record->upload_delta_ewma_delta_microseconds,
+		record->delta_ewma_delta_threshold_microseconds
+	);
 }
 
 void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
@@ -603,9 +675,12 @@ void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
 		log_message(LOG_LEVEL_WARNING, "could not allocate CPU log record");
 		return;
 	}
-	(void)fprintf(stream, "%" PRIu64 ".%06" PRIu64,
-		      sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		      sample->timestamp_microseconds % MICROSECONDS_PER_SECOND);
+	(void)fprintf(
+		stream,
+		"%" PRIu64 ".%06" PRIu64,
+		sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
+		sample->timestamp_microseconds % MICROSECONDS_PER_SECOND
+	);
 	for (index = 0U; index < sample->count; index++)
 		(void)fprintf(stream, "; %u", usage[index]);
 	failed = ferror(stream) != 0;
@@ -625,24 +700,36 @@ void log_cpu_raw(const struct cpu_sample *sample)
 	for (index = 0U; index < sample->count; index++) {
 		const struct cpu_counter *counter = &sample->counters[index];
 
-		write_formatted_record(RECORD_CPU_RAW,
-				       "%" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 "; %" PRIu64
-				       "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
-				       "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-				       sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
-				       sample->timestamp_microseconds % MICROSECONDS_PER_SECOND,
-				       counter->identifier, counter->user, counter->nice,
-				       counter->system, counter->idle, counter->iowait,
-				       counter->irq, counter->softirq, counter->steal,
-				       counter->guest, counter->guest_nice);
+		write_formatted_record(
+			RECORD_CPU_RAW,
+			"%" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+			"; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+			"; %" PRIu64 "; %" PRIu64,
+			sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
+			sample->timestamp_microseconds % MICROSECONDS_PER_SECOND,
+			counter->identifier,
+			counter->user,
+			counter->nice,
+			counter->system,
+			counter->idle,
+			counter->iowait,
+			counter->irq,
+			counter->softirq,
+			counter->steal,
+			counter->guest,
+			counter->guest_nice
+		);
 	}
 }
 
 void log_shaper(const char *interface, uint64_t rate_kbps)
 {
-	write_formatted_record(RECORD_SHAPER,
-			       "tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
-			       interface, rate_kbps);
+	write_formatted_record(
+		RECORD_SHAPER,
+		"tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
+		interface,
+		rate_kbps
+	);
 }
 
 void log_system_message(const char *format, ...)
@@ -656,9 +743,11 @@ void log_system_message(const char *format, ...)
 	va_end(arguments);
 
 	if (log_to_syslog) {
-		syslog(LOG_INFO, "INFO: %" PRIu64 ".%06" PRIu64 " %s",
+		syslog(LOG_INFO,
+		       "INFO: %" PRIu64 ".%06" PRIu64 " %s",
 		       timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		       timestamp_microseconds % MICROSECONDS_PER_SECOND, message);
+		       timestamp_microseconds % MICROSECONDS_PER_SECOND,
+		       message);
 	}
 	write_record_at(RECORD_SYSLOG, message, timestamp_microseconds);
 }
@@ -685,9 +774,12 @@ void log_message(enum log_level level, const char *format, ...)
 
 	timestamp_microseconds = log_realtime_microseconds();
 	if (send_syslog) {
-		syslog(levels[level].priority, "%s: %" PRIu64 ".%06" PRIu64 " %s",
-		       levels[level].record, timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		       timestamp_microseconds % MICROSECONDS_PER_SECOND, message);
+		syslog(levels[level].priority,
+		       "%s: %" PRIu64 ".%06" PRIu64 " %s",
+		       levels[level].record,
+		       timestamp_microseconds / MICROSECONDS_PER_SECOND,
+		       timestamp_microseconds % MICROSECONDS_PER_SECOND,
+		       message);
 	}
 	if (log_to_stdout || log_file != NULL)
 		write_record_at(levels[level].record, message, timestamp_microseconds);

@@ -49,8 +49,12 @@ int netlink_open(struct netlink *netlink, char *error, size_t error_size)
 
 	result = nl_connect(socket, NETLINK_ROUTE);
 	if (result < 0) {
-		error_set(error, error_size, "could not connect rtnetlink socket: %s",
-			  nl_geterror(result));
+		error_set(
+			error,
+			error_size,
+			"could not connect rtnetlink socket: %s",
+			nl_geterror(result)
+		);
 		nl_socket_free(socket);
 		return -1;
 	}
@@ -59,8 +63,12 @@ int netlink_open(struct netlink *netlink, char *error, size_t error_size)
 	nl_socket_disable_auto_ack(socket);
 	result = nl_socket_set_nonblocking(socket);
 	if (result < 0) {
-		error_set(error, error_size, "could not make rtnetlink socket nonblocking: %s",
-			  nl_geterror(result));
+		error_set(
+			error,
+			error_size,
+			"could not make rtnetlink socket nonblocking: %s",
+			nl_geterror(result)
+		);
 		nl_socket_free(socket);
 		return -1;
 	}
@@ -89,8 +97,13 @@ void netlink_close(struct netlink *netlink)
 	netlink->event_parse_failed = false;
 }
 
-int netlink_subscribe_qdiscs(struct netlink *netlink, qdisc_event_handler handler,
-			     void *handler_context, char *error, size_t error_size)
+int netlink_subscribe_qdiscs(
+	struct netlink *netlink,
+	qdisc_event_handler handler,
+	void *handler_context,
+	char *error,
+	size_t error_size
+)
 {
 	struct nl_sock *events;
 	int result;
@@ -111,12 +124,21 @@ int netlink_subscribe_qdiscs(struct netlink *netlink, qdisc_event_handler handle
 		netlink->event_handler = handler;
 		netlink->event_handler_context = handler_context;
 		nl_socket_disable_seq_check(events);
-		result = nl_socket_modify_cb(events, NL_CB_VALID, NL_CB_CUSTOM, handle_qdisc_event,
-					     netlink);
+		result = nl_socket_modify_cb(
+			events,
+			NL_CB_VALID,
+			NL_CB_CUSTOM,
+			handle_qdisc_event,
+			netlink
+		);
 	}
 	if (result < 0) {
-		error_set(error, error_size, "could not subscribe to qdisc events: %s",
-			  nl_geterror(result));
+		error_set(
+			error,
+			error_size,
+			"could not subscribe to qdisc events: %s",
+			nl_geterror(result)
+		);
 		nl_socket_free(events);
 		netlink->event_handler = NULL;
 		netlink->event_handler_context = NULL;
@@ -167,14 +189,22 @@ int netlink_receive_qdisc_events(struct netlink *netlink, char *error, size_t er
 	if (result == -NLE_AGAIN || result == -NLE_INTR)
 		return 0;
 	if (result < 0) {
-		return error_set(error, error_size, "could not receive qdisc event: %s",
-				 nl_geterror(result));
+		return error_set(
+			error,
+			error_size,
+			"could not receive qdisc event: %s",
+			nl_geterror(result)
+		);
 	}
 	return 0;
 }
 
-static int wait_for_response(const struct netlink *netlink, uint64_t deadline_microseconds,
-			     char *error, size_t error_size)
+static int wait_for_response(
+	const struct netlink *netlink,
+	uint64_t deadline_microseconds,
+	char *error,
+	size_t error_size
+)
 {
 	struct pollfd descriptor = { .fd = nl_socket_get_fd(netlink->socket),
 				     .events = POLLIN,
@@ -185,16 +215,21 @@ static int wait_for_response(const struct netlink *netlink, uint64_t deadline_mi
 		uint64_t now;
 
 		if (!read_clock_microseconds(CLOCK_MONOTONIC, &now)) {
-			return error_set(error, error_size,
-					 "could not read rtnetlink deadline clock: %s",
-					 strerror(errno));
+			return error_set(
+				error,
+				error_size,
+				"could not read rtnetlink deadline clock: %s",
+				strerror(errno)
+			);
 		}
 		if (now >= deadline_microseconds)
 			return error_set(error, error_size, "rtnetlink response timed out");
 		result = poll(
-			&descriptor, 1U,
+			&descriptor,
+			1U,
 			/* The remaining time is within NETLINK_RESPONSE_TIMEOUT_MILLISECONDS. */
-			(int)milliseconds_rounded_up(deadline_microseconds - now));
+			(int)milliseconds_rounded_up(deadline_microseconds - now)
+		);
 	} while (result < 0 && errno == EINTR);
 
 	if (result < 0)
@@ -202,9 +237,12 @@ static int wait_for_response(const struct netlink *netlink, uint64_t deadline_mi
 	if (result == 0)
 		return error_set(error, error_size, "rtnetlink response timed out");
 	if ((descriptor.revents & POLLIN) == 0) {
-		return error_set(error, error_size,
-				 "rtnetlink socket reported an error (revents=0x%x)",
-				 (unsigned int)descriptor.revents);
+		return error_set(
+			error,
+			error_size,
+			"rtnetlink socket reported an error (revents=0x%x)",
+			(unsigned int)descriptor.revents
+		);
 	}
 	return 0;
 }
@@ -230,8 +268,11 @@ static int handle_complete_response(struct nl_msg *message, void *context_data)
 	return NL_STOP;
 }
 
-static int handle_error_response(struct sockaddr_nl *address, struct nlmsgerr *netlink_error,
-				 void *context_data)
+static int handle_error_response(
+	struct sockaddr_nl *address,
+	struct nlmsgerr *netlink_error,
+	void *context_data
+)
 {
 	struct response_context *context = context_data;
 
@@ -241,8 +282,12 @@ static int handle_error_response(struct sockaddr_nl *address, struct nlmsgerr *n
 	return NL_STOP;
 }
 
-static int configure_response_callbacks(struct nl_sock *socket, struct response_context *context,
-					char *error, size_t error_size)
+static int configure_response_callbacks(
+	struct nl_sock *socket,
+	struct response_context *context,
+	char *error,
+	size_t error_size
+)
 {
 	static const struct {
 		enum nl_cb_type type;
@@ -254,8 +299,13 @@ static int configure_response_callbacks(struct nl_sock *socket, struct response_
 	int result = 0;
 
 	for (size_t index = 0; index < ARRAY_SIZE(handlers); ++index) {
-		result = nl_socket_modify_cb(socket, handlers[index].type, NL_CB_CUSTOM,
-					     handlers[index].handler, context);
+		result = nl_socket_modify_cb(
+			socket,
+			handlers[index].type,
+			NL_CB_CUSTOM,
+			handlers[index].handler,
+			context
+		);
 		if (result < 0)
 			break;
 	}
@@ -265,21 +315,33 @@ static int configure_response_callbacks(struct nl_sock *socket, struct response_
 		nl_cb_put(callbacks);
 	}
 	if (result < 0) {
-		return error_set(error, error_size, "could not configure rtnetlink callbacks: %s",
-				 nl_geterror(result));
+		return error_set(
+			error,
+			error_size,
+			"could not configure rtnetlink callbacks: %s",
+			nl_geterror(result)
+		);
 	}
 	return 0;
 }
 
-static int receive_response(struct netlink *netlink, struct response_context *context, char *error,
-			    size_t error_size)
+static int receive_response(
+	struct netlink *netlink,
+	struct response_context *context,
+	char *error,
+	size_t error_size
+)
 {
 	uint64_t started;
 	int result;
 
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &started)) {
-		return error_set(error, error_size, "could not read rtnetlink deadline clock: %s",
-				 strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not read rtnetlink deadline clock: %s",
+			strerror(errno)
+		);
 	}
 
 	if (configure_response_callbacks(netlink->socket, context, error, error_size) != 0)
@@ -287,10 +349,13 @@ static int receive_response(struct netlink *netlink, struct response_context *co
 
 	while (!context->complete) {
 		/* One deadline covers the entire multipart response and interruptions. */
-		if (wait_for_response(netlink,
-				      started + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS *
-							MICROSECONDS_PER_MILLISECOND,
-				      error, error_size) != 0) {
+		if (wait_for_response(
+			    netlink,
+			    started + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS *
+					      MICROSECONDS_PER_MILLISECOND,
+			    error,
+			    error_size
+		    ) != 0) {
 			return -1;
 		}
 
@@ -298,46 +363,62 @@ static int receive_response(struct netlink *netlink, struct response_context *co
 		if (context->parse_failed)
 			return error_set(error, error_size, "could not parse qdisc response");
 		if (context->kernel_error != 0) {
-			return error_set(error, error_size,
-					 context->type == RESPONSE_QDISC_DUMP
-						 ? "qdisc dump failed: %s"
-						 : "qdisc change failed: %s",
-					 strerror(-context->kernel_error));
+			return error_set(
+				error,
+				error_size,
+				context->type == RESPONSE_QDISC_DUMP ? "qdisc dump failed: %s"
+								     : "qdisc change failed: %s",
+				strerror(-context->kernel_error)
+			);
 		}
 		if (result == -NLE_AGAIN || result == -NLE_INTR)
 			continue;
 		if (result < 0) {
 			return error_set(
-				error, error_size,
+				error,
+				error_size,
 				context->type == RESPONSE_QDISC_DUMP
 					? "could not receive qdisc dump: %s"
 					: "could not receive rtnetlink acknowledgement: %s",
-				nl_geterror(result));
+				nl_geterror(result)
+			);
 		}
 	}
 
 	return 0;
 }
 
-static int send_request(struct netlink *netlink, struct nl_msg *message,
-			struct response_context *response, char *error, size_t error_size)
+static int send_request(
+	struct netlink *netlink,
+	struct nl_msg *message,
+	struct response_context *response,
+	char *error,
+	size_t error_size
+)
 {
 	int result = nl_send_auto_complete(netlink->socket, message);
 
 	/* Consume the request even when sending fails; replies own no message data. */
 	nlmsg_free(message);
 	if (result < 0) {
-		return error_set(error, error_size,
-				 response->type == RESPONSE_QDISC_DUMP
-					 ? "could not request qdisc dump: %s"
-					 : "could not send qdisc change: %s",
-				 nl_geterror(result));
+		return error_set(
+			error,
+			error_size,
+			response->type == RESPONSE_QDISC_DUMP ? "could not request qdisc dump: %s"
+							      : "could not send qdisc change: %s",
+			nl_geterror(result)
+		);
 	}
 	return receive_response(netlink, response, error, error_size);
 }
 
-int netlink_dump_qdiscs(struct netlink *netlink, netlink_message_handler handler,
-			void *handler_context, char *error, size_t error_size)
+int netlink_dump_qdiscs(
+	struct netlink *netlink,
+	netlink_message_handler handler,
+	void *handler_context,
+	char *error,
+	size_t error_size
+)
 {
 	struct tcmsg traffic_control = { .tcm_family = AF_UNSPEC };
 	struct response_context response = { .handler = handler,
@@ -354,8 +435,12 @@ int netlink_dump_qdiscs(struct netlink *netlink, netlink_message_handler handler
 		return error_set(error, error_size, "could not allocate qdisc dump request");
 	result = nlmsg_append(message, &traffic_control, sizeof(traffic_control), NLMSG_ALIGNTO);
 	if (result < 0) {
-		error_set(error, error_size, "could not construct qdisc dump request: %s",
-			  nl_geterror(result));
+		error_set(
+			error,
+			error_size,
+			"could not construct qdisc dump request: %s",
+			nl_geterror(result)
+		);
 		nlmsg_free(message);
 		return -1;
 	}
@@ -363,10 +448,18 @@ int netlink_dump_qdiscs(struct netlink *netlink, netlink_message_handler handler
 	return send_request(netlink, message, &response, error, error_size);
 }
 
-int netlink_change_qdisc_option(struct netlink *netlink, unsigned int interface_index,
-				uint32_t handle, uint32_t parent, const char *kind,
-				unsigned short option_type, const void *option_data,
-				size_t option_size, char *error, size_t error_size)
+int netlink_change_qdisc_option(
+	struct netlink *netlink,
+	unsigned int interface_index,
+	uint32_t handle,
+	uint32_t parent,
+	const char *kind,
+	unsigned short option_type,
+	const void *option_data,
+	size_t option_size,
+	char *error,
+	size_t error_size
+)
 {
 	struct tcmsg traffic_control = { .tcm_family = AF_UNSPEC,
 					 .tcm_ifindex = (int)interface_index,

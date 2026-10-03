@@ -36,7 +36,10 @@ void cpu_init(struct cpu_monitor *monitor);
 
 int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t error_size);
 
-void cpu_usage(struct cpu_monitor *monitor, const struct cpu_sample *sample,
-	       unsigned int usage[CPU_MAX_COUNT]);
+void cpu_usage(
+	struct cpu_monitor *monitor,
+	const struct cpu_sample *sample,
+	unsigned int usage[CPU_MAX_COUNT]
+);
 
 #endif

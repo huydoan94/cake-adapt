@@ -38,7 +38,9 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 		return;
 	if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
 		observation->bandwidth_bits_per_second = saturating_mul(
-			nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]), BITS_PER_BYTE);
+			nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]),
+			BITS_PER_BYTE
+		);
 		observation->has_bandwidth = true;
 	}
 	if (attributes[TCA_CAKE_ATM] != NULL)
@@ -62,7 +64,8 @@ uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
 	}
 	bits = saturating_mul(
 		saturating_add(observation->mtu_bytes, (uint64_t)observation->overhead_bytes),
-		BITS_PER_BYTE);
+		BITS_PER_BYTE
+	);
 	if (observation->atm_mode != CAKE_ATM_ATM)
 		return bits;
 	/* Whole 48-byte ATM cell payloads, each sent as a 53-byte cell. */
@@ -84,7 +87,9 @@ static void parse_cake_stats(struct nlattr *application, struct cake_observation
 	}
 	if (attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] != NULL) {
 		observation->capacity_estimate_bits_per_second = saturating_mul(
-			nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]), BITS_PER_BYTE);
+			nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]),
+			BITS_PER_BYTE
+		);
 	}
 	if (attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL) {
 		observation->memory_limit_bytes =
@@ -156,8 +161,13 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 	if (read == NULL)
 		return 0;
 
-	if (nla_parse(attributes, TCA_MAX, nlmsg_attrdata(message, sizeof(*traffic_control)),
-		      nlmsg_attrlen(message, sizeof(*traffic_control)), policy) < 0 ||
+	if (nla_parse(
+		    attributes,
+		    TCA_MAX,
+		    nlmsg_attrdata(message, sizeof(*traffic_control)),
+		    nlmsg_attrlen(message, sizeof(*traffic_control)),
+		    policy
+	    ) < 0 ||
 	    attributes[TCA_KIND] == NULL || nla_strcmp(attributes[TCA_KIND], QDISC_KIND) != 0) {
 		return 0;
 	}
@@ -172,8 +182,8 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 	return 0;
 }
 
-static int read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *error,
-			      size_t error_size)
+static int
+read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *error, size_t error_size)
 {
 	struct ifreq request = { 0 };
 	int socket_fd;
@@ -182,13 +192,22 @@ static int read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *
 		return error_set(error, error_size, "interface name is too long");
 	socket_fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (socket_fd < 0) {
-		return error_set(error, error_size, "could not open interface control socket: %s",
-				 strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not open interface control socket: %s",
+			strerror(errno)
+		);
 	}
 	memcpy(request.ifr_name, interface, strlen(interface) + 1U);
 	if (ioctl(socket_fd, SIOCGIFMTU, &request) != 0) {
-		error_set(error, error_size, "could not read interface MTU for %s: %s", interface,
-			  strerror(errno));
+		error_set(
+			error,
+			error_size,
+			"could not read interface MTU for %s: %s",
+			interface,
+			strerror(errno)
+		);
 		(void)close(socket_fd);
 		return -1;
 	}
@@ -218,8 +237,12 @@ static void finish_read(struct cake_read *read)
 	    read->previous.interface_index == observation->interface_index &&
 	    read->previous.handle == observation->handle) {
 		observation->mtu_bytes = read->previous.mtu_bytes;
-	} else if (read_interface_mtu(read->interface, &observation->mtu_bytes, read->error,
-				      sizeof(read->error)) != 0) {
+	} else if (read_interface_mtu(
+			   read->interface,
+			   &observation->mtu_bytes,
+			   read->error,
+			   sizeof(read->error)
+		   ) != 0) {
 		read->result = CAKE_READ_ERROR;
 		return;
 	}
@@ -246,9 +269,13 @@ void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t coun
 			read->interface_index = if_nametoindex(read->interface);
 		}
 		if (read->interface_index == 0U) {
-			error_set(read->error, sizeof(read->error),
-				  "could not find interface '%s': %s", read->interface,
-				  errno == 0 ? "unknown interface" : strerror(errno));
+			error_set(
+				read->error,
+				sizeof(read->error),
+				"could not find interface '%s': %s",
+				read->interface,
+				errno == 0 ? "unknown interface" : strerror(errno)
+			);
 			read->result = CAKE_READ_ERROR;
 			continue;
 		}
@@ -265,8 +292,12 @@ void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t coun
 			if (reads[index].interface_index != 0U) {
 				reads[index].observation->interface_index = 0U;
 				reads[index].result = CAKE_READ_ERROR;
-				(void)snprintf(reads[index].error, sizeof(reads[index].error), "%s",
-					       error);
+				(void)snprintf(
+					reads[index].error,
+					sizeof(reads[index].error),
+					"%s",
+					error
+				);
 			}
 		}
 		return;
@@ -276,9 +307,13 @@ void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t coun
 			finish_read(&reads[index]);
 }
 
-enum cake_read_result cake_read(struct netlink *netlink, const char *interface,
-				struct cake_observation *observation, char *error,
-				size_t error_size)
+enum cake_read_result cake_read(
+	struct netlink *netlink,
+	const char *interface,
+	struct cake_observation *observation,
+	char *error,
+	size_t error_size
+)
 {
 	struct cake_read read = { .interface = interface, .observation = observation };
 
@@ -288,23 +323,39 @@ enum cake_read_result cake_read(struct netlink *netlink, const char *interface,
 	return read.result;
 }
 
-int cake_set_bandwidth(struct netlink *netlink, const struct cake_observation *observation,
-		       uint64_t bandwidth_bits_per_second, char *error, size_t error_size)
+int cake_set_bandwidth(
+	struct netlink *netlink,
+	const struct cake_observation *observation,
+	uint64_t bandwidth_bits_per_second,
+	char *error,
+	size_t error_size
+)
 {
 	uint64_t bandwidth_bytes_per_second;
 
 	if (bandwidth_bits_per_second < 8U || bandwidth_bits_per_second % 8U != 0U) {
-		return error_set(error, error_size,
-				 "CAKE bandwidth must be a positive multiple of 8 bit/s");
+		return error_set(
+			error,
+			error_size,
+			"CAKE bandwidth must be a positive multiple of 8 bit/s"
+		);
 	}
 	if (netlink_open(netlink, error, error_size) != 0)
 		return -1;
 
 	bandwidth_bytes_per_second = bandwidth_bits_per_second / 8U;
 	if (netlink_change_qdisc_option(
-		    netlink, observation->interface_index, observation->handle, observation->parent,
-		    QDISC_KIND, TCA_CAKE_BASE_RATE64, &bandwidth_bytes_per_second,
-		    sizeof(bandwidth_bytes_per_second), error, error_size) != 0) {
+		    netlink,
+		    observation->interface_index,
+		    observation->handle,
+		    observation->parent,
+		    QDISC_KIND,
+		    TCA_CAKE_BASE_RATE64,
+		    &bandwidth_bytes_per_second,
+		    sizeof(bandwidth_bytes_per_second),
+		    error,
+		    error_size
+	    ) != 0) {
 		netlink_close_requests(netlink);
 		return -1;
 	}

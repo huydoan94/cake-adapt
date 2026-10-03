@@ -29,8 +29,13 @@ static int set_nonblocking(int descriptor, const char *name, char *error, size_t
 {
 	int flags = fcntl(descriptor, F_GETFL);
 	if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
-		return error_set(error, error_size, "could not make %s pipe nonblocking: %s", name,
-				 strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not make %s pipe nonblocking: %s",
+			name,
+			strerror(errno)
+		);
 	}
 	return 0;
 }
@@ -61,8 +66,15 @@ void stop_child(pid_t process_identifier)
 	}
 }
 
-static int spawn_child(pid_t *process_identifier, const int output_pipe[2], const char *executable,
-		       char *const arguments[], const char *name, char *error, size_t error_size)
+static int spawn_child(
+	pid_t *process_identifier,
+	const int output_pipe[2],
+	const char *executable,
+	char *const arguments[],
+	const char *name,
+	char *error,
+	size_t error_size
+)
 {
 	posix_spawn_file_actions_t actions;
 	posix_spawnattr_t attributes;
@@ -76,8 +88,13 @@ static int spawn_child(pid_t *process_identifier, const int output_pipe[2], cons
 	    (result = posix_spawn_file_actions_adddup2(&actions, output_pipe[1], STDOUT_FILENO)) !=
 		    0 ||
 	    (result = posix_spawn_file_actions_addclose(&actions, output_pipe[1])) != 0 ||
-	    (result = posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, NULL_DEVICE_PATH,
-						       O_WRONLY, 0)) != 0) {
+	    (result = posix_spawn_file_actions_addopen(
+		     &actions,
+		     STDERR_FILENO,
+		     NULL_DEVICE_PATH,
+		     O_WRONLY,
+		     0
+	     )) != 0) {
 		goto destroy_actions;
 	}
 
@@ -90,12 +107,20 @@ static int spawn_child(pid_t *process_identifier, const int output_pipe[2], cons
 	if (result == 0)
 		result = posix_spawnattr_setpgroup(&attributes, 0);
 	if (result == 0) {
-		result = posix_spawnattr_setflags(&attributes,
-						  POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETPGROUP);
+		result = posix_spawnattr_setflags(
+			&attributes,
+			POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETPGROUP
+		);
 	}
 	if (result == 0) {
-		result = posix_spawnp(process_identifier, executable, &actions, &attributes,
-				      arguments, environ);
+		result = posix_spawnp(
+			process_identifier,
+			executable,
+			&actions,
+			&attributes,
+			arguments,
+			environ
+		);
 	}
 
 	(void)posix_spawnattr_destroy(&attributes);
@@ -103,14 +128,25 @@ destroy_actions:
 	(void)posix_spawn_file_actions_destroy(&actions);
 failed:
 	if (result != 0) {
-		return error_set(error, error_size, "could not start %s: %s", name,
-				 strerror(result));
+		return error_set(
+			error,
+			error_size,
+			"could not start %s: %s",
+			name,
+			strerror(result)
+		);
 	}
 	return 0;
 }
 
-int expand_words(const char *value, bool require_word, const char *option, wordexp_t *words,
-		 char *error, size_t error_size)
+int expand_words(
+	const char *value,
+	bool require_word,
+	const char *option,
+	wordexp_t *words,
+	char *error,
+	size_t error_size
+)
 {
 	int result;
 
@@ -126,23 +162,48 @@ int expand_words(const char *value, bool require_word, const char *option, worde
 	return error_set(error, error_size, "could not parse %s", option);
 }
 
-int pinger_command_init(struct pinger_command *command, const char *prefix, const char *extra,
-			size_t fixed, const char *name, char *error, size_t error_size)
+int pinger_command_init(
+	struct pinger_command *command,
+	const char *prefix,
+	const char *extra,
+	size_t fixed,
+	const char *name,
+	char *error,
+	size_t error_size
+)
 {
 	size_t index;
 
 	*command = (struct pinger_command){ 0 };
-	if (expand_words(extra, false, OPTION_PING_EXTRA_ARGS, &command->extra, error,
-			 error_size) != 0 ||
-	    expand_words(prefix, true, OPTION_PING_PREFIX_STRING, &command->prefix, error,
-			 error_size) != 0)
+	if (expand_words(
+		    extra,
+		    false,
+		    OPTION_PING_EXTRA_ARGS,
+		    &command->extra,
+		    error,
+		    error_size
+	    ) != 0 ||
+	    expand_words(
+		    prefix,
+		    true,
+		    OPTION_PING_PREFIX_STRING,
+		    &command->prefix,
+		    error,
+		    error_size
+	    ) != 0)
 		goto fail;
 	/* One more for the terminating NULL. */
-	command->argv = calloc(command->prefix.we_wordc + command->extra.we_wordc + fixed + 1U,
-			       sizeof(*command->argv));
+	command->argv =
+		calloc(command->prefix.we_wordc + command->extra.we_wordc + fixed + 1U,
+		       sizeof(*command->argv));
 	if (command->argv == NULL) {
-		error_set(error, error_size, "could not allocate %s arguments: %s", name,
-			  strerror(errno));
+		error_set(
+			error,
+			error_size,
+			"could not allocate %s arguments: %s",
+			name,
+			strerror(errno)
+		);
 		goto fail;
 	}
 	for (index = 0U; index < command->prefix.we_wordc; index++)
@@ -162,34 +223,57 @@ void pinger_command_free(struct pinger_command *command)
 	*command = (struct pinger_command){ 0 };
 }
 
-int validate_targets(const char *const *targets, size_t target_count, char *error,
-		     size_t error_size)
+int validate_targets(
+	const char *const *targets,
+	size_t target_count,
+	char *error,
+	size_t error_size
+)
 {
 	size_t index;
 
 	for (index = 0U; index < target_count; index++) {
 		if (!target_is_valid(targets[index])) {
 			return error_set(
-				error, error_size,
+				error,
+				error_size,
 				"latency target '%s' is not a valid IP address or hostname",
-				targets[index] == NULL ? NULL_VALUE : targets[index]);
+				targets[index] == NULL ? NULL_VALUE : targets[index]
+			);
 		}
 	}
 	return 0;
 }
 
-int start_child(struct latency_child *child, char *const arguments[], const char *name, char *error,
-		size_t error_size)
+int start_child(
+	struct latency_child *child,
+	char *const arguments[],
+	const char *name,
+	char *error,
+	size_t error_size
+)
 {
 	int output_pipe[2];
 	pid_t process_identifier;
 
 	if (pipe2(output_pipe, O_CLOEXEC) != 0) {
-		return error_set(error, error_size, "could not create %s pipe: %s", name,
-				 strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"could not create %s pipe: %s",
+			name,
+			strerror(errno)
+		);
 	}
-	if (spawn_child(&process_identifier, output_pipe, arguments[0], arguments, name, error,
-			error_size) != 0) {
+	if (spawn_child(
+		    &process_identifier,
+		    output_pipe,
+		    arguments[0],
+		    arguments,
+		    name,
+		    error,
+		    error_size
+	    ) != 0) {
 		(void)close(output_pipe[0]);
 		(void)close(output_pipe[1]);
 		return -1;
@@ -241,9 +325,14 @@ int latency_check_backend(const char *pinger_method, char *error, size_t error_s
 	if (executable == NULL)
 		return error_set(error, error_size, "unknown pinger_method '%s'", pinger_method);
 	if (access(executable, X_OK) != 0) {
-		return error_set(error, error_size,
-				 "ping binary %s for pinger_method '%s' is not available: %s",
-				 executable, pinger_method, strerror(errno));
+		return error_set(
+			error,
+			error_size,
+			"ping binary %s for pinger_method '%s' is not available: %s",
+			executable,
+			pinger_method,
+			strerror(errno)
+		);
 	}
 	return 0;
 }
@@ -345,8 +434,8 @@ void latency_stop_now(struct latency *latency)
 	}
 }
 
-enum latency_line_result latency_next_line(const char *data, size_t length,
-					   char line[LATENCY_OUTPUT_SIZE], size_t *consumed)
+enum latency_line_result
+latency_next_line(const char *data, size_t length, char line[LATENCY_OUTPUT_SIZE], size_t *consumed)
 {
 	const char *newline =
 		memchr(data, '\n', length < LATENCY_OUTPUT_SIZE ? length : LATENCY_OUTPUT_SIZE);
@@ -366,16 +455,26 @@ enum latency_line_result latency_next_line(const char *data, size_t length,
 	return LATENCY_LINE_READY;
 }
 
-enum latency_probe_result latency_handle_line(const struct latency *latency, size_t child_index,
-					      const char *line, struct latency_sample *sample,
-					      char *error, size_t error_size)
+enum latency_probe_result latency_handle_line(
+	const struct latency *latency,
+	size_t child_index,
+	const char *line,
+	struct latency_sample *sample,
+	char *error,
+	size_t error_size
+)
 {
-	return latency->ops->parse(&latency->children[child_index], line, sample, error,
-				   error_size);
+	return latency->ops
+		->parse(&latency->children[child_index], line, sample, error, error_size);
 }
 
-enum latency_probe_result latency_child_exited(struct latency *latency, size_t child_index,
-					       int status, char *error, size_t error_size)
+enum latency_probe_result latency_child_exited(
+	struct latency *latency,
+	size_t child_index,
+	int status,
+	char *error,
+	size_t error_size
+)
 {
 	struct latency_child *child = &latency->children[child_index];
 	const char *name = latency->ops->name;

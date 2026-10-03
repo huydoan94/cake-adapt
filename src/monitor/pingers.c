@@ -56,17 +56,31 @@ static bool ensure_latency_open(struct monitor *monitor)
 
 		first_start_microseconds = timestamp_microseconds +
 					   config->reflector_ping_interval_microseconds - remainder;
-		result = latency_open_irtt(&monitor->pingers.latency, targets, target_count,
-					   config->reflector_ping_interval_microseconds,
-					   config->irtt_session_duration_minutes,
-					   config->ping_extra_args, config->ping_prefix_string,
-					   first_start_microseconds, error, sizeof(error));
+		result = latency_open_irtt(
+			&monitor->pingers.latency,
+			targets,
+			target_count,
+			config->reflector_ping_interval_microseconds,
+			config->irtt_session_duration_minutes,
+			config->ping_extra_args,
+			config->ping_prefix_string,
+			first_start_microseconds,
+			error,
+			sizeof(error)
+		);
 	} else {
-		result = latency_open(&monitor->pingers.latency, config->interface, targets,
-				      target_count, config->reflector_ping_interval_microseconds,
-				      config->ping_extra_args, config->ping_prefix_string,
-				      strcmp(config->pinger_method, PINGER_METHOD_FPING_TS) == 0,
-				      error, sizeof(error));
+		result = latency_open(
+			&monitor->pingers.latency,
+			config->interface,
+			targets,
+			target_count,
+			config->reflector_ping_interval_microseconds,
+			config->ping_extra_args,
+			config->ping_prefix_string,
+			strcmp(config->pinger_method, PINGER_METHOD_FPING_TS) == 0,
+			error,
+			sizeof(error)
+		);
 	}
 	if (result != 0) {
 		report_latency_degraded(monitor, error);
@@ -76,11 +90,20 @@ static bool ensure_latency_open(struct monitor *monitor)
 	level = monitor->pingers.observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
 	outcome = monitor->pingers.observation_failed ? "recovered" : "initialized";
 	if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0) {
-		log_message(level, "latency observation %s: targets=%zu pinger=irtt", outcome,
-			    target_count);
+		log_message(
+			level,
+			"latency observation %s: targets=%zu pinger=irtt",
+			outcome,
+			target_count
+		);
 	} else {
-		log_message(level, "latency observation %s: targets=%zu interface=%s", outcome,
-			    target_count, config->interface);
+		log_message(
+			level,
+			"latency observation %s: targets=%zu interface=%s",
+			outcome,
+			target_count,
+			config->interface
+		);
 	}
 	monitor->pingers.observation_failed = false;
 	monitor->pingers.next_attempt_microseconds = 0U;
@@ -99,7 +122,13 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 	uint64_t processing_monotonic_microseconds;
 	uint64_t response_monotonic_microseconds;
 	enum latency_probe_result result = latency_handle_line(
-		&monitor->pingers.latency, child_index, line, &sample, error, sizeof(error));
+		&monitor->pingers.latency,
+		child_index,
+		line,
+		&sample,
+		error,
+		sizeof(error)
+	);
 	size_t slot;
 
 	if (result == LATENCY_PROBE_PENDING || result == LATENCY_PROBE_TIMEOUT)
@@ -119,9 +148,11 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 	if (!read_clock_microseconds(CLOCK_REALTIME, &processing_realtime_microseconds) ||
 	    !read_clock_microseconds(CLOCK_MONOTONIC, &processing_monotonic_microseconds)) {
 		if (!monitor->pingers.response_clock_failed) {
-			log_message(LOG_LEVEL_WARNING,
-				    "latency observation degraded: response clock failed: %s",
-				    strerror(errno));
+			log_message(
+				LOG_LEVEL_WARNING,
+				"latency observation degraded: response clock failed: %s",
+				strerror(errno)
+			);
 		}
 		monitor->pingers.response_clock_failed = true;
 		return true;
@@ -130,15 +161,28 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
 		monitor->pingers.response_clock_failed = false;
 	}
-	response_timestamp(processing_realtime_microseconds, processing_monotonic_microseconds,
-			   sample.timestamp_microseconds, &response_monotonic_microseconds, &stale);
-	reflectors_record(monitor, slot, &sample, control_low_load(monitor),
-			  response_monotonic_microseconds, &observation);
+	response_timestamp(
+		processing_realtime_microseconds,
+		processing_monotonic_microseconds,
+		sample.timestamp_microseconds,
+		&response_monotonic_microseconds,
+		&stale
+	);
+	reflectors_record(
+		monitor,
+		slot,
+		&sample,
+		control_low_load(monitor),
+		response_monotonic_microseconds,
+		&observation
+	);
 	monitor->pingers.last_response_microseconds = response_monotonic_microseconds;
 	if (stale) {
-		log_message(LOG_LEVEL_DEBUG,
-			    "processed response from [%s] that is > 500ms old. Skipping.",
-			    sample.target);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"processed response from [%s] that is > 500ms old. Skipping.",
+			sample.target
+		);
 		return true;
 	}
 
@@ -181,8 +225,9 @@ void pingers_close(struct monitor *monitor)
 	latency_close(&monitor->pingers.latency);
 	/* uloop reaps the children; escalate once if SIGTERM is ignored. */
 	if (latency_stopping(&monitor->pingers.latency) && !monitor->pingers.stop_timer.pending)
-		(void)uloop_timeout_set(&monitor->pingers.stop_timer,
-					CHILD_STOP_TIMEOUT_MILLISECONDS);
+		(
+			void
+		)uloop_timeout_set(&monitor->pingers.stop_timer, CHILD_STOP_TIMEOUT_MILLISECONDS);
 }
 
 /* The event loop has stopped, so pingers are stopped and reaped synchronously. */
@@ -205,8 +250,12 @@ static void handle_pinger_stop_timeout(struct uloop_timeout *timer)
 	struct monitor *monitor =
 		__extension__ container_of(timer, struct monitor, pingers.stop_timer);
 
-	log_message(LOG_LEVEL_WARNING, "%s did not stop within %d ms of SIGTERM; sending SIGKILL",
-		    monitor->config->pinger_method, CHILD_STOP_TIMEOUT_MILLISECONDS);
+	log_message(
+		LOG_LEVEL_WARNING,
+		"%s did not stop within %d ms of SIGTERM; sending SIGKILL",
+		monitor->config->pinger_method,
+		CHILD_STOP_TIMEOUT_MILLISECONDS
+	);
 	latency_kill_stopping(&monitor->pingers.latency);
 }
 
@@ -251,8 +300,12 @@ static void handle_pinger_output(struct ustream *stream, int bytes)
 		if (result == LATENCY_LINE_INCOMPLETE)
 			return;
 		if (result == LATENCY_LINE_TOO_LONG) {
-			(void)snprintf(error, sizeof(error), "%s output line is too long",
-				       monitor->config->pinger_method);
+			(void)snprintf(
+				error,
+				sizeof(error),
+				"%s output line is too long",
+				monitor->config->pinger_method
+			);
 			report_latency_degraded(monitor, error);
 			break;
 		}
@@ -297,8 +350,12 @@ static void handle_pinger_exit(struct uloop_process *process, int status)
 		}
 		return;
 	case LATENCY_PROBE_RESTART:
-		log_message(LOG_LEVEL_DEBUG, "Restarting irtt pinger: pinger=%zu (%s)",
-			    watch->child_index, error);
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"Restarting irtt pinger: pinger=%zu (%s)",
+			watch->child_index,
+			error
+		);
 		(void)schedule_irtt_child_start(monitor);
 		return;
 	default:
@@ -329,8 +386,12 @@ static bool watch_started_latency_children(struct monitor *monitor)
 		if (!watch->output.fd.registered) {
 			char error[ERROR_SIZE];
 
-			(void)snprintf(error, sizeof(error), "could not monitor %s output",
-				       monitor->config->pinger_method);
+			(void)snprintf(
+				error,
+				sizeof(error),
+				"could not monitor %s output",
+				monitor->config->pinger_method
+			);
 			report_latency_degraded(monitor, error);
 			pingers_close(monitor);
 			return false;
@@ -352,14 +413,19 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 		return true;
 	}
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		(void)snprintf(error, sizeof(error), "IRTT start clock failed: %s",
-			       strerror(errno));
+		(
+			void
+		)snprintf(error, sizeof(error), "IRTT start clock failed: %s", strerror(errno));
 		report_latency_degraded(monitor, error);
 		defer_latency_retry(monitor);
 		return false;
 	}
-	if (latency_start_irtt_children(&monitor->pingers.latency, timestamp_microseconds, error,
-					sizeof(error)) != 0) {
+	if (latency_start_irtt_children(
+		    &monitor->pingers.latency,
+		    timestamp_microseconds,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
 		report_latency_degraded(monitor, error);
 		defer_latency_retry(monitor);
 		return false;
@@ -377,8 +443,12 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 	if (delay_milliseconds > (uint64_t)INT_MAX)
 		delay_milliseconds = (uint64_t)INT_MAX;
 	if (uloop_timeout_set(&monitor->pingers.start_timer, (int)delay_milliseconds) != 0) {
-		(void)snprintf(error, sizeof(error), "could not schedule IRTT start: %s",
-			       strerror(errno));
+		(void)snprintf(
+			error,
+			sizeof(error),
+			"could not schedule IRTT start: %s",
+			strerror(errno)
+		);
 		report_latency_degraded(monitor, error);
 		defer_latency_retry(monitor);
 		return false;

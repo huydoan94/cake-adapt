@@ -17,10 +17,13 @@
 
 static void print_usage(const char *program_name)
 {
-	(void)fprintf(stderr,
-		      "Usage: %s [-f] [-V] [-C UCI_CONFIG_DIRECTORY] [-S UCI_SECTION]\n"
-		      "       %s -L\n",
-		      program_name, program_name);
+	(void)fprintf(
+		stderr,
+		"Usage: %s [-f] [-V] [-C UCI_CONFIG_DIRECTORY] [-S UCI_SECTION]\n"
+		"       %s -L\n",
+		program_name,
+		program_name
+	);
 }
 
 struct options {
@@ -82,8 +85,12 @@ static int list_config_options(void)
 	return 0;
 }
 
-static int open_log_file(const struct config *config, const char *section_name, char *log_path,
-			 size_t log_path_size)
+static int open_log_file(
+	const struct config *config,
+	const char *section_name,
+	char *log_path,
+	size_t log_path_size
+)
 {
 	const char *directory = config->log_file_path_override[0] != '\0'
 					? config->log_file_path_override
@@ -91,21 +98,39 @@ static int open_log_file(const struct config *config, const char *section_name, 
 	int length;
 
 	if (strcmp(section_name, DEFAULT_SECTION) == 0)
-		length = snprintf(log_path, log_path_size, "%s/%s" LOG_EXTENSION, directory,
-				  DEFAULT_LOG_FILE_BASE);
+		length = snprintf(
+			log_path,
+			log_path_size,
+			"%s/%s" LOG_EXTENSION,
+			directory,
+			DEFAULT_LOG_FILE_BASE
+		);
 	else
-		length = snprintf(log_path, log_path_size, "%s/%s.%s" LOG_EXTENSION, directory,
-				  DEFAULT_LOG_FILE_BASE, section_name);
+		length = snprintf(
+			log_path,
+			log_path_size,
+			"%s/%s.%s" LOG_EXTENSION,
+			directory,
+			DEFAULT_LOG_FILE_BASE,
+			section_name
+		);
 	if (length < 0 || (size_t)length >= log_path_size) {
 		log_message(LOG_LEVEL_ERROR, "log file path is too long");
 		return -1;
 	}
-	if (config->log_to_file && log_set_file(log_path, config->log_file_max_time_minutes,
-						config->log_file_max_size_kilobytes,
-						config->log_file_buffer_timeout_microseconds,
-						config->log_file_export_compress) != 0) {
-		log_message(LOG_LEVEL_ERROR, "could not open log file '%s': %s", log_path,
-			    strerror(errno));
+	if (config->log_to_file && log_set_file(
+					   log_path,
+					   config->log_file_max_time_minutes,
+					   config->log_file_max_size_kilobytes,
+					   config->log_file_buffer_timeout_microseconds,
+					   config->log_file_export_compress
+				   ) != 0) {
+		log_message(
+			LOG_LEVEL_ERROR,
+			"could not open log file '%s': %s",
+			log_path,
+			strerror(errno)
+		);
 		return -1;
 	}
 	return 0;
@@ -114,48 +139,70 @@ static int open_log_file(const struct config *config, const char *section_name, 
 static void log_configuration(const struct config *config, const char *log_path)
 {
 	if (config->config_file[0] != '\0')
-		log_message(LOG_LEVEL_NOTICE, "loaded configuration overrides from '%s'",
-			    config->config_file);
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"loaded configuration overrides from '%s'",
+			config->config_file
+		);
 
-	log_print_headers(config->output_processing_stats, config->output_load_stats,
-			  config->output_reflector_stats, config->output_summary_stats);
+	log_print_headers(
+		config->output_processing_stats,
+		config->output_load_stats,
+		config->output_reflector_stats,
+		config->output_summary_stats
+	);
 	if (config->output_processing_stats && config->tcp_delay_attribution)
 		log_print_tcp_queue_header();
-	log_message(LOG_LEVEL_DEBUG, "Local list of reflectors contains %" PRIu64 " entries.",
-		    config->reflector_count);
-	log_message(LOG_LEVEL_INFO,
-		    "configuration loaded: upload_interface=%s download_interface=%s"
-		    " reflectors=%" PRIu64 " active_pingers=%" PRIu64
-		    " reflector_ping_interval=%" PRIu64 " us"
-		    " traffic_monitor_interval=%" PRIu64 " us"
-		    " debug=%u log_file=%s",
-		    config->interface, config->ingress_interface, config->reflector_count,
-		    config->no_pingers, config->reflector_ping_interval_microseconds,
-		    config->monitor_achieved_rates_interval_microseconds, config->debug ? 1U : 0U,
-		    config->log_to_file ? log_path : STATUS_DISABLED);
+	log_message(
+		LOG_LEVEL_DEBUG,
+		"Local list of reflectors contains %" PRIu64 " entries.",
+		config->reflector_count
+	);
+	log_message(
+		LOG_LEVEL_INFO,
+		"configuration loaded: upload_interface=%s download_interface=%s"
+		" reflectors=%" PRIu64 " active_pingers=%" PRIu64
+		" reflector_ping_interval=%" PRIu64 " us"
+		" traffic_monitor_interval=%" PRIu64 " us"
+		" debug=%u log_file=%s",
+		config->interface,
+		config->ingress_interface,
+		config->reflector_count,
+		config->no_pingers,
+		config->reflector_ping_interval_microseconds,
+		config->monitor_achieved_rates_interval_microseconds,
+		config->debug ? 1U : 0U,
+		config->log_to_file ? log_path : STATUS_DISABLED
+	);
 	if (config->adjust_download)
-		log_message(LOG_LEVEL_INFO,
-			    "download adjustment configured: minimum=%" PRIu64
-			    " bit/s base=%" PRIu64 " bit/s maximum=%" PRIu64 " bit/s",
-			    config->minimum_download_rate_bits_per_second,
-			    config->base_download_rate_bits_per_second,
-			    config->maximum_download_rate_bits_per_second);
+		log_message(
+			LOG_LEVEL_INFO,
+			"download adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
+			" bit/s maximum=%" PRIu64 " bit/s",
+			config->minimum_download_rate_bits_per_second,
+			config->base_download_rate_bits_per_second,
+			config->maximum_download_rate_bits_per_second
+		);
 	if (config->adjust_upload)
-		log_message(LOG_LEVEL_INFO,
-			    "upload adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
-			    " bit/s maximum=%" PRIu64 " bit/s",
-			    config->minimum_upload_rate_bits_per_second,
-			    config->base_upload_rate_bits_per_second,
-			    config->maximum_upload_rate_bits_per_second);
+		log_message(
+			LOG_LEVEL_INFO,
+			"upload adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
+			" bit/s maximum=%" PRIu64 " bit/s",
+			config->minimum_upload_rate_bits_per_second,
+			config->base_upload_rate_bits_per_second,
+			config->maximum_upload_rate_bits_per_second
+		);
 }
 
 static void log_control_mode(const struct config *config)
 {
 	if (config->adjust_download || config->adjust_upload)
-		log_message(LOG_LEVEL_NOTICE,
-			    "started with CAKE bandwidth control: download=%s upload=%s",
-			    config->adjust_download ? STATUS_ENABLED : STATUS_DISABLED,
-			    config->adjust_upload ? STATUS_ENABLED : STATUS_DISABLED);
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"started with CAKE bandwidth control: download=%s upload=%s",
+			config->adjust_download ? STATUS_ENABLED : STATUS_DISABLED,
+			config->adjust_upload ? STATUS_ENABLED : STATUS_DISABLED
+		);
 	else
 		log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
 }
@@ -179,8 +226,13 @@ int main(int argc, char **argv)
 	log_init(PROGRAM_NAME, options.foreground);
 
 	ret = 1;
-	if (config_load(&config, options.config_directory, options.section_name, error,
-			sizeof(error)) != 0) {
+	if (config_load(
+		    &config,
+		    options.config_directory,
+		    options.section_name,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
 		log_message(LOG_LEVEL_ERROR, "configuration error: %s", error);
 		goto out;
 	}
@@ -201,21 +253,33 @@ int main(int argc, char **argv)
 		goto out;
 	}
 	if (config.interface_overridden)
-		log_message(LOG_LEVEL_WARNING,
-			    "option 'interface' was overridden by ul_if='%s' and dl_if='%s'",
-			    config.ul_if, config.dl_if);
+		log_message(
+			LOG_LEVEL_WARNING,
+			"option 'interface' was overridden by ul_if='%s' and dl_if='%s'",
+			config.ul_if,
+			config.dl_if
+		);
 
 	ret = 1;
 	if (open_log_file(&config, options.section_name, log_path, sizeof(log_path)) != 0)
 		goto out;
 	log_configuration(&config, log_path);
 
-	log_system_message("Starting cake-adapt %s with PID: %ld, config: %s, section: %s",
-			   PROGRAM_VERSION, (long)getpid(), active_config, options.section_name);
+	log_system_message(
+		"Starting cake-adapt %s with PID: %ld, config: %s, section: %s",
+		PROGRAM_VERSION,
+		(long)getpid(),
+		active_config,
+		options.section_name
+	);
 	log_control_mode(&config);
 	ret = monitor_run(&config) == 0 ? 0 : 1;
-	log_system_message("Stopped cake-adapt with PID: %ld, config: %s, section: %s",
-			   (long)getpid(), active_config, options.section_name);
+	log_system_message(
+		"Stopped cake-adapt with PID: %ld, config: %s, section: %s",
+		(long)getpid(),
+		active_config,
+		options.section_name
+	);
 out:
 	log_close();
 	return ret;

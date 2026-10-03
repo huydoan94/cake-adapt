@@ -43,38 +43,53 @@ void control_update_compensation(struct monitor *monitor)
 	if (!links_wire_ready(monitor))
 		return;
 	controller_set_serialization_compensation(
-		controller, cake_max_wire_packet_bits(&monitor->links.download.cake),
+		controller,
+		cake_max_wire_packet_bits(&monitor->links.download.cake),
 		cake_max_wire_packet_bits(&monitor->links.upload.cake),
 		controller->download.shaper_rate_bits_per_second,
-		controller->upload.shaper_rate_bits_per_second);
+		controller->upload.shaper_rate_bits_per_second
+	);
 }
 
-static void log_line_state(const char *direction, enum controller_line_state state,
-			   const struct controller_direction_input *input)
+static void log_line_state(
+	const char *direction,
+	enum controller_line_state state,
+	const struct controller_direction_input *input
+)
 {
 	if (state == CONTROLLER_LINE_UNKNOWN) {
 		log_message(LOG_LEVEL_WARNING, "line load unavailable: direction=%s", direction);
 		return;
 	}
 
-	log_message(state == CONTROLLER_LINE_SATURATED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
-		    "line load changed: direction=%s state=%s"
-		    " traffic_rate=%" PRIu64 " bit/s"
-		    " cake_rate=%" PRIu64 " bit/s",
-		    direction, line_state_names[state], input->traffic_rate_bits_per_second,
-		    input->cake_rate_bits_per_second);
+	log_message(
+		state == CONTROLLER_LINE_SATURATED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
+		"line load changed: direction=%s state=%s"
+		" traffic_rate=%" PRIu64 " bit/s"
+		" cake_rate=%" PRIu64 " bit/s",
+		direction,
+		line_state_names[state],
+		input->traffic_rate_bits_per_second,
+		input->cake_rate_bits_per_second
+	);
 }
 
-static void log_congestion_state(const char *direction, enum controller_congestion_state state,
-				 const struct latency_observation *latency)
+static void log_congestion_state(
+	const char *direction,
+	enum controller_congestion_state state,
+	const struct latency_observation *latency
+)
 {
 	int64_t round_trip_microseconds;
 	int64_t baseline_microseconds;
 	int64_t delay_microseconds;
 
 	if (state == CONTROLLER_CONGESTION_UNKNOWN) {
-		log_message(LOG_LEVEL_WARNING, "congestion observation unavailable: direction=%s",
-			    direction);
+		log_message(
+			LOG_LEVEL_WARNING,
+			"congestion observation unavailable: direction=%s",
+			direction
+		);
 		return;
 	}
 
@@ -85,12 +100,17 @@ static void log_congestion_state(const char *direction, enum controller_congesti
 	delay_microseconds = round_trip_microseconds >= baseline_microseconds
 				     ? round_trip_microseconds - baseline_microseconds
 				     : 0;
-	log_message(state == CONTROLLER_CONGESTION_DETECTED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
-		    "congestion changed: direction=%s state=%s"
-		    " rtt=%" PRId64 " us baseline=%" PRId64 " us"
-		    " delta=%" PRId64 " us",
-		    direction, congestion_state_names[state], round_trip_microseconds,
-		    baseline_microseconds, delay_microseconds);
+	log_message(
+		state == CONTROLLER_CONGESTION_DETECTED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
+		"congestion changed: direction=%s state=%s"
+		" rtt=%" PRId64 " us baseline=%" PRId64 " us"
+		" delta=%" PRId64 " us",
+		direction,
+		congestion_state_names[state],
+		round_trip_microseconds,
+		baseline_microseconds,
+		delay_microseconds
+	);
 }
 
 static const char *const load_names[] = { [CONTROLLER_LOAD_IDLE] = STATE_IDLE,
@@ -98,19 +118,32 @@ static const char *const load_names[] = { [CONTROLLER_LOAD_IDLE] = STATE_IDLE,
 					  [CONTROLLER_LOAD_HIGH] = STATE_HIGH };
 
 /* The DATA and SUMMARY load column, such as "dl_high_bb". */
-static void load_condition(char *condition, size_t condition_size, const char *direction,
-			   enum controller_load load, enum controller_congestion_state congestion)
+static void load_condition(
+	char *condition,
+	size_t condition_size,
+	const char *direction,
+	enum controller_load load,
+	enum controller_congestion_state congestion
+)
 {
-	(void)snprintf(condition, condition_size, "%s_%s%s", direction, load_names[load],
-		       congestion == CONTROLLER_CONGESTION_DETECTED ? BUFFERBLOAT_SUFFIX
-								    : EMPTY_STRING);
+	(void)snprintf(
+		condition,
+		condition_size,
+		"%s_%s%s",
+		direction,
+		load_names[load],
+		congestion == CONTROLLER_CONGESTION_DETECTED ? BUFFERBLOAT_SUFFIX : EMPTY_STRING
+	);
 }
 
-static void log_controller_stats(const struct config *config, const struct controller *controller,
-				 const struct controller_input *input,
-				 const struct controller_output *output,
-				 const struct latency_observation *latency,
-				 const struct latency_sample *sample)
+static void log_controller_stats(
+	const struct config *config,
+	const struct controller *controller,
+	const struct controller_input *input,
+	const struct controller_output *output,
+	const struct latency_observation *latency,
+	const struct latency_sample *sample
+)
 {
 	/* Records report the serialization-compensated thresholds in effect. */
 	const struct controller_direction_config *download_effective = &controller->download.config;
@@ -124,19 +157,37 @@ static void log_controller_stats(const struct config *config, const struct contr
 
 	if (!config->output_processing_stats && !config->output_summary_stats)
 		return;
-	download_load = load_percent(input->download.traffic_rate_bits_per_second,
-				     input->download.cake_rate_bits_per_second);
-	upload_load = load_percent(input->upload.traffic_rate_bits_per_second,
-				   input->upload.cake_rate_bits_per_second);
+	download_load = load_percent(
+		input->download.traffic_rate_bits_per_second,
+		input->download.cake_rate_bits_per_second
+	);
+	upload_load = load_percent(
+		input->upload.traffic_rate_bits_per_second,
+		input->upload.cake_rate_bits_per_second
+	);
 
-	load_condition(download_condition, sizeof(download_condition), DIRECTION_DOWNLOAD_SHORT,
-		       controller_load(controller, &input->download,
-				       config->connection_active_threshold_bits_per_second),
-		       output->download.congestion);
-	load_condition(upload_condition, sizeof(upload_condition), DIRECTION_UPLOAD_SHORT,
-		       controller_load(controller, &input->upload,
-				       config->connection_active_threshold_bits_per_second),
-		       output->upload.congestion);
+	load_condition(
+		download_condition,
+		sizeof(download_condition),
+		DIRECTION_DOWNLOAD_SHORT,
+		controller_load(
+			controller,
+			&input->download,
+			config->connection_active_threshold_bits_per_second
+		),
+		output->download.congestion
+	);
+	load_condition(
+		upload_condition,
+		sizeof(upload_condition),
+		DIRECTION_UPLOAD_SHORT,
+		controller_load(
+			controller,
+			&input->upload,
+			config->connection_active_threshold_bits_per_second
+		),
+		output->upload.congestion
+	);
 
 	if (config->output_processing_stats) {
 		/*
@@ -215,9 +266,13 @@ static void log_controller_stats(const struct config *config, const struct contr
 	}
 }
 
-static void apply_bandwidth(struct netlink *netlink, struct monitor_direction *direction,
-			    uint64_t desired_rate, enum controller_rate_reason reason,
-			    bool output_cake_changes)
+static void apply_bandwidth(
+	struct netlink *netlink,
+	struct monitor_direction *direction,
+	uint64_t desired_rate,
+	enum controller_rate_reason reason,
+	bool output_cake_changes
+)
 {
 	/* Seed the readback with the known index and MTU so neither is re-queried. */
 	struct cake_observation verified = direction->cake;
@@ -229,24 +284,32 @@ static void apply_bandwidth(struct netlink *netlink, struct monitor_direction *d
 
 	if (cake_set_bandwidth(netlink, &direction->cake, desired_rate, error, sizeof(error)) !=
 	    0) {
-		log_message(LOG_LEVEL_WARNING,
-			    "CAKE bandwidth change failed: direction=%s interface=%s"
-			    " old_rate=%" PRIu64 " bit/s desired_rate=%" PRIu64
-			    " bit/s reason=%s: %s",
-			    direction->name, direction->interface,
-			    direction->cake.bandwidth_bits_per_second, desired_rate,
-			    rate_reason_names[reason], error);
+		log_message(
+			LOG_LEVEL_WARNING,
+			"CAKE bandwidth change failed: direction=%s interface=%s"
+			" old_rate=%" PRIu64 " bit/s desired_rate=%" PRIu64 " bit/s reason=%s: %s",
+			direction->name,
+			direction->interface,
+			direction->cake.bandwidth_bits_per_second,
+			desired_rate,
+			rate_reason_names[reason],
+			error
+		);
 		return;
 	}
 
 	read_result = cake_read(netlink, direction->interface, &verified, error, sizeof(error));
 	if (read_result != CAKE_READ_FOUND || !verified.has_bandwidth ||
 	    verified.bandwidth_bits_per_second != desired_rate) {
-		log_message(LOG_LEVEL_WARNING,
-			    "CAKE bandwidth verification failed: direction=%s interface=%s"
-			    " desired_rate=%" PRIu64 " bit/s result=%s",
-			    direction->name, direction->interface, desired_rate,
-			    read_result == CAKE_READ_ERROR ? error : READBACK_MISMATCH);
+		log_message(
+			LOG_LEVEL_WARNING,
+			"CAKE bandwidth verification failed: direction=%s interface=%s"
+			" desired_rate=%" PRIu64 " bit/s result=%s",
+			direction->name,
+			direction->interface,
+			desired_rate,
+			read_result == CAKE_READ_ERROR ? error : READBACK_MISMATCH
+		);
 		return;
 	}
 
@@ -277,8 +340,11 @@ bool control_low_load(const struct monitor *monitor)
 	return controller_low_load(&monitor->control.controller, &download, &upload);
 }
 
-void control_update(struct monitor *monitor, const struct latency_observation *latency,
-		    const struct latency_sample *sample)
+void control_update(
+	struct monitor *monitor,
+	const struct latency_observation *latency,
+	const struct latency_sample *sample
+)
 {
 	const struct config *config = monitor->config;
 	struct monitor_control *control = &monitor->control;
@@ -301,10 +367,16 @@ void control_update(struct monitor *monitor, const struct latency_observation *l
 		const struct controller_direction_input *input;
 		const struct controller_direction_output *output;
 		const char *short_name;
-	} directions[] = { { &links->download, &control->controller.download, &input.download,
-			     &output.download, DIRECTION_DOWNLOAD_SHORT },
-			   { &links->upload, &control->controller.upload, &input.upload,
-			     &output.upload, DIRECTION_UPLOAD_SHORT } };
+	} directions[] = { { &links->download,
+			     &control->controller.download,
+			     &input.download,
+			     &output.download,
+			     DIRECTION_DOWNLOAD_SHORT },
+			   { &links->upload,
+			     &control->controller.upload,
+			     &input.upload,
+			     &output.upload,
+			     DIRECTION_UPLOAD_SHORT } };
 
 	(void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
 	tcp_observe(monitor, input.timestamp_microseconds, &input.queue, &input.acks);
@@ -324,26 +396,36 @@ void control_update(struct monitor *monitor, const struct latency_observation *l
 				"bufferbloat attribution changed: direction=%s attributed=%s"
 				" tcp_queues=%s download_queue=%" PRId64 " us upload_queue=%" PRId64
 				" us",
-				direction->name, decision->bufferbloat_attributed ? "yes" : "no",
+				direction->name,
+				decision->bufferbloat_attributed ? "yes" : "no",
 				input.queue.valid ? "valid" : "unavailable",
-				input.queue.download_microseconds, input.queue.upload_microseconds);
+				input.queue.download_microseconds,
+				input.queue.upload_microseconds
+			);
 		}
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
 		if (!control->initial_shaper_reported &&
 		    !directions[index].controller->config.adjust && config->output_cake_changes) {
-			log_shaper(direction->interface,
-				   directions[index].controller->config.base_rate_bits_per_second /
-					   KILOBIT);
+			log_shaper(
+				direction->interface,
+				directions[index].controller->config.base_rate_bits_per_second /
+					KILOBIT
+			);
 			log_message(
 				LOG_LEVEL_DEBUG,
 				"adjust_%s_shaper_rate set to 0 in config, so skipping the corresponding tc qdisc change call.",
-				directions[index].short_name);
+				directions[index].short_name
+			);
 		}
 		/* The controller never requests changes for an observation-only link. */
 		if (decision->rate_changed) {
-			apply_bandwidth(&monitor->netlink, direction,
-					decision->rate_bits_per_second, decision->rate_reason,
-					config->output_cake_changes);
+			apply_bandwidth(
+				&monitor->netlink,
+				direction,
+				decision->rate_bits_per_second,
+				decision->rate_reason,
+				config->output_cake_changes
+			);
 		}
 	}
 	control->initial_shaper_reported = true;
@@ -358,14 +440,22 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microse
 
 	controller_set_minimum_rates(&monitor->control.controller, timestamp_microseconds);
 	if (config->adjust_download && links->download.cake_valid) {
-		apply_bandwidth(&monitor->netlink, &links->download,
-				config->minimum_download_rate_bits_per_second,
-				CONTROLLER_RATE_RECONCILE, config->output_cake_changes);
+		apply_bandwidth(
+			&monitor->netlink,
+			&links->download,
+			config->minimum_download_rate_bits_per_second,
+			CONTROLLER_RATE_RECONCILE,
+			config->output_cake_changes
+		);
 	}
 	if (config->adjust_upload && links->upload.cake_valid) {
-		apply_bandwidth(&monitor->netlink, &links->upload,
-				config->minimum_upload_rate_bits_per_second,
-				CONTROLLER_RATE_RECONCILE, config->output_cake_changes);
+		apply_bandwidth(
+			&monitor->netlink,
+			&links->upload,
+			config->minimum_upload_rate_bits_per_second,
+			CONTROLLER_RATE_RECONCILE,
+			config->output_cake_changes
+		);
 	}
 }
 
@@ -403,17 +493,29 @@ int control_start(struct monitor *monitor)
 		.bufferbloat_detection_threshold =
 			(unsigned int)config->bufferbloat_detection_threshold,
 		.rate_minimum_adjust_down_bufferbloat_per_thousand = rounded_divide(
-			config->shaper_rate_minimum_adjust_down_bufferbloat_per_million, THOUSAND),
+			config->shaper_rate_minimum_adjust_down_bufferbloat_per_million,
+			THOUSAND
+		),
 		.rate_maximum_adjust_down_bufferbloat_per_thousand = rounded_divide(
-			config->shaper_rate_maximum_adjust_down_bufferbloat_per_million, THOUSAND),
+			config->shaper_rate_maximum_adjust_down_bufferbloat_per_million,
+			THOUSAND
+		),
 		.rate_minimum_adjust_up_high_load_per_thousand = rounded_divide(
-			config->shaper_rate_minimum_adjust_up_load_high_per_million, THOUSAND),
+			config->shaper_rate_minimum_adjust_up_load_high_per_million,
+			THOUSAND
+		),
 		.rate_maximum_adjust_up_high_load_per_thousand = rounded_divide(
-			config->shaper_rate_maximum_adjust_up_load_high_per_million, THOUSAND),
+			config->shaper_rate_maximum_adjust_up_load_high_per_million,
+			THOUSAND
+		),
 		.rate_adjust_down_low_load_per_thousand = rounded_divide(
-			config->shaper_rate_adjust_down_load_low_per_million, THOUSAND),
+			config->shaper_rate_adjust_down_load_low_per_million,
+			THOUSAND
+		),
 		.rate_adjust_up_low_load_per_thousand = rounded_divide(
-			config->shaper_rate_adjust_up_load_low_per_million, THOUSAND),
+			config->shaper_rate_adjust_up_load_low_per_million,
+			THOUSAND
+		),
 		.high_load_threshold_percent =
 			rounded_divide(config->high_load_threshold_per_million, FACTOR_PER_PERCENT),
 		.bufferbloat_refractory_period_microseconds =
@@ -427,8 +529,11 @@ int control_start(struct monitor *monitor)
 	};
 
 	if (controller_init(&monitor->control.controller, &controller_config) != 0) {
-		log_message(LOG_LEVEL_ERROR, "could not initialize controller: %s",
-			    strerror(errno));
+		log_message(
+			LOG_LEVEL_ERROR,
+			"could not initialize controller: %s",
+			strerror(errno)
+		);
 		return -1;
 	}
 	return 0;

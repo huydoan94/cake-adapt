@@ -277,13 +277,28 @@ if (result < 0)
 	return -1;
 ```
 
-- parameters and arguments packed onto as few lines as fit, aligned with the
-  opening parenthesis:
+- a declaration, definition or call whose parameters or arguments do not fit
+  on one line puts each on its own line, one tab in, with the closing
+  parenthesis on its own line:
 
 ```c
-int controller_update(struct controller *controller, const struct controller_input *input,
-		      struct controller_output *output)
+int tcpdelay_capture_open(
+	struct tcpdelay_capture *capture,
+	const char *object_path,
+	const char *interface,
+	struct tcpdelay_estimator *estimator,
+	char *error,
+	size_t error_size
+)
 {
+```
+
+```c
+log_message(
+	LOG_LEVEL_WARNING,
+	"TCP measurement degraded: capture failed: %s",
+	strerror(errno)
+);
 ```
 
 - compound conditions break after the operator and align with the condition.

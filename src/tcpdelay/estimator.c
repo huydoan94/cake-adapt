@@ -11,7 +11,8 @@
 	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_MICROSECONDS * NANOSECONDS_PER_MICROSECOND))
 
 /* Standard TCP timestamp clock periods (1 ms on Linux and the BSDs). */
-static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = { UINT64_C(1000000), UINT64_C(4000000),
+static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = { UINT64_C(1000000),
+							    UINT64_C(4000000),
 							    UINT64_C(10000000),
 							    UINT64_C(100000000) };
 
@@ -88,8 +89,8 @@ static void flow_start(struct tcpdelay_flow *flow, const struct tcpdelay_sample 
 	flow->last_seen_ns = sample->arrival_ns;
 }
 
-static struct tcpdelay_flow *flow_for(struct tcpdelay_estimator *estimator,
-				      const struct tcpdelay_sample *sample)
+static struct tcpdelay_flow *
+flow_for(struct tcpdelay_estimator *estimator, const struct tcpdelay_sample *sample)
 {
 	struct tcpdelay_flow *oldest = NULL;
 	size_t index;
@@ -137,8 +138,12 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
  * delay in each direction; upload_ns is negative when the sample has no
  * departure.
  */
-static void measure(struct tcpdelay_flow *flow, size_t tick_index,
-		    const struct tcpdelay_sample *sample, int64_t *download_ns, int64_t *upload_ns)
+static void
+measure(struct tcpdelay_flow *flow,
+	size_t tick_index,
+	const struct tcpdelay_sample *sample,
+	int64_t *download_ns,
+	int64_t *upload_ns)
 {
 	int64_t elapsed_ns = (int64_t)(sample->arrival_ns - flow->first_arrival_ns);
 	int64_t remote_ns = (int64_t)(flow->ticks * standard_ticks_ns[tick_index]);
@@ -159,8 +164,11 @@ static void measure(struct tcpdelay_flow *flow, size_t tick_index,
 			(int64_t)sample->departure_ns - (int64_t)flow->first_arrival_ns;
 
 		*upload_ns = remote_ns - departed_ns;
-		*upload_ns -= floor_update(&flow->upload_floor[tick_index], *upload_ns,
-					   sample->arrival_ns);
+		*upload_ns -= floor_update(
+			&flow->upload_floor[tick_index],
+			*upload_ns,
+			sample->arrival_ns
+		);
 	}
 }
 
@@ -169,8 +177,10 @@ void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator)
 	memset(estimator, 0, sizeof(*estimator));
 }
 
-void tcpdelay_estimator_add(struct tcpdelay_estimator *estimator,
-			    const struct tcpdelay_sample *sample)
+void tcpdelay_estimator_add(
+	struct tcpdelay_estimator *estimator,
+	const struct tcpdelay_sample *sample
+)
 {
 	struct tcpdelay_flow *flow = flow_for(estimator, sample);
 	/*
@@ -203,8 +213,11 @@ void tcpdelay_estimator_add(struct tcpdelay_estimator *estimator,
 		window_add(&estimator->upload, upload_ns, sample->arrival_ns);
 }
 
-void tcpdelay_estimator_result(const struct tcpdelay_estimator *estimator, uint64_t now_ns,
-			       struct tcpdelay_estimate *estimate)
+void tcpdelay_estimator_result(
+	const struct tcpdelay_estimator *estimator,
+	uint64_t now_ns,
+	struct tcpdelay_estimate *estimate
+)
 {
 	int64_t queue_ns = 0;
 

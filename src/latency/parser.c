@@ -43,8 +43,8 @@ static int64_t half_round_trip(double round_trip_milliseconds)
 	return (int64_t)((uint32_t)(microseconds + 0.5) / 2U);
 }
 
-static bool parse_timestamp(const char *line, const char **remainder,
-			    uint64_t *timestamp_microseconds)
+static bool
+parse_timestamp(const char *line, const char **remainder, uint64_t *timestamp_microseconds)
 {
 	const char *closing_bracket;
 	const char *decimal_point;
@@ -122,8 +122,8 @@ static bool parse_icmp_timestamps(const char *cursor, struct latency_sample *sam
 	return true;
 }
 
-static enum latency_fping_line_result parse_fping_reply(const char *line, bool icmp_timestamps,
-							struct latency_sample *sample)
+static enum latency_fping_line_result
+parse_fping_reply(const char *line, bool icmp_timestamps, struct latency_sample *sample)
 {
 	const char *cursor;
 	const char *separator;
@@ -190,8 +190,8 @@ enum latency_fping_line_result parse_fping_line(const char *line, struct latency
 	return parse_fping_reply(line, false, sample);
 }
 
-enum latency_fping_line_result parse_fping_timestamp_line(const char *line,
-							  struct latency_sample *sample)
+enum latency_fping_line_result
+parse_fping_timestamp_line(const char *line, struct latency_sample *sample)
 {
 	return parse_fping_reply(line, true, sample);
 }
@@ -253,8 +253,12 @@ static bool irtt_value(const char *line, const char *name, const char **value)
 	return false;
 }
 
-bool parse_irtt_line(const char *line, const char *target, uint64_t timestamp_microseconds,
-		     struct latency_sample *sample)
+bool parse_irtt_line(
+	const char *line,
+	const char *target,
+	uint64_t timestamp_microseconds,
+	struct latency_sample *sample
+)
 {
 	const char *sequence_text;
 	const char *download_text;

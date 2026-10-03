@@ -91,8 +91,12 @@ static void test_dump_routes_each_interface(void)
 
 	for (index = 0U; index < 3U; index++) {
 		assert(messages[index] != NULL);
-		assert(nlmsg_append(messages[index], &qdiscs[index], sizeof(qdiscs[index]),
-				    NLMSG_ALIGNTO) == 0);
+		assert(nlmsg_append(
+			       messages[index],
+			       &qdiscs[index],
+			       sizeof(qdiscs[index]),
+			       NLMSG_ALIGNTO
+		       ) == 0);
 		assert(nla_put_string(messages[index], TCA_KIND, "cake") == 0);
 		assert(handle_qdisc(nlmsg_hdr(messages[index]), &context) == 0);
 		nlmsg_free(messages[index]);

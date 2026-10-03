@@ -17,8 +17,8 @@
 #include <unistd.h>
 #include <wordexp.h>
 
-static int spawn_irtt_child(struct latency *latency, size_t child_index, char *error,
-			    size_t error_size)
+static int
+spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_t error_size)
 {
 	struct latency_child *child = &latency->children[child_index];
 	struct pinger_command command;
@@ -28,15 +28,30 @@ static int spawn_irtt_child(struct latency *latency, size_t child_index, char *e
 	size_t index;
 	int ret;
 
-	if (pinger_command_init(&command, latency->ping_prefix_string, latency->ping_extra_args, 7U,
-				PINGER_METHOD_IRTT, error, error_size) != 0)
+	if (pinger_command_init(
+		    &command,
+		    latency->ping_prefix_string,
+		    latency->ping_extra_args,
+		    7U,
+		    PINGER_METHOD_IRTT,
+		    error,
+		    error_size
+	    ) != 0)
 		return -1;
 
-	(void)snprintf(interval, sizeof(interval), "%" PRIu64 ".%06" PRIu64 "s",
-		       latency->reflector_ping_interval_microseconds / SECOND,
-		       latency->reflector_ping_interval_microseconds % SECOND);
-	(void)snprintf(duration, sizeof(duration), "%" PRIu64 "m",
-		       latency->irtt_session_duration_minutes);
+	(void)snprintf(
+		interval,
+		sizeof(interval),
+		"%" PRIu64 ".%06" PRIu64 "s",
+		latency->reflector_ping_interval_microseconds / SECOND,
+		latency->reflector_ping_interval_microseconds % SECOND
+	);
+	(void)snprintf(
+		duration,
+		sizeof(duration),
+		"%" PRIu64 "m",
+		latency->irtt_session_duration_minutes
+	);
 	if (strchr(child->target, ':') == NULL)
 		(void)strcpy(endpoint, child->target);
 	else
@@ -57,11 +72,18 @@ static int spawn_irtt_child(struct latency *latency, size_t child_index, char *e
 	return ret;
 }
 
-int latency_open_irtt(struct latency *latency, const char *const *targets, size_t target_count,
-		      uint64_t reflector_ping_interval_microseconds,
-		      uint64_t session_duration_minutes, const char *extra_arguments,
-		      const char *prefix, uint64_t first_start_microseconds, char *error,
-		      size_t error_size)
+int latency_open_irtt(
+	struct latency *latency,
+	const char *const *targets,
+	size_t target_count,
+	uint64_t reflector_ping_interval_microseconds,
+	uint64_t session_duration_minutes,
+	const char *extra_arguments,
+	const char *prefix,
+	uint64_t first_start_microseconds,
+	char *error,
+	size_t error_size
+)
 {
 	wordexp_t words = { 0 };
 	uint64_t child_start_spacing_microseconds;
@@ -73,8 +95,14 @@ int latency_open_irtt(struct latency *latency, const char *const *targets, size_
 	    session_duration_minutes == 0U || extra_arguments == NULL || prefix == NULL) {
 		return error_set(error, error_size, "invalid irtt session configuration");
 	}
-	if (expand_words(extra_arguments, false, OPTION_PING_EXTRA_ARGS, &words, error,
-			 error_size) != 0) {
+	if (expand_words(
+		    extra_arguments,
+		    false,
+		    OPTION_PING_EXTRA_ARGS,
+		    &words,
+		    error,
+		    error_size
+	    ) != 0) {
 		return -1;
 	}
 	wordfree(&words);
@@ -101,8 +129,12 @@ int latency_open_irtt(struct latency *latency, const char *const *targets, size_
 	return 0;
 }
 
-int latency_start_irtt_children(struct latency *latency, uint64_t timestamp_microseconds,
-				char *error, size_t error_size)
+int latency_start_irtt_children(
+	struct latency *latency,
+	uint64_t timestamp_microseconds,
+	char *error,
+	size_t error_size
+)
 {
 	size_t index;
 
@@ -150,35 +182,51 @@ uint64_t latency_irtt_next_start_microseconds(const struct latency *latency)
 	return next;
 }
 
-static enum latency_probe_result irtt_parse(const struct latency_child *child, const char *line,
-					    struct latency_sample *sample, char *error,
-					    size_t error_size)
+static enum latency_probe_result irtt_parse(
+	const struct latency_child *child,
+	const char *line,
+	struct latency_sample *sample,
+	char *error,
+	size_t error_size
+)
 {
 	uint64_t timestamp_microseconds;
 
 	if (!parse_irtt_line(line, child->target, 0U, sample))
 		return LATENCY_PROBE_PENDING;
 	if (!read_clock_microseconds(CLOCK_REALTIME, &timestamp_microseconds)) {
-		error_set(error, error_size, "could not timestamp irtt output: %s",
-			  strerror(errno));
+		error_set(
+			error,
+			error_size,
+			"could not timestamp irtt output: %s",
+			strerror(errno)
+		);
 		return LATENCY_PROBE_ERROR;
 	}
 	sample->timestamp_microseconds = timestamp_microseconds;
-	(void)snprintf(sample->timestamp_text, sizeof(sample->timestamp_text), "%" PRIu64,
-		       timestamp_microseconds);
+	(void)snprintf(
+		sample->timestamp_text,
+		sizeof(sample->timestamp_text),
+		"%" PRIu64,
+		timestamp_microseconds
+	);
 	return LATENCY_PROBE_SUCCESS;
 }
 
 /* IRTT sessions end by design: restart, delayed after a fast exit. */
-static enum latency_probe_result irtt_exited(struct latency_child *child, char *error,
-					     size_t error_size)
+static enum latency_probe_result
+irtt_exited(struct latency_child *child, char *error, size_t error_size)
 {
 	uint64_t timestamp_microseconds;
 	uint64_t runtime_microseconds;
 
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		error_set(error, error_size, "could not schedule irtt restart: %s",
-			  strerror(errno));
+		error_set(
+			error,
+			error_size,
+			"could not schedule irtt restart: %s",
+			strerror(errno)
+		);
 		return LATENCY_PROBE_ERROR;
 	}
 	runtime_microseconds = timestamp_microseconds >= child->started_microseconds

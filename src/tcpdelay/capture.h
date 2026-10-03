@@ -27,16 +27,23 @@ struct tcpdelay_capture {
  * Loads the socket filter from object_path and attaches it to a packet socket
  * on interface. Records are only collected by tcpdelay_capture_drain().
  */
-int tcpdelay_capture_open(struct tcpdelay_capture *capture, const char *object_path,
-			  const char *interface, struct tcpdelay_estimator *estimator, char *error,
-			  size_t error_size);
+int tcpdelay_capture_open(
+	struct tcpdelay_capture *capture,
+	const char *object_path,
+	const char *interface,
+	struct tcpdelay_estimator *estimator,
+	char *error,
+	size_t error_size
+);
 
 /* Adds every pending record to the estimator; returns the count or -1. */
 int tcpdelay_capture_drain(struct tcpdelay_capture *capture);
 
 /* The filter's counters summed over all CPUs, in one map lookup. */
-int tcpdelay_capture_counters(const struct tcpdelay_capture *capture,
-			      struct tcpdelay_counters *counters);
+int tcpdelay_capture_counters(
+	const struct tcpdelay_capture *capture,
+	struct tcpdelay_counters *counters
+);
 
 /* Safe after any tcpdelay_capture_open(), successful or not, and repeatable. */
 void tcpdelay_capture_close(struct tcpdelay_capture *capture);

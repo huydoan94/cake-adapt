@@ -6,8 +6,12 @@
 /* Use real libuci inline accessors with a controlled single-option lookup. */
 static struct uci_option *lookup_option;
 
-int uci_lookup_next(struct uci_context *context, struct uci_element **element,
-		    struct uci_list *list, const char *name)
+int uci_lookup_next(
+	struct uci_context *context,
+	struct uci_element **element,
+	struct uci_list *list,
+	const char *name
+)
 {
 	(void)context;
 	(void)list;
@@ -166,9 +170,10 @@ static void test_supported_pinger_methods(void)
 	config = valid_config();
 	(void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping-ts");
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-	assert(strcmp(error,
-		      "pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '::1' is IPv6") ==
-	       0);
+	assert(strcmp(
+		       error,
+		       "pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '::1' is IPv6"
+	       ) == 0);
 	(void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
 	(void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping");
@@ -263,11 +268,23 @@ int main(void)
 	uint64_t value = 0U;
 	char error[256] = "";
 
-	assert(parse_scaled_decimal("18446744073709551615", 1U, &value, "test", error,
-				    sizeof(error)) == 0);
+	assert(parse_scaled_decimal(
+		       "18446744073709551615",
+		       1U,
+		       &value,
+		       "test",
+		       error,
+		       sizeof(error)
+	       ) == 0);
 	assert(value == UINT64_MAX);
-	assert(parse_scaled_decimal("18446744073709551616", 1U, &value, "test", error,
-				    sizeof(error)) != 0);
+	assert(parse_scaled_decimal(
+		       "18446744073709551616",
+		       1U,
+		       &value,
+		       "test",
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "too large") != NULL);
 	assert(parse_scaled_decimal("1.025", 1000U, &value, "test", error, sizeof(error)) == 0);
 	assert(value == 1025U);
@@ -276,10 +293,24 @@ int main(void)
 	assert(parse_scaled_decimal("+1", 1U, &value, "test", error, sizeof(error)) != 0);
 	assert(strstr(error, "non-negative decimal") != NULL);
 
-	assert(validate_rate_range(true, 5000000U, 20000000U, 80000000U, "download", error,
-				   sizeof(error)) == 0);
-	assert(validate_rate_range(true, 5000001U, 20000000U, 80000000U, "download", error,
-				   sizeof(error)) != 0);
+	assert(validate_rate_range(
+		       true,
+		       5000000U,
+		       20000000U,
+		       80000000U,
+		       "download",
+		       error,
+		       sizeof(error)
+	       ) == 0);
+	assert(validate_rate_range(
+		       true,
+		       5000001U,
+		       20000000U,
+		       80000000U,
+		       "download",
+		       error,
+		       sizeof(error)
+	       ) != 0);
 	assert(strstr(error, "whole kbit/s") != NULL);
 
 	test_supported_pinger_methods();

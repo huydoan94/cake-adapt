@@ -58,8 +58,12 @@ static struct controller_config adjusting_config(void)
 	return config;
 }
 
-static struct controller_input input_with_rates(uint64_t download_rate, uint64_t download_limit,
-						uint64_t upload_rate, uint64_t upload_limit)
+static struct controller_input input_with_rates(
+	uint64_t download_rate,
+	uint64_t download_limit,
+	uint64_t upload_rate,
+	uint64_t upload_limit
+)
 {
 	return (struct controller_input){
 		.download = { .valid = true,
@@ -82,8 +86,12 @@ static void set_latency_delta(struct controller_input *input, int64_t delta_micr
 	input->upload_latency.owd_delta_microseconds = delta_microseconds;
 }
 
-static void update_repeatedly(struct controller *controller, const struct controller_input *input,
-			      struct controller_output *output, unsigned int count)
+static void update_repeatedly(
+	struct controller *controller,
+	const struct controller_input *input,
+	struct controller_output *output,
+	unsigned int count
+)
 {
 	unsigned int index;
 
@@ -623,8 +631,11 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
 }
 
 /* Three 120 ms deltas: congestion detected with a 60 ms window average. */
-static void detect_congestion(struct controller *controller, struct controller_input *input,
-			      struct controller_output *output)
+static void detect_congestion(
+	struct controller *controller,
+	struct controller_input *input,
+	struct controller_output *output
+)
 {
 	set_latency_delta(input, 120000);
 	controller_update(controller, input, output);
@@ -637,9 +648,13 @@ static void detect_congestion(struct controller *controller, struct controller_i
 }
 
 /* download, upload: expected rates after bufferbloat with one shared delay. */
-static void check_queue_attribution(bool shared_delay, uint64_t download_achieved,
-				    struct controller_queue_input queue, uint64_t expected_download,
-				    uint64_t expected_upload)
+static void check_queue_attribution(
+	bool shared_delay,
+	uint64_t download_achieved,
+	struct controller_queue_input queue,
+	uint64_t expected_download,
+	uint64_t expected_upload
+)
 {
 	struct controller controller;
 	struct controller_config config = adjusting_config();
@@ -661,13 +676,21 @@ static void check_queue_attribution(bool shared_delay, uint64_t download_achieve
 	controller_close(&controller);
 }
 
-static void check_shared_delay_attribution(uint64_t download_achieved, uint64_t expected_download,
-					   uint64_t expected_upload)
+static void check_shared_delay_attribution(
+	uint64_t download_achieved,
+	uint64_t expected_download,
+	uint64_t expected_upload
+)
 {
 	const struct controller_queue_input no_queue = { .valid = false };
 
-	check_queue_attribution(true, download_achieved, no_queue, expected_download,
-				expected_upload);
+	check_queue_attribution(
+		true,
+		download_achieved,
+		no_queue,
+		expected_download,
+		expected_upload
+	);
 }
 
 static void test_shared_delay_is_attributed_by_download_delivery(void)
@@ -680,8 +703,8 @@ static void test_shared_delay_is_attributed_by_download_delivery(void)
 	check_shared_delay_attribution(2U * MEBABIT, 6U * MEBABIT, 6U * MEBABIT);
 }
 
-static struct controller_queue_input measured_queue(int64_t download_microseconds,
-						    int64_t upload_microseconds)
+static struct controller_queue_input
+measured_queue(int64_t download_microseconds, int64_t upload_microseconds)
 {
 	const struct controller_queue_input queue = { .valid = true,
 						      .download_microseconds =
@@ -697,23 +720,53 @@ static void test_measured_queues_attribute_shared_delay(void)
 	 * Download delivers fully, which alone would blame upload. Upload, with no
 	 * measured queue, also sees no delay and raises its rate under high load.
 	 */
-	check_queue_attribution(true, 8U * MEBABIT, measured_queue(40000, 0), 6U * MEBABIT,
-				8320U * 1000U);
+	check_queue_attribution(
+		true,
+		8U * MEBABIT,
+		measured_queue(40000, 0),
+		6U * MEBABIT,
+		8320U * 1000U
+	);
 	/* Download delivers less, which alone would blame download. */
-	check_queue_attribution(true, 7U * MEBABIT, measured_queue(1000, 60000), 8320U * 1000U,
-				6U * MEBABIT);
+	check_queue_attribution(
+		true,
+		7U * MEBABIT,
+		measured_queue(1000, 60000),
+		8320U * 1000U,
+		6U * MEBABIT
+	);
 	/* Both hold at least a quarter; download's smaller share cuts less. */
-	check_queue_attribution(true, 8U * MEBABIT, measured_queue(10000, 30000), 7920U * 1000U,
-				6U * MEBABIT);
+	check_queue_attribution(
+		true,
+		8U * MEBABIT,
+		measured_queue(10000, 30000),
+		7920U * 1000U,
+		6U * MEBABIT
+	);
 	/* Less than a quarter is not blamed. */
-	check_queue_attribution(true, 7U * MEBABIT, measured_queue(9000, 30000), 8U * MEBABIT,
-				6U * MEBABIT);
+	check_queue_attribution(
+		true,
+		7U * MEBABIT,
+		measured_queue(9000, 30000),
+		8U * MEBABIT,
+		6U * MEBABIT
+	);
 	/* Too little measured queue to explain the delay: delivery decides. */
-	check_queue_attribution(true, 8U * MEBABIT, measured_queue(4000, 0), 8U * MEBABIT,
-				6U * MEBABIT);
+	check_queue_attribution(
+		true,
+		8U * MEBABIT,
+		measured_queue(4000, 0),
+		8U * MEBABIT,
+		6U * MEBABIT
+	);
 	/* Separate one-way delays need no attribution. */
-	check_queue_attribution(false, 8U * MEBABIT, measured_queue(40000, 0), 6U * MEBABIT,
-				6U * MEBABIT);
+	check_queue_attribution(
+		false,
+		8U * MEBABIT,
+		measured_queue(40000, 0),
+		6U * MEBABIT,
+		6U * MEBABIT
+	);
 }
 
 static void test_measured_queues_split_round_trip_delta(void)
@@ -747,10 +800,13 @@ static void test_measured_queues_split_round_trip_delta(void)
 }
 
 /* Download after one update, with upload's shaper at 8 Mbit/s. */
-static struct controller_direction_output ack_capped_download(uint64_t share_percent,
-							      uint64_t upload_achieved,
-							      bool acks_valid, uint64_t other_rate,
-							      uint64_t ack_rate)
+static struct controller_direction_output ack_capped_download(
+	uint64_t share_percent,
+	uint64_t upload_achieved,
+	bool acks_valid,
+	uint64_t other_rate,
+	uint64_t ack_rate
+)
 {
 	struct controller controller;
 	struct controller_config config = adjusting_config();

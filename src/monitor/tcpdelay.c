@@ -15,8 +15,14 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 {
 	char error[ERROR_SIZE] = { 0 };
 
-	if (tcpdelay_capture_open(&monitor->tcp.capture, TCPDELAY_OBJECT_PATH, upload->interface,
-				  &monitor->tcp.estimator, error, sizeof(error)) != 0) {
+	if (tcpdelay_capture_open(
+		    &monitor->tcp.capture,
+		    TCPDELAY_OBJECT_PATH,
+		    upload->interface,
+		    &monitor->tcp.estimator,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
 		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: %s", error);
 		monitor->tcp.failed_index = upload->cake.interface_index;
 		return false;
@@ -45,9 +51,11 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_m
 	if (tcpdelay_capture_counters(&monitor->tcp.capture, &counters) != 0)
 		return;
 	if (counters.ring_full > monitor->tcp.dropped_records) {
-		log_message(LOG_LEVEL_WARNING,
-			    "TCP delay records dropped: %" PRIu64 " since the last check",
-			    (uint64_t)(counters.ring_full - monitor->tcp.dropped_records));
+		log_message(
+			LOG_LEVEL_WARNING,
+			"TCP delay records dropped: %" PRIu64 " since the last check",
+			(uint64_t)(counters.ring_full - monitor->tcp.dropped_records)
+		);
 		monitor->tcp.dropped_records = counters.ring_full;
 	}
 }
@@ -64,8 +72,11 @@ static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microsecon
 	}
 	if (monitor->tcp.open &&
 	    monitor->tcp.capture.interface_index != upload->cake.interface_index) {
-		log_message(LOG_LEVEL_INFO, "TCP capture follows recreated interface=%s",
-			    upload->interface);
+		log_message(
+			LOG_LEVEL_INFO,
+			"TCP capture follows recreated interface=%s",
+			upload->interface
+		);
 		tcp_close(monitor);
 	}
 	if (!monitor->tcp.open && (monitor->tcp.failed_index == upload->cake.interface_index ||
@@ -74,8 +85,11 @@ static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microsecon
 	}
 	/* Records wait in the ring buffer until drained, even without attribution. */
 	if (tcpdelay_capture_drain(&monitor->tcp.capture) < 0) {
-		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: capture failed: %s",
-			    strerror(errno));
+		log_message(
+			LOG_LEVEL_WARNING,
+			"TCP measurement degraded: capture failed: %s",
+			strerror(errno)
+		);
 		tcp_close(monitor);
 		monitor->tcp.failed_index = upload->cake.interface_index;
 		return false;
@@ -84,14 +98,20 @@ static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microsecon
 	return true;
 }
 
-static void measure_queues(struct monitor *monitor, uint64_t timestamp_microseconds,
-			   struct controller_queue_input *queue)
+static void measure_queues(
+	struct monitor *monitor,
+	uint64_t timestamp_microseconds,
+	struct controller_queue_input *queue
+)
 {
 	struct tcpdelay_estimate estimate;
 
 	/* The filter timestamps with CLOCK_MONOTONIC, like the monitor. */
-	tcpdelay_estimator_result(&monitor->tcp.estimator,
-				  timestamp_microseconds * NANOSECONDS_PER_MICROSECOND, &estimate);
+	tcpdelay_estimator_result(
+		&monitor->tcp.estimator,
+		timestamp_microseconds * NANOSECONDS_PER_MICROSECOND,
+		&estimate
+	);
 	if (monitor->config->output_processing_stats) {
 		const struct log_tcp_queue_record record = {
 			.download_valid = estimate.download_valid,
@@ -108,8 +128,11 @@ static void measure_queues(struct monitor *monitor, uint64_t timestamp_microseco
 }
 
 /* Pure-ACK and total upload rates from the filter's byte counters, over >= 500 ms. */
-static void measure_ack_rate(struct monitor *monitor, uint64_t timestamp_microseconds,
-			     struct controller_ack_input *acks)
+static void measure_ack_rate(
+	struct monitor *monitor,
+	uint64_t timestamp_microseconds,
+	struct controller_ack_input *acks
+)
 {
 	struct tcpdelay_counters counters;
 	uint64_t elapsed;
@@ -143,8 +166,12 @@ static void measure_ack_rate(struct monitor *monitor, uint64_t timestamp_microse
  * controller runs. Records are submitted without wakeups and simply wait in
  * the ring buffer between latency samples.
  */
-void tcp_observe(struct monitor *monitor, uint64_t timestamp_microseconds,
-		 struct controller_queue_input *queue, struct controller_ack_input *acks)
+void tcp_observe(
+	struct monitor *monitor,
+	uint64_t timestamp_microseconds,
+	struct controller_queue_input *queue,
+	struct controller_ack_input *acks
+)
 {
 	const struct config *config = monitor->config;
 

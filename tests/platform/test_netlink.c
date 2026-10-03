@@ -112,8 +112,9 @@ static void test_request(enum response_type type, bool fail_send)
 	       (fail_send ? -1 : 0));
 	assert(polls == (fail_send ? 0U : 1U));
 	if (fail_send) {
-		assert(strstr(error, type == RESPONSE_QDISC_DUMP ? "request qdisc dump"
-								 : "send qdisc change") != NULL);
+		assert(strstr(error,
+			      type == RESPONSE_QDISC_DUMP ? "request qdisc dump"
+							  : "send qdisc change") != NULL);
 	}
 	netlink_close(&netlink);
 }

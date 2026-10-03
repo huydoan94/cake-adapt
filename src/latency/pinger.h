@@ -13,12 +13,19 @@
 struct pinger_ops {
 	/* Names the pinger in exit diagnostics. */
 	const char *name;
-	enum latency_probe_result (*parse)(const struct latency_child *child, const char *line,
-					   struct latency_sample *sample, char *error,
-					   size_t error_size);
+	enum latency_probe_result (*parse)(
+		const struct latency_child *child,
+		const char *line,
+		struct latency_sample *sample,
+		char *error,
+		size_t error_size
+	);
 	/* After an unexpected exit, which error already describes. */
-	enum latency_probe_result (*exited)(struct latency_child *child, char *error,
-					    size_t error_size);
+	enum latency_probe_result (*exited)(
+		struct latency_child *child,
+		char *error,
+		size_t error_size
+	);
 };
 
 extern const struct pinger_ops fping_ops;
@@ -29,8 +36,14 @@ extern const struct pinger_ops irtt_ops;
 void stop_child(pid_t process_identifier);
 
 /* Frees and clears words on failure; an empty value expands to no words. */
-int expand_words(const char *value, bool require_word, const char *option, wordexp_t *words,
-		 char *error, size_t error_size);
+int expand_words(
+	const char *value,
+	bool require_word,
+	const char *option,
+	wordexp_t *words,
+	char *error,
+	size_t error_size
+);
 
 /* A pinger's argument vector: the prefix words, then what the backend adds. */
 struct pinger_command {
@@ -44,8 +57,15 @@ struct pinger_command {
  * Expands the prefix and extra-argument options and allocates room for their
  * words plus fixed more arguments; argv already starts with the prefix.
  */
-int pinger_command_init(struct pinger_command *command, const char *prefix, const char *extra,
-			size_t fixed, const char *name, char *error, size_t error_size);
+int pinger_command_init(
+	struct pinger_command *command,
+	const char *prefix,
+	const char *extra,
+	size_t fixed,
+	const char *name,
+	char *error,
+	size_t error_size
+);
 
 static inline void pinger_command_add(struct pinger_command *command, const char *argument)
 {
@@ -54,14 +74,23 @@ static inline void pinger_command_add(struct pinger_command *command, const char
 
 void pinger_command_free(struct pinger_command *command);
 
-int validate_targets(const char *const *targets, size_t target_count, char *error,
-		     size_t error_size);
+int validate_targets(
+	const char *const *targets,
+	size_t target_count,
+	char *error,
+	size_t error_size
+);
 
 /*
  * Starts arguments[0] in its own process group with stdout on a nonblocking
  * pipe owned by child and stderr on /dev/null.
  */
-int start_child(struct latency_child *child, char *const arguments[], const char *name, char *error,
-		size_t error_size);
+int start_child(
+	struct latency_child *child,
+	char *const arguments[],
+	const char *name,
+	char *error,
+	size_t error_size
+);
 
 #endif

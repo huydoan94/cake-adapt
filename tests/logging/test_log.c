@@ -441,8 +441,9 @@ static void test_cake_autorate_headers_and_record_format(void)
 	assert(strstr(contents, "; 11; 21; 31; 41; -51; -61; dl_idle; ul_low; 71; 81\n") != NULL);
 	assert(strstr(contents, "; tc qdisc change root dev eth1 cake bandwidth 28000Kbit\n") !=
 	       NULL);
-	assert(strstr(contents, "; 1.0.0.1; -100; -110; 10; 20000; -5; 7; 12; 10000;"
-				" -6; 8; 14; 10000\n") != NULL);
+	assert(strstr(contents,
+		      "; 1.0.0.1; -100; -110; 10; 20000; -5; 7; 12; 10000;"
+		      " -6; 8; 14; 10000\n") != NULL);
 	assert(strstr(contents, "SYSLOG; 20") != NULL);
 	assert(strstr(contents, "; Started test process\n") != NULL);
 	assert(unlink(path) == 0);
@@ -478,12 +479,14 @@ static void test_cpu_schema_matches_cake_autorate(void)
 	log_cpu_raw(&sample);
 	log_close();
 	read_log(path, contents, sizeof(contents));
-	assert(strstr(contents,
-		      "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_USAGE; CPU0_USAGE\n") !=
-	       NULL);
-	assert(strstr(contents,
-		      "CPU_RAW_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_ID; USER; NICE; SYSTEM; IDLE; IOWAIT; IRQ; SIRQ; STEAL; GUEST; GUEST_NICE\n") !=
-	       NULL);
+	assert(strstr(
+		       contents,
+		       "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_USAGE; CPU0_USAGE\n"
+	       ) != NULL);
+	assert(strstr(
+		       contents,
+		       "CPU_RAW_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_ID; USER; NICE; SYSTEM; IDLE; IOWAIT; IRQ; SIRQ; STEAL; GUEST; GUEST_NICE\n"
+	       ) != NULL);
 	assert_record_delimiter_count(strstr(contents, "\nCPU; ") + 1, 5U);
 	assert_record_delimiter_count(strstr(contents, "\nCPU_RAW; ") + 1, 14U);
 	assert(strstr(contents, "; 1.234567; 40; 50\n") != NULL);
@@ -688,13 +691,21 @@ static void test_local_time_is_converted_once_per_second(void)
 
 	read_log(path, contents, sizeof(contents));
 	assert(localtime_r(&seconds, &local_time) != NULL);
-	assert(strftime(expected, sizeof(expected),
-			"INFO; %Y-%m-%d-%H:%M:%S; 3000.999999; same second", &local_time) > 0U);
+	assert(strftime(
+		       expected,
+		       sizeof(expected),
+		       "INFO; %Y-%m-%d-%H:%M:%S; 3000.999999; same second",
+		       &local_time
+	       ) > 0U);
 	assert(strstr(contents, expected) != NULL);
 	seconds++;
 	assert(localtime_r(&seconds, &local_time) != NULL);
-	assert(strftime(expected, sizeof(expected),
-			"INFO; %Y-%m-%d-%H:%M:%S; 3001.000000; next second", &local_time) > 0U);
+	assert(strftime(
+		       expected,
+		       sizeof(expected),
+		       "INFO; %Y-%m-%d-%H:%M:%S; 3001.000000; next second",
+		       &local_time
+	       ) > 0U);
 	assert(strstr(contents, expected) != NULL);
 	log_close();
 	use_mock_time = false;

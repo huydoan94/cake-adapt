@@ -40,10 +40,16 @@ int tracker_init(struct latency_tracker *tracker, const struct latency_tracker_c
 
 void tracker_reset(struct latency_tracker *tracker);
 
-void tracker_update(struct latency_tracker *tracker, const struct latency_sample *sample,
-		    struct latency_observation *observation);
+void tracker_update(
+	struct latency_tracker *tracker,
+	const struct latency_sample *sample,
+	struct latency_observation *observation
+);
 
-void tracker_update_delta_ewma(struct latency_tracker *tracker, bool low_load,
-			       struct latency_observation *observation);
+void tracker_update_delta_ewma(
+	struct latency_tracker *tracker,
+	bool low_load,
+	struct latency_observation *observation
+);
 
 #endif

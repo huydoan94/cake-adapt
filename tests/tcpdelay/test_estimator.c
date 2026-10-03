@@ -34,9 +34,13 @@ static struct remote remote_flow(uint16_t port, uint64_t tick_ns, uint32_t tsval
  * echoes our segment that departed early enough to cross the upload queue
  * and wait ack_delay_ns at the receiver.
  */
-static void send_at(struct tcpdelay_estimator *estimator, const struct remote *remote,
-		    uint64_t sent_ns, uint64_t download_queue_ns, uint64_t upload_queue_ns,
-		    uint64_t ack_delay_ns)
+static void
+send_at(struct tcpdelay_estimator *estimator,
+	const struct remote *remote,
+	uint64_t sent_ns,
+	uint64_t download_queue_ns,
+	uint64_t upload_queue_ns,
+	uint64_t ack_delay_ns)
 {
 	struct tcpdelay_sample sample = {
 		.flow = remote->key,
@@ -52,9 +56,14 @@ static void send_at(struct tcpdelay_estimator *estimator, const struct remote *r
 }
 
 /* One packet per millisecond from start_ns until end_ns. */
-static uint64_t send_span(struct tcpdelay_estimator *estimator, const struct remote *remote,
-			  uint64_t start_ns, uint64_t end_ns, uint64_t download_queue_ns,
-			  uint64_t upload_queue_ns)
+static uint64_t send_span(
+	struct tcpdelay_estimator *estimator,
+	const struct remote *remote,
+	uint64_t start_ns,
+	uint64_t end_ns,
+	uint64_t download_queue_ns,
+	uint64_t upload_queue_ns
+)
 {
 	uint64_t sent_ns;
 
@@ -69,8 +78,11 @@ static int64_t milliseconds(int64_t microseconds)
 }
 
 /* Result at the arrival time of the last packet sent before sent_ns. */
-static void result_after(const struct tcpdelay_estimator *estimator, uint64_t sent_ns,
-			 struct tcpdelay_estimate *estimate)
+static void result_after(
+	const struct tcpdelay_estimator *estimator,
+	uint64_t sent_ns,
+	struct tcpdelay_estimate *estimate
+)
 {
 	tcpdelay_estimator_result(estimator, ORIGIN_NS + sent_ns + PATH_NS, estimate);
 }
@@ -80,7 +92,9 @@ static void assert_close(int64_t microseconds, int64_t expected_milliseconds)
 	int64_t difference = milliseconds(microseconds) - expected_milliseconds;
 
 	if (difference < -2 || difference > 2) {
-		fprintf(stderr, "queue %lld us, expected %lld ms\n", (long long)microseconds,
+		fprintf(stderr,
+			"queue %lld us, expected %lld ms\n",
+			(long long)microseconds,
 			(long long)expected_milliseconds);
 	}
 	assert(difference >= -2 && difference <= 2);
@@ -131,8 +145,14 @@ static void test_queue_attributed_to_its_direction(uint64_t tick_ns, uint32_t ts
 	assert_close(estimate.download_queue_microseconds, 0);
 	assert_close(estimate.upload_queue_microseconds, 80);
 
-	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 30U * MILLISECOND,
-			120U * MILLISECOND);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		now + 1000U * MILLISECOND,
+		30U * MILLISECOND,
+		120U * MILLISECOND
+	);
 	result_after(&estimator, now, &estimate);
 	assert_close(estimate.download_queue_microseconds, 30);
 	assert_close(estimate.upload_queue_microseconds, 120);
@@ -148,8 +168,14 @@ static void test_queue_built_before_the_tick_is_known(void)
 
 	tcpdelay_estimator_init(&estimator);
 	now = send_span(&estimator, &remote, 0U, 100U * MILLISECOND, 0U, 0U);
-	now = send_span(&estimator, &remote, now, 3000U * MILLISECOND, 20U * MILLISECOND,
-			150U * MILLISECOND);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		3000U * MILLISECOND,
+		20U * MILLISECOND,
+		150U * MILLISECOND
+	);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
 	assert_close(estimate.download_queue_microseconds, 20);
@@ -169,8 +195,12 @@ static void test_delayed_acks_are_ignored(void)
 	for (sent_ns = 0U; sent_ns < 4000U * MILLISECOND; sent_ns += MILLISECOND) {
 		uint64_t ack_delay_ns = packet++ % 5U == 0U ? 0U : 40U * MILLISECOND;
 
-		send_at(&estimator, &remote, sent_ns, 0U,
-			sent_ns >= 3000U * MILLISECOND ? 60U * MILLISECOND : 0U, ack_delay_ns);
+		send_at(&estimator,
+			&remote,
+			sent_ns,
+			0U,
+			sent_ns >= 3000U * MILLISECOND ? 60U * MILLISECOND : 0U,
+			ack_delay_ns);
 	}
 	result_after(&estimator, sent_ns, &estimate);
 	assert_close(estimate.download_queue_microseconds, 0);

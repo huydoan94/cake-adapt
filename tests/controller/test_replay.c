@@ -71,14 +71,24 @@ static bool parse_sample(const char *line, struct trace_sample *sample)
 		      "D %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNd64 " %" SCNd64 " %" SCNu64
 		      " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %u %" SCNd64
 		      " %u %" SCNd64 " %d %d %" SCNu64 " %" SCNu64,
-		      &sample->processed_microseconds, &sample->achieved_kbps[0],
-		      &sample->achieved_kbps[1], &sample->delta_microseconds[0],
-		      &sample->delta_microseconds[1], &sample->delay_threshold[0],
-		      &sample->adjust_up_threshold[0], &sample->adjust_down_threshold[0],
-		      &sample->delay_threshold[1], &sample->adjust_up_threshold[1],
-		      &sample->adjust_down_threshold[1], &sample->sum_delays[0],
-		      &sample->average_delta[0], &sample->sum_delays[1], &sample->average_delta[1],
-		      &sample->bufferbloat[0], &sample->bufferbloat[1], &sample->rate_kbps[0],
+		      &sample->processed_microseconds,
+		      &sample->achieved_kbps[0],
+		      &sample->achieved_kbps[1],
+		      &sample->delta_microseconds[0],
+		      &sample->delta_microseconds[1],
+		      &sample->delay_threshold[0],
+		      &sample->adjust_up_threshold[0],
+		      &sample->adjust_down_threshold[0],
+		      &sample->delay_threshold[1],
+		      &sample->adjust_up_threshold[1],
+		      &sample->adjust_down_threshold[1],
+		      &sample->sum_delays[0],
+		      &sample->average_delta[0],
+		      &sample->sum_delays[1],
+		      &sample->average_delta[1],
+		      &sample->bufferbloat[0],
+		      &sample->bufferbloat[1],
+		      &sample->rate_kbps[0],
 		      &sample->rate_kbps[1]) == 19;
 }
 
@@ -98,8 +108,13 @@ static unsigned int replay(const char *path)
 	assert(trace != NULL);
 	assert(controller_init(&controller, &config) == 0);
 	/* The monitor compensates before the first sample, once CAKE is discovered. */
-	controller_set_serialization_compensation(&controller, WIRE_PACKET_BITS, WIRE_PACKET_BITS,
-						  cake_kbps[0] * KILOBIT, cake_kbps[1] * KILOBIT);
+	controller_set_serialization_compensation(
+		&controller,
+		WIRE_PACKET_BITS,
+		WIRE_PACKET_BITS,
+		cake_kbps[0] * KILOBIT,
+		cake_kbps[1] * KILOBIT
+	);
 	while (fgets(line, sizeof(line), trace) != NULL) {
 		struct trace_sample sample;
 		struct controller_input input;
@@ -137,9 +152,12 @@ static unsigned int replay(const char *path)
 		};
 		controller_update(&controller, &input, &output);
 		controller_set_serialization_compensation(
-			&controller, WIRE_PACKET_BITS, WIRE_PACKET_BITS,
+			&controller,
+			WIRE_PACKET_BITS,
+			WIRE_PACKET_BITS,
 			controller.download.shaper_rate_bits_per_second,
-			controller.upload.shaper_rate_bits_per_second);
+			controller.upload.shaper_rate_bits_per_second
+		);
 		outputs[0] = &output.download;
 		outputs[1] = &output.upload;
 		directions[0] = &controller.download;
@@ -169,12 +187,16 @@ static unsigned int replay(const char *path)
 						" thr %" PRIu64 "/%" PRIu64 " up %" PRIu64
 						"/%" PRIu64 " down %" PRIu64 "/%" PRIu64
 						" (cake-adapt/cake-autorate)\n",
-						path, samples, names[index], rate_kbps,
+						path,
+						samples,
+						names[index],
+						rate_kbps,
 						sample.rate_kbps[index],
 						decision->delayed_sample_count,
 						sample.sum_delays[index],
 						decision->average_delay_microseconds,
-						sample.average_delta[index], bufferbloat,
+						sample.average_delta[index],
+						bufferbloat,
 						sample.bufferbloat[index],
 						compensated->delay_threshold_microseconds,
 						sample.delay_threshold[index],
@@ -183,7 +205,8 @@ static unsigned int replay(const char *path)
 						sample.adjust_up_threshold[index],
 						compensated
 							->average_delay_maximum_adjust_down_microseconds,
-						sample.adjust_down_threshold[index]);
+						sample.adjust_down_threshold[index]
+					);
 				}
 				mismatches++;
 			}
@@ -193,8 +216,9 @@ static unsigned int replay(const char *path)
 	}
 	assert(fclose(trace) == 0);
 	controller_close(&controller);
-	(void)printf("%s: replayed %u samples, %u mismatching decisions\n", path, samples,
-		     mismatches);
+	(
+		void
+	)printf("%s: replayed %u samples, %u mismatching decisions\n", path, samples, mismatches);
 	return mismatches;
 }
 

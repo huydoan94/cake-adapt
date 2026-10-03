@@ -8,7 +8,9 @@ ColumnLimit: 100
 BreakBeforeBraces: Linux
 IndentCaseLabels: false
 IndentGotoLabels: false
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: BlockIndent
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
 AlignOperands: Align
 AlignEscapedNewlines: Left
 AlignTrailingComments: false
@@ -19,8 +21,8 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterReturnType: None
-BinPackArguments: true
-BinPackParameters: true
+BinPackArguments: false
+BinPackParameters: false
 BreakBeforeBinaryOperators: None
 BreakStringLiterals: false
 Cpp11BracedListStyle: false

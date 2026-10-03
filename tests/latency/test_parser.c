@@ -13,9 +13,11 @@ static void test_fping_reply_is_parsed(void)
 {
 	struct latency_sample sample;
 
-	assert(parse_fping_line("[1789284242.09616] 1.1.1.1 : [65536], 64 bytes,"
-				" 31.9 ms (31.9 avg, 0% loss)",
-				&sample) == LATENCY_FPING_LINE_SAMPLE);
+	assert(parse_fping_line(
+		       "[1789284242.09616] 1.1.1.1 : [65536], 64 bytes,"
+		       " 31.9 ms (31.9 avg, 0% loss)",
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(sample.timestamp_microseconds == UINT64_C(1789284242096160));
 	/* cake-autorate logs fping's token verbatim, including its brackets. */
 	assert(strcmp(sample.timestamp_text, "[1789284242.09616]") == 0);
@@ -35,7 +37,8 @@ static void test_fping_icmp_timestamp_reply_is_parsed_directionally(void)
 		       "[1789284242.09616] 1.1.1.1 : [7], 20 bytes, 54.1 ms (54.1 avg, 0% loss),"
 		       " timestamps: Originate=60120684 Receive=60120713 Transmit=60120713"
 		       " Localreceive=60120738",
-		       &sample) == LATENCY_FPING_LINE_SAMPLE);
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(sample.timestamp_microseconds == UINT64_C(1789284242096160));
 	assert(strcmp(sample.timestamp_text, "[1789284242.09616]") == 0);
 	assert(strcmp(sample.target, "1.1.1.1") == 0);
@@ -49,7 +52,8 @@ static void test_fping_icmp_timestamp_reply_is_parsed_directionally(void)
 	assert(parse_fping_timestamp_line(
 		       "[100.5] 9.9.9.9 : [0], 20 bytes, 3.0 ms (3.0 avg, 0% loss),"
 		       " timestamps: Originate=5000 Receive=4990 Transmit=4990 Localreceive=5003",
-		       &sample) == LATENCY_FPING_LINE_SAMPLE);
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(sample.download_owd_microseconds == 13000);
 	assert(sample.upload_owd_microseconds == -10000);
 
@@ -57,13 +61,15 @@ static void test_fping_icmp_timestamp_reply_is_parsed_directionally(void)
 	assert(parse_fping_timestamp_line(
 		       "[100.5] 9.9.9.9 : [1], 20 bytes, 3.0 ms (3.0 avg, 0% loss),"
 		       " timestamps: Originate=86399998 Receive=1 Transmit=1 Localreceive=86400000",
-		       &sample) == LATENCY_FPING_LINE_SAMPLE);
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(sample.upload_owd_microseconds == INT64_C(-86399997000));
 	assert(sample.download_owd_microseconds == INT64_C(86399999000));
 	assert(parse_fping_timestamp_line(
 		       "[100.5] 9.9.9.9 : [2], 20 bytes, 3.0 ms (3.0 avg, 0% loss),"
 		       " timestamps: Originate=0 Receive=4294967295 Transmit=4294967295 Localreceive=0",
-		       &sample) == LATENCY_FPING_LINE_SAMPLE);
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(sample.upload_owd_microseconds == INT64_C(4294967295000));
 }
 
@@ -88,8 +94,10 @@ static void test_fping_icmp_timestamp_reply_rejects_malformed_fields(void)
 		(void)snprintf(line, sizeof(line), "%s%s", prefix, invalid[index]);
 		assert(parse_fping_timestamp_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
 	}
-	assert(parse_fping_timestamp_line("[100.8] 1.1.1.1 : [1], timed out (NaN avg, 50% loss)",
-					  &sample) == LATENCY_FPING_LINE_TIMEOUT);
+	assert(parse_fping_timestamp_line(
+		       "[100.8] 1.1.1.1 : [1], timed out (NaN avg, 50% loss)",
+		       &sample
+	       ) == LATENCY_FPING_LINE_TIMEOUT);
 	assert(sample.sequence == 1U);
 }
 
@@ -97,8 +105,12 @@ static void test_irtt_reply_is_parsed_directionally(void)
 {
 	struct latency_sample sample;
 
-	assert(parse_irtt_line("seq=42 rtt=3ms rd=1.234ms sd=567µs ipdv=0s", "2001:db8::1",
-			       UINT64_C(123456789), &sample));
+	assert(parse_irtt_line(
+		"seq=42 rtt=3ms rd=1.234ms sd=567µs ipdv=0s",
+		"2001:db8::1",
+		UINT64_C(123456789),
+		&sample
+	));
 	assert(strcmp(sample.target, "2001:db8::1") == 0);
 	assert(sample.sequence == 42U);
 	assert(sample.download_owd_microseconds == 1234);
@@ -117,9 +129,11 @@ static void test_fping_six_digit_timestamp_is_preserved(void)
 {
 	struct latency_sample sample;
 
-	assert(parse_fping_line("[1789284242.000123] 9.9.9.9 : [7], 64 bytes,"
-				" 0.125 ms (0.125 avg, 0% loss)",
-				&sample) == LATENCY_FPING_LINE_SAMPLE);
+	assert(parse_fping_line(
+		       "[1789284242.000123] 9.9.9.9 : [7], 64 bytes,"
+		       " 0.125 ms (0.125 avg, 0% loss)",
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(sample.timestamp_microseconds == UINT64_C(1789284242000123));
 	assert(strcmp(sample.target, "9.9.9.9") == 0);
 	assert(sample.sequence == 7U);
@@ -176,19 +190,28 @@ static void test_fping_timestamp_boundaries(void)
 	char line[128];
 
 	for (size_t index = 0U; index < sizeof(valid) / sizeof(valid[0]); index++) {
-		(void)snprintf(line, sizeof(line), "[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms",
-			       valid[index].text);
+		(void)snprintf(
+			line,
+			sizeof(line),
+			"[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms",
+			valid[index].text
+		);
 		assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_SAMPLE);
 		assert(sample.timestamp_microseconds == valid[index].microseconds);
-		assert(strncmp(sample.timestamp_text + 1, valid[index].text,
+		assert(strncmp(sample.timestamp_text + 1,
+			       valid[index].text,
 			       strlen(valid[index].text)) == 0);
 	}
 	/* A token that cannot be logged verbatim is not fping output. */
 	(void)snprintf(line, sizeof(line), "[1.%045d] 1.1.1.1 : [1], 64 bytes, 1.0 ms", 0);
 	assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
 	for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); index++) {
-		(void)snprintf(line, sizeof(line), "[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms",
-			       invalid[index]);
+		(void)snprintf(
+			line,
+			sizeof(line),
+			"[%s] 1.1.1.1 : [1], 64 bytes, 1.0 ms",
+			invalid[index]
+		);
 		assert(parse_fping_line(line, &sample) == LATENCY_FPING_LINE_INVALID);
 	}
 }
@@ -197,9 +220,11 @@ static void test_fping_timeout_is_recognized(void)
 {
 	struct latency_sample sample;
 
-	assert(parse_fping_line("[1789284242.09616] 1.1.1.1 : [8], timed out"
-				" (NaN avg, 100% loss)",
-				&sample) == LATENCY_FPING_LINE_TIMEOUT);
+	assert(parse_fping_line(
+		       "[1789284242.09616] 1.1.1.1 : [8], timed out"
+		       " (NaN avg, 100% loss)",
+		       &sample
+	       ) == LATENCY_FPING_LINE_TIMEOUT);
 	assert(strcmp(sample.target, "1.1.1.1") == 0);
 	assert(sample.sequence == 8U);
 }
@@ -208,9 +233,11 @@ static void test_fping_reply_identifies_each_target(void)
 {
 	struct latency_sample sample;
 
-	assert(parse_fping_line("[1789284242.09616] 9.9.9.9  : [8], 64 bytes,"
-				" 31.9 ms (31.9 avg, 0% loss)",
-				&sample) == LATENCY_FPING_LINE_SAMPLE);
+	assert(parse_fping_line(
+		       "[1789284242.09616] 9.9.9.9  : [8], 64 bytes,"
+		       " 31.9 ms (31.9 avg, 0% loss)",
+		       &sample
+	       ) == LATENCY_FPING_LINE_SAMPLE);
 	assert(strcmp(sample.target, "9.9.9.9") == 0);
 }
 
