@@ -173,7 +173,7 @@ void latency_init(struct latency *latency)
 {
 	size_t index;
 
-	*latency = (struct latency){ 0 };
+	*latency = (struct latency){ .ops = &fping_ops };
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
 		latency->children[index].output_descriptor = -1;
 		latency->children[index].process_identifier = -1;
@@ -334,38 +334,15 @@ enum latency_probe_result latency_handle_line(const struct latency *latency, siz
 					      const char *line, struct latency_sample *sample,
 					      char *error, size_t error_size)
 {
-	enum latency_fping_line_result parsed;
-	uint64_t timestamp_microseconds;
-
-	if (latency->backend == LATENCY_BACKEND_IRTT) {
-		if (!parse_irtt_line(line, latency->children[child_index].target, 0U, sample))
-			return LATENCY_PROBE_PENDING;
-		if (!read_clock_microseconds(CLOCK_REALTIME, &timestamp_microseconds)) {
-			error_set(error, error_size, "could not timestamp irtt output: %s",
-				  strerror(errno));
-			return LATENCY_PROBE_ERROR;
-		}
-		sample->timestamp_microseconds = timestamp_microseconds;
-		(void)snprintf(sample->timestamp_text, sizeof(sample->timestamp_text), "%" PRIu64,
-			       timestamp_microseconds);
-		return LATENCY_PROBE_SUCCESS;
-	}
-	parsed = latency->backend == LATENCY_BACKEND_FPING_TS
-			 ? parse_fping_timestamp_line(line, sample)
-			 : parse_fping_line(line, sample);
-	if (parsed == LATENCY_FPING_LINE_INVALID) {
-		error_set(error, error_size, "unexpected fping output: %.160s", line);
-		return LATENCY_PROBE_ERROR;
-	}
-	return parsed == LATENCY_FPING_LINE_SAMPLE ? LATENCY_PROBE_SUCCESS : LATENCY_PROBE_TIMEOUT;
+	return latency->ops->parse(&latency->children[child_index], line, sample, error,
+				   error_size);
 }
 
 enum latency_probe_result latency_child_exited(struct latency *latency, size_t child_index,
 					       int status, char *error, size_t error_size)
 {
 	struct latency_child *child = &latency->children[child_index];
-	const char *name =
-		latency->backend == LATENCY_BACKEND_IRTT ? PINGER_METHOD_IRTT : PINGER_METHOD_FPING;
+	const char *name = latency->ops->name;
 	bool stopping = child->stopping;
 
 	child->process_identifier = -1;
@@ -381,8 +358,5 @@ enum latency_probe_result latency_child_exited(struct latency *latency, size_t c
 		error_set(error, error_size, "%s terminated by signal %d", name, WTERMSIG(status));
 	else
 		error_set(error, error_size, "%s stopped unexpectedly", name);
-	/* IRTT sessions end by design; fping only exits on failure. */
-	if (latency->backend == LATENCY_BACKEND_IRTT)
-		return schedule_irtt_restart(child, error, error_size);
-	return LATENCY_PROBE_ERROR;
+	return latency->ops->exited(child, error, error_size);
 }
