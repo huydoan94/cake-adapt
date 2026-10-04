@@ -23,17 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Point links at ${{ github.ref_name }}
-        run: python3 tools/githack-links.py --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME"
-
-      - name: Commit the rewritten links
+      - name: Point links at ${{ github.ref_name }} and commit them if any changed
         run: |
           set -euo pipefail
-          if git diff --quiet; then
-            echo "Links already point at ${GITHUB_REF_NAME}."
+          # The script prints each file whose links it rewrote, one per line.
+          changed=$(python3 tools/githack-links.py --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME")
+          if [ -z "$changed" ]; then
+            echo "Every link already points at ${GITHUB_REF_NAME}; nothing to commit."
             exit 0
           fi
+          printf '%s\n' "$changed"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "Point githack links at ${GITHUB_REF_NAME}"
+          printf '%s\n' "$changed" | xargs -d '\n' git add --
+          git commit -m "Point githack links at ${GITHUB_REF_NAME}"
           git push
