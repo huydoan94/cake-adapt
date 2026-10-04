@@ -209,9 +209,9 @@ void tcpdelay_estimator_add(
 		flow_start(flow, sample);
 		return;
 	}
-	window_add(&estimator->download, download_ns, sample->arrival_ns);
+	window_add(&flow->download, download_ns, sample->arrival_ns);
 	if (upload_ns >= 0)
-		window_add(&estimator->upload, upload_ns, sample->arrival_ns);
+		window_add(&flow->upload, upload_ns, sample->arrival_ns);
 }
 
 void tcpdelay_estimator_result(
@@ -220,17 +220,38 @@ void tcpdelay_estimator_result(
 	struct tcpdelay_estimate *estimate
 )
 {
-	int64_t queue_ns = 0;
+	const struct tcpdelay_flow *selected = NULL;
+	size_t index;
 
 	memset(estimate, 0, sizeof(*estimate));
-	if (window_result(&estimator->download, now_ns, &queue_ns)) {
+	for (index = 0U; index < TCPDELAY_FLOWS && estimator->flows[index].used; index++) {
+		const struct tcpdelay_flow *flow = &estimator->flows[index];
+		int64_t download_ns;
+		int64_t upload_ns = 0;
+		bool upload_valid;
+
+		if (!window_result(&flow->download, now_ns, &download_ns))
+			continue;
+		upload_valid = window_result(&flow->upload, now_ns, &upload_ns);
+		/*
+		 * Never combine different flows' floors into one directional pair.
+		 * Prefer both directions, then the history least likely to have begun
+		 * inside a new queue. Age is not proof of an uncongested baseline.
+		 */
+		if (selected != NULL) {
+			if (estimate->upload_valid && !upload_valid)
+				continue;
+			if (estimate->upload_valid == upload_valid &&
+			    selected->first_arrival_ns <= flow->first_arrival_ns) {
+				continue;
+			}
+		}
+		selected = flow;
 		estimate->download_valid = true;
 		estimate->download_queue_microseconds =
-			queue_ns / (int64_t)NANOSECONDS_PER_MICROSECOND;
-	}
-	if (window_result(&estimator->upload, now_ns, &queue_ns)) {
-		estimate->upload_valid = true;
+			download_ns / (int64_t)NANOSECONDS_PER_MICROSECOND;
+		estimate->upload_valid = upload_valid;
 		estimate->upload_queue_microseconds =
-			queue_ns / (int64_t)NANOSECONDS_PER_MICROSECOND;
+			upload_valid ? upload_ns / (int64_t)NANOSECONDS_PER_MICROSECOND : 0;
 	}
 }
