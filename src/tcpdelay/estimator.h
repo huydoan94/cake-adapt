@@ -7,7 +7,7 @@
 
 #include "tcpdelay/record.h"
 
-/* Flows tracked at once; the least recently seen one is replaced. */
+/* Flow slots; the flow with the least recently accepted sample is replaced. */
 #define TCPDELAY_FLOWS 32U
 /* Standard TCP timestamp clock periods: 1, 4, 10 and 100 ms. */
 #define TCPDELAY_TICKS 4U
@@ -39,7 +39,8 @@ struct tcpdelay_window {
 struct tcpdelay_flow {
 	struct tcpdelay_record_flow key;
 	bool used;
-	uint64_t last_seen_ns;
+	/* Arrival of the last accepted sample; rejected records do not affect LRU. */
+	uint64_t last_accepted_ns;
 	uint64_t first_arrival_ns;
 	uint32_t last_tsval;
 	/* Remote timestamp ticks since the first sample, unwrapped. */
