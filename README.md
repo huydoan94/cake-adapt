@@ -108,6 +108,12 @@ differences are in integration and safety:
     their measured shares instead of RTT/2 each way, and only a direction
     holding at least a quarter of the queue is cut. With `output_processing_stats`
     the estimates are logged as `TCP_QUEUE` records.
+    Directional estimates now come from one flow: prefer a fresh complete pair,
+    then the longest measurement history, instead of independent minima across
+    flows. This keeps a new connection's congested baseline from overwriting a
+    fresh established pair. Estimates remain relative to rolling per-flow
+    baselines; age alone cannot prove that the initial path was uncongested.
+    See the [flow-pair regression evidence](profiling/2026-10-04-flow-pair/README.md).
   - `ul_congest_ack_share` (default `0`, off): download ACKs can fill a slow
     upload. The same eBPF filter splits upload, after the upload CAKE, into
     pure ACKs and everything else. While upload is above `high_load_thr`,
