@@ -42,6 +42,15 @@ Treat upstream cake-autorate as the reference for:
 - defaults and configuration meaning; and
 - profiling/statistics log formats.
 
+Since 2026-10-01 the goal is to minimize bufferbloat, not to port faithfully:
+cake-autorate is the origin of the design and the baseline to beat. Departures
+are allowed when they are opt-in (or a documented deliberate default), measured
+on the testbed against the upstream-identical behavior with raw evidence under
+`profiling/`, and documented in code and user-facing docs. The replay test must
+keep matching with every departure switched off. Judge a change by latency
+first (added delay percentiles, time bufferbloated) with bounded throughput
+loss (keep at least about 85% of capacity unless the user agrees otherwise).
+
 Port behavior deliberately and verify it. Preserve record names, field order,
 units, headers, and content exactly where cake-autorate log compatibility is
 intended. Document and test intentional differences instead of silently
@@ -51,7 +60,9 @@ Keep every supported cake-autorate option in the typed UCI model. Parsing an
 option does not mean its behavior is implemented; do not claim support until
 the corresponding path is tested. `fping` is the only supported pinger for now,
 and reflector targets come from local UCI configuration rather than a remotely
-retrieved list.
+retrieved list. `fping-ts` is verified on the emulated testbed but not on
+internet reflectors; the IRTT backend is experimental and must be described as
+such.
 
 Upstream may be consulted during implementation, but production code, init
 scripts, and configuration must never source, execute, or read files from an
@@ -146,6 +157,19 @@ in that directory and is not included from outside it.
     handler) that the session calls through.
   - `parser.c`: pinger output parsing into latency samples.
   - `tracker.c`: per-reflector baseline and delta EWMA tracking.
+- `tcpdelay/`: passive per-direction queue measurement from TCP timestamps.
+  - `tcpdelay.bpf.c`: `AF_PACKET` socket filter on the upload interface (it
+    sees packets after the root qdisc and before the ingress redirect). It
+    counts upload and pure-ACK bytes, records departures and emits reply
+    samples to a ring buffer, each at most once per flow per
+    `TCPDELAY_SAMPLE_INTERVAL_NS`, without wakeups.
+  - `record.h`: layouts and limits shared by the filter and userspace.
+  - `capture.c`: loading and attaching the filter with libbpf, draining the
+    ring buffer, and reading the counters.
+  - `estimator.c`: per-flow one-way queue estimates (remote clock tick fit,
+    floors, window minimums); platform-independent and unit-tested.
+  The filter object is installed as `/lib/bpf/cake-adapt-tcpdelay.o`; a filter
+  the kernel rejects degrades TCP measurement, never the daemon.
 - `cake/cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
 - `platform/`
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
@@ -310,6 +334,13 @@ formulas, invariants, units, ownership, or non-obvious kernel/upstream
 behavior. Do not narrate obvious syntax. Do not reformat unrelated working
 code during a focused change.
 
+Keep a call inside its condition. Never add a `ret` or `result` temporary only
+to move a call out of an `if`; solve layout in `.clang-format` or by shortening
+the call itself.
+
+Logic, performance and reliability come before binary size. Measure and report
+size, but accept negligible growth and do not propose size-only changes.
+
 Keep strict warnings enabled:
 
 ```text
@@ -420,6 +451,23 @@ profiling are recorded under `profiling/` (`controller-comparison/` and
 `flowchart-data.json` by `generate.mjs`; regenerate them when event ordering or
 module ownership changes.
 
+Since parity, these deliberate departures are implemented, opt-in, and
+measured (evidence directories under `profiling/`, indexed in its README):
+
+- `tcp_delay_attribution` (fping only): the eBPF TCP queue estimate splits
+  fping's round-trip delta between the directions
+  (`2026-10-02-tcp-queue-split`);
+- `upload_ack_share_min`: download is held so its ACKs leave other upload
+  traffic room, down to the configured share (`2026-10-03-ack-share-dynamic`);
+- the filter samples at most every 4 ms per flow
+  (`2026-10-03-sample-thinning`, with its cost in `2026-10-03-ebpf-filter-cost`);
+- `fping-ts` was verified on the testbed (`2026-10-03-fping-ts-testbed`), and
+  the Filogic build ran on an emulated arm64 VM (`2026-10-03-arm64-vm`).
+
+`profiling/2026-10-03-ebpf-design-history/` records why these designs were
+chosen. Recommend plain CAKE `ack-filter` only; never use or recommend
+`ack-filter-aggressive`.
+
 Remaining work must remain behavior-first:
 
 - keep raw logs, traces, profiler output, and reproducibility metadata for any
@@ -481,6 +529,48 @@ Confirm the test-log inode is unchanged and no test-owned daemon or `fping`
 child remains. Use exact executable paths or `pidof` for process checks because
 `pgrep -af cake-adapt` can match the audit command itself. Do not kill an
 unrelated legacy process merely because it owns an `fping` child.
+
+## Test machines and permissions
+
+All work happens only in WSL and the test VMs. Never read, list, write or run
+anything under `/mnt/c`, `/mnt/d` or any other Windows mount, and never touch
+the Windows host, unless the user says exactly what to do. The only allowed
+access to the Windows host is pinging `192.168.56.1` (also as a test
+reflector).
+
+- **x86 VM, `192.168.56.2`:** the primary test VM (OpenWrt 25.12 x86, a 32-bit
+  kernel). It and its clone panic about once per 25-60 minutes of load in the
+  i386 exception-entry path, with or without cake-adapt loaded; a reboot
+  mid-test is not evidence against cake-adapt. Check the serial console log,
+  copy it before the VM is powered off (VirtualBox truncates it on start), and
+  rerun the lost run.
+- **x86 VM clone, `192.168.56.5`:** a second x86 VM for parallel work, such as
+  soak tests.
+- **arm64 VM, `192.168.50.5`:** OpenWrt 25.12 `armsr/armv8`, used to run the
+  Filogic build. Its CPU is emulated, so it gives functional results only, never
+  timings. Packages may be installed and files changed freely there, with no
+  rollback: the user resets it.
+
+During long VM runs, move each run's results to disk (for example under
+`/root`) as soon as it ends, so a panic loses only the run in progress, and
+remove them after collecting them. `tools/testbed/` holds the emulated bloated
+ISP (`testbed.sh`), a full controlled run (`run.sh`), the filter-cost
+benchmark (`bench.sh`, using `kernel.bpf_stats_enabled`) and the scoring
+scripts (`queues.py`, `analyze.py`, `shapers.py`); its README explains them.
+
+Permissions the user has granted:
+
+- deviate from cake-autorate to reduce bufferbloat, as described above;
+- restructure `monitor/` and move responsibilities between its files and the
+  controller (done on 2026-10-03: one `struct monitor`, a part per file, load
+  classification in the controller);
+- install packages on the arm64 VM without restoring them;
+- rebuild the VM image with `openwrt-dev-builder` (never touch
+  `openwrt-image-builder`).
+
+Keep program changes and measurement material (tools, evidence) in separate
+commits, and keep evidence to before/after comparisons. Branch, remote, push,
+and version management stay with the user.
 
 ## Change discipline
 
