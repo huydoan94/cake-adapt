@@ -131,15 +131,19 @@ in that directory and is not included from outside it.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
-  - `utils.h`: trivial operations as `static inline` functions, such as
-    saturating arithmetic, `mul_div`, percentages, rounding, and
-    `ARRAY_SIZE`. A module never keeps its own copy of one.
+  - `utils.h`: trivial operations as `static inline` functions: saturating
+    arithmetic (`saturating_add`, `saturating_sub`, `saturating_mul`,
+    `signed_sum`), `min_u64`, `max_u64`, `mul_div`, percentages, rounding,
+    clock and timer conversions (`timespec_microseconds`, `timer_milliseconds`,
+    `seconds_from_microseconds`), and `ARRAY_SIZE`. A module never keeps its
+    own copy of one.
   - `helpers.c`: generic operations too large to inline, such as numeric
     parsing, random selection, clocks, and rate conversions.
   - `error.c`: shared error-buffer formatting.
 - `config/`
-  - `config.c`: typed UCI loading and conversion through `libuci`; never
-    parse `/etc/config/cake-adapt` manually.
+  - `config.c`: typed UCI loading and conversion through `libuci`, driven by
+    one table of typed option bindings (`options[]`, whose order is also the
+    `-L` listing); never parse `/etc/config/cake-adapt` manually.
   - `validate.c`: cross-option validation of a loaded configuration
     (`config_validate`), run before control starts.
   - `defaults.c` and `defaults.h`: built-in application and configuration
@@ -286,6 +290,16 @@ strings, and module-owned schemas beside the code that uses them. Tests should
 keep literal expected values when importing the production constant would make
 the check tautological.
 
+Every fixed string value, meaning a name, token or label stored or passed as
+data, is a named constant in `common/constants.h`, or a `#define` beside the
+file's other names when only that file uses it (as `capture.c` names the BPF
+program and maps). Only format strings and complete messages stay inline; do
+not split a message into fragments that are passed around as values.
+
+Never pass a literal `true` or `false` as a function argument. Give the call a
+meaning instead: separate functions sharing a static worker, an enum, a
+pointer that is `NULL` or not, or a variable whose name says what it holds.
+
 Write quantities for quick visual understanding. Express durations and rates
 in readable units using the existing unit constants (for example,
 `10U * SECOND` or `5U * MEGABIT`) rather than long digit strings. Derive unit
@@ -299,9 +313,14 @@ identifies the service.
 
 ### Formatting
 
-C follows the OpenWrt/Linux kernel style used by libubox and unetd, as encoded
-in the repository's `.clang-format`. Format every changed C file with
-clang-format (the SDK's `staging_dir/host/llvm-bpf/bin/clang-format` works):
+C follows the Linux kernel style used by OpenWrt's libubox and unetd.
+`.clang-format` is the kernel's own configuration, with checkpatch's 100-column
+limit and one deliberate exception: the parameter and argument layout shown
+below. Format every changed C file with clang-format (the SDK's
+`staging_dir/host/llvm-bpf/bin/clang-format` works) and keep every file
+clang-format-stable: running it again changes nothing. Never hand-format
+against it. Where a preferred layout cannot be expressed in clang-format, take
+clang-format's output and drop the preference.
 
 - tabs for indentation, 8 columns wide, and lines up to 100 columns; string
   literals are never split;
@@ -337,7 +356,15 @@ log_message(
 );
 ```
 
-- compound conditions break after the operator and align with the condition.
+- compound conditions break after the operator and align with the condition;
+- for a callee name of seven characters or fewer (`memcpy`, `printf`, `read`),
+  clang-format aligns arguments after the parenthesis instead; accept that, and
+  give the project's own helpers longer names;
+- a multi-line top-level initializer ends with a trailing comma, so each entry
+  gets its own line, as in unetd; nested designated initializers keep
+  clang-format's own layout.
+
+Commit a pure reformat on its own, apart from any logic change.
 
 Write code that reads like `unetd`'s `wg-user.c`: small static functions with
 a module prefix that form a little internal API, and trivial operations from
@@ -469,15 +496,34 @@ measured (evidence directories under `profiling/`, indexed in its README):
 - `tcp_delay_attribution` (fping only): the eBPF TCP queue estimate splits
   fping's round-trip delta between the directions
   (`2026-10-02-tcp-queue-split`);
-- `upload_ack_share_min`: download is held so its ACKs leave other upload
-  traffic room, down to the configured share (`2026-10-03-ack-share-dynamic`);
+- `ul_congest_ack_share` (named `upload_ack_share_min` until 2026-10-04):
+  download is held so its ACKs leave other upload traffic room, down to the
+  configured share (`2026-10-03-ack-share-dynamic`);
 - the filter samples at most every 4 ms per flow
   (`2026-10-03-sample-thinning`, with its cost in `2026-10-03-ebpf-filter-cost`);
 - `fping-ts` was verified on the testbed (`2026-10-03-fping-ts-testbed`), and
   the Filogic build ran on an emulated arm64 VM (`2026-10-03-arm64-vm`).
 
 `profiling/2026-10-03-ebpf-design-history/` records why these designs were
-chosen. Recommend plain CAKE `ack-filter` only; never use or recommend
+chosen.
+
+On 2026-10-03 the C sources moved to the kernel `.clang-format` (`aecacfa`) and
+a cleanup pass removed duplication, dead code and hand-written arithmetic
+(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass; on a
+target it has run only in the bounded x86 VM run of
+`profiling/2026-10-04-flow-pair/`, not through the lifecycle or a controlled
+run.
+
+The TCP-delay estimator is under review in `EBPF_REVIEW.md`, whose section 9 is
+the working order. Fix 1 (`20cc841`, evidence in
+`profiling/2026-10-04-flow-pair/`) keeps both directions of the estimate from
+one flow. The findings on tuple reuse, a standing queue becoming the baseline,
+sustained delayed ACKs, and ACK-byte accounting remain open, and none of the
+findings is live-validated. The attempted VM run in
+`profiling/2026-10-04-ebpf-vm/` produced no `TCP_QUEUE` records and validates
+nothing; its earlier conclusions are withdrawn.
+
+Recommend plain CAKE `ack-filter` only; never use or recommend
 `ack-filter-aggressive`.
 
 Remaining work must remain behavior-first:
@@ -489,6 +535,20 @@ Remaining work must remain behavior-first:
 Do not claim parity for a new behavior from host tests alone. `fping` remains
 the only supported production pinger until every additional backend has
 independent parser, lifecycle, fixture, and runtime verification.
+
+### Handoff state (2026-10-04)
+
+- Uncommitted in the worktree: phase 1 for the tuple-reuse finding
+  (`src/tcpdelay/estimator.c`, `estimator.h`, `tests/tcpdelay/test_estimator.c`
+  and `EBPF_REVIEW.md`). It keeps rejected records from refreshing a flow's
+  LRU state; recovering a reused tuple's clock is still open. Its owner
+  finishes, verifies and commits it; do not overwrite or revert it.
+- The Filogic build has not run on the arm64 VM since `58fb835`, and the
+  current code has had no lifecycle or controlled run. Before the user deploys,
+  run both with the Filogic build on the arm64 VM.
+- The user keeps the version bump (packages are still 0.2.11-r1), pushing,
+  the router install, fping-ts on internet reflectors, and the profiling and
+  flowchart indexes.
 
 ## VM testing and delegation
 
