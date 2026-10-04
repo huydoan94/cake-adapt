@@ -6,6 +6,7 @@ the scripts that produced it.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-04-flow-pair`](2026-10-04-flow-pair/README.md) | First TCP-delay review fix: one flow supplies a coherent directional pair. Deterministic before/after evidence shows a newly calibrated flow no longer erases an established 80/20-ms estimate. |
 | [`2026-10-03-arm64-vm`](2026-10-03-arm64-vm/README.md) | The Filogic build on an emulated arm64 VM: the arm64 verifier accepts the TCP filter and the CLI, attribution, fping-ts and lifecycle runs all pass. Functional only; the emulated CPU makes timings and sample counts unrepresentative. |
 | [`2026-10-03-sample-thinning`](2026-10-03-sample-thinning/README.md) | Sampling TCP timestamps at most every 4 ms per flow makes the filter 10–34% cheaper with the queue estimate as accurate as before (correlation 0.87–0.95); over five rounds it costs about +10 ms at the bidirectional p99 and 1–3 ms in download phases. Shipped at 4 ms. |
 | [`2026-10-03-fping-ts-testbed`](2026-10-03-fping-ts-testbed/README.md) | fping-ts on the testbed, where ICMP timestamps pass: its one-way delays track the real queues (upload correlation 0.94–0.97, false alarms ≤ 0.6% against 27–40% for RTT/2), and controlling with it cuts upload p95 from 102–104 to 60–65 ms and lifts bidirectional download from 38–41% to 69–72%. A sudden capacity drop peaked higher than with fping; internet reflectors remain unverified. |
