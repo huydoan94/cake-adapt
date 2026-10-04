@@ -528,10 +528,8 @@ int control_start(struct monitor *monitor)
 			config->decay_refractory_period_microseconds,
 		/* Only fping reports one RTT/2 delay for both directions. */
 		.shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0,
-		.upload_ack_congested_share_percent = rounded_divide(
-			config->upload_ack_congested_share_per_million,
-			FACTOR_PER_PERCENT
-		),
+		.ul_congest_ack_share_percent =
+			rounded_divide(config->ul_congest_ack_share_per_million, FACTOR_PER_PERCENT),
 	};
 
 	if (controller_init(&monitor->control.controller, &controller_config) != 0) {

@@ -3,7 +3,7 @@
 # bottleneck, so the ISP queue stays empty; measures the ACK share of upload
 # and ICMP and VoIP-like UDP latency while downloads (and one upload) run.
 # With DAEMON=<cake-adapt binary>, the daemon controls download (5-27 Mbit/s,
-# upload fixed at 900 kbit/s) with upload_ack_congested_share ACK_SHARE (default 0).
+# upload fixed at 900 kbit/s) with ul_congest_ack_share ACK_SHARE (default 0).
 T=/tmp/cake-adapt-test
 MODE=$1                                   # no-ack-filter | ack-filter
 NAME=${2:-acks-$MODE}
@@ -55,7 +55,7 @@ config cake_adapt 'main'
 	option base_ul_shaper_rate_kbps '900'
 	option max_ul_shaper_rate_kbps '900'
 	option connection_active_thr_kbps '500'
-	option upload_ack_congested_share '${ACK_SHARE:-0}'
+	option ul_congest_ack_share '${ACK_SHARE:-0}'
 	option randomize_reflectors '0'
 	option output_load_stats '1'
 	option output_cake_changes '1'

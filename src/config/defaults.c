@@ -19,7 +19,7 @@ void defaults_apply(struct config *config)
 		/* Not in cake-autorate; opt-in until verified on real lines. */
 		.tcp_delay_attribution = false,
 		/* Not in cake-autorate; off until measured on real lines. */
-		.upload_ack_congested_share_per_million = 0U,
+		.ul_congest_ack_share_per_million = 0U,
 		.log_file_max_time_minutes = 10U,
 		.log_file_max_size_kilobytes = 2000U,
 		.no_pingers = 6U,

@@ -108,7 +108,7 @@ differences are in integration and safety:
     their measured shares instead of RTT/2 each way, and only a direction
     holding at least a quarter of the queue is cut. With `output_processing_stats`
     the estimates are logged as `TCP_QUEUE` records.
-  - `upload_ack_congested_share` (default `0`, off): download ACKs can fill a slow
+  - `ul_congest_ack_share` (default `0`, off): download ACKs can fill a slow
     upload. The same eBPF filter splits upload, after the upload CAKE, into
     pure ACKs and everything else. While upload is above `high_load_thr`,
     ACKs may use what the other traffic leaves free, less 5% headroom so its
@@ -117,7 +117,7 @@ differences are in integration and safety:
     `0.45`). It is not a reservation: while ACKs need less, other traffic
     uses the rest. Download is never held below its minimum rate.
     This setting was renamed from `upload_ack_share_min`; update existing UCI
-    and standalone shell configurations to `upload_ack_congested_share`.
+    and standalone shell configurations to `ul_congest_ack_share`.
 - Configuration is typed UCI. A cake-autorate configuration file can be
   imported (see [Standalone shell configuration](#standalone-shell-configuration)),
   but it is validated like UCI and never sourced by the daemon.

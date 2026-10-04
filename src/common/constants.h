@@ -230,7 +230,7 @@
 #define OPTION_BUFFERBLOAT_REFRACTORY "bufferbloat_refractory_period_ms"
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
 #define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
-#define OPTION_UPLOAD_ACK_CONGESTED_SHARE "upload_ack_congested_share"
+#define OPTION_UL_CONGEST_ACK_SHARE "ul_congest_ack_share"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW "reflector_misbehaving_detection_window"

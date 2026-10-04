@@ -19,7 +19,7 @@ the scripts that produced it.
 | [`2026-09-26`](2026-09-26/README.md) | Superseded first flame graphs, from before the optimization pass and the source restructure. |
 
 Historical reports use `upload_ack_share_min`, now named
-`upload_ack_congested_share`. Their raw configurations and records retain the
+`ul_congest_ack_share`. Their raw configurations and records retain the
 name used when the measurements were collected.
 
 Open `index.html` locally, or use the
