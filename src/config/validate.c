@@ -174,11 +174,11 @@ static int validate_detection(const struct config *config, char *error, size_t e
 			" 'bufferbloat_detection_window'"
 		);
 	}
-	if (config->upload_ack_share_min_per_million > MILLION) {
+	if (config->upload_ack_congested_share_per_million > MILLION) {
 		return error_set(
 			error,
 			error_size,
-			"option 'upload_ack_share_min' must be between 0 and 1"
+			"option 'upload_ack_congested_share' must be between 0 and 1"
 		);
 	}
 	if (config->alpha_baseline_increase_per_million > MILLION ||

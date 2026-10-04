@@ -18,6 +18,10 @@ the scripts that produced it.
 | [`controller-comparison`](controller-comparison/README.md) | Side-by-side runs with cake-autorate `ac75f49` and the two traces the controller replays with no mismatching decisions. |
 | [`2026-09-26`](2026-09-26/README.md) | Superseded first flame graphs, from before the optimization pass and the source restructure. |
 
+Historical reports use `upload_ack_share_min`, now named
+`upload_ack_congested_share`. Their raw configurations and records retain the
+name used when the measurements were collected.
+
 Open `index.html` locally, or use the
 [hosted index](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
 The hosted links read the `main` branch. They use raw.githack because GitHub's

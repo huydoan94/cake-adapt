@@ -815,7 +815,7 @@ static struct controller_direction_output ack_capped_download(
 		input_with_rates(8U * MEBABIT, 8U * MEBABIT, upload_achieved, 8U * MEBABIT);
 	struct controller_output output;
 
-	config.upload_ack_share_min_percent = share_percent;
+	config.upload_ack_congested_share_percent = share_percent;
 	input.acks.valid = acks_valid;
 	input.acks.upload_ack_rate_bits_per_second = ack_rate;
 	input.acks.upload_rate_bits_per_second = other_rate + ack_rate;

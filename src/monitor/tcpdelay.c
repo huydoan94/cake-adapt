@@ -81,7 +81,8 @@ static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microsecon
 	const struct config *config = monitor->config;
 	const struct monitor_direction *upload = &monitor->links.upload;
 
-	if ((!config->tcp_delay_attribution && config->upload_ack_share_min_per_million == 0U) ||
+	if ((!config->tcp_delay_attribution &&
+	     config->upload_ack_congested_share_per_million == 0U) ||
 	    upload->cake_state != CAKE_OBSERVATION_AVAILABLE) {
 		return false;
 	}
@@ -195,7 +196,7 @@ void tcp_observe(
 		return;
 	if (config->tcp_delay_attribution)
 		measure_queues(monitor, timestamp_microseconds, queue);
-	if (config->upload_ack_share_min_per_million != 0U)
+	if (config->upload_ack_congested_share_per_million != 0U)
 		measure_ack_rate(monitor, timestamp_microseconds, acks);
 }
 

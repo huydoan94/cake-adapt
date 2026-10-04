@@ -70,7 +70,7 @@ struct controller_config {
 	 * never below this share of the upload shaper rate. Not a reservation:
 	 * ACKs needing less leave the rest to other traffic. Zero disables it.
 	 */
-	uint64_t upload_ack_share_min_percent;
+	uint64_t upload_ack_congested_share_percent;
 };
 
 struct controller_direction_input {
@@ -111,7 +111,7 @@ struct controller_input {
 	 * directions by their measured shares.
 	 */
 	struct controller_queue_input queue;
-	/* Used only with upload_ack_share_min_percent. */
+	/* Used only with upload_ack_congested_share_percent. */
 	struct controller_ack_input acks;
 	uint64_t timestamp_microseconds;
 };
