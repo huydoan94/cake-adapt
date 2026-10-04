@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TCP-Delay Review Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: a schematic sheet — one wide signal-path diagram, then a status key and one chart. */
+:root {
+  --bg: #f2f4f6; --sheet: #ffffff; --ink: #18212b; --muted: #5a6673; --line: #c5ced8;
+  --accent: #1f5fbf; --fixed: #2c7a4b; --open: #a86200; --missed: #b42318; --minor: #6b7480;
+  --fixed-bg: #e3f1e8; --open-bg: #f8ecd9; --missed-bg: #f9e2df; --minor-bg: #e8ebef;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1319; --sheet: #151c24; --ink: #e4e9ef; --muted: #96a2ae; --line: #33404d;
+  --accent: #6aa0ef; --fixed: #5fbf86; --open: #e0a14a; --missed: #f0776b; --minor: #9aa4ae;
+  --fixed-bg: #183326; --open-bg: #3a2b14; --missed-bg: #3d1c19; --minor-bg: #222b35; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1319; --sheet: #151c24; --ink: #e4e9ef; --muted: #96a2ae; --line: #33404d;
+  --accent: #6aa0ef; --fixed: #5fbf86; --open: #e0a14a; --missed: #f0776b; --minor: #9aa4ae;
+  --fixed-bg: #183326; --open-bg: #3a2b14; --missed-bg: #3d1c19; --minor-bg: #222b35; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+main { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 28px; }
+header { display: grid; gap: 4px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 4vw, 36px); line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; }
+.sub { color: var(--muted); margin: 0; max-width: 62ch; }
+.sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.scroll { overflow-x: auto; }
+svg { display: block; }
+.diagram { width: 100%; min-width: 860px; height: auto; }
+.box { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.4; }
+.box-title { font-family: var(--display); font-weight: 600; font-size: 16px; fill: var(--ink); }
+.box-line { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
+.flow { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+.side { stroke: var(--muted); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.side-label { font-family: var(--mono); font-size: 11.5px; fill: var(--muted); }
+.arrowhead { fill: var(--ink); }
+.arrowhead-side { fill: var(--muted); }
+.pin circle { stroke: var(--sheet); stroke-width: 2.5; }
+.pin text { font-family: var(--mono); font-weight: 600; font-size: 11px; fill: var(--sheet); }
+.pin.fixed circle { fill: var(--fixed); } .pin.open circle { fill: var(--open); }
+.pin.missed circle { fill: var(--missed); } .pin.minor circle { fill: var(--minor); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.items { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+.item { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start; padding: 10px 12px; border-left: 3px solid var(--line); background: var(--sheet); min-width: 0; }
+.item.fixed { border-color: var(--fixed); } .item.open { border-color: var(--open); }
+.item.missed { border-color: var(--missed); } .item.minor { border-color: var(--minor); }
+.code { font-family: var(--mono); font-weight: 600; font-size: 13px; grid-row: span 2; padding-top: 1px; }
+.item b { font-weight: 500; }
+.item small { color: var(--muted); font-size: 13px; }
+.pill { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; margin-left: 6px; white-space: nowrap; }
+.fixed .pill { color: var(--fixed); background: var(--fixed-bg); } .open .pill { color: var(--open); background: var(--open-bg); }
+.missed .pill { color: var(--missed); background: var(--missed-bg); } .minor .pill { color: var(--minor); background: var(--minor-bg); }
+.chart { width: 100%; max-width: 680px; height: auto; }
+.grid { stroke: var(--line); stroke-width: 1; }
+.base { stroke: var(--muted); stroke-dasharray: 4 4; stroke-width: 1; }
+.tick, .axis { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.line { fill: none; stroke-width: 2.4; stroke-linejoin: round; }
+.line.heur { stroke: var(--accent); } .line.wrong { stroke: var(--missed); }
+.heur-dot { fill: var(--accent); } .wrong-dot { fill: var(--missed); }
+.end { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+.heur-text { fill: var(--accent); } .wrong-text { fill: var(--missed); }
+.chart-key { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; }
+.chart-key span { display: inline-flex; gap: 8px; align-items: center; }
+.chart-key i { width: 18px; height: 3px; display: inline-block; }
+.two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: center; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+p { margin: 0; }
+
+.rungs { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.rung { margin: 0; display: grid; gap: 6px; padding: 12px; border-top: 3px solid var(--line); background: var(--bg); min-width: 0; }
+.rung.fixed { border-color: var(--fixed); } .rung.open { border-color: var(--open); }
+.rung.missed { border-color: var(--missed); } .rung.ok { border-color: var(--accent); }
+.rung figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 14px; }
+.rung figcaption b { font-weight: 500; }
+.rung.ok .pill { color: var(--accent); background: var(--minor-bg); }
+.ladder { width: 100%; height: auto; }
+.end-name { font-family: var(--mono); font-size: 11px; font-weight: 600; fill: var(--ink); }
+.life { stroke: var(--ink); stroke-width: 1.5; }
+.msg { stroke-width: 1.5; }
+.msg.ok { stroke: var(--ink); } .msg.open { stroke: var(--open); stroke-width: 2.2; } .msg.missed { stroke: var(--missed); stroke-width: 2.2; }
+.head-ok { fill: var(--ink); } .head-open { fill: var(--open); } .head-missed { fill: var(--missed); }
+.msg-label { font-family: var(--mono); font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.msg-label.open { fill: var(--open); } .msg-label.missed { fill: var(--missed); }
+.hold { stroke-width: 6; stroke-linecap: round; } .hold.missed { stroke: var(--missed); }
+.note { font-family: var(--mono); font-size: 11px; }
+.note.ok { fill: var(--accent); } .note.open { fill: var(--open); } .note.missed { fill: var(--missed); } .note.muted { fill: var(--muted); }
+.dot-ok { fill: var(--accent); }
+.zig { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+
+.rung figcaption { font-family: var(--display); font-weight: 600; font-size: 16px; display: block; }
+.axis-line { stroke: var(--muted); stroke-width: 1; }
+.verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.verdict div { display: grid; gap: 2px; padding: 8px 10px; background: var(--sheet); border-radius: 4px; }
+.verdict dt { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.verdict dd { margin: 0; font-family: var(--mono); font-size: 15px; font-weight: 600; }
+.verdict .bad { color: var(--missed); }
+.so { font-size: 13.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <span class="eyebrow">EBPF_REVIEW.md · checked against working tree, 2026-10-04</span>
+    <h1>TCP-Delay Review Map</h1>
+    <p class="sub">Where each finding sits on the measurement path, and its status today.</p>
+  </header>
+
+  <section class="sheet" aria-label="Measurement path with findings">
+    <div class="legend">
+      <span><i style="background:var(--fixed)"></i>Fixed</span>
+      <span><i style="background:var(--open)"></i>Open (review)</span>
+      <span><i style="background:var(--missed)"></i>Missed by review</span>
+      <span><i style="background:var(--minor)"></i>Minor</span>
+    </div>
+    <div class="scroll">
+    <svg class="diagram" viewBox="0 0 1040 400" role="img" aria-label="Packets pass the WAN tap, the BPF filter, the estimator, the controller split and the rate decision. Markers show where each finding occurs.">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="arr-side" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="arrowhead-side" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+
+      <!-- fping input -->
+      <path class="side" d="M715,40 L715,128" marker-end="url(#arr-side)"/>
+      <text class="side-label" x="715" y="30" text-anchor="middle">fping RTT delta</text>
+
+      <!-- stage boxes -->
+      <rect class="box" x="20" y="135" width="130" height="120" rx="4"/>
+      <text class="box-title" x="34" y="162">WAN tap</text>
+      <text class="box-line" x="34" y="186">after CAKE up</text>
+      <text class="box-line" x="34" y="204">before IFB in</text>
+
+      <rect class="box" x="185" y="135" width="175" height="120" rx="4"/>
+      <text class="box-title" x="199" y="162">BPF filter</text>
+      <text class="box-line" x="199" y="186">departure ≤ 1 / 4 ms</text>
+      <text class="box-line" x="199" y="204">reply samples → ring</text>
+      <text class="box-line" x="199" y="222">byte counters</text>
+
+      <rect class="box" x="395" y="135" width="235" height="120" rx="4"/>
+      <text class="box-title" x="409" y="162">Estimator</text>
+      <text class="box-line" x="409" y="186">32 flow slots, clock fit</text>
+      <text class="box-line" x="409" y="204">floor: 2 × 30 s buckets</text>
+      <text class="box-line" x="409" y="222">min over 100 ms</text>
+      <text class="box-line" x="409" y="240">pick one flow</text>
+
+      <rect class="box" x="665" y="135" width="160" height="120" rx="4"/>
+      <text class="box-title" x="679" y="162">Split</text>
+      <text class="box-line" x="679" y="186">gate: sum ≥ 5 ms</text>
+      <text class="box-line" x="679" y="204">blame if ≥ ¼</text>
+      <text class="box-line" x="679" y="222">split fping delta</text>
+
+      <rect class="box" x="860" y="135" width="160" height="120" rx="4"/>
+      <text class="box-title" x="874" y="162">Rate → CAKE</text>
+      <text class="box-line" x="874" y="186">cut / hold / raise</text>
+      <text class="box-line" x="874" y="204">per direction</text>
+
+      <!-- main flow -->
+      <path class="flow" d="M150,195 L183,195" marker-end="url(#arr)"/>
+      <path class="flow" d="M360,195 L393,195" marker-end="url(#arr)"/>
+      <path class="flow" d="M630,195 L663,195" marker-end="url(#arr)"/>
+      <path class="flow" d="M825,195 L858,195" marker-end="url(#arr)"/>
+
+      <!-- ACK counters path -->
+      <path class="side" d="M272,255 L272,330 L940,330 L940,257" marker-end="url(#arr-side)"/>
+      <text class="side-label" x="606" y="352" text-anchor="middle">ACK + upload byte counters → download ACK ceiling</text>
+
+      <!-- pins: review findings by section number, N = not in review -->
+      <g class="pin fixed"><circle cx="612" cy="236" r="13"/><text x="612" y="240" text-anchor="middle">2</text></g>
+      <g class="pin open"><circle cx="612" cy="182" r="13"/><text x="612" y="186" text-anchor="middle">3</text></g>
+      <g class="pin open"><circle cx="612" cy="209" r="13"/><text x="612" y="213" text-anchor="middle">4</text></g>
+      <g class="pin open"><circle cx="377" cy="166" r="13"/><text x="377" y="170" text-anchor="middle">5</text></g>
+      <g class="pin open"><circle cx="440" cy="330" r="13"/><text x="440" y="334" text-anchor="middle">6</text></g>
+      <g class="pin missed"><circle cx="1006" cy="135" r="13"/><text x="1006" y="139" text-anchor="middle">N1</text></g>
+      <g class="pin missed"><circle cx="377" cy="224" r="13"/><text x="377" y="228" text-anchor="middle">N2</text></g>
+      <g class="pin missed"><circle cx="585" cy="262" r="13"/><text x="585" y="266" text-anchor="middle">N3</text></g>
+      <g class="pin minor"><circle cx="395" cy="135" r="13"/><text x="395" y="139" text-anchor="middle">N4</text></g>
+    </svg>
+    </div>
+  </section>
+
+
+
+  <section class="sheet" aria-label="On the wire">
+    <h2>On the wire: what is really there vs what cake-adapt reads</h2>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <marker id="m-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head-ok" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="m-open" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head-open" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="m-missed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="head-missed" d="M0,0 L10,5 L0,10 z"/></marker>
+    </defs></svg>
+    <div class="rungs"><figure class="rung ok"><figcaption>Normal: 10 ms each way</figcaption><svg class="ladder" viewBox="0 0 440 114" role="img" aria-label="Data takes 10 ms to the server, the reply 10 ms back."><text class="end-name" x="150" y="18" text-anchor="middle">router</text><text class="end-name" x="360" y="18" text-anchor="middle">server</text><line class="life" x1="150" x2="150" y1="28" y2="106"/><line class="life" x1="360" x2="360" y1="28" y2="106"/><line class="axis-line" x1="40" x2="40" y1="34" y2="95.6"/><line class="axis-line" x1="36" x2="44" y1="34.0" y2="34.0"/><text class="tick" x="32" y="38.0" text-anchor="end">0</text><line class="axis-line" x1="36" x2="44" y1="56.0" y2="56.0"/><text class="tick" x="32" y="60.0" text-anchor="end">10</text><line class="axis-line" x1="36" x2="44" y1="78.0" y2="78.0"/><text class="tick" x="32" y="82.0" text-anchor="end">20</text><text class="tick" x="40" y="22" text-anchor="middle">ms</text><line class="msg ok" x1="150" y1="34.0" x2="354" y2="56.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="38.0" text-anchor="middle">data</text><line class="msg ok" x1="360" y1="56.0" x2="156" y2="78.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="60.0" text-anchor="middle">reply</text></svg>
+<dl class="verdict"><div><dt>On the link</dt><dd>no queue</dd></div><div class="read"><dt>cake-adapt reads</dt><dd>0 ms / 0 ms</dd></div></dl>
+<p class="so">These 10 ms legs become each flow's floor. A queue is any time above them.</p></figure><figure class="rung missed"><figcaption>Server answers 40 ms late</figcaption><svg class="ladder" viewBox="0 0 440 202" role="img" aria-label="The server holds its reply for 40 ms before sending."><text class="end-name" x="150" y="18" text-anchor="middle">router</text><text class="end-name" x="360" y="18" text-anchor="middle">server</text><line class="life" x1="150" x2="150" y1="28" y2="194"/><line class="life" x1="360" x2="360" y1="28" y2="194"/><line class="axis-line" x1="40" x2="40" y1="34" y2="183.6"/><line class="axis-line" x1="36" x2="44" y1="34.0" y2="34.0"/><text class="tick" x="32" y="38.0" text-anchor="end">0</text><line class="axis-line" x1="36" x2="44" y1="78.0" y2="78.0"/><text class="tick" x="32" y="82.0" text-anchor="end">20</text><line class="axis-line" x1="36" x2="44" y1="122.0" y2="122.0"/><text class="tick" x="32" y="126.0" text-anchor="end">40</text><line class="axis-line" x1="36" x2="44" y1="166.0" y2="166.0"/><text class="tick" x="32" y="170.0" text-anchor="end">60</text><text class="tick" x="40" y="22" text-anchor="middle">ms</text><line class="msg ok" x1="150" y1="34.0" x2="354" y2="56.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="38.0" text-anchor="middle">data</text><line class="hold missed" x1="360" x2="360" y1="56.0" y2="144.0"/><text class="note missed" x="370" y="104.0">waits 40</text><line class="msg ok" x1="360" y1="144.0" x2="156" y2="166.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="148.0" text-anchor="middle">reply</text></svg>
+<dl class="verdict"><div><dt>On the link</dt><dd>no queue</dd></div><div class="read"><dt>cake-adapt reads</dt><dd><span class="bad">upload +40 ms</span></dd></div></dl>
+<p class="so">The wait is read as an upload queue, so fping delay gets blamed on upload. Findings 5, N2.</p></figure><figure class="rung open"><figcaption>Download queue stays for minutes</figcaption><svg class="ladder" viewBox="0 0 440 268" role="img" aria-label="Replies take 90 ms instead of 10 for over a minute."><text class="end-name" x="150" y="18" text-anchor="middle">router</text><text class="end-name" x="360" y="18" text-anchor="middle">server</text><line class="life" x1="150" x2="150" y1="28" y2="260"/><line class="life" x1="360" x2="360" y1="28" y2="260"/><line class="axis-line" x1="40" x2="40" y1="34" y2="249.6"/><line class="axis-line" x1="36" x2="44" y1="34.0" y2="34.0"/><text class="tick" x="32" y="38.0" text-anchor="end">0</text><line class="axis-line" x1="36" x2="44" y1="144.0" y2="144.0"/><text class="tick" x="32" y="148.0" text-anchor="end">50</text><line class="axis-line" x1="36" x2="44" y1="232.0" y2="232.0"/><text class="tick" x="32" y="236.0" text-anchor="end">90</text><text class="tick" x="40" y="22" text-anchor="middle">ms</text><line class="msg ok" x1="150" y1="34.0" x2="354" y2="56.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="38.0" text-anchor="middle">data</text><line class="msg open" x1="360" y1="56.0" x2="156" y2="232.0" marker-end="url(#m-open)"/><text class="msg-label open" x="255.0" y="137.0" text-anchor="middle">reply</text><text class="note open" x="140" y="148.4" text-anchor="end">+80 queued</text></svg>
+<dl class="verdict"><div><dt>On the link</dt><dd>download +80 ms</dd></div><div class="read"><dt>cake-adapt reads</dt><dd><span class="bad">download 0 ms</span></dd></div></dl>
+<p class="so">After ~60 s, 90 ms becomes the new floor, so the queue disappears from view. Finding 4.</p></figure><figure class="rung fixed"><figcaption>New connection opens into a queue</figcaption><svg class="ladder" viewBox="0 0 440 268" role="img" aria-label="The first exchange of a new connection already takes 90 ms on the way back."><text class="end-name" x="150" y="18" text-anchor="middle">router</text><text class="end-name" x="360" y="18" text-anchor="middle">server</text><line class="life" x1="150" x2="150" y1="28" y2="260"/><line class="life" x1="360" x2="360" y1="28" y2="260"/><line class="axis-line" x1="40" x2="40" y1="34" y2="249.6"/><line class="axis-line" x1="36" x2="44" y1="34.0" y2="34.0"/><text class="tick" x="32" y="38.0" text-anchor="end">0</text><line class="axis-line" x1="36" x2="44" y1="144.0" y2="144.0"/><text class="tick" x="32" y="148.0" text-anchor="end">50</text><line class="axis-line" x1="36" x2="44" y1="232.0" y2="232.0"/><text class="tick" x="32" y="236.0" text-anchor="end">90</text><text class="tick" x="40" y="22" text-anchor="middle">ms</text><line class="msg ok" x1="150" y1="34.0" x2="354" y2="56.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="38.0" text-anchor="middle">SYN</text><line class="msg open" x1="360" y1="56.0" x2="156" y2="232.0" marker-end="url(#m-open)"/><text class="msg-label open" x="255.0" y="137.0" text-anchor="middle">SYN+ACK</text><text class="note open" x="140" y="148.4" text-anchor="end">+80 queued</text></svg>
+<dl class="verdict"><div><dt>On the link</dt><dd>download +80 ms</dd></div><div class="read"><dt>cake-adapt reads</dt><dd><span class="bad">download 0 ms</span></dd></div></dl>
+<p class="so">Its first sample is already queued, so its floor is 90. Fixed while an older flow exists; not when every flow starts like this. Finding 2.</p></figure><figure class="rung open"><figcaption>Same ports, new connection</figcaption><svg class="ladder" viewBox="0 0 440 241" role="img" aria-label="An old connection ends; a new one reuses its ports and the server restarts its clock at a lower value."><text class="end-name" x="150" y="18" text-anchor="middle">router</text><text class="end-name" x="360" y="18" text-anchor="middle">server</text><line class="life" x1="150" x2="150" y1="28" y2="233"/><line class="life" x1="360" x2="360" y1="28" y2="233"/><line class="msg ok" x1="360" y1="34.0" x2="156" y2="56.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="38.0" text-anchor="middle">old: clock 1,000,000</text><line class="msg ok" x1="150" y1="82.4" x2="354" y2="104.4" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="86.4" text-anchor="middle">close</text><line class="msg ok" x1="150" y1="148.4" x2="354" y2="170.4" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="152.4" text-anchor="middle">SYN</text><line class="msg missed" x1="360" y1="170.4" x2="156" y2="192.4" marker-end="url(#m-missed)"/><text class="msg-label missed" x="255.0" y="174.4" text-anchor="middle">new: clock 100</text></svg>
+<dl class="verdict"><div><dt>On the link</dt><dd>normal</dd></div><div class="read"><dt>cake-adapt reads</dt><dd><span class="bad">nothing</span></dd></div></dl>
+<p class="so">100 is lower than 1,000,000, so every new sample is thrown away as out of order. Finding 3.</p></figure><figure class="rung open"><figcaption>A pure ACK leaves</figcaption><svg class="ladder" viewBox="0 0 440 100" role="img" aria-label="One pure ACK goes out."><text class="end-name" x="150" y="18" text-anchor="middle">router</text><text class="end-name" x="360" y="18" text-anchor="middle">server</text><line class="life" x1="150" x2="150" y1="28" y2="92"/><line class="life" x1="360" x2="360" y1="28" y2="92"/><line class="msg ok" x1="150" y1="34.0" x2="354" y2="56.0" marker-end="url(#m-ok)"/><text class="msg-label ok" x="255.0" y="38.0" text-anchor="middle">ACK</text></svg>
+<dl class="verdict"><div><dt>On the link</dt><dd>CAKE charges 100 B</dd></div><div class="read"><dt>cake-adapt reads</dt><dd><span class="bad">80 B</span></dd></div></dl>
+<p class="so">Counted without CAKE's overhead, so the ACK room looks 25% bigger than it is. Finding 6.</p></figure></div>
+  </section>
+  <section class="items" aria-label="Findings">
+    <div class="item fixed"><span class="code">2</span><b>New flow hid an existing queue<span class="pill">fixed</span></b><small>Fix 1 (20cc841): both directions now come from one flow.</small></div>
+    <div class="item open"><span class="code">3</span><b>Reused connection keeps the old clock<span class="pill">open</span></b><small>Phase 1 (uncommitted) stops LRU refresh only.</small></div>
+    <div class="item open"><span class="code">4</span><b>Standing queue becomes the baseline<span class="pill">open</span></b><small>80/20 ms reads 0/0 ms after ~1 min.</small></div>
+    <div class="item open"><span class="code">5</span><b>Remote reply timing reads as upload queue<span class="pill">open</span></b><small>40 ms ACK delay shows as 40 ms upload.</small></div>
+    <div class="item open"><span class="code">6</span><b>Counted bytes ≠ CAKE-charged bytes<span class="pill">open</span></b><small>ACK ceiling can be optimistic. Not measured.</small></div>
+    <div class="item missed"><span class="code">N1</span><b>Wrong split can raise the congested side<span class="pill">missed</span></b><small>0 ms share → congestion clears → rate rises. See chart.</small></div>
+    <div class="item missed"><span class="code">N2</span><b>Server pacing also lands in “upload”<span class="pill">missed</span></b><small>Download flows: paced or app-limited senders, not just delayed ACKs.</small></div>
+    <div class="item missed"><span class="code">N3</span><b>“Oldest flow” edge fades in 30–60 s<span class="pill">missed</span></b><small>Floors roll over (4), so age stops meaning a clean baseline.</small></div>
+    <div class="item minor"><span class="code">N4</span><b>Phase 1 drops cross-CPU reordered samples<span class="pill">minor</span></b><small>Rare; one flow usually stays on one CPU.</small></div>
+    <div class="item minor"><span class="code">doc</span><b>Summary table still lists 2 as open<span class="pill">minor</span></b><small>The withdrawn VM run (0 TCP_QUEUE records) is labelled correctly.</small></div>
+  </section>
+
+  <section class="sheet two" aria-label="Probe result for N1">
+    <div style="display:grid;gap:10px;min-width:0">
+      <h2>N1: download held 81% loaded, fping +50 ms each way</h2>
+      <div class="chart-key">
+        <span><i style="background:var(--accent)"></i>Heuristic only: cuts to 5.8</span>
+        <span><i style="background:var(--missed)"></i>TCP says dl 0 / ul 20 ms: rises to 8.7</span>
+      </div>
+      <div class="scroll"><svg class="chart" viewBox="0 0 680 270" role="img" aria-labelledby="chart-title chart-desc">
+<title id="chart-title">Download shaper rate over 20 seconds</title>
+<desc id="chart-desc">With the heuristic the download shaper falls from 8.0 to 5.8 Mbit/s. With a TCP estimate that wrongly says the queue is on upload, it rises to about 8.7 Mbit/s.</desc>
+<line class="grid" x1="56" x2="600" y1="236.0" y2="236.0"/><text class="tick" x="48" y="240.0" text-anchor="end">5</text><line class="grid" x1="56" x2="600" y1="183.0" y2="183.0"/><text class="tick" x="48" y="187.0" text-anchor="end">6</text><line class="grid" x1="56" x2="600" y1="130.0" y2="130.0"/><text class="tick" x="48" y="134.0" text-anchor="end">7</text><line class="grid" x1="56" x2="600" y1="77.0" y2="77.0"/><text class="tick" x="48" y="81.0" text-anchor="end">8</text><line class="grid" x1="56" x2="600" y1="24.0" y2="24.0"/><text class="tick" x="48" y="28.0" text-anchor="end">9</text><text class="tick" x="56.0" y="254" text-anchor="middle">0</text><text class="tick" x="192.0" y="254" text-anchor="middle">5</text><text class="tick" x="328.0" y="254" text-anchor="middle">10</text><text class="tick" x="464.0" y="254" text-anchor="middle">15</text><text class="tick" x="600.0" y="254" text-anchor="middle">20</text>
+<text class="axis" x="56" y="12">Mbit/s</text>
+<text class="axis" x="600" y="270" text-anchor="end">seconds</text>
+<line class="base" x1="56" x2="600" y1="77.0" y2="77.0"/>
+<text class="tick" x="596" y="71.0" text-anchor="end">base 8.0</text>
+<polyline class="line heur" points="56.0,77.0 69.6,77.0 83.2,65.7 96.8,70.1 110.4,85.9 124.0,128.7 137.6,192.0 151.2,192.0 164.8,192.0 178.4,192.0 192.0,192.0 205.6,192.0 219.2,192.0 232.8,192.0 246.4,192.0 260.0,192.0 273.6,192.0 287.2,192.0 300.8,192.0 314.4,192.0 328.0,192.0 341.6,192.0 355.2,192.0 368.8,192.0 382.4,192.0 396.0,192.0 409.6,192.0 423.2,192.0 436.8,192.0 450.4,192.0 464.0,192.0 477.6,192.0 491.2,192.0 504.8,192.0 518.4,192.0 532.0,192.0 545.6,192.0 559.2,192.0 572.8,192.0 586.4,192.0 600.0,192.0"/>
+<polyline class="line wrong" points="56.0,77.0 69.6,77.0 83.2,60.0 96.8,42.4 110.4,42.4 124.0,42.4 137.6,47.1 151.2,47.1 164.8,47.1 178.4,51.6 192.0,33.6 205.6,33.6 219.2,33.6 232.8,38.4 246.4,38.4 260.0,38.4 273.6,43.0 287.2,43.0 300.8,43.0 314.4,47.6 328.0,47.6 341.6,47.6 355.2,52.2 368.8,34.3 382.4,34.3 396.0,34.3 409.6,39.0 423.2,39.0 436.8,39.0 450.4,43.7 464.0,43.7 477.6,43.7 491.2,48.3 504.8,30.2 518.4,30.2 532.0,30.2 545.6,34.9 559.2,34.9 572.8,34.9 586.4,39.6 600.0,39.6"/>
+<circle class="dot heur-dot" cx="600.0" cy="192.0" r="4"/>
+<circle class="dot wrong-dot" cx="600.0" cy="39.6" r="4"/>
+<text class="end heur-text" x="608.0" y="196.0">5.8</text>
+<text class="end wrong-text" x="608.0" y="43.6">8.7</text>
+</svg></div>
+    </div>
+    <p class="sub">Controller probe on today's code, base 8 Mbit/s, 0.5 s per sample. The real queue is on download; a wrong estimate keeps raising it.</p>
+  </section>
+</main>
+</body>
+</html>
