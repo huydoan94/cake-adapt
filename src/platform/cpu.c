@@ -5,6 +5,7 @@
 #include "common/error.h"
 #include "common/constants.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -102,15 +103,11 @@ void cpu_usage(
 
 	for (index = 0U; index < sample->count; index++) {
 		uint64_t sum = counter_sum(&sample->counters[index]);
-		uint64_t delta = sum >= monitor->previous_sums[index] ?
-					 sum - monitor->previous_sums[index] :
-					 0U;
+		uint64_t delta = saturating_sub(sum, monitor->previous_sums[index]);
 		uint64_t idle =
-			sample->counters[index].idle >= monitor->previous_idle[index] ?
-				sample->counters[index].idle - monitor->previous_idle[index] :
-				0U;
+			saturating_sub(sample->counters[index].idle, monitor->previous_idle[index]);
 
-		usage[index] = delta > idle ? (unsigned int)(100U * (delta - idle) / delta) : 0U;
+		usage[index] = delta > idle ? (unsigned int)(PERCENT * (delta - idle) / delta) : 0U;
 		monitor->previous_sums[index] = sum;
 		monitor->previous_idle[index] = sample->counters[index].idle;
 	}

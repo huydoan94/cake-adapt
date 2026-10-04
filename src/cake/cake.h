@@ -14,14 +14,7 @@ struct cake_observation {
 	uint32_t handle;
 	uint32_t parent;
 	uint64_t bandwidth_bits_per_second;
-	uint64_t capacity_estimate_bits_per_second;
 	uint64_t bytes;
-	uint32_t packets;
-	uint32_t queue_length;
-	uint32_t backlog_bytes;
-	uint32_t drops;
-	uint32_t memory_limit_bytes;
-	uint32_t memory_used_bytes;
 	uint32_t mtu_bytes;
 	int32_t overhead_bytes;
 	uint32_t atm_mode;

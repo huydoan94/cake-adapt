@@ -89,6 +89,21 @@ static void test_delta_ewma_freezes_during_load(void)
 	assert(observation.download_owd_delta_ewma_microseconds == 0);
 }
 
+/* A delta too large for the weighted sum restarts the EWMA at the delta. */
+static void test_unrepresentable_delta_ewma_restarts(void)
+{
+	struct latency_tracker tracker;
+	struct latency_observation observation = {
+		.download_owd_delta_microseconds = INT64_MAX,
+		.upload_owd_delta_microseconds = 1000000,
+	};
+
+	init_tracker(&tracker);
+	tracker_update_delta_ewma(&tracker, true, &observation);
+	assert(observation.download_owd_delta_ewma_microseconds == INT64_MAX);
+	assert(observation.upload_owd_delta_ewma_microseconds == 95000);
+}
+
 static void test_asymmetric_tracker_state_evolves_independently(void)
 {
 	struct latency_tracker tracker;
@@ -306,6 +321,7 @@ int main(void)
 	test_first_sample_updates_initialized_baseline();
 	test_configured_alpha_values_are_used();
 	test_delta_ewma_freezes_during_load();
+	test_unrepresentable_delta_ewma_restarts();
 	test_invalid_alpha_is_rejected();
 	test_asymmetric_tracker_state_evolves_independently();
 	test_lower_sample_reduces_baseline();

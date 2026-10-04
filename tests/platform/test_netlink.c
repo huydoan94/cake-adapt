@@ -66,7 +66,7 @@ int test_receive(struct nl_sock *socket)
 static void test_response(bool interrupted, bool complete)
 {
 	struct netlink netlink = { .socket = nl_socket_alloc() };
-	struct response_context context = { .type = RESPONSE_QDISC_DUMP };
+	struct response_context context = { .request = NETLINK_REQUEST_QDISC_DUMP };
 	char error[128] = "";
 	int result;
 
@@ -93,10 +93,10 @@ static void record_event(const struct qdisc_event *event, void *context)
 	*(struct qdisc_event *)context = *event;
 }
 
-static void test_request(enum response_type type, bool fail_send)
+static void test_request(const char *request, bool fail_send)
 {
 	struct netlink netlink = { .socket = nl_socket_alloc() };
-	struct response_context context = { .type = type };
+	struct response_context context = { .request = request };
 	struct nl_msg *message = nlmsg_alloc();
 	char error[128] = "";
 
@@ -111,11 +111,8 @@ static void test_request(enum response_type type, bool fail_send)
 	assert(send_request(&netlink, message, &context, error, sizeof(error)) ==
 	       (fail_send ? -1 : 0));
 	assert(polls == (fail_send ? 0U : 1U));
-	if (fail_send) {
-		assert(strstr(error,
-			      type == RESPONSE_QDISC_DUMP ? "request qdisc dump" :
-							    "send qdisc change") != NULL);
-	}
+	if (fail_send)
+		assert(strstr(error, request) != NULL);
 	netlink_close(&netlink);
 }
 
@@ -162,10 +159,10 @@ int main(void)
 	test_response(true, false);
 	test_response(false, true);
 	test_qdisc_events();
-	test_request(RESPONSE_QDISC_DUMP, false);
-	test_request(RESPONSE_QDISC_DUMP, true);
-	test_request(RESPONSE_QDISC_CHANGE, false);
-	test_request(RESPONSE_QDISC_CHANGE, true);
+	test_request(NETLINK_REQUEST_QDISC_DUMP, false);
+	test_request(NETLINK_REQUEST_QDISC_DUMP, true);
+	test_request(NETLINK_REQUEST_QDISC_CHANGE, false);
+	test_request(NETLINK_REQUEST_QDISC_CHANGE, true);
 	puts("netlink request, deadline and event tests passed");
 	return 0;
 }

@@ -3,12 +3,13 @@
 
 /* Private interface between latency session ownership and pinger backends. */
 
-#include <stdbool.h>
 #include <stddef.h>
-#include <sys/types.h>
 #include <wordexp.h>
 
 #include "latency/latency.h"
+
+/* Room for one formatted number argument, such as an interval. */
+#define PINGER_ARGUMENT_SIZE 32U
 
 struct pinger_ops {
 	/* Names the pinger in exit diagnostics. */
@@ -31,19 +32,6 @@ struct pinger_ops {
 extern const struct pinger_ops fping_ops;
 extern const struct pinger_ops fping_ts_ops;
 extern const struct pinger_ops irtt_ops;
-
-/* Terminates the child's process group, escalating to SIGKILL, and reaps it. */
-void stop_child(pid_t process_identifier);
-
-/* Frees and clears words on failure; an empty value expands to no words. */
-int expand_words(
-	const char *value,
-	bool require_word,
-	const char *option,
-	wordexp_t *words,
-	char *error,
-	size_t error_size
-);
 
 /* A pinger's argument vector: the prefix words, then what the backend adds. */
 struct pinger_command {

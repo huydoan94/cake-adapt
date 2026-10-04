@@ -40,6 +40,7 @@ static int64_t floor_update(struct tcpdelay_floor *floor, int64_t value, uint64_
 static void window_add(struct tcpdelay_window *window, int64_t queue_ns, uint64_t time_ns)
 {
 	uint64_t index = time_ns / WINDOW_NS;
+	uint64_t slot;
 
 	if (!window->valid[0] && !window->valid[1])
 		window->index = index;
@@ -50,16 +51,13 @@ static void window_add(struct tcpdelay_window *window, int64_t queue_ns, uint64_
 		window->valid[0] = false;
 		window->index = index;
 	}
-	if (index == window->index) {
-		if (!window->valid[0] || queue_ns < window->minimum_ns[0]) {
-			window->minimum_ns[0] = queue_ns;
-			window->valid[0] = true;
-		}
-	} else if (index + 1U == window->index) {
-		if (!window->valid[1] || queue_ns < window->minimum_ns[1]) {
-			window->minimum_ns[1] = queue_ns;
-			window->valid[1] = true;
-		}
+	/* Slot 0 is the current window and slot 1 the one before; older samples count nowhere. */
+	slot = window->index - index;
+	if (slot > 1U)
+		return;
+	if (!window->valid[slot] || queue_ns < window->minimum_ns[slot]) {
+		window->minimum_ns[slot] = queue_ns;
+		window->valid[slot] = true;
 	}
 }
 
@@ -140,12 +138,13 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
  * delay in each direction; upload_ns is negative when the sample has no
  * departure.
  */
-static void
-measure(struct tcpdelay_flow *flow,
+static void flow_measure(
+	struct tcpdelay_flow *flow,
 	size_t tick_index,
 	const struct tcpdelay_sample *sample,
 	int64_t *download_ns,
-	int64_t *upload_ns)
+	int64_t *upload_ns
+)
 {
 	int64_t elapsed_ns = (int64_t)(sample->arrival_ns - flow->first_arrival_ns);
 	int64_t remote_ns = (int64_t)(flow->ticks * standard_ticks_ns[tick_index]);
@@ -201,11 +200,11 @@ void tcpdelay_estimator_add(
 	flow->last_tsval = sample->tsval;
 	if (flow->tick_ns == 0U) {
 		for (index = 0U; index < TCPDELAY_TICKS; index++)
-			measure(flow, index, sample, &download_ns, &upload_ns);
+			flow_measure(flow, index, sample, &download_ns, &upload_ns);
 		fit_tick(flow, sample->arrival_ns - flow->first_arrival_ns);
 		return;
 	}
-	measure(flow, flow->tick_index, sample, &download_ns, &upload_ns);
+	flow_measure(flow, flow->tick_index, sample, &download_ns, &upload_ns);
 	if (download_ns > IMPLAUSIBLE_QUEUE_NS || upload_ns > IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
 		return;

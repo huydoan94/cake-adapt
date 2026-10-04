@@ -3,6 +3,7 @@
 #include "monitor/loop.h"
 
 #include "common/error.h"
+#include "common/utils.h"
 #include "logging/log.h"
 
 #include <libubox/utils.h>
@@ -11,6 +12,7 @@
 #include <inttypes.h>
 #include <linux/pkt_sched.h>
 #include <net/if.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
@@ -22,29 +24,25 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 	direction->traffic_rate_bits_per_second = 0U;
 	direction->traffic_valid = false;
 	if (!direction->cake_valid || !direction->cake.has_basic_stats) {
-		if (direction->traffic_state != TRAFFIC_OBSERVATION_UNAVAILABLE) {
+		if (direction->traffic_state != TRAFFIC_OBSERVATION_UNAVAILABLE)
 			log_message(
 				LOG_LEVEL_WARNING,
-				"traffic observation unavailable: direction=%s interface=%s"
-				" source=CAKE basic stats",
+				"traffic observation unavailable: direction=%s interface=%s",
 				direction->name,
 				direction->interface
 			);
-		}
 		direction->traffic_state = TRAFFIC_OBSERVATION_UNAVAILABLE;
 		traffic_init(&direction->traffic_monitor);
 		return;
 	}
 
-	if (direction->traffic_state == TRAFFIC_OBSERVATION_UNAVAILABLE) {
+	if (direction->traffic_state == TRAFFIC_OBSERVATION_UNAVAILABLE)
 		log_message(
 			LOG_LEVEL_NOTICE,
-			"traffic observation recovered: direction=%s interface=%s"
-			" source=CAKE basic stats",
+			"traffic observation recovered: direction=%s interface=%s",
 			direction->name,
 			direction->interface
 		);
-	}
 	direction->traffic_state = TRAFFIC_OBSERVATION_AVAILABLE;
 
 	sample = (struct traffic_sample){ .bytes = direction->cake.bytes,
@@ -61,8 +59,7 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 	case TRAFFIC_UPDATE_BASELINE:
 		log_message(
 			LOG_LEVEL_INFO,
-			"traffic observation initialized: direction=%s interface=%s"
-			" source=CAKE basic stats",
+			"traffic observation initialized: direction=%s interface=%s",
 			direction->name,
 			direction->interface
 		);
@@ -74,8 +71,7 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 	case TRAFFIC_UPDATE_COUNTER_RESET:
 		log_message(
 			LOG_LEVEL_WARNING,
-			"CAKE traffic counter reset; re-baselining:"
-			" direction=%s interface=%s",
+			"CAKE traffic counter reset; re-baselining: direction=%s interface=%s",
 			direction->name,
 			direction->interface
 		);
@@ -101,34 +97,42 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 	}
 }
 
+/* Longest "<rate> bit/s": UINT64_MAX has 20 digits. */
+#define BANDWIDTH_TEXT_SIZE 32U
+
 static void
 log_cake_discovery(const char *interface, const struct cake_observation *observation, bool recovered)
 {
-	enum log_level level = recovered ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
+	char bandwidth[BANDWIDTH_TEXT_SIZE];
 
 	if (!observation->has_bandwidth || observation->bandwidth_bits_per_second == 0U) {
-		log_message(
-			level,
-			recovered ? "CAKE observation recovered: interface=%s handle=0x%08" PRIx32
-				    " bandwidth=unlimited" :
-				    "CAKE discovered: interface=%s handle=0x%08" PRIx32
-				    " bandwidth=unlimited",
-			interface,
-			observation->handle
+		(void)snprintf(bandwidth, sizeof(bandwidth), "%s", STATE_UNLIMITED);
+	} else {
+		(void)snprintf(
+			bandwidth,
+			sizeof(bandwidth),
+			"%" PRIu64 " bit/s",
+			observation->bandwidth_bits_per_second
 		);
-		return;
 	}
-
-	log_message(
-		level,
-		recovered ? "CAKE observation recovered: interface=%s handle=0x%08" PRIx32
-			    " bandwidth=%" PRIu64 " bit/s" :
-			    "CAKE discovered: interface=%s handle=0x%08" PRIx32
-			    " bandwidth=%" PRIu64 " bit/s",
-		interface,
-		observation->handle,
-		observation->bandwidth_bits_per_second
-	);
+	if (recovered) {
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"CAKE observation recovered: interface=%s handle=0x%08" PRIx32
+			" bandwidth=%s",
+			interface,
+			observation->handle,
+			bandwidth
+		);
+	} else {
+		log_message(
+			LOG_LEVEL_INFO,
+			"CAKE discovered: interface=%s handle=0x%08" PRIx32 " bandwidth=%s",
+			interface,
+			observation->handle,
+			bandwidth
+		);
+	}
 }
 
 static void record_cake_read(
@@ -182,19 +186,20 @@ static void record_cake_read(
 }
 
 /* Directions whose retry time has come share one qdisc dump. */
-static void observe_cake(
-	struct netlink *netlink,
-	struct monitor_direction *const directions[2],
-	uint64_t timestamp_microseconds,
-	uint64_t retry_interval_microseconds
-)
+static void observe_cake(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	struct cake_read reads[2];
-	struct monitor_direction *due[2];
+	uint64_t retry_interval_microseconds =
+		monitor->config->interface_up_check_interval_microseconds;
+	struct monitor_direction *const directions[] = {
+		&monitor->links.upload,
+		&monitor->links.download,
+	};
+	struct cake_read reads[ARRAY_SIZE(directions)];
+	struct monitor_direction *due[ARRAY_SIZE(directions)];
 	size_t count = 0U;
 	size_t index;
 
-	for (index = 0U; index < 2U; index++) {
+	for (index = 0U; index < ARRAY_SIZE(directions); index++) {
 		struct monitor_direction *direction = directions[index];
 
 		direction->cake_valid = false;
@@ -204,7 +209,7 @@ static void observe_cake(
 						   .observation = &direction->cake };
 		due[count++] = direction;
 	}
-	cake_read_all(netlink, reads, count);
+	cake_read_all(&monitor->netlink, reads, count);
 	for (index = 0U; index < count; index++) {
 		record_cake_read(
 			due[index],
@@ -223,7 +228,7 @@ void links_apply_cadence(struct monitor *monitor)
 		return;
 	if (uloop_interval_set(
 		    &monitor->traffic_timer,
-		    traffic_interval_milliseconds(links->cadence_microseconds)
+		    timer_milliseconds(links->cadence_microseconds)
 	    ) != 0) {
 		log_message(
 			LOG_LEVEL_WARNING,
@@ -268,7 +273,6 @@ void links_observe(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
 	struct monitor_links *links = &monitor->links;
-	struct monitor_direction *const directions[] = { &links->upload, &links->download };
 	struct timespec traffic_timestamp;
 	uint64_t timestamp_microseconds;
 
@@ -290,14 +294,8 @@ void links_observe(struct monitor *monitor)
 		return;
 	}
 
-	timestamp_microseconds = (uint64_t)traffic_timestamp.tv_sec * MICROSECONDS_PER_SECOND +
-				 (uint64_t)traffic_timestamp.tv_nsec / NANOSECONDS_PER_MICROSECOND;
-	observe_cake(
-		&monitor->netlink,
-		directions,
-		timestamp_microseconds,
-		config->interface_up_check_interval_microseconds
-	);
+	timestamp_microseconds = timespec_microseconds(&traffic_timestamp);
+	observe_cake(monitor, timestamp_microseconds);
 	if (links->clock_failed) {
 		log_message(
 			LOG_LEVEL_NOTICE,
@@ -319,9 +317,10 @@ void links_observe(struct monitor *monitor)
 	observe_traffic(&links->download, &traffic_timestamp);
 	observe_traffic(&links->upload, &traffic_timestamp);
 
+	/* Valid traffic comes from a valid CAKE observation. */
 	if (config->output_load_stats && links->download.traffic_valid &&
-	    links->upload.traffic_valid && links->download.cake_valid && links->upload.cake_valid &&
-	    links->download.cake.has_bandwidth && links->upload.cake.has_bandwidth) {
+	    links->upload.traffic_valid && links->download.cake.has_bandwidth &&
+	    links->upload.cake.has_bandwidth) {
 		log_load_stats(&links->download, &links->upload);
 	}
 }

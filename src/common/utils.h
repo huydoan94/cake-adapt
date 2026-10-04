@@ -2,8 +2,10 @@
 #define UTILS_H
 
 /* Trivial arithmetic shared by every module; anything longer is in helpers.c. */
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "common/constants.h"
 
@@ -24,6 +26,22 @@ static inline uint64_t saturating_mul(uint64_t value, uint64_t factor)
 	uint64_t product;
 
 	return __builtin_mul_overflow(value, factor, &product) ? UINT64_MAX : product;
+}
+
+static inline uint64_t min_u64(uint64_t first, uint64_t second)
+{
+	return first < second ? first : second;
+}
+
+static inline uint64_t max_u64(uint64_t first, uint64_t second)
+{
+	return first > second ? first : second;
+}
+
+/* value - subtrahend, or zero when subtrahend is larger. */
+static inline uint64_t saturating_sub(uint64_t value, uint64_t subtrahend)
+{
+	return value > subtrahend ? value - subtrahend : 0U;
 }
 
 /* first + second, saturated to the int64_t range. */
@@ -81,6 +99,27 @@ static inline uint64_t milliseconds_rounded_up(uint64_t microseconds)
 {
 	return microseconds / MICROSECONDS_PER_MILLISECOND +
 	       (microseconds % MICROSECONDS_PER_MILLISECOND != 0U ? 1U : 0U);
+}
+
+/* uloop takes unsigned milliseconds: round upward and saturate. */
+static inline unsigned int timer_milliseconds(uint64_t microseconds)
+{
+	uint64_t milliseconds = milliseconds_rounded_up(microseconds);
+
+	return milliseconds > UINT_MAX ? UINT_MAX : (unsigned int)milliseconds;
+}
+
+/* For log messages that print a duration in seconds. */
+static inline double seconds_from_microseconds(uint64_t microseconds)
+{
+	return (double)microseconds / (double)MICROSECONDS_PER_SECOND;
+}
+
+/* A nonnegative clock reading in whole microseconds. */
+static inline uint64_t timespec_microseconds(const struct timespec *value)
+{
+	return (uint64_t)value->tv_sec * MICROSECONDS_PER_SECOND +
+	       (uint64_t)value->tv_nsec / NANOSECONDS_PER_MICROSECOND;
 }
 
 /* Strict boundary: equality and backwards timestamps have not elapsed. */

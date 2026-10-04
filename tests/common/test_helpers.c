@@ -81,6 +81,13 @@ static void test_saturating_unsigned_arithmetic(void)
 	assert(saturating_mul(6U, 7U) == 42U);
 	assert(saturating_mul(UINT64_MAX / 2U, 2U) == UINT64_MAX - 1U);
 	assert(saturating_mul(UINT64_MAX / 2U + 1U, 2U) == UINT64_MAX);
+	assert(saturating_sub(5U, 3U) == 2U);
+	assert(saturating_sub(3U, 3U) == 0U);
+	assert(saturating_sub(3U, 5U) == 0U);
+	assert(min_u64(3U, 5U) == 3U);
+	assert(min_u64(5U, 3U) == 3U);
+	assert(max_u64(3U, 5U) == 5U);
+	assert(max_u64(UINT64_MAX, 0U) == UINT64_MAX);
 	assert(mul_div(1000U, 45U, 100U) == 450U);
 	assert(mul_div(999U, 1U, 2U) == 499U);
 	assert(mul_div(UINT64_MAX, 3U, 4U) == UINT64_MAX / 4U * 3U + 2U);
@@ -93,6 +100,20 @@ static void test_milliseconds_round_up(void)
 	assert(milliseconds_rounded_up(1000U) == 1U);
 	assert(milliseconds_rounded_up(1001U) == 2U);
 	assert(milliseconds_rounded_up(UINT64_MAX) == UINT64_MAX / 1000U + 1U);
+}
+
+static void test_timer_milliseconds(void)
+{
+	assert(timer_milliseconds(1000U) == 1U);
+	assert(timer_milliseconds(1001U) == 2U);
+	assert(timer_milliseconds(UINT64_MAX) == UINT_MAX);
+}
+
+static void test_timespec_microseconds(void)
+{
+	const struct timespec value = { .tv_sec = 12, .tv_nsec = 345678999 };
+
+	assert(timespec_microseconds(&value) == 12345678U);
 }
 
 static void test_elapsed_interval_boundaries(void)
@@ -218,6 +239,8 @@ int main(void)
 	test_saturating_signed_arithmetic();
 	test_saturating_unsigned_arithmetic();
 	test_milliseconds_round_up();
+	test_timespec_microseconds();
+	test_timer_milliseconds();
 	test_elapsed_interval_boundaries();
 	test_load_rounding_and_limits();
 	test_clock_failure_preserves_output();

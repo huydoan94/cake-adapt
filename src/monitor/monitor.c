@@ -56,8 +56,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"Warning: no reflector response within: %.2f seconds. Checking loads.",
-			(double)activity_config.stall_timeout_microseconds /
-				(double)MICROSECONDS_PER_SECOND
+			seconds_from_microseconds(activity_config.stall_timeout_microseconds)
 		);
 		log_message(
 			LOG_LEVEL_DEBUG,
@@ -80,8 +79,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 			control_enforce_minimum(monitor, timestamp_microseconds);
 		log_system_message(
 			"Warning: Configured global ping response timeout: %.3f seconds exceeded.",
-			(double)activity_config.global_timeout_microseconds /
-				(double)MICROSECONDS_PER_SECOND
+			seconds_from_microseconds(activity_config.global_timeout_microseconds)
 		);
 	}
 	if (output.state_changed) {
@@ -141,34 +139,44 @@ static void handle_traffic_timer(struct uloop_interval *timer)
 	monitor_tick(__extension__ container_of(timer, struct monitor, traffic_timer));
 }
 
-static void observe_cpu(struct monitor *monitor, bool emit_records)
+/*
+ * Reads the counters and reports failure, recovery and a changed CPU count.
+ * cpu_read() initializes only the counters the kernel returns.
+ */
+static bool read_cpu(struct monitor *monitor, struct cpu_sample *sample)
 {
-	/* cpu_read initializes only the counters actually returned by the kernel. */
-	struct cpu_sample sample;
-	unsigned int usage[CPU_MAX_COUNT];
 	char error[ERROR_SIZE] = { 0 };
 
-	if (cpu_read(PROC_STAT_PATH, &sample, error, sizeof(error)) != 0) {
+	if (cpu_read(PROC_STAT_PATH, sample, error, sizeof(error)) != 0) {
 		if (!monitor->cpu_observation_failed)
 			log_message(LOG_LEVEL_WARNING, "CPU observation degraded: %s", error);
 		monitor->cpu_observation_failed = true;
-		return;
+		return false;
 	}
 	if (monitor->cpu_observation_failed) {
 		log_message(LOG_LEVEL_NOTICE, "CPU observation recovered");
 		monitor->cpu_observation_failed = false;
 	}
-	if (monitor->cpu_count != sample.count) {
-		monitor->cpu_count = sample.count;
+	if (monitor->cpu_count != sample->count) {
+		monitor->cpu_count = sample->count;
 		cpu_init(&monitor->cpu_monitor);
-		log_message(LOG_LEVEL_DEBUG, "Detected %zu CPU cores.", sample.count - 1U);
+		log_message(LOG_LEVEL_DEBUG, "Detected %zu CPU cores.", sample->count - 1U);
 		log_print_cpu_headers(
-			&sample,
+			sample,
 			monitor->config->output_cpu_stats,
 			monitor->config->output_cpu_raw_stats
 		);
 	}
-	if (!emit_records)
+	return true;
+}
+
+static void handle_cpu_timer(struct uloop_interval *timer)
+{
+	struct monitor *monitor = __extension__ container_of(timer, struct monitor, cpu_timer);
+	struct cpu_sample sample;
+	unsigned int usage[CPU_MAX_COUNT];
+
+	if (monitor->activity.state != CONTROLLER_RUNNING || !read_cpu(monitor, &sample))
 		return;
 	if (monitor->config->output_cpu_raw_stats)
 		log_cpu_raw(&sample);
@@ -176,14 +184,6 @@ static void observe_cpu(struct monitor *monitor, bool emit_records)
 		cpu_usage(&monitor->cpu_monitor, &sample, usage);
 		log_cpu(&sample, usage);
 	}
-}
-
-static void handle_cpu_timer(struct uloop_interval *timer)
-{
-	struct monitor *monitor = __extension__ container_of(timer, struct monitor, cpu_timer);
-
-	if (monitor->activity.state == CONTROLLER_RUNNING)
-		observe_cpu(monitor, true);
 }
 
 static void handle_log_timer(struct uloop_interval *timer)
@@ -217,13 +217,15 @@ static void watch_cpu(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
 
+	struct cpu_sample sample;
+
 	if (!config->output_cpu_stats && !config->output_cpu_raw_stats)
 		return;
-	observe_cpu(monitor, false);
+	/* Detect the CPUs and print the headers now; records start with the timer. */
+	(void)read_cpu(monitor, &sample);
 	if (uloop_interval_set(
 		    &monitor->cpu_timer,
-		    (unsigned int)(config->monitor_cpu_usage_interval_microseconds /
-				   MICROSECONDS_PER_MILLISECOND)
+		    timer_milliseconds(config->monitor_cpu_usage_interval_microseconds)
 	    ) != 0) {
 		log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
 	}
@@ -321,8 +323,7 @@ int monitor_run(const struct config *config)
 	for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
 		if (uloop_interval_set(
 			    required_timers[index].timer,
-			    (unsigned int)(required_timers[index].interval_microseconds /
-					   MICROSECONDS_PER_MILLISECOND)
+			    timer_milliseconds(required_timers[index].interval_microseconds)
 		    ) != 0) {
 			log_message(
 				LOG_LEVEL_ERROR,

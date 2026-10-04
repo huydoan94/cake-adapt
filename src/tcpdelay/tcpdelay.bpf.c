@@ -260,7 +260,7 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 	record->flow = *flow;
 	record->tsval = tsval;
 	record->tsecr = tsecr;
-	/* Userspace drains the ring before each controller run. */
+	/* Userspace drains the ring on each traffic tick and controller run. */
 	bpf_ringbuf_submit(record, BPF_RB_NO_WAKEUP);
 }
 

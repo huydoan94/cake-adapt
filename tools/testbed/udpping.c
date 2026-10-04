@@ -98,9 +98,7 @@ int main(int argc, char **argv)
 			struct header header = { .sequence = sent++, .sent_ns = now };
 
 			memcpy(buffer, &header, sizeof(header));
-			(
-				void
-			)sendto(fd, buffer, size, 0, (struct sockaddr *)&address, sizeof(address));
+			sendto(fd, buffer, size, 0, (struct sockaddr *)&address, sizeof(address));
 			next_ns += interval_ns;
 			continue;
 		}

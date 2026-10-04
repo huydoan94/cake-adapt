@@ -156,6 +156,8 @@ static void log_controller_stats(
 	char upload_condition[LOAD_CONDITION_SIZE];
 	uint64_t download_rate = output->download.rate_bits_per_second / KILOBIT;
 	uint64_t upload_rate = output->upload.rate_bits_per_second / KILOBIT;
+	uint64_t download_achieved = input->download.traffic_rate_bits_per_second / KILOBIT;
+	uint64_t upload_achieved = input->upload.traffic_rate_bits_per_second / KILOBIT;
 	unsigned int download_load;
 	unsigned int upload_load;
 
@@ -200,10 +202,8 @@ static void log_controller_stats(
 		 * estimate in its separate download and upload OWD columns.
 		 */
 		const struct log_data_record record = {
-			.download_achieved_rate_kbps =
-				input->download.traffic_rate_bits_per_second / KILOBIT,
-			.upload_achieved_rate_kbps =
-				input->upload.traffic_rate_bits_per_second / KILOBIT,
+			.download_achieved_rate_kbps = download_achieved,
+			.upload_achieved_rate_kbps = upload_achieved,
 			.download_load_percent = download_load,
 			.upload_load_percent = upload_load,
 			.icmp_timestamp = sample->timestamp_text,
@@ -250,10 +250,8 @@ static void log_controller_stats(
 
 	if (config->output_summary_stats) {
 		const struct log_summary_record record = {
-			.download_achieved_rate_kbps =
-				input->download.traffic_rate_bits_per_second / KILOBIT,
-			.upload_achieved_rate_kbps =
-				input->upload.traffic_rate_bits_per_second / KILOBIT,
+			.download_achieved_rate_kbps = download_achieved,
+			.upload_achieved_rate_kbps = upload_achieved,
 			.download_sum_delays = output->download.delayed_sample_count,
 			.upload_sum_delays = output->upload.delayed_sample_count,
 			.download_average_owd_delta_microseconds =
@@ -441,26 +439,28 @@ void control_update(
 
 void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	const struct config *config = monitor->config;
-	struct monitor_links *links = &monitor->links;
+	const struct controller *controller = &monitor->control.controller;
+	const struct {
+		struct monitor_direction *link;
+		const struct controller_direction *controller;
+	} directions[] = {
+		{ &monitor->links.download, &controller->download },
+		{ &monitor->links.upload, &controller->upload },
+	};
 
 	controller_set_minimum_rates(&monitor->control.controller, timestamp_microseconds);
-	if (config->adjust_download && links->download.cake_valid) {
+	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
+		const struct controller_direction_config *config =
+			&directions[index].controller->config;
+
+		if (!config->adjust || !directions[index].link->cake_valid)
+			continue;
 		apply_bandwidth(
 			&monitor->netlink,
-			&links->download,
-			config->minimum_download_rate_bits_per_second,
+			directions[index].link,
+			config->minimum_rate_bits_per_second,
 			CONTROLLER_RATE_RECONCILE,
-			config->output_cake_changes
-		);
-	}
-	if (config->adjust_upload && links->upload.cake_valid) {
-		apply_bandwidth(
-			&monitor->netlink,
-			&links->upload,
-			config->minimum_upload_rate_bits_per_second,
-			CONTROLLER_RATE_RECONCILE,
-			config->output_cake_changes
+			monitor->config->output_cake_changes
 		);
 	}
 }

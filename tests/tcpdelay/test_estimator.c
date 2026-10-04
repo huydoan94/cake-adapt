@@ -34,13 +34,14 @@ static struct remote remote_flow(uint16_t port, uint64_t tick_ns, uint32_t tsval
  * echoes our segment that departed early enough to cross the upload queue
  * and wait ack_delay_ns at the receiver.
  */
-static void
-send_at(struct tcpdelay_estimator *estimator,
+static void send_sample(
+	struct tcpdelay_estimator *estimator,
 	const struct remote *remote,
 	uint64_t sent_ns,
 	uint64_t download_queue_ns,
 	uint64_t upload_queue_ns,
-	uint64_t ack_delay_ns)
+	uint64_t ack_delay_ns
+)
 {
 	struct tcpdelay_sample sample = {
 		.flow = remote->key,
@@ -68,7 +69,7 @@ static uint64_t send_span(
 	uint64_t sent_ns;
 
 	for (sent_ns = start_ns; sent_ns < end_ns; sent_ns += MILLISECOND)
-		send_at(estimator, remote, sent_ns, download_queue_ns, upload_queue_ns, 0U);
+		send_sample(estimator, remote, sent_ns, download_queue_ns, upload_queue_ns, 0U);
 	return end_ns;
 }
 
@@ -195,12 +196,14 @@ static void test_delayed_acks_are_ignored(void)
 	for (sent_ns = 0U; sent_ns < 4000U * MILLISECOND; sent_ns += MILLISECOND) {
 		uint64_t ack_delay_ns = packet++ % 5U == 0U ? 0U : 40U * MILLISECOND;
 
-		send_at(&estimator,
+		send_sample(
+			&estimator,
 			&remote,
 			sent_ns,
 			0U,
 			sent_ns >= 3000U * MILLISECOND ? 60U * MILLISECOND : 0U,
-			ack_delay_ns);
+			ack_delay_ns
+		);
 	}
 	result_after(&estimator, sent_ns, &estimate);
 	assert_close(estimate.download_queue_microseconds, 0);
@@ -252,7 +255,7 @@ static void test_reordered_packet_is_skipped(void)
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	ticks = estimator.flows[0].ticks;
 	/* Sent 20 ms ago, so its TSval is older than the last one seen. */
-	send_at(&estimator, &remote, now - 20U * MILLISECOND, 0U, 0U, 0U);
+	send_sample(&estimator, &remote, now - 20U * MILLISECOND, 0U, 0U, 0U);
 	assert(estimator.flows[0].ticks == ticks);
 	now = send_span(&estimator, &remote, now, now + 500U * MILLISECOND, 0U, 0U);
 	result_after(&estimator, now, &estimate);
