@@ -1,0 +1,14 @@
+Failed attempts retained separately from the successful run evidence.
+
+- First isolated VM setup command attempted to hash library files under
+  workdir/lib before moving the scp-transferred files there. It exited 1 with
+  `sha256sum: can't open .../lib/libbpf.so.1.6.2` and the corresponding
+  libelf path. It did not touch the installed service, qdiscs, test log, or
+  namespaces. The files were then moved within the fresh workdir, hashed, and
+  validated successfully.
+- First post-run state capture command had an ash syntax error in its `find`
+  expression before execution. It made no VM changes. The corrected read-only
+  capture succeeded and is preserved as results/post-state.txt.
+- Initial sandboxed sanitizer execution failed because LeakSanitizer could not
+  use ptrace in the sandbox. The separate escalated LSan-enabled run passed;
+  raw output is in estimator-leaksan-escalated.log.
