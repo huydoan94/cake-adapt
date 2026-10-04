@@ -1,7 +1,7 @@
 #!/bin/sh
 # bench.sh NAME BINARY OBJECT
 # The TCP filter's own cost under load: one cake-adapt in cpe with
-# tcp_delay_attribution and upload_ack_share_min, OBJECT installed as the
+# tcp_delay_attribution and upload_ack_congested_share, OBJECT installed as the
 # filter, 10 s of warm-up, then 60 s of 4 downloads and 1 upload. The kernel's
 # BPF statistics (kernel.bpf_stats_enabled) give the filter's run count and
 # run time over the loaded minute, and /proc the daemon's CPU time.
@@ -36,7 +36,7 @@ config cake_adapt 'main'
 	option base_ul_shaper_rate_kbps '6000'
 	option max_ul_shaper_rate_kbps '12000'
 	option tcp_delay_attribution '1'
-	option upload_ack_share_min '0.45'
+	option upload_ack_congested_share '0.45'
 	option connection_active_thr_kbps '2000'
 	option randomize_reflectors '0'
 	option log_file_max_size_KB '50000'

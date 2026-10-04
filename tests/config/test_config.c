@@ -70,6 +70,7 @@ static void test_supported_option_names(void)
 	bool found_adjust_download = false;
 	bool found_download_interface = false;
 	bool found_ping_arguments = false;
+	bool found_upload_ack_congested_share = false;
 	bool found_upload_interface = false;
 	size_t index;
 
@@ -81,11 +82,14 @@ static void test_supported_option_names(void)
 					strcmp(name, "adjust_dl_shaper_rate") == 0;
 		found_download_interface = found_download_interface || strcmp(name, "dl_if") == 0;
 		found_ping_arguments = found_ping_arguments || strcmp(name, "ping_extra_args") == 0;
+		found_upload_ack_congested_share = found_upload_ack_congested_share ||
+						   strcmp(name, "upload_ack_congested_share") == 0;
 		found_upload_interface = found_upload_interface || strcmp(name, "ul_if") == 0;
 	}
 	assert(found_adjust_download);
 	assert(found_download_interface);
 	assert(found_ping_arguments);
+	assert(found_upload_ack_congested_share);
 	assert(found_upload_interface);
 	assert(config_option_name(config_option_count()) == NULL);
 }
@@ -189,19 +193,28 @@ static void test_supported_pinger_methods(void)
 	assert(strcmp(error, "option 'tcp_delay_attribution' needs pinger_method 'fping'") == 0);
 }
 
-static void test_upload_ack_share_bounds(void)
+static void test_upload_ack_congested_share(void)
 {
+	struct uci_section section = { 0 };
+	struct uci_option option = {
+		.e = { .type = UCI_TYPE_OPTION, .name = "upload_ack_congested_share" },
+		.type = UCI_TYPE_STRING,
+		.v.string = "0.45",
+	};
 	struct config config = valid_config();
 	char error[256] = "";
 
 	(void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
-	config.upload_ack_share_min_per_million = 450000U;
+	lookup_option = &option;
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	lookup_option = NULL;
+	assert(config.upload_ack_congested_share_per_million == 450000U);
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
-	config.upload_ack_share_min_per_million = 1000000U;
+	config.upload_ack_congested_share_per_million = 1000000U;
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
-	config.upload_ack_share_min_per_million = 1000001U;
+	config.upload_ack_congested_share_per_million = 1000001U;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-	assert(strcmp(error, "option 'upload_ack_share_min' must be between 0 and 1") == 0);
+	assert(strcmp(error, "option 'upload_ack_congested_share' must be between 0 and 1") == 0);
 }
 
 static void test_reflector_list_validation(void)
@@ -326,7 +339,7 @@ int main(void)
 	assert(strstr(error, "whole kbit/s") != NULL);
 
 	test_supported_pinger_methods();
-	test_upload_ack_share_bounds();
+	test_upload_ack_congested_share();
 	test_option_copy_boundaries();
 	test_scalar_option_types();
 	test_supported_option_names();

@@ -79,7 +79,7 @@ struct config {
 	uint64_t shaper_rate_adjust_up_load_low_per_million;
 	uint64_t high_load_threshold_per_million;
 	/* cake-adapt only: ACKs' minimum share of upload; zero disables the hold. */
-	uint64_t upload_ack_share_min_per_million;
+	uint64_t upload_ack_congested_share_per_million;
 	uint64_t bufferbloat_refractory_period_microseconds;
 	uint64_t decay_refractory_period_microseconds;
 	uint64_t reflector_health_check_interval_microseconds;
