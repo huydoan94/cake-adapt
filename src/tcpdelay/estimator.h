@@ -29,6 +29,13 @@ struct tcpdelay_floor {
 	bool valid;
 };
 
+/* Per-direction minimum queueing delay in the current and previous windows. */
+struct tcpdelay_window {
+	int64_t minimum_ns[2];
+	uint64_t index;
+	bool valid[2];
+};
+
 struct tcpdelay_flow {
 	struct tcpdelay_record_flow key;
 	bool used;
@@ -41,25 +48,18 @@ struct tcpdelay_flow {
 	uint64_t tick_ns;
 	size_t tick_index;
 	/*
-	 * Floors for every standard period from the first sample, so the empty
-	 * queue at the start of a flow sets the floor even though the period is
-	 * only known seconds later.
+	 * Floors for every standard period from the first sample, even though the
+	 * period is known seconds later. A flow starting during congestion has an
+	 * unknown initial queue, so its zero cannot erase another flow's history.
 	 */
 	struct tcpdelay_floor download_floor[TCPDELAY_TICKS];
 	struct tcpdelay_floor upload_floor[TCPDELAY_TICKS];
-};
-
-/* Per-direction minimum queueing delay in the current and previous windows. */
-struct tcpdelay_window {
-	int64_t minimum_ns[2];
-	uint64_t index;
-	bool valid[2];
+	struct tcpdelay_window download;
+	struct tcpdelay_window upload;
 };
 
 struct tcpdelay_estimator {
 	struct tcpdelay_flow flows[TCPDELAY_FLOWS];
-	struct tcpdelay_window download;
-	struct tcpdelay_window upload;
 };
 
 struct tcpdelay_estimate {
@@ -76,7 +76,7 @@ void tcpdelay_estimator_add(
 	const struct tcpdelay_sample *sample
 );
 
-/* Queueing delay per direction over the last two windows before now_ns. */
+/* Fresh queues from one flow, preferring a complete pair and the longest history. */
 void tcpdelay_estimator_result(
 	const struct tcpdelay_estimator *estimator,
 	uint64_t now_ns,

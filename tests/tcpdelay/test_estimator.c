@@ -243,6 +243,85 @@ static void test_samples_without_departure(void)
 	assert_close(estimate.download_queue_microseconds, 25);
 }
 
+/* A new flow's congested baseline cannot erase an established flow's queue. */
+static void test_new_flow_keeps_established_queues(bool departures)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote established = remote_flow(50008U, MILLISECOND, 1000U);
+	struct remote newcomer = remote_flow(50009U, MILLISECOND, 2000U);
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(&estimator, &established, 0U, 3000U * MILLISECOND, 0U, 0U);
+	now = send_span(
+		&estimator,
+		&established,
+		now,
+		4000U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	newcomer.departures = departures;
+	for (; now < 7000U * MILLISECOND; now += MILLISECOND) {
+		send_sample(&estimator, &established, now, 80U * MILLISECOND, 20U * MILLISECOND, 0U);
+		send_sample(&estimator, &newcomer, now, 80U * MILLISECOND, 20U * MILLISECOND, 0U);
+	}
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 80);
+	assert_close(estimate.upload_queue_microseconds, 20);
+
+	/* Once A stops, B may supply its own pair, but never A's stale upload. */
+	now = send_span(
+		&estimator,
+		&newcomer,
+		now,
+		7300U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid);
+	assert(estimate.upload_valid == departures);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 0);
+}
+
+/* Never synthesize a pair from an older download-only flow and a newer upload. */
+static void test_directional_pair_comes_from_one_flow(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote download_only = remote_flow(50010U, MILLISECOND, 1000U);
+	struct remote paired = remote_flow(50011U, MILLISECOND, 2000U);
+	uint64_t now;
+
+	download_only.departures = false;
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(&estimator, &download_only, 0U, 1000U * MILLISECOND, 0U, 0U);
+	for (; now < 4000U * MILLISECOND; now += MILLISECOND) {
+		send_sample(&estimator, &download_only, now, 0U, 0U, 0U);
+		send_sample(&estimator, &paired, now, 0U, 0U, 0U);
+	}
+	for (; now < 4500U * MILLISECOND; now += MILLISECOND) {
+		send_sample(&estimator, &download_only, now, 0U, 0U, 0U);
+		send_sample(&estimator, &paired, now, 40U * MILLISECOND, 80U * MILLISECOND, 0U);
+	}
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 40);
+	assert_close(estimate.upload_queue_microseconds, 80);
+
+	/* The surviving partial flow remains available after the pair expires. */
+	now = send_span(&estimator, &download_only, now, 5000U * MILLISECOND, 0U, 0U);
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid);
+	assert(!estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 0);
+}
+
 static void test_reordered_packet_is_skipped(void)
 {
 	struct tcpdelay_estimator estimator;
@@ -315,6 +394,9 @@ int main(void)
 	test_delayed_acks_are_ignored();
 	test_results_expire();
 	test_samples_without_departure();
+	test_new_flow_keeps_established_queues(false);
+	test_new_flow_keeps_established_queues(true);
+	test_directional_pair_comes_from_one_flow();
 	test_reordered_packet_is_skipped();
 	test_nonstandard_tick_is_rejected();
 	test_least_recent_flow_is_replaced();
