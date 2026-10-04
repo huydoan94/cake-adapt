@@ -2518,7 +2518,7 @@
         "src/logging/log.c:rotate_log_file",
         "src/logging/log.c:log_export_file",
         "src/logging/log.c:log_reset_file",
-        "src/monitor/monitor.c:observe_cpu"
+        "src/monitor/monitor.c:handle_cpu_timer"
       ],
       "notes": [
         "Record names, field order, units and headers follow cake-autorate's DATA, LOAD, REFLECTOR, SUMMARY, SHAPER and CPU formats so its analysis tools work on cake-adapt logs.",
