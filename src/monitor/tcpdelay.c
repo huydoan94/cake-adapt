@@ -60,6 +60,21 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_m
 	}
 }
 
+/* Adds pending records to the estimator; false when the capture failed and was closed. */
+static bool drain(struct monitor *monitor)
+{
+	if (tcpdelay_capture_drain(&monitor->tcp.capture) >= 0)
+		return true;
+	log_message(
+		LOG_LEVEL_WARNING,
+		"TCP measurement degraded: capture failed: %s",
+		strerror(errno)
+	);
+	tcp_close(monitor);
+	monitor->tcp.failed_index = monitor->links.upload.cake.interface_index;
+	return false;
+}
+
 /* Opens, follows and drains the capture; false when it is not usable. */
 static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
@@ -84,16 +99,8 @@ static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microsecon
 		return false;
 	}
 	/* Records wait in the ring buffer until drained, even without attribution. */
-	if (tcpdelay_capture_drain(&monitor->tcp.capture) < 0) {
-		log_message(
-			LOG_LEVEL_WARNING,
-			"TCP measurement degraded: capture failed: %s",
-			strerror(errno)
-		);
-		tcp_close(monitor);
-		monitor->tcp.failed_index = upload->cake.interface_index;
+	if (!drain(monitor))
 		return false;
-	}
 	report_dropped_records(monitor, timestamp_microseconds);
 	return true;
 }
@@ -183,6 +190,17 @@ void tcp_observe(
 		measure_queues(monitor, timestamp_microseconds, queue);
 	if (config->upload_ack_share_min_per_million != 0U)
 		measure_ack_rate(monitor, timestamp_microseconds, acks);
+}
+
+/*
+ * The controller drains the ring on every ping reply; the traffic tick drains
+ * it too, so records do not overflow while no reply runs the controller, as
+ * when pingers are stopped in IDLE or while CAKE is missing.
+ */
+void tcp_drain(struct monitor *monitor)
+{
+	if (monitor->tcp.open)
+		(void)drain(monitor);
 }
 
 void tcp_close(struct monitor *monitor)
