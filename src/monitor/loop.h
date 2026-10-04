@@ -192,6 +192,9 @@ void tcp_observe(
 	struct controller_ack_input *acks
 );
 
+/* Empties the ring buffer between ping replies; see tcpdelay.c. */
+void tcp_drain(struct monitor *monitor);
+
 void tcp_close(struct monitor *monitor);
 
 /* pingers.c */

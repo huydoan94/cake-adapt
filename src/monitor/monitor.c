@@ -121,6 +121,7 @@ void monitor_tick(struct monitor *monitor)
 
 	links_observe(monitor);
 	links_apply_cadence(monitor);
+	tcp_drain(monitor);
 	if (!links_ready(monitor)) {
 		pingers_suspend(monitor);
 		return;
