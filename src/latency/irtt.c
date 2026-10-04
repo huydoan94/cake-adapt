@@ -95,14 +95,8 @@ int latency_open_irtt(
 	    session_duration_minutes == 0U || extra_arguments == NULL || prefix == NULL) {
 		return error_set(error, error_size, "invalid irtt session configuration");
 	}
-	if (expand_words(
-		    extra_arguments,
-		    false,
-		    OPTION_PING_EXTRA_ARGS,
-		    &words,
-		    error,
-		    error_size
-	    ) != 0) {
+	if (expand_words(extra_arguments, false, OPTION_PING_EXTRA_ARGS, &words, error, error_size) !=
+	    0) {
 		return -1;
 	}
 	wordfree(&words);
@@ -195,12 +189,7 @@ static enum latency_probe_result irtt_parse(
 	if (!parse_irtt_line(line, child->target, 0U, sample))
 		return LATENCY_PROBE_PENDING;
 	if (!read_clock_microseconds(CLOCK_REALTIME, &timestamp_microseconds)) {
-		error_set(
-			error,
-			error_size,
-			"could not timestamp irtt output: %s",
-			strerror(errno)
-		);
+		error_set(error, error_size, "could not timestamp irtt output: %s", strerror(errno));
 		return LATENCY_PROBE_ERROR;
 	}
 	sample->timestamp_microseconds = timestamp_microseconds;
@@ -221,17 +210,12 @@ irtt_exited(struct latency_child *child, char *error, size_t error_size)
 	uint64_t runtime_microseconds;
 
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		error_set(
-			error,
-			error_size,
-			"could not schedule irtt restart: %s",
-			strerror(errno)
-		);
+		error_set(error, error_size, "could not schedule irtt restart: %s", strerror(errno));
 		return LATENCY_PROBE_ERROR;
 	}
-	runtime_microseconds = timestamp_microseconds >= child->started_microseconds
-				       ? timestamp_microseconds - child->started_microseconds
-				       : 0U;
+	runtime_microseconds = timestamp_microseconds >= child->started_microseconds ?
+				       timestamp_microseconds - child->started_microseconds :
+				       0U;
 	child->next_start_microseconds = timestamp_microseconds;
 	if (runtime_microseconds < IRTT_FAST_EXIT_THRESHOLD_MICROSECONDS)
 		child->next_start_microseconds += IRTT_FAST_EXIT_RETRY_MICROSECONDS;

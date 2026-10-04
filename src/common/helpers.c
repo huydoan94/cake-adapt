@@ -113,9 +113,9 @@ void response_timestamp(
 	}
 	*stale = age_microseconds > LATENCY_STALE_RESPONSE_MICROSECONDS;
 	*response_monotonic_microseconds =
-		age_microseconds >= processing_monotonic_microseconds
-			? 0U
-			: processing_monotonic_microseconds - age_microseconds;
+		age_microseconds >= processing_monotonic_microseconds ?
+			0U :
+			processing_monotonic_microseconds - age_microseconds;
 }
 
 bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp)

@@ -133,12 +133,8 @@ uint64_t latency_irtt_next_start_microseconds(const struct latency *latency);
  * Copies the first complete line from data, without its CR/LF, and reports
  * how many bytes it occupied. A line longer than LATENCY_OUTPUT_SIZE fails.
  */
-enum latency_line_result latency_next_line(
-	const char *data,
-	size_t length,
-	char line[LATENCY_OUTPUT_SIZE],
-	size_t *consumed
-);
+enum latency_line_result
+latency_next_line(const char *data, size_t length, char line[LATENCY_OUTPUT_SIZE], size_t *consumed);
 
 enum latency_probe_result latency_handle_line(
 	const struct latency *latency,

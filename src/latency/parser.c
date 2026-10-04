@@ -177,8 +177,8 @@ parse_fping_reply(const char *line, bool icmp_timestamps, struct latency_sample 
 	    strncmp(rtt_end, FPING_MILLISECONDS_SUFFIX, strlen(FPING_MILLISECONDS_SUFFIX)) != 0)
 		return LATENCY_FPING_LINE_INVALID;
 	if (icmp_timestamps)
-		return parse_icmp_timestamps(rtt_end, sample) ? LATENCY_FPING_LINE_SAMPLE
-							      : LATENCY_FPING_LINE_INVALID;
+		return parse_icmp_timestamps(rtt_end, sample) ? LATENCY_FPING_LINE_SAMPLE :
+								LATENCY_FPING_LINE_INVALID;
 
 	sample->download_owd_microseconds = half_round_trip(round_trip_milliseconds);
 	sample->upload_owd_microseconds = sample->download_owd_microseconds;

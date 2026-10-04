@@ -9,7 +9,7 @@
 static const struct latency_tracker_config default_tracker_config = {
 	.alpha_baseline_increase_per_million = 1000U,
 	.alpha_baseline_decrease_per_million = 900000U,
-	.alpha_delta_ewma_per_million = 95000U
+	.alpha_delta_ewma_per_million = 95000U,
 };
 
 static void init_tracker(struct latency_tracker *tracker)
@@ -19,9 +19,11 @@ static void init_tracker(struct latency_tracker *tracker)
 
 static void test_reflector_health_uses_rolling_offence_window(void)
 {
-	const struct reflector_health_config config = { .response_deadline_microseconds = 1000000U,
-							.detection_window = 4U,
-							.detection_threshold = 2U };
+	const struct reflector_health_config config = {
+		.response_deadline_microseconds = 1000000U,
+		.detection_window = 4U,
+		.detection_threshold = 2U,
+	};
 	struct reflector_health health = { 0 };
 
 	assert(health_init(&health, &config, 1000000U) == 0);
@@ -38,9 +40,11 @@ static void test_reflector_health_uses_rolling_offence_window(void)
 
 static void test_reflector_health_rejects_invalid_window(void)
 {
-	struct reflector_health_config config = { .response_deadline_microseconds = 1000000U,
-						  .detection_window = 2U,
-						  .detection_threshold = 3U };
+	struct reflector_health_config config = {
+		.response_deadline_microseconds = 1000000U,
+		.detection_window = 2U,
+		.detection_threshold = 3U,
+	};
 	struct reflector_health health = { 0 };
 
 	assert(health_init(&health, &config, 0U) != 0);
@@ -51,9 +55,11 @@ static void test_reflector_health_rejects_invalid_window(void)
 
 static void test_reflector_health_reset_clears_offences(void)
 {
-	const struct reflector_health_config config = { .response_deadline_microseconds = 100U,
-							.detection_window = 2U,
-							.detection_threshold = 1U };
+	const struct reflector_health_config config = {
+		.response_deadline_microseconds = 100U,
+		.detection_window = 2U,
+		.detection_threshold = 1U,
+	};
 	struct reflector_health health = { 0 };
 
 	assert(health_init(&health, &config, 100U) == 0);

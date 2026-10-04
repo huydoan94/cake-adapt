@@ -83,9 +83,9 @@ static void tracker_update_direction(
 	int64_t *delta_microseconds
 )
 {
-	int64_t alpha = value_microseconds >= state->baseline_microseconds
-				? (int64_t)config->alpha_baseline_increase_per_million
-				: (int64_t)config->alpha_baseline_decrease_per_million;
+	int64_t alpha = value_microseconds >= state->baseline_microseconds ?
+				(int64_t)config->alpha_baseline_increase_per_million :
+				(int64_t)config->alpha_baseline_decrease_per_million;
 
 	if (!weighted_average(
 		    alpha,

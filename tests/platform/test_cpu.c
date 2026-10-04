@@ -42,12 +42,14 @@ static void test_proc_stat_parsing(void)
 static void test_cpu_usage_matches_cake_autorate(void)
 {
 	struct cpu_monitor monitor;
-	struct cpu_sample sample = { .count = 1U,
-				     .counters = { { .identifier = "cpu",
-						     .user = 10U,
-						     .idle = 70U,
-						     .iowait = 10U,
-						     .guest = 10U } } };
+	struct cpu_sample sample = {
+		.count = 1U,
+		.counters = { { .identifier = "cpu",
+				.user = 10U,
+				.idle = 70U,
+				.iowait = 10U,
+				.guest = 10U } },
+	};
 	unsigned int usage[CPU_MAX_COUNT];
 
 	cpu_init(&monitor);

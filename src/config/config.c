@@ -65,7 +65,7 @@ static const struct boolean_option_binding boolean_options[] = {
 	{ OPTION_ENABLE_SLEEP_FUNCTION, CONFIG_OFFSET(enable_sleep_function) },
 	{ OPTION_MIN_SHAPER_RATES_ENFORCEMENT, CONFIG_OFFSET(minimum_shaper_rates_enforcement) },
 	{ OPTION_LOG_FILE_EXPORT_COMPRESS, CONFIG_OFFSET(log_file_export_compress) },
-	{ OPTION_TCP_DELAY_ATTRIBUTION, CONFIG_OFFSET(tcp_delay_attribution) }
+	{ OPTION_TCP_DELAY_ATTRIBUTION, CONFIG_OFFSET(tcp_delay_attribution) },
 };
 
 static const struct string_option_binding string_options[] = {
@@ -86,7 +86,7 @@ static const struct string_option_binding string_options[] = {
 	  sizeof(((struct config *)0)->ping_extra_args) },
 	{ OPTION_PING_PREFIX_STRING,
 	  CONFIG_OFFSET(ping_prefix_string),
-	  sizeof(((struct config *)0)->ping_prefix_string) }
+	  sizeof(((struct config *)0)->ping_prefix_string) },
 };
 
 static const struct scaled_option_binding scaled_options[] = {
@@ -204,7 +204,7 @@ static const struct scaled_option_binding scaled_options[] = {
 	  SECOND },
 	{ OPTION_INTERFACE_UP_INTERVAL,
 	  CONFIG_OFFSET(interface_up_check_interval_microseconds),
-	  SECOND }
+	  SECOND },
 };
 
 size_t config_option_count(void)
@@ -570,8 +570,7 @@ static int load_reflectors(
 		return error_set(error, error_size, "option 'reflectors' must be a UCI list");
 
 	config->reflector_count = 0U;
-	uci_foreach_element(&option->v.list, element)
-	{
+	uci_foreach_element(&option->v.list, element) {
 		if (copy_reflector(config, element->name, error, error_size) != 0)
 			return -1;
 	}
@@ -682,12 +681,7 @@ int config_load(
 
 	section = uci_lookup_section(context, package, section_name);
 	if (section == NULL || strcmp(section->type, UCI_SECTION_TYPE) != 0) {
-		error_set(
-			error,
-			error_size,
-			"missing config cake_adapt '%s' section",
-			section_name
-		);
+		error_set(error, error_size, "missing config cake_adapt '%s' section", section_name);
 		goto done;
 	}
 

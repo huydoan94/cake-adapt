@@ -16,25 +16,27 @@
 #define LOAD_CONDITION_SIZE 16U
 
 /* Indexed by the controller's own enum values. */
-static const char *const line_state_names[] = { [CONTROLLER_LINE_UNKNOWN] = STATE_UNKNOWN,
-						[CONTROLLER_LINE_BELOW_CAPACITY] =
-							STATE_BELOW_CAPACITY,
-						[CONTROLLER_LINE_SATURATED] = STATE_SATURATED };
+static const char *const line_state_names[] = {
+	[CONTROLLER_LINE_UNKNOWN] = STATE_UNKNOWN,
+	[CONTROLLER_LINE_BELOW_CAPACITY] = STATE_BELOW_CAPACITY,
+	[CONTROLLER_LINE_SATURATED] = STATE_SATURATED,
+};
 
-static const char *const congestion_state_names[] = { [CONTROLLER_CONGESTION_UNKNOWN] =
-							      STATE_UNKNOWN,
-						      [CONTROLLER_CONGESTION_CLEAR] = STATE_CLEAR,
-						      [CONTROLLER_CONGESTION_DETECTED] =
-							      STATE_DETECTED };
+static const char *const congestion_state_names[] = {
+	[CONTROLLER_CONGESTION_UNKNOWN] = STATE_UNKNOWN,
+	[CONTROLLER_CONGESTION_CLEAR] = STATE_CLEAR,
+	[CONTROLLER_CONGESTION_DETECTED] = STATE_DETECTED,
+};
 
-static const char *const rate_reason_names[] = { [CONTROLLER_RATE_UNCHANGED] = STATE_UNCHANGED,
-						 [CONTROLLER_RATE_INITIAL] = STATE_INITIAL,
-						 [CONTROLLER_RATE_CONGESTION] = STATE_CONGESTION,
-						 [CONTROLLER_RATE_HIGH_LOAD] = STATE_HIGH_LOAD,
-						 [CONTROLLER_RATE_RETURN_TO_BASE] =
-							 STATE_RETURN_TO_BASE,
-						 [CONTROLLER_RATE_RECONCILE] = STATE_RECONCILE,
-						 [CONTROLLER_RATE_ACK_SHARE] = STATE_ACK_SHARE };
+static const char *const rate_reason_names[] = {
+	[CONTROLLER_RATE_UNCHANGED] = STATE_UNCHANGED,
+	[CONTROLLER_RATE_INITIAL] = STATE_INITIAL,
+	[CONTROLLER_RATE_CONGESTION] = STATE_CONGESTION,
+	[CONTROLLER_RATE_HIGH_LOAD] = STATE_HIGH_LOAD,
+	[CONTROLLER_RATE_RETURN_TO_BASE] = STATE_RETURN_TO_BASE,
+	[CONTROLLER_RATE_RECONCILE] = STATE_RECONCILE,
+	[CONTROLLER_RATE_ACK_SHARE] = STATE_ACK_SHARE,
+};
 
 void control_update_compensation(struct monitor *monitor)
 {
@@ -97,9 +99,9 @@ static void log_congestion_state(
 		latency->download_owd_microseconds + latency->upload_owd_microseconds;
 	baseline_microseconds = latency->download_owd_baseline_microseconds +
 				latency->upload_owd_baseline_microseconds;
-	delay_microseconds = round_trip_microseconds >= baseline_microseconds
-				     ? round_trip_microseconds - baseline_microseconds
-				     : 0;
+	delay_microseconds = round_trip_microseconds >= baseline_microseconds ?
+				     round_trip_microseconds - baseline_microseconds :
+				     0;
 	log_message(
 		state == CONTROLLER_CONGESTION_DETECTED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
 		"congestion changed: direction=%s state=%s"
@@ -113,9 +115,11 @@ static void log_congestion_state(
 	);
 }
 
-static const char *const load_names[] = { [CONTROLLER_LOAD_IDLE] = STATE_IDLE,
-					  [CONTROLLER_LOAD_LOW] = STATE_LOW,
-					  [CONTROLLER_LOAD_HIGH] = STATE_HIGH };
+static const char *const load_names[] = {
+	[CONTROLLER_LOAD_IDLE] = STATE_IDLE,
+	[CONTROLLER_LOAD_LOW] = STATE_LOW,
+	[CONTROLLER_LOAD_HIGH] = STATE_HIGH,
+};
 
 /* The DATA and SUMMARY load column, such as "dl_high_bb". */
 static void load_condition(
@@ -238,7 +242,7 @@ static void log_controller_stats(
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
 			.cake_download_rate_kbps = download_rate,
-			.cake_upload_rate_kbps = upload_rate
+			.cake_upload_rate_kbps = upload_rate,
 		};
 
 		log_data(&record);
@@ -259,7 +263,7 @@ static void log_controller_stats(
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
 			.cake_download_rate_kbps = download_rate,
-			.cake_upload_rate_kbps = upload_rate
+			.cake_upload_rate_kbps = upload_rate,
 		};
 
 		log_summary(&record);
@@ -325,7 +329,7 @@ static struct controller_direction_input direction_input(const struct monitor_di
 			 direction->cake.bandwidth_bits_per_second > 0U,
 		.traffic_rate_bits_per_second = direction->traffic_rate_bits_per_second,
 		.cake_rate_bits_per_second =
-			direction->cake_valid ? direction->cake.bandwidth_bits_per_second : 0U
+			direction->cake_valid ? direction->cake.bandwidth_bits_per_second : 0U,
 	};
 
 	return input;
@@ -358,7 +362,7 @@ void control_update(
 		.upload_latency = { .valid = true,
 				    .owd_delta_microseconds =
 					    latency->upload_owd_delta_microseconds },
-		.timestamp_microseconds = 0U
+		.timestamp_microseconds = 0U,
 	};
 	struct controller_output output;
 	const struct {
@@ -367,16 +371,18 @@ void control_update(
 		const struct controller_direction_input *input;
 		const struct controller_direction_output *output;
 		const char *short_name;
-	} directions[] = { { &links->download,
-			     &control->controller.download,
-			     &input.download,
-			     &output.download,
-			     DIRECTION_DOWNLOAD_SHORT },
-			   { &links->upload,
-			     &control->controller.upload,
-			     &input.upload,
-			     &output.upload,
-			     DIRECTION_UPLOAD_SHORT } };
+	} directions[] = {
+		{ &links->download,
+		  &control->controller.download,
+		  &input.download,
+		  &output.download,
+		  DIRECTION_DOWNLOAD_SHORT },
+		{ &links->upload,
+		  &control->controller.upload,
+		  &input.upload,
+		  &output.upload,
+		  DIRECTION_UPLOAD_SHORT },
+	};
 
 	(void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
 	tcp_observe(monitor, input.timestamp_microseconds, &input.queue, &input.acks);
@@ -512,10 +518,8 @@ int control_start(struct monitor *monitor)
 			config->shaper_rate_adjust_down_load_low_per_million,
 			THOUSAND
 		),
-		.rate_adjust_up_low_load_per_thousand = rounded_divide(
-			config->shaper_rate_adjust_up_load_low_per_million,
-			THOUSAND
-		),
+		.rate_adjust_up_low_load_per_thousand =
+			rounded_divide(config->shaper_rate_adjust_up_load_low_per_million, THOUSAND),
 		.high_load_threshold_percent =
 			rounded_divide(config->high_load_threshold_per_million, FACTOR_PER_PERCENT),
 		.bufferbloat_refractory_period_microseconds =
@@ -525,15 +529,11 @@ int control_start(struct monitor *monitor)
 		/* Only fping reports one RTT/2 delay for both directions. */
 		.shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0,
 		.upload_ack_share_min_percent =
-			rounded_divide(config->upload_ack_share_min_per_million, FACTOR_PER_PERCENT)
+			rounded_divide(config->upload_ack_share_min_per_million, FACTOR_PER_PERCENT),
 	};
 
 	if (controller_init(&monitor->control.controller, &controller_config) != 0) {
-		log_message(
-			LOG_LEVEL_ERROR,
-			"could not initialize controller: %s",
-			strerror(errno)
-		);
+		log_message(LOG_LEVEL_ERROR, "could not initialize controller: %s", strerror(errno));
 		return -1;
 	}
 	return 0;

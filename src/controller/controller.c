@@ -231,10 +231,10 @@ static enum controller_congestion_state update_congestion(
 		direction->delay_next_sample = 0U;
 	*average_delay_microseconds =
 		direction->delay_sum_microseconds / (int64_t)config->bufferbloat_detection_window;
-	direction->congestion =
-		direction->delayed_sample_count >= config->bufferbloat_detection_threshold
-			? CONTROLLER_CONGESTION_DETECTED
-			: CONTROLLER_CONGESTION_CLEAR;
+	direction->congestion = direction->delayed_sample_count >=
+						config->bufferbloat_detection_threshold ?
+					CONTROLLER_CONGESTION_DETECTED :
+					CONTROLLER_CONGESTION_CLEAR;
 	return direction->congestion;
 }
 
@@ -439,12 +439,12 @@ static void set_rate_output(
 	output->rate_bits_per_second = direction->shaper_rate_bits_per_second;
 	/* Like cake-autorate's first set_shaper_rates(), the base rate is written once
 	 * even when CAKE already holds it. */
-	output->rate_changed =
-		input->valid && (reason == CONTROLLER_RATE_INITIAL ||
-				 input->cake_rate_bits_per_second != output->rate_bits_per_second);
-	output->rate_reason = output->rate_changed && reason == CONTROLLER_RATE_UNCHANGED
-				      ? CONTROLLER_RATE_RECONCILE
-				      : reason;
+	output->rate_changed = input->valid &&
+			       (reason == CONTROLLER_RATE_INITIAL ||
+				input->cake_rate_bits_per_second != output->rate_bits_per_second);
+	output->rate_reason = output->rate_changed && reason == CONTROLLER_RATE_UNCHANGED ?
+				      CONTROLLER_RATE_RECONCILE :
+				      reason;
 }
 
 static void update_direction(
@@ -482,8 +482,8 @@ static void update_direction(
 	output->state_changed = output->state != previous_state;
 	output->congestion_changed = output->congestion != previous_congestion;
 	output->bufferbloat_attributed = bufferbloat_attributed;
-	output->bufferbloat_attribution_changed =
-		bufferbloat_attributed != direction->bufferbloat_attributed;
+	output->bufferbloat_attribution_changed = bufferbloat_attributed !=
+						  direction->bufferbloat_attributed;
 	direction->bufferbloat_attributed = bufferbloat_attributed;
 }
 
@@ -509,9 +509,9 @@ download_ceiling(const struct controller *controller, const struct controller_in
 		    controller->config.high_load_threshold_percent) {
 		return UINT64_MAX;
 	}
-	other = input->acks.upload_rate_bits_per_second > ack_rate
-			? input->acks.upload_rate_bits_per_second - ack_rate
-			: 0U;
+	other = input->acks.upload_rate_bits_per_second > ack_rate ?
+			input->acks.upload_rate_bits_per_second - ack_rate :
+			0U;
 	taken = other + mul_div(room, UPLOAD_ACK_HEADROOM_PERCENT, PERCENT);
 	allowed = room > taken ? room - taken : 0U;
 	if (allowed < minimum)
@@ -533,8 +533,8 @@ void controller_update(
 		input->download.valid ? load_percent(
 						input->download.traffic_rate_bits_per_second,
 						controller->download.shaper_rate_bits_per_second
-					)
-				      : 0U;
+					) :
+					0U;
 	const struct controller_queue_input *queue = &input->queue;
 	struct controller_latency_input download_latency = input->download_latency;
 	struct controller_latency_input upload_latency = input->upload_latency;
@@ -543,12 +543,12 @@ void controller_update(
 	 * standing queue, so the delay is upload's; download loaded but delivering
 	 * less than its shaper rate is the bottleneck, so the delay is its own.
 	 */
-	bool download_attributed =
-		!controller->config.shared_delay || download_delivery < FULL_DELIVERY_PERCENT;
-	bool upload_attributed =
-		!controller->config.shared_delay ||
-		download_delivery <= controller->config.high_load_threshold_percent ||
-		download_delivery >= FULL_DELIVERY_PERCENT;
+	bool download_attributed = !controller->config.shared_delay ||
+				   download_delivery < FULL_DELIVERY_PERCENT;
+	bool upload_attributed = !controller->config.shared_delay ||
+				 download_delivery <=
+					 controller->config.high_load_threshold_percent ||
+				 download_delivery >= FULL_DELIVERY_PERCENT;
 
 	/*
 	 * Measured per-direction queues replace the heuristic, unless they are too
@@ -695,9 +695,9 @@ static bool activity_rates_above(
 	bool require_both
 )
 {
-	bool download =
-		input->download.valid &&
-		input->download.traffic_rate_bits_per_second / KILOBIT > threshold / KILOBIT;
+	bool download = input->download.valid &&
+			input->download.traffic_rate_bits_per_second / KILOBIT >
+				threshold / KILOBIT;
 	bool upload = input->upload.valid &&
 		      input->upload.traffic_rate_bits_per_second / KILOBIT > threshold / KILOBIT;
 
@@ -713,9 +713,9 @@ void activity_update(
 {
 	enum controller_activity_state previous = activity->state;
 	uint64_t response_age =
-		input->timestamp_microseconds > input->last_response_microseconds
-			? input->timestamp_microseconds - input->last_response_microseconds
-			: 0U;
+		input->timestamp_microseconds > input->last_response_microseconds ?
+			input->timestamp_microseconds - input->last_response_microseconds :
+			0U;
 	bool check_global_timeout = false;
 
 	memset(output, 0, sizeof(*output));

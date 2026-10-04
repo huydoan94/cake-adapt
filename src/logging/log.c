@@ -96,11 +96,13 @@ static const char cpu_raw_header[] =
 static const struct {
 	const char *record;
 	int priority;
-} levels[] = { [LOG_LEVEL_ERROR] = { RECORD_ERROR, LOG_ERR },
-	       [LOG_LEVEL_WARNING] = { RECORD_WARNING, LOG_WARNING },
-	       [LOG_LEVEL_NOTICE] = { RECORD_INFO, LOG_NOTICE },
-	       [LOG_LEVEL_INFO] = { RECORD_INFO, LOG_INFO },
-	       [LOG_LEVEL_DEBUG] = { RECORD_DEBUG, LOG_DEBUG } };
+} levels[] = {
+	[LOG_LEVEL_ERROR] = { RECORD_ERROR, LOG_ERR },
+	[LOG_LEVEL_WARNING] = { RECORD_WARNING, LOG_WARNING },
+	[LOG_LEVEL_NOTICE] = { RECORD_INFO, LOG_NOTICE },
+	[LOG_LEVEL_INFO] = { RECORD_INFO, LOG_INFO },
+	[LOG_LEVEL_DEBUG] = { RECORD_DEBUG, LOG_DEBUG },
+};
 
 static uint64_t clock_microseconds(clockid_t clock_identifier)
 {
@@ -317,9 +319,9 @@ static const char *local_datetime(time_t seconds)
 
 	if (datetime_valid && seconds == datetime_seconds)
 		return datetime;
-	datetime_valid =
-		localtime_r(&seconds, &local_time) != NULL &&
-		strftime(datetime, sizeof(datetime), LOG_DATETIME_FORMAT, &local_time) != 0U;
+	datetime_valid = localtime_r(&seconds, &local_time) != NULL &&
+			 strftime(datetime, sizeof(datetime), LOG_DATETIME_FORMAT, &local_time) !=
+				 0U;
 	if (!datetime_valid)
 		(void)snprintf(datetime, sizeof(datetime), LOG_DATETIME_FALLBACK);
 	datetime_seconds = seconds;

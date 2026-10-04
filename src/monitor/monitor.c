@@ -17,9 +17,11 @@
 
 static void update_activity(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	static const char *const names[] = { STATE_RUNNING_UPPER,
-					     STATE_IDLE_UPPER,
-					     STATE_STALL_UPPER };
+	static const char *const names[] = {
+		STATE_RUNNING_UPPER,
+		STATE_IDLE_UPPER,
+		STATE_STALL_UPPER,
+	};
 	const struct monitor_links *links = &monitor->links;
 	const struct config *config = monitor->config;
 	const struct controller_activity_config activity_config = {
@@ -32,7 +34,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		.stall_timeout_microseconds =
 			config->stall_detection_threshold *
 			(config->reflector_ping_interval_microseconds / config->no_pingers),
-		.global_timeout_microseconds = config->global_ping_response_timeout_microseconds
+		.global_timeout_microseconds = config->global_ping_response_timeout_microseconds,
 	};
 	const struct controller_activity_input input = {
 		.download = { .valid = links->download.traffic_valid,
@@ -44,7 +46,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		.timestamp_microseconds = timestamp_microseconds,
 		.last_response_microseconds = monitor->pingers.last_response_microseconds,
 		.last_pinger_start_microseconds = monitor->pingers.last_restart_microseconds,
-		.grace_until_microseconds = monitor->pingers.grace_until_microseconds
+		.grace_until_microseconds = monitor->pingers.grace_until_microseconds,
 	};
 	enum controller_activity_state previous = monitor->activity.state;
 	struct controller_activity_output output;
@@ -86,9 +88,9 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		if (monitor->activity.state == CONTROLLER_RUNNING) {
 			log_message(
 				LOG_LEVEL_DEBUG,
-				previous == CONTROLLER_IDLE
-					? "Connection load exceeded active threshold. Resuming normal operation."
-					: "Connection stall ended. Resuming normal operation."
+				previous == CONTROLLER_IDLE ?
+					"Connection load exceeded active threshold. Resuming normal operation." :
+					"Connection stall ended. Resuming normal operation."
 			);
 		}
 		log_message(
@@ -241,9 +243,9 @@ static void watch_log_maintenance(struct monitor *monitor)
 		uint64_t maximum_age_milliseconds =
 			config->log_file_max_time_minutes * (MINUTE / MILLISECOND);
 
-		log_timer_milliseconds = maximum_age_milliseconds < UINT_MAX
-						 ? maximum_age_milliseconds + 1U
-						 : UINT_MAX;
+		log_timer_milliseconds = maximum_age_milliseconds < UINT_MAX ?
+						 maximum_age_milliseconds + 1U :
+						 UINT_MAX;
 	}
 	if (log_timer_milliseconds > 0U &&
 	    uloop_interval_set(&monitor->log_timer, (unsigned int)log_timer_milliseconds) != 0) {
@@ -273,18 +275,20 @@ int monitor_run(const struct config *config)
 		.log_timer = { .cb = handle_log_timer },
 		.log_export_signal = { .cb = handle_log_export_signal, .signo = SIGUSR1 },
 		.log_reset_signal = { .cb = handle_log_reset_signal, .signo = SIGUSR2 },
-		.result = -1
+		.result = -1,
 	};
 	const struct {
 		struct uloop_interval *timer;
 		uint64_t interval_microseconds;
 		const char *name;
-	} required_timers[] = { { &monitor.traffic_timer,
-				  config->monitor_achieved_rates_interval_microseconds,
-				  TIMER_TRAFFIC },
-				{ &monitor.reflectors.health_timer,
-				  config->reflector_health_check_interval_microseconds,
-				  TIMER_REFLECTOR_HEALTH } };
+	} required_timers[] = {
+		{ &monitor.traffic_timer,
+		  config->monitor_achieved_rates_interval_microseconds,
+		  TIMER_TRAFFIC },
+		{ &monitor.reflectors.health_timer,
+		  config->reflector_health_check_interval_microseconds,
+		  TIMER_REFLECTOR_HEALTH },
+	};
 	int run_status;
 	uint64_t start_microseconds;
 	size_t index;
@@ -307,11 +311,7 @@ int monitor_run(const struct config *config)
 
 	/* uloop reaps pinger children and reports each exit to pingers.c. */
 	if (uloop_init() != 0) {
-		log_message(
-			LOG_LEVEL_ERROR,
-			"could not initialize event loop: %s",
-			strerror(errno)
-		);
+		log_message(LOG_LEVEL_ERROR, "could not initialize event loop: %s", strerror(errno));
 		goto done;
 	}
 

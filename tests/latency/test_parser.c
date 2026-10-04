@@ -84,7 +84,7 @@ static void test_fping_icmp_timestamp_reply_rejects_malformed_fields(void)
 		" timestamps: Originate=4294967296 Receive=2 Transmit=3 Localreceive=4",
 		" timestamps: Originate=1 Receive=2 Transmit=3 Localreceive=4x",
 		" timestamps: Originate=-1 Receive=2 Transmit=3 Localreceive=4",
-		" timestamps: Originate= Receive=2 Transmit=3 Localreceive=4"
+		" timestamps: Originate= Receive=2 Transmit=3 Localreceive=4",
 	};
 	struct latency_sample sample;
 	char line[256];
@@ -158,10 +158,12 @@ static void test_fping_odd_and_extreme_rtt_use_equal_owd_halves(void)
 
 static void test_fping_byte_count_syntax(void)
 {
-	const char *const invalid[] = { "[123.000001] 1.1.1.1 : [1],  bytes, 1.0 ms",
-					"[123.000001] 1.1.1.1 : [1], -64 bytes, 1.0 ms",
-					"[123.000001] 1.1.1.1 : [1], 64x bytes, 1.0 ms",
-					"[123.000001] 1.1.1.1 : [1], 64 byte, 1.0 ms" };
+	const char *const invalid[] = {
+		"[123.000001] 1.1.1.1 : [1],  bytes, 1.0 ms",
+		"[123.000001] 1.1.1.1 : [1], -64 bytes, 1.0 ms",
+		"[123.000001] 1.1.1.1 : [1], 64x bytes, 1.0 ms",
+		"[123.000001] 1.1.1.1 : [1], 64 byte, 1.0 ms",
+	};
 	struct latency_sample sample;
 
 	for (size_t index = 0U; index < sizeof(invalid) / sizeof(invalid[0]); index++)
@@ -175,17 +177,21 @@ static void test_fping_timestamp_boundaries(void)
 	const struct {
 		const char *text;
 		uint64_t microseconds;
-	} valid[] = { { "0.1", 100000U },
-		      { "12.00000123", 12000001U },
-		      { "12.12345678901234567890", 12123456U },
-		      { "18446744073709.551615", UINT64_MAX } };
-	const char *const invalid[] = { "12.",
-					"12.1x",
-					"12.-1",
-					".1",
-					"12. 1",
-					"18446744073709.551616",
-					"18446744073709551616.0" };
+	} valid[] = {
+		{ "0.1", 100000U },
+		{ "12.00000123", 12000001U },
+		{ "12.12345678901234567890", 12123456U },
+		{ "18446744073709.551615", UINT64_MAX },
+	};
+	const char *const invalid[] = {
+		"12.",
+		"12.1x",
+		"12.-1",
+		".1",
+		"12. 1",
+		"18446744073709.551616",
+		"18446744073709551616.0",
+	};
 	struct latency_sample sample;
 	char line[128];
 

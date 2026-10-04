@@ -25,10 +25,10 @@ static struct controller_config default_config(void)
 	return (struct controller_config){
 		.download = { .average_delay_maximum_adjust_up_microseconds = 10000U,
 			      .delay_threshold_microseconds = 30000U,
-			      .average_delay_maximum_adjust_down_microseconds = 60000U },
+			      .average_delay_maximum_adjust_down_microseconds = 60000U, },
 		.upload = { .average_delay_maximum_adjust_up_microseconds = 10000U,
 			    .delay_threshold_microseconds = 30000U,
-			    .average_delay_maximum_adjust_down_microseconds = 60000U },
+			    .average_delay_maximum_adjust_down_microseconds = 60000U, },
 		.bufferbloat_detection_window = 6U,
 		.bufferbloat_detection_threshold = 3U,
 		.rate_minimum_adjust_down_bufferbloat_per_thousand = 990U,
@@ -69,11 +69,11 @@ static struct controller_input input_with_rates(
 		.download = { .valid = true,
 			      .traffic_sample_id = 1U,
 			      .traffic_rate_bits_per_second = download_rate,
-			      .cake_rate_bits_per_second = download_limit },
+			      .cake_rate_bits_per_second = download_limit, },
 		.upload = { .valid = true,
 			    .traffic_sample_id = 1U,
 			    .traffic_rate_bits_per_second = upload_rate,
-			    .cake_rate_bits_per_second = upload_limit },
+			    .cake_rate_bits_per_second = upload_limit, },
 		.download_latency = { .valid = true, .owd_delta_microseconds = 0 },
 		.upload_latency = { .valid = true, .owd_delta_microseconds = 0 },
 		.timestamp_microseconds = 1000001U
@@ -706,10 +706,11 @@ static void test_shared_delay_is_attributed_by_download_delivery(void)
 static struct controller_queue_input
 measured_queue(int64_t download_microseconds, int64_t upload_microseconds)
 {
-	const struct controller_queue_input queue = { .valid = true,
-						      .download_microseconds =
-							      download_microseconds,
-						      .upload_microseconds = upload_microseconds };
+	const struct controller_queue_input queue = {
+		.valid = true,
+		.download_microseconds = download_microseconds,
+		.upload_microseconds = upload_microseconds,
+	};
 
 	return queue;
 }
@@ -1220,7 +1221,7 @@ static const struct controller_activity_config activity_config = {
 	.stall_threshold_bits_per_second = 10000U,
 	.sustained_idle_microseconds = 60000000U,
 	.stall_timeout_microseconds = 250000U,
-	.global_timeout_microseconds = 10000000U
+	.global_timeout_microseconds = 10000000U,
 };
 
 static struct controller_activity_input activity_input(uint64_t timestamp)
@@ -1536,9 +1537,11 @@ static void test_load_classification(void)
 {
 	struct controller controller;
 	const struct controller_config config = default_config();
-	struct controller_direction_input input = { .valid = true,
-						    .traffic_rate_bits_per_second = 0U,
-						    .cake_rate_bits_per_second = 8U * MEBABIT };
+	struct controller_direction_input input = {
+		.valid = true,
+		.traffic_rate_bits_per_second = 0U,
+		.cake_rate_bits_per_second = 8U * MEBABIT,
+	};
 	struct controller_direction_input other = input;
 
 	init_controller(&controller, &config);

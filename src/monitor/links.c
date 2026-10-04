@@ -101,11 +101,8 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 	}
 }
 
-static void log_cake_discovery(
-	const char *interface,
-	const struct cake_observation *observation,
-	bool recovered
-)
+static void
+log_cake_discovery(const char *interface, const struct cake_observation *observation, bool recovered)
 {
 	enum log_level level = recovered ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
 
@@ -113,8 +110,8 @@ static void log_cake_discovery(
 		log_message(
 			level,
 			recovered ? "CAKE observation recovered: interface=%s handle=0x%08" PRIx32
-				    " bandwidth=unlimited"
-				  : "CAKE discovered: interface=%s handle=0x%08" PRIx32
+				    " bandwidth=unlimited" :
+				    "CAKE discovered: interface=%s handle=0x%08" PRIx32
 				    " bandwidth=unlimited",
 			interface,
 			observation->handle
@@ -125,8 +122,8 @@ static void log_cake_discovery(
 	log_message(
 		level,
 		recovered ? "CAKE observation recovered: interface=%s handle=0x%08" PRIx32
-			    " bandwidth=%" PRIu64 " bit/s"
-			  : "CAKE discovered: interface=%s handle=0x%08" PRIx32
+			    " bandwidth=%" PRIu64 " bit/s" :
+			    "CAKE discovered: interface=%s handle=0x%08" PRIx32
 			    " bandwidth=%" PRIu64 " bit/s",
 		interface,
 		observation->handle,
@@ -158,9 +155,9 @@ static void record_cake_read(
 		if (direction->cake_state != CAKE_OBSERVATION_NOT_FOUND) {
 			log_message(
 				LOG_LEVEL_WARNING,
-				direction->cake_state == CAKE_OBSERVATION_AVAILABLE
-					? "CAKE observation degraded: no CAKE qdisc found on interface=%s"
-					: "CAKE not found: interface=%s; observation will retry",
+				direction->cake_state == CAKE_OBSERVATION_AVAILABLE ?
+					"CAKE observation degraded: no CAKE qdisc found on interface=%s" :
+					"CAKE not found: interface=%s; observation will retry",
 				direction->interface
 			);
 		}
@@ -261,7 +258,7 @@ log_load_stats(const struct monitor_direction *download, const struct monitor_di
 		.download_achieved_rate_kbps = download->traffic_rate_bits_per_second / KILOBIT,
 		.upload_achieved_rate_kbps = upload->traffic_rate_bits_per_second / KILOBIT,
 		.cake_download_rate_kbps = download->cake.bandwidth_bits_per_second / KILOBIT,
-		.cake_upload_rate_kbps = upload->cake.bandwidth_bits_per_second / KILOBIT
+		.cake_upload_rate_kbps = upload->cake.bandwidth_bits_per_second / KILOBIT,
 	};
 
 	log_load(&record);
@@ -332,8 +329,10 @@ void links_observe(struct monitor *monitor)
 static struct monitor_direction *
 event_direction(struct monitor *monitor, const struct qdisc_event *event)
 {
-	struct monitor_direction *directions[] = { &monitor->links.download,
-						   &monitor->links.upload };
+	struct monitor_direction *directions[] = {
+		&monitor->links.download,
+		&monitor->links.upload,
+	};
 	size_t index;
 
 	if (event->parent != TC_H_ROOT)

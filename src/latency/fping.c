@@ -17,12 +17,8 @@
 #include <string.h>
 #include <wordexp.h>
 
-static enum latency_probe_result probe_result(
-	enum latency_fping_line_result parsed,
-	const char *line,
-	char *error,
-	size_t error_size
-)
+static enum latency_probe_result
+probe_result(enum latency_fping_line_result parsed, const char *line, char *error, size_t error_size)
 {
 	if (parsed == LATENCY_FPING_LINE_INVALID) {
 		error_set(error, error_size, "unexpected fping output: %.160s", line);
@@ -173,13 +169,8 @@ int latency_open(
 	for (index = 0U; index < target_count; index++)
 		pinger_command_add(&command, targets[index]);
 
-	if (start_child(
-		    &latency->children[0],
-		    command.argv,
-		    PINGER_METHOD_FPING,
-		    error,
-		    error_size
-	    ) == 0) {
+	if (start_child(&latency->children[0], command.argv, PINGER_METHOD_FPING, error, error_size) ==
+	    0) {
 		latency->ops = icmp_timestamps ? &fping_ts_ops : &fping_ops;
 		latency->active = true;
 		latency->child_count = 1U;

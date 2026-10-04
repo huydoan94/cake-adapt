@@ -45,7 +45,7 @@ send_at(struct tcpdelay_estimator *estimator,
 	struct tcpdelay_sample sample = {
 		.flow = remote->key,
 		.arrival_ns = ORIGIN_NS + sent_ns + PATH_NS + download_queue_ns,
-		.tsval = remote->tsval_base + (uint32_t)(sent_ns / remote->tick_ns)
+		.tsval = remote->tsval_base + (uint32_t)(sent_ns / remote->tick_ns),
 	};
 
 	if (remote->departures) {
