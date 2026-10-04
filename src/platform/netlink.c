@@ -167,8 +167,8 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 		return NL_OK;
 	}
 	traffic_control = NLMSG_DATA(header);
-	event = (struct qdisc_event){ .type = header->nlmsg_type == RTM_NEWQDISC ? QDISC_CREATED
-										 : QDISC_REMOVED,
+	event = (struct qdisc_event){ .type = header->nlmsg_type == RTM_NEWQDISC ? QDISC_CREATED :
+										   QDISC_REMOVED,
 				      .interface_index = (unsigned int)traffic_control->tcm_ifindex,
 				      .handle = traffic_control->tcm_handle,
 				      .parent = traffic_control->tcm_parent };
@@ -206,9 +206,11 @@ static int wait_for_response(
 	size_t error_size
 )
 {
-	struct pollfd descriptor = { .fd = nl_socket_get_fd(netlink->socket),
-				     .events = POLLIN,
-				     .revents = 0 };
+	struct pollfd descriptor = {
+		.fd = nl_socket_get_fd(netlink->socket),
+		.events = POLLIN,
+		.revents = 0,
+	};
 	int result;
 
 	do {
@@ -292,9 +294,11 @@ static int configure_response_callbacks(
 	static const struct {
 		enum nl_cb_type type;
 		nl_recvmsg_msg_cb_t handler;
-	} handlers[] = { { NL_CB_VALID, handle_valid_response },
-			 { NL_CB_FINISH, handle_complete_response },
-			 { NL_CB_ACK, handle_complete_response } };
+	} handlers[] = {
+		{ NL_CB_VALID, handle_valid_response },
+		{ NL_CB_FINISH, handle_complete_response },
+		{ NL_CB_ACK, handle_complete_response },
+	};
 	struct nl_cb *callbacks;
 	int result = 0;
 
@@ -366,8 +370,8 @@ static int receive_response(
 			return error_set(
 				error,
 				error_size,
-				context->type == RESPONSE_QDISC_DUMP ? "qdisc dump failed: %s"
-								     : "qdisc change failed: %s",
+				context->type == RESPONSE_QDISC_DUMP ? "qdisc dump failed: %s" :
+								       "qdisc change failed: %s",
 				strerror(-context->kernel_error)
 			);
 		}
@@ -377,9 +381,9 @@ static int receive_response(
 			return error_set(
 				error,
 				error_size,
-				context->type == RESPONSE_QDISC_DUMP
-					? "could not receive qdisc dump: %s"
-					: "could not receive rtnetlink acknowledgement: %s",
+				context->type == RESPONSE_QDISC_DUMP ?
+					"could not receive qdisc dump: %s" :
+					"could not receive rtnetlink acknowledgement: %s",
 				nl_geterror(result)
 			);
 		}
@@ -404,8 +408,8 @@ static int send_request(
 		return error_set(
 			error,
 			error_size,
-			response->type == RESPONSE_QDISC_DUMP ? "could not request qdisc dump: %s"
-							      : "could not send qdisc change: %s",
+			response->type == RESPONSE_QDISC_DUMP ? "could not request qdisc dump: %s" :
+								"could not send qdisc change: %s",
 			nl_geterror(result)
 		);
 	}
@@ -421,9 +425,11 @@ int netlink_dump_qdiscs(
 )
 {
 	struct tcmsg traffic_control = { .tcm_family = AF_UNSPEC };
-	struct response_context response = { .handler = handler,
-					     .handler_context = handler_context,
-					     .type = RESPONSE_QDISC_DUMP };
+	struct response_context response = {
+		.handler = handler,
+		.handler_context = handler_context,
+		.type = RESPONSE_QDISC_DUMP,
+	};
 	struct nl_msg *message;
 	int result;
 
@@ -461,13 +467,17 @@ int netlink_change_qdisc_option(
 	size_t error_size
 )
 {
-	struct tcmsg traffic_control = { .tcm_family = AF_UNSPEC,
-					 .tcm_ifindex = (int)interface_index,
-					 .tcm_handle = handle,
-					 .tcm_parent = parent };
-	struct response_context response = { .handler = NULL,
-					     .handler_context = NULL,
-					     .type = RESPONSE_QDISC_CHANGE };
+	struct tcmsg traffic_control = {
+		.tcm_family = AF_UNSPEC,
+		.tcm_ifindex = (int)interface_index,
+		.tcm_handle = handle,
+		.tcm_parent = parent,
+	};
+	struct response_context response = {
+		.handler = NULL,
+		.handler_context = NULL,
+		.type = RESPONSE_QDISC_CHANGE,
+	};
 	struct nlattr *options;
 	struct nl_msg *message;
 	int result;

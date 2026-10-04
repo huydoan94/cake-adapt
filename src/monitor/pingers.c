@@ -377,9 +377,10 @@ static bool watch_started_latency_children(struct monitor *monitor)
 
 		if (watch->reading || descriptor < 0)
 			continue;
-		watch->output =
-			(struct ustream_fd){ .stream = { .notify_read = handle_pinger_output,
-							 .notify_state = handle_pinger_state } };
+		watch->output = (struct ustream_fd){ .stream = {
+							     .notify_read = handle_pinger_output,
+							     .notify_state = handle_pinger_state,
+						     } };
 		ustream_fd_init(&watch->output, descriptor);
 		watch->reading = true;
 		/* ustream_fd_init() does not report a failed registration itself. */
@@ -413,9 +414,7 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 		return true;
 	}
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		(
-			void
-		)snprintf(error, sizeof(error), "IRTT start clock failed: %s", strerror(errno));
+		(void)snprintf(error, sizeof(error), "IRTT start clock failed: %s", strerror(errno));
 		report_latency_degraded(monitor, error);
 		defer_latency_retry(monitor);
 		return false;
@@ -436,9 +435,9 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 		return true;
 
 	next_start_microseconds = latency_irtt_next_start_microseconds(&monitor->pingers.latency);
-	delay_microseconds = next_start_microseconds > timestamp_microseconds
-				     ? next_start_microseconds - timestamp_microseconds
-				     : 0U;
+	delay_microseconds = next_start_microseconds > timestamp_microseconds ?
+				     next_start_microseconds - timestamp_microseconds :
+				     0U;
 	delay_milliseconds = milliseconds_rounded_up(delay_microseconds);
 	if (delay_milliseconds > (uint64_t)INT_MAX)
 		delay_milliseconds = (uint64_t)INT_MAX;

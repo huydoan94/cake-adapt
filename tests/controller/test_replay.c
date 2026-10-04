@@ -44,25 +44,25 @@ static struct controller_config upstream_config(void)
 		.maximum_rate_bits_per_second = 50000U * KILOBIT,
 		.average_delay_maximum_adjust_up_microseconds = 10000U,
 		.delay_threshold_microseconds = 30000U,
-		.average_delay_maximum_adjust_down_microseconds = 60000U
+		.average_delay_maximum_adjust_down_microseconds = 60000U,
 	};
 
-	return (struct controller_config){ .download = direction,
-					   .upload = direction,
-					   .bufferbloat_detection_window = 6U,
-					   .bufferbloat_detection_threshold = 3U,
-					   .rate_minimum_adjust_down_bufferbloat_per_thousand =
-						   990U,
-					   .rate_maximum_adjust_down_bufferbloat_per_thousand =
-						   750U,
-					   .rate_minimum_adjust_up_high_load_per_thousand = 1000U,
-					   .rate_maximum_adjust_up_high_load_per_thousand = 1040U,
-					   .rate_adjust_down_low_load_per_thousand = 990U,
-					   .rate_adjust_up_low_load_per_thousand = 1010U,
-					   .high_load_threshold_percent = 75U,
-					   .bufferbloat_refractory_period_microseconds = 300000U,
-					   .decay_refractory_period_microseconds = 1000000U,
-					   .shared_delay = false };
+	return (struct controller_config){
+		.download = direction,
+		.upload = direction,
+		.bufferbloat_detection_window = 6U,
+		.bufferbloat_detection_threshold = 3U,
+		.rate_minimum_adjust_down_bufferbloat_per_thousand = 990U,
+		.rate_maximum_adjust_down_bufferbloat_per_thousand = 750U,
+		.rate_minimum_adjust_up_high_load_per_thousand = 1000U,
+		.rate_maximum_adjust_up_high_load_per_thousand = 1040U,
+		.rate_adjust_down_low_load_per_thousand = 990U,
+		.rate_adjust_up_low_load_per_thousand = 1010U,
+		.high_load_threshold_percent = 75U,
+		.bufferbloat_refractory_period_microseconds = 300000U,
+		.decay_refractory_period_microseconds = 1000000U,
+		.shared_delay = false
+	};
 }
 
 static bool parse_sample(const char *line, struct trace_sample *sample)
@@ -136,18 +136,18 @@ static unsigned int replay(const char *path)
 				      .traffic_sample_id = sample_id,
 				      .traffic_rate_bits_per_second =
 					      sample.achieved_kbps[0] * KILOBIT,
-				      .cake_rate_bits_per_second = cake_kbps[0] * KILOBIT },
+				      .cake_rate_bits_per_second = cake_kbps[0] * KILOBIT, },
 			.upload = { .valid = true,
 				    .traffic_sample_id = sample_id,
 				    .traffic_rate_bits_per_second =
 					    sample.achieved_kbps[1] * KILOBIT,
-				    .cake_rate_bits_per_second = cake_kbps[1] * KILOBIT },
+				    .cake_rate_bits_per_second = cake_kbps[1] * KILOBIT, },
 			.download_latency = { .valid = true,
 					      .owd_delta_microseconds =
-						      sample.delta_microseconds[0] },
+						      sample.delta_microseconds[0], },
 			.upload_latency = { .valid = true,
 					    .owd_delta_microseconds =
-						    sample.delta_microseconds[1] },
+						    sample.delta_microseconds[1], },
 			.timestamp_microseconds = sample.processed_microseconds
 		};
 		controller_update(&controller, &input, &output);
@@ -181,8 +181,9 @@ static unsigned int replay(const char *path)
 			    compensated->average_delay_maximum_adjust_down_microseconds !=
 				    sample.adjust_down_threshold[index]) {
 				if (mismatches < REPORT_LIMIT) {
-					(void)printf(
-						"%s sample %u %s: rate %" PRIu64 "/%" PRIu64
+					(
+						void
+					)printf("%s sample %u %s: rate %" PRIu64 "/%" PRIu64
 						" sum %u/%u avg %" PRId64 "/%" PRId64 " bb %d/%d"
 						" thr %" PRIu64 "/%" PRIu64 " up %" PRIu64
 						"/%" PRIu64 " down %" PRIu64 "/%" PRIu64
@@ -205,8 +206,7 @@ static unsigned int replay(const char *path)
 						sample.adjust_up_threshold[index],
 						compensated
 							->average_delay_maximum_adjust_down_microseconds,
-						sample.adjust_down_threshold[index]
-					);
+						sample.adjust_down_threshold[index]);
 				}
 				mismatches++;
 			}
@@ -226,7 +226,7 @@ int main(void)
 {
 	static const char *const traces[] = {
 		"controller/fixtures/cake-autorate-ac75f49-ab.trace",
-		"controller/fixtures/cake-autorate-ac75f49-congestion.trace"
+		"controller/fixtures/cake-autorate-ac75f49-congestion.trace",
 	};
 	unsigned int mismatches = 0U;
 	size_t index;

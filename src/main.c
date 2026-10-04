@@ -92,9 +92,9 @@ static int open_log_file(
 	size_t log_path_size
 )
 {
-	const char *directory = config->log_file_path_override[0] != '\0'
-					? config->log_file_path_override
-					: DEFAULT_LOG_DIRECTORY;
+	const char *directory = config->log_file_path_override[0] != '\0' ?
+					config->log_file_path_override :
+					DEFAULT_LOG_DIRECTORY;
 	int length;
 
 	if (strcmp(section_name, DEFAULT_SECTION) == 0)

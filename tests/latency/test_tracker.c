@@ -12,7 +12,7 @@
 static const struct latency_tracker_config default_tracker_config = {
 	.alpha_baseline_increase_per_million = 1000U,
 	.alpha_baseline_decrease_per_million = 900000U,
-	.alpha_delta_ewma_per_million = 95000U
+	.alpha_delta_ewma_per_million = 95000U,
 };
 
 static void init_tracker(struct latency_tracker *tracker)
@@ -23,8 +23,10 @@ static void init_tracker(struct latency_tracker *tracker)
 static struct latency_observation
 track(struct latency_tracker *tracker, uint32_t round_trip_microseconds)
 {
-	struct latency_sample sample = { .download_owd_microseconds = round_trip_microseconds / 2U,
-					 .upload_owd_microseconds = round_trip_microseconds / 2U };
+	struct latency_sample sample = {
+		.download_owd_microseconds = round_trip_microseconds / 2U,
+		.upload_owd_microseconds = round_trip_microseconds / 2U,
+	};
 	struct latency_observation observation;
 
 	tracker_update(tracker, &sample, &observation);
@@ -50,11 +52,11 @@ static void test_first_sample_updates_initialized_baseline(void)
 
 static void test_configured_alpha_values_are_used(void)
 {
-	const struct latency_tracker_config config = { .alpha_baseline_increase_per_million =
-							       200000U,
-						       .alpha_baseline_decrease_per_million =
-							       500000U,
-						       .alpha_delta_ewma_per_million = 500000U };
+	const struct latency_tracker_config config = {
+		.alpha_baseline_increase_per_million = 200000U,
+		.alpha_baseline_decrease_per_million = 500000U,
+		.alpha_delta_ewma_per_million = 500000U,
+	};
 	struct latency_tracker tracker;
 	struct latency_observation observation;
 
@@ -73,8 +75,10 @@ static void test_configured_alpha_values_are_used(void)
 static void test_delta_ewma_freezes_during_load(void)
 {
 	struct latency_tracker tracker;
-	struct latency_sample sample = { .download_owd_microseconds = 120000U,
-					 .upload_owd_microseconds = 120000U };
+	struct latency_sample sample = {
+		.download_owd_microseconds = 120000U,
+		.upload_owd_microseconds = 120000U,
+	};
 	struct latency_observation observation;
 
 	init_tracker(&tracker);
@@ -88,8 +92,10 @@ static void test_delta_ewma_freezes_during_load(void)
 static void test_asymmetric_tracker_state_evolves_independently(void)
 {
 	struct latency_tracker tracker;
-	const struct latency_sample sample = { .download_owd_microseconds = 200000U,
-					       .upload_owd_microseconds = 20000U };
+	const struct latency_sample sample = {
+		.download_owd_microseconds = 200000U,
+		.upload_owd_microseconds = 20000U,
+	};
 	struct latency_observation observation;
 
 	init_tracker(&tracker);
@@ -107,10 +113,10 @@ static void test_asymmetric_tracker_state_evolves_independently(void)
 static void test_signed_asymmetric_tracker_handles_one_day_values(void)
 {
 	struct latency_tracker tracker;
-	const struct latency_sample sample = { .download_owd_microseconds =
-						       -(INT64_C(24) * 60 * 60 * 1000000),
-					       .upload_owd_microseconds =
-						       INT64_C(24) * 60 * 60 * 1000000 };
+	const struct latency_sample sample = {
+		.download_owd_microseconds = -(INT64_C(24) * 60 * 60 * 1000000),
+		.upload_owd_microseconds = INT64_C(24) * 60 * 60 * 1000000,
+	};
 	struct latency_observation observation;
 
 	init_tracker(&tracker);
@@ -210,7 +216,7 @@ static void test_timestamp_rollover_resets_only_timestamp_samples(void)
 	struct latency_sample sample = {
 		.download_owd_microseconds = (int64_t)LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS,
 		.upload_owd_microseconds = 0,
-		.timestamp_rollover_sensitive = true
+		.timestamp_rollover_sensitive = true,
 	};
 
 	init_tracker(&tracker);

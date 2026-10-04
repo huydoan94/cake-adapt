@@ -24,8 +24,10 @@ int uci_lookup_next(
 static void test_scalar_option_types(void)
 {
 	struct uci_section section = { 0 };
-	struct uci_option option = { .e = { .type = UCI_TYPE_OPTION, .name = "enabled" },
-				     .type = UCI_TYPE_LIST };
+	struct uci_option option = {
+		.e = { .type = UCI_TYPE_OPTION, .name = "enabled" },
+		.type = UCI_TYPE_LIST,
+	};
 	struct config config = { .no_pingers = 7U, .interface = "default" };
 	char error[128];
 
@@ -75,8 +77,8 @@ static void test_supported_option_names(void)
 		const char *name = config_option_name(index);
 
 		assert(name != NULL);
-		found_adjust_download =
-			found_adjust_download || strcmp(name, "adjust_dl_shaper_rate") == 0;
+		found_adjust_download = found_adjust_download ||
+					strcmp(name, "adjust_dl_shaper_rate") == 0;
 		found_download_interface = found_download_interface || strcmp(name, "dl_if") == 0;
 		found_ping_arguments = found_ping_arguments || strcmp(name, "ping_extra_args") == 0;
 		found_upload_interface = found_upload_interface || strcmp(name, "ul_if") == 0;

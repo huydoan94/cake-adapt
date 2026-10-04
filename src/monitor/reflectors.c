@@ -166,7 +166,7 @@ static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestam
 				.upload_delta_ewma_microseconds =
 					comparison->upload_delta_ewma_microseconds,
 				.upload_delta_ewma_delta_microseconds =
-					comparison->upload_delta_ewma_delta_microseconds
+					comparison->upload_delta_ewma_delta_microseconds,
 			};
 
 			log_reflector(&record);
@@ -220,12 +220,7 @@ static bool run_scheduled_reflector_work(struct monitor *monitor, uint64_t times
 		    replacement_interval_microseconds
 	    )) {
 		monitor->reflectors.last_replacement_microseconds = timestamp_microseconds;
-		if (!random_below(
-			    (size_t)monitor->config->no_pingers,
-			    entropy_u32,
-			    NULL,
-			    &pinger
-		    )) {
+		if (!random_below((size_t)monitor->config->no_pingers, entropy_u32, NULL, &pinger)) {
 			log_message(
 				LOG_LEVEL_WARNING,
 				"could not randomly select reflector for replacement: %s",
@@ -324,8 +319,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 					"Warning: skipping replacement of reflector: %s given"
 					" prior replacement within this reflector health check"
 					" cycle.",
-					monitor->config
-						->reflectors[monitor->reflectors.order[index]]
+					monitor->config->reflectors[monitor->reflectors.order[index]]
 				);
 			}
 		}
@@ -338,12 +332,12 @@ int reflectors_start(struct monitor *monitor, uint64_t start_microseconds)
 	const struct latency_tracker_config latency_tracker_config = {
 		.alpha_baseline_increase_per_million = config->alpha_baseline_increase_per_million,
 		.alpha_baseline_decrease_per_million = config->alpha_baseline_decrease_per_million,
-		.alpha_delta_ewma_per_million = config->alpha_delta_ewma_per_million
+		.alpha_delta_ewma_per_million = config->alpha_delta_ewma_per_million,
 	};
 	const struct reflector_health_config reflector_health_config = {
 		.response_deadline_microseconds = config->reflector_response_deadline_microseconds,
 		.detection_window = (size_t)config->reflector_misbehaving_detection_window,
-		.detection_threshold = (size_t)config->reflector_misbehaving_detection_threshold
+		.detection_threshold = (size_t)config->reflector_misbehaving_detection_threshold,
 	};
 	size_t index;
 

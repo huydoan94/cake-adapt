@@ -11,10 +11,12 @@
 	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_MICROSECONDS * NANOSECONDS_PER_MICROSECOND))
 
 /* Standard TCP timestamp clock periods (1 ms on Linux and the BSDs). */
-static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = { UINT64_C(1000000),
-							    UINT64_C(4000000),
-							    UINT64_C(10000000),
-							    UINT64_C(100000000) };
+static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = {
+	UINT64_C(1000000),
+	UINT64_C(4000000),
+	UINT64_C(10000000),
+	UINT64_C(100000000),
+};
 
 static int64_t floor_update(struct tcpdelay_floor *floor, int64_t value, uint64_t now_ns)
 {

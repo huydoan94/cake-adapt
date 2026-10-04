@@ -150,12 +150,18 @@ static void test_random_selection_and_shuffle(void)
 	const uint32_t choices[] = { UINT32_MAX, 8U };
 	const uint32_t swaps[] = { 1U, 0U, 1U };
 	const uint32_t partial[] = { 1U };
-	struct random_sequence sequence = { .values = choices,
-					    .count = sizeof(choices) / sizeof(choices[0]) };
-	struct random_sequence shuffle_sequence = { .values = swaps,
-						    .count = sizeof(swaps) / sizeof(swaps[0]) };
-	struct random_sequence failing_sequence = { .values = partial,
-						    .count = sizeof(partial) / sizeof(partial[0]) };
+	struct random_sequence sequence = {
+		.values = choices,
+		.count = sizeof(choices) / sizeof(choices[0]),
+	};
+	struct random_sequence shuffle_sequence = {
+		.values = swaps,
+		.count = sizeof(swaps) / sizeof(swaps[0]),
+	};
+	struct random_sequence failing_sequence = {
+		.values = partial,
+		.count = sizeof(partial) / sizeof(partial[0]),
+	};
 	size_t items[] = { 0U, 1U, 2U, 3U };
 	size_t startup_order[] = { 0U, 1U, 2U, 3U };
 	size_t working_order[] = { 0U, 1U, 2U, 3U };
@@ -200,13 +206,7 @@ static void test_response_timestamp_boundaries(void)
 	response_timestamp(realtime, monotonic, realtime + 123U, &response_monotonic, &stale);
 	assert(!stale);
 	assert(response_monotonic == monotonic + 123U);
-	response_timestamp(
-		UINT64_MAX - 1U,
-		UINT64_MAX - 1U,
-		UINT64_MAX,
-		&response_monotonic,
-		&stale
-	);
+	response_timestamp(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX, &response_monotonic, &stale);
 	assert(!stale);
 	assert(response_monotonic == UINT64_MAX);
 }

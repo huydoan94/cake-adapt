@@ -67,12 +67,8 @@ static void test_output_is_split_into_lines(void)
 	       LATENCY_LINE_READY);
 	assert(strcmp(line, "[123.456000] 1.1.1.1 : [1], 64 bytes, 2.50 ms") == 0);
 	assert(consumed == strlen(line) + 2U);
-	assert(latency_next_line(
-		       output + consumed,
-		       sizeof(output) - 1U - consumed,
-		       line,
-		       &consumed
-	       ) == LATENCY_LINE_INCOMPLETE);
+	assert(latency_next_line(output + consumed, sizeof(output) - 1U - consumed, line, &consumed) ==
+	       LATENCY_LINE_INCOMPLETE);
 	assert(latency_next_line("", 0U, line, &consumed) == LATENCY_LINE_INCOMPLETE);
 
 	/* The newline must fall within LATENCY_OUTPUT_SIZE bytes. */
@@ -198,18 +194,8 @@ static void test_empty_target_list_is_rejected(void)
 	char error[256] = "";
 
 	latency_init(&latency);
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       NULL,
-		       0U,
-		       1000000U,
-		       "",
-		       "",
-		       false,
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	assert(latency_open(&latency, "lo", NULL, 0U, 1000000U, "", "", false, error, sizeof(error)) !=
+	       0);
 	assert(strstr(error, "at least one target") != NULL);
 	assert(!latency_is_open(&latency));
 }
@@ -221,18 +207,8 @@ static void test_sub_millisecond_response_spacing_is_rejected(void)
 	char error[256] = "";
 
 	latency_init(&latency);
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       targets,
-		       2U,
-		       1999U,
-		       "",
-		       "",
-		       false,
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	assert(latency_open(&latency, "lo", targets, 2U, 1999U, "", "", false, error, sizeof(error)) !=
+	       0);
 	assert(strstr(error, "at least 1 ms per target") != NULL);
 	assert(!latency_is_open(&latency));
 }

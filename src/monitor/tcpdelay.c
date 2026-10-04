@@ -124,7 +124,7 @@ static void measure_queues(
 			.download_valid = estimate.download_valid,
 			.upload_valid = estimate.upload_valid,
 			.download_queue_microseconds = estimate.download_queue_microseconds,
-			.upload_queue_microseconds = estimate.upload_queue_microseconds
+			.upload_queue_microseconds = estimate.upload_queue_microseconds,
 		};
 
 		log_tcp_queue(&record);
