@@ -181,11 +181,7 @@ static const struct option_binding options[] = {
 	),
 	SCALED_OPTION(OPTION_RATE_UP_LOW_LOAD, shaper_rate_adjust_up_load_low_per_million, MILLION),
 	SCALED_OPTION(OPTION_HIGH_LOAD_THRESHOLD, high_load_threshold_per_million, MILLION),
-	SCALED_OPTION(
-		OPTION_UPLOAD_ACK_CONGESTED_SHARE,
-		upload_ack_congested_share_per_million,
-		MILLION
-	),
+	SCALED_OPTION(OPTION_UL_CONGEST_ACK_SHARE, ul_congest_ack_share_per_million, MILLION),
 	SCALED_OPTION(
 		OPTION_BUFFERBLOAT_REFRACTORY,
 		bufferbloat_refractory_period_microseconds,

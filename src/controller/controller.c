@@ -480,13 +480,12 @@ download_ceiling(const struct controller *controller, const struct controller_in
 {
 	uint64_t room = controller->upload.shaper_rate_bits_per_second;
 	uint64_t ack_rate = input->acks.upload_ack_rate_bits_per_second;
-	uint64_t minimum =
-		mul_div(room, controller->config.upload_ack_congested_share_percent, PERCENT);
+	uint64_t minimum = mul_div(room, controller->config.ul_congest_ack_share_percent, PERCENT);
 	uint64_t other;
 	uint64_t taken;
 	uint64_t allowed;
 
-	if (controller->config.upload_ack_congested_share_percent == 0U || !input->acks.valid ||
+	if (controller->config.ul_congest_ack_share_percent == 0U || !input->acks.valid ||
 	    ack_rate == 0U || !input->upload.valid || !input->download.valid ||
 	    load_percent(input->upload.traffic_rate_bits_per_second, room) <=
 		    controller->config.high_load_threshold_percent) {
