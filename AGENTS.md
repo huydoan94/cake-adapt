@@ -1,5 +1,9 @@
 # cake-adapt — Agent Guide
 
+**At session start, resumption, and after a long break, read
+[`COLLABORATION.md`](COLLABORATION.md) together with this guide. Inspect the
+current worktree and identify unfinished work before continuing.**
+
 ## Product contract
 
 `cake-adapt` is an OpenWrt-native C daemon for adapting the bandwidth of
@@ -488,11 +492,13 @@ independent parser, lifecycle, fixture, and runtime verification.
 
 ## VM testing and delegation
 
-For testing or deployment, delegate routine build/deploy/verification to one
-available Luna-class lower-cost subagent with low reasoning effort and minimal
-context. One agent may run independent x86 and Filogic builds concurrently.
-Keep architecture, production changes, ambiguous diagnosis, destructive
-actions, and final acceptance on the primary model.
+At session start, resumption, and after a long break, read
+`COLLABORATION.md` alongside this guide and inspect the current worktree and
+unfinished work. Follow its assigned roles and handoff workflow for diagnosis,
+implementation, review, verification, and acceptance. Do not run parallel
+writers on overlapping files. Delegation does not expand the user's granted
+authority or override the branch, remote, Windows, version, and deployment
+restrictions in this guide.
 
 Sandbox failures such as `Read-only file system` or `socket: Operation not
 permitted` are not product failures. Use an existing narrow approval or return
