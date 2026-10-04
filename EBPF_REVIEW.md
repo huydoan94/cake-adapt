@@ -319,6 +319,10 @@ any later policy decision.
 
 ## 3. Finding: a reused tuple inherits an old timestamp clock
 
+**Status: OPEN.** Phase 1 corrects accepted-sample freshness and protects the
+LRU order from rejected records. It does not identify a replacement connection
+or restart its clock calibration.
+
 ### Reproduced sequence
 
 The userspace key contains the endpoint addresses and ports. It does not include
@@ -330,9 +334,14 @@ A replacement connection with the same tuple starts with an offset near 100
 ticks. The subtraction against the old last timestamp produces a negative
 signed step, so the sample is rejected as reordered.
 
-However, `last_seen_ns` is refreshed **before** that rejection. Replacement
-traffic can therefore keep the stale slot looking recently active while none
-of its samples are accepted.
+In the reviewed snapshot, `last_seen_ns` was refreshed **before** that
+rejection. Replacement traffic could therefore keep the stale slot looking
+recently active while none of its samples were accepted. Phase 1 now records
+the arrival time of the last accepted sample and rejects a negative timestamp
+step or an arrival older than that accepted time before changing an existing
+flow. This prevents rejected records from refreshing LRU state; it leaves the
+stale clock calibration in place, so the reproduced tuple-reuse case remains
+unresolved.
 
 Observed result after seven seconds of replacement traffic:
 
@@ -360,10 +369,34 @@ expiry evidence, then restart calibration when justified. Keep the signed
 timestamp rollover handling: resetting on every negative step would incorrectly
 treat ordinary reordering as a new connection.
 
-The BPF departure map is separately keyed by tuple and TSval and uses
-`BPF_NOEXIST`. Stale departure collisions across connection generations deserve
-a kernel-path test too; this review's userspace reproduction does not prove
-that additional case.
+Full restart recovery remains a separate phase. It needs connection-lifetime
+identity, generation-specific departure tracking, idempotent handling of SYN
+retransmissions and SYN/ACKs, rejection of records from an old generation,
+bounded map eviction, and defined cross-CPU event ordering. The BPF departure
+map is currently keyed by tuple and TSval and uses `BPF_NOEXIST`; stale
+departure collisions across connection generations need kernel-path tests.
+Phase 1 has only host-side estimator tests and makes no claim about that kernel
+behavior.
+
+The remaining issue-2 work and acceptance order is:
+
+1. Distinguish connection lifetimes using observed handshake evidence. Do not
+   reset calibration on an arbitrary negative timestamp step or an invented
+   idle timeout.
+2. Carry ordered lifetime identity through the ring-buffer record and
+   estimator, preserving the existing 64-byte record layout. The currently
+   unused `tsecr` and reserved fields may be investigated; they are not an
+   approved ABI design.
+3. Qualify departure matching by lifetime so an old tuple-plus-TSval entry
+   cannot match a packet from a replacement connection.
+4. Prove SYN retransmission and SYN/ACK handling is idempotent, delayed records
+   from an old lifetime are rejected, and map eviction and cross-CPU ordering
+   preserve the selected lifetime.
+5. Pass kernel verifier checks and controlled tuple-reuse tests before marking
+   this finding fixed. Retain raw evidence for those checks.
+
+Until those conditions are met, phase 1 establishes only that rejected samples
+do not mutate the estimator flow or refresh its LRU position.
 
 ## 4. Finding: a standing queue becomes the baseline
 

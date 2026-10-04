@@ -86,7 +86,7 @@ static void flow_start(struct tcpdelay_flow *flow, const struct tcpdelay_sample 
 	flow->used = true;
 	flow->first_arrival_ns = sample->arrival_ns;
 	flow->last_tsval = sample->tsval;
-	flow->last_seen_ns = sample->arrival_ns;
+	flow->last_accepted_ns = sample->arrival_ns;
 }
 
 static struct tcpdelay_flow *
@@ -105,7 +105,7 @@ flow_for(struct tcpdelay_estimator *estimator, const struct tcpdelay_sample *sam
 		}
 		if (memcmp(&flow->key, &sample->flow, sizeof(flow->key)) == 0)
 			return flow;
-		if (oldest == NULL || flow->last_seen_ns < oldest->last_seen_ns)
+		if (oldest == NULL || flow->last_accepted_ns < oldest->last_accepted_ns)
 			oldest = flow;
 	}
 	flow_start(oldest, sample);
@@ -193,9 +193,9 @@ void tcpdelay_estimator_add(
 	int64_t upload_ns;
 	size_t index;
 
-	flow->last_seen_ns = sample->arrival_ns;
-	if (step < 0 || sample->arrival_ns < flow->first_arrival_ns)
+	if (step < 0 || sample->arrival_ns < flow->last_accepted_ns)
 		return;
+	flow->last_accepted_ns = sample->arrival_ns;
 	flow->ticks += (uint64_t)step;
 	flow->last_tsval = sample->tsval;
 	if (flow->tick_ns == 0U) {

@@ -342,6 +342,102 @@ static void test_reordered_packet_is_skipped(void)
 	assert_close(estimate.upload_queue_microseconds, 0);
 }
 
+static void test_later_arrival_with_older_timestamp_is_ignored(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_sample sample;
+	struct remote remote = remote_flow(50012U, MILLISECOND, 1000U);
+	struct tcpdelay_flow before;
+
+	tcpdelay_estimator_init(&estimator);
+	send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
+	memcpy(&before, &estimator.flows[0], sizeof(before));
+	sample.flow = before.key;
+	/* send_span is end-exclusive, so the last sent time is 2999 ms. */
+	sample.arrival_ns = ORIGIN_NS + 3000U * MILLISECOND + PATH_NS;
+	sample.departure_ns = 0U;
+	sample.tsval = before.last_tsval - 1U;
+	tcpdelay_estimator_add(&estimator, &sample);
+
+	assert(memcmp(&estimator.flows[0], &before, sizeof(before)) == 0);
+}
+
+static void test_earlier_arrival_with_newer_timestamp_is_ignored(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_sample sample;
+	struct remote remote = remote_flow(50013U, MILLISECOND, 1000U);
+	struct tcpdelay_flow before;
+
+	tcpdelay_estimator_init(&estimator);
+	send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
+	memcpy(&before, &estimator.flows[0], sizeof(before));
+	sample.flow = before.key;
+	/* One millisecond before the last packet produced by the end-exclusive span. */
+	sample.arrival_ns = ORIGIN_NS + 2998U * MILLISECOND + PATH_NS;
+	sample.departure_ns = 0U;
+	sample.tsval = before.last_tsval + 1U;
+	tcpdelay_estimator_add(&estimator, &sample);
+
+	assert(memcmp(&estimator.flows[0], &before, sizeof(before)) == 0);
+}
+
+static void test_equal_timestamp_with_later_arrival_refreshes_lru(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_sample sample = { 0 };
+	size_t index;
+	bool oldest = false;
+	bool second_oldest = false;
+	bool newest = false;
+
+	tcpdelay_estimator_init(&estimator);
+	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
+		sample.flow.local_port = (uint16_t)(41000U + index);
+		sample.arrival_ns = ORIGIN_NS + index * MILLISECOND;
+		sample.tsval = (uint32_t)(100U + index);
+		tcpdelay_estimator_add(&estimator, &sample);
+	}
+
+	/* Coarse remote clocks repeat TSval; a later arrival still refreshes LRU. */
+	sample.flow = estimator.flows[0].key;
+	sample.arrival_ns = ORIGIN_NS + TCPDELAY_FLOWS * MILLISECOND;
+	sample.tsval = estimator.flows[0].last_tsval;
+	tcpdelay_estimator_add(&estimator, &sample);
+
+	sample.flow.local_port = (uint16_t)(41000U + TCPDELAY_FLOWS);
+	sample.arrival_ns += MILLISECOND;
+	sample.tsval = 500U;
+	tcpdelay_estimator_add(&estimator, &sample);
+	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
+		assert(estimator.flows[index].used);
+		oldest |= estimator.flows[index].key.local_port == 41000U;
+		second_oldest |= estimator.flows[index].key.local_port == 41001U;
+		newest |= estimator.flows[index].key.local_port == 41000U + TCPDELAY_FLOWS;
+	}
+	assert(oldest);
+	assert(!second_oldest);
+	assert(newest);
+}
+
+static void test_newer_timestamp_with_equal_arrival_is_accepted(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_sample sample = {
+		.flow = { .local_port = 42000U },
+		.arrival_ns = ORIGIN_NS,
+		.tsval = 100U,
+	};
+
+	tcpdelay_estimator_init(&estimator);
+	tcpdelay_estimator_add(&estimator, &sample);
+	sample.tsval++;
+	tcpdelay_estimator_add(&estimator, &sample);
+
+	assert(estimator.flows[0].ticks == 1U);
+	assert(estimator.flows[0].last_tsval == sample.tsval);
+}
+
 /* An unknown clock rate is never adopted; that flow gives no estimate. */
 static void test_nonstandard_tick_is_rejected(void)
 {
@@ -357,29 +453,44 @@ static void test_nonstandard_tick_is_rejected(void)
 	assert(!estimate.download_valid);
 }
 
-/* A full table replaces the flow seen least recently. */
-static void test_least_recent_flow_is_replaced(void)
+/* Rejected packets must not refresh LRU state in a full table. */
+static void test_rejected_sample_does_not_refresh_lru(void)
 {
 	struct tcpdelay_estimator estimator;
 	struct tcpdelay_sample sample;
 	size_t index;
 	bool newest = false;
 	bool oldest = false;
+	bool second_oldest = false;
 
 	tcpdelay_estimator_init(&estimator);
 	memset(&sample, 0, sizeof(sample));
-	for (index = 0U; index <= TCPDELAY_FLOWS; index++) {
+	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		sample.flow.local_port = (uint16_t)(40000U + index);
 		sample.arrival_ns = ORIGIN_NS + index * MILLISECOND;
+		sample.tsval = (uint32_t)(100U + index);
 		tcpdelay_estimator_add(&estimator, &sample);
 	}
+
+	/* This reordered record arrives later but must not keep slot 0 active. */
+	sample.flow = estimator.flows[0].key;
+	sample.arrival_ns = ORIGIN_NS + TCPDELAY_FLOWS * MILLISECOND;
+	sample.tsval = estimator.flows[0].last_tsval - 1U;
+	tcpdelay_estimator_add(&estimator, &sample);
+
+	sample.flow.local_port = (uint16_t)(40000U + TCPDELAY_FLOWS);
+	sample.arrival_ns += MILLISECOND;
+	sample.tsval = 500U;
+	tcpdelay_estimator_add(&estimator, &sample);
 	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		assert(estimator.flows[index].used);
 		oldest |= estimator.flows[index].key.local_port == 40000U;
+		second_oldest |= estimator.flows[index].key.local_port == 40001U;
 		newest |= estimator.flows[index].key.local_port == 40000U + TCPDELAY_FLOWS;
 	}
 	assert(newest);
 	assert(!oldest);
+	assert(second_oldest);
 }
 
 int main(void)
@@ -398,8 +509,12 @@ int main(void)
 	test_new_flow_keeps_established_queues(true);
 	test_directional_pair_comes_from_one_flow();
 	test_reordered_packet_is_skipped();
+	test_later_arrival_with_older_timestamp_is_ignored();
+	test_earlier_arrival_with_newer_timestamp_is_ignored();
+	test_equal_timestamp_with_later_arrival_refreshes_lru();
+	test_newer_timestamp_with_equal_arrival_is_accepted();
 	test_nonstandard_tick_is_rejected();
-	test_least_recent_flow_is_replaced();
+	test_rejected_sample_does_not_refresh_lru();
 	puts("tcpdelay estimator tests passed");
 	return 0;
 }
