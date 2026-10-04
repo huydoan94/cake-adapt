@@ -282,6 +282,14 @@ strings, and module-owned schemas beside the code that uses them. Tests should
 keep literal expected values when importing the production constant would make
 the check tautological.
 
+Write quantities for quick visual understanding. Express durations and rates
+in readable units using the existing unit constants (for example,
+`10U * SECOND` or `5U * MEGABIT`) rather than long digit strings. Derive unit
+conversions from the existing unit table instead of repeating numeric factors
+or inventing another scale. Distinguish a percentage from a ratio and from its
+fixed-point representation; preserve fractional values without integer
+truncation. Names, comments, configuration units, and calculations must agree.
+
 Do not repeat the program name in every log message because the backend already
 identifies the service.
 
@@ -589,3 +597,33 @@ and version management stay with the user.
 - If a request conflicts with this guide, explain the conflict before changing
   direction.
 - Do not commit generated or machine-specific files.
+
+## Working style and collaboration
+
+- Optimize for quick comprehension: small functions, clear ownership, readable
+  units, and an execution path that can be followed without unnecessary
+  indirection. Use `CODING_STYLE.md` for the reusable engineering principles;
+  this guide and `.clang-format` govern the current project's conventions.
+- During cleanup, prove callers and validated invariants before deleting a
+  condition or code path. Check resource lifetime, leaks, memory corruption,
+  and performance as well as behavior; code movement alone is not evidence
+  that the result is equivalent.
+- Plan substantial work in an explicit order with acceptance criteria and
+  evidence requirements. When a milestone or stop point is agreed, track it,
+  report completion and remaining work, and honor the requested stopping point.
+  Keep commits focused when committing is authorized.
+- Verify changes in increasing realism as appropriate: focused host tests,
+  sanitizers, SDK builds, controlled VM runs, then real-world validation.
+  Simulation identifies candidates; replay checks matching decisions; live
+  tests establish runtime behavior. State the limits of each result.
+- Preserve raw graphs, logs, traces, and before/after measurements so the user
+  can independently judge conclusions. Update documentation and generated
+  flowcharts when the documented behavior or ownership changes.
+- Lead reports with the outcome and explain consequential decisions with
+  concrete evidence. Separate observations, assumptions, and unverified
+  claims; identify completed work, remaining work, and blockers plainly.
+  Keep updates concise and avoid filler or unsupported praise.
+- Continue authorized work without repeated confirmation. Explain a material
+  scope change or conflict before acting; do not infer permission for branch,
+  remote, version, publication, deployment, or Windows operations beyond the
+  user's explicit instructions.
