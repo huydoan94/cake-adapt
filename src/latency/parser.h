@@ -25,17 +25,14 @@ enum latency_fping_line_result {
 	LATENCY_FPING_LINE_INVALID
 };
 
+/* An fping reply line, whose RTT is halved into each one-way delay. */
 enum latency_fping_line_result parse_fping_line(const char *line, struct latency_sample *sample);
 
 /* An fping --icmp-timestamp reply, which carries separate one-way delays. */
 enum latency_fping_line_result
 parse_fping_timestamp_line(const char *line, struct latency_sample *sample);
 
-bool parse_irtt_line(
-	const char *line,
-	const char *target,
-	uint64_t timestamp_microseconds,
-	struct latency_sample *sample
-);
+/* An IRTT reply line; the caller timestamps it when the line arrives. */
+bool parse_irtt_line(const char *line, const char *target, struct latency_sample *sample);
 
 #endif

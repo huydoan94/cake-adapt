@@ -32,20 +32,20 @@ static void test_scalar_option_types(void)
 	char error[128];
 
 	lookup_option = &option;
-	assert(load_boolean_options(NULL, &section, &config, error, sizeof(error)) == -1);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == -1);
 	assert(strstr(error, "not a list") != NULL);
 	assert(!config.enabled);
 	option.e.name = "no_pingers";
-	assert(load_scaled_options(NULL, &section, &config, error, sizeof(error)) == -1);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == -1);
 	assert(config.no_pingers == 7U);
 	option.e.name = "interface";
-	assert(load_string_options(NULL, &section, &config, error, sizeof(error)) == -1);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == -1);
 	assert(strcmp(config.interface, "default") == 0);
 
 	lookup_option = NULL;
-	assert(load_boolean_options(NULL, &section, &config, error, sizeof(error)) == 0);
-	assert(load_scaled_options(NULL, &section, &config, error, sizeof(error)) == 0);
-	assert(load_string_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
 	assert(!config.enabled);
 	assert(config.no_pingers == 7U);
 	assert(strcmp(config.interface, "default") == 0);
@@ -54,13 +54,13 @@ static void test_scalar_option_types(void)
 	option.type = UCI_TYPE_STRING;
 	option.v.string = "1";
 	option.e.name = "enabled";
-	assert(load_boolean_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
 	assert(config.enabled);
 	option.e.name = "no_pingers";
-	assert(load_scaled_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
 	assert(config.no_pingers == 1U);
 	option.e.name = "interface";
-	assert(load_string_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
 	assert(strcmp(config.interface, "1") == 0);
 	lookup_option = NULL;
 }
@@ -282,6 +282,16 @@ int main(void)
 	assert(parse_scaled_decimal(
 		       "18446744073709551616",
 		       1U,
+		       &value,
+		       "test",
+		       error,
+		       sizeof(error)
+	       ) != 0);
+	assert(strstr(error, "too large") != NULL);
+	/* Representable, but not once scaled. */
+	assert(parse_scaled_decimal(
+		       "18446744073709552",
+		       1000U,
 		       &value,
 		       "test",
 		       error,

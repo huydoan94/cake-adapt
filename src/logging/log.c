@@ -22,6 +22,8 @@
 #define LOG_MESSAGE_SIZE 2048U
 #define LOG_COPY_BUFFER_SIZE 4096U
 #define LOG_FILE_BUFFER_SIZE (16U * KIBIBYTE)
+/* UINT64_MAX seconds, a point, six digits and the terminating NUL. */
+#define TIMESTAMP_SIZE 28U
 
 static bool log_to_stdout;
 static bool log_to_syslog;
@@ -88,6 +90,9 @@ static const char tcp_queue_header[] =
 	"TCP_QUEUE_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
 	" DL_QUEUE_VALID; DL_QUEUE_US; UL_QUEUE_VALID; UL_QUEUE_US";
 
+/* Followed by one "<CPU>_USAGE" column per counter line of /proc/stat. */
+static const char cpu_header_prefix[] = "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME";
+
 static const char cpu_raw_header[] =
 	"CPU_RAW_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME; CPU_ID;"
 	" USER; NICE; SYSTEM; IDLE; IOWAIT; IRQ; SIRQ; STEAL; GUEST;"
@@ -110,6 +115,27 @@ static uint64_t clock_microseconds(clockid_t clock_identifier)
 
 	(void)read_clock_microseconds(clock_identifier, &timestamp);
 	return timestamp;
+}
+
+/* "<seconds>.<microseconds>", the timestamp format of every record. */
+static const char *timestamp_text(char text[TIMESTAMP_SIZE], uint64_t microseconds)
+{
+	(void)snprintf(
+		text,
+		TIMESTAMP_SIZE,
+		"%" PRIu64 ".%06" PRIu64,
+		microseconds / MICROSECONDS_PER_SECOND,
+		microseconds % MICROSECONDS_PER_SECOND
+	);
+	return text;
+}
+
+/* Closes stream; false when writing to it or closing it failed. */
+static bool close_stream(FILE *stream)
+{
+	bool written = ferror(stream) == 0;
+
+	return fclose(stream) == 0 && written;
 }
 
 static void write_file_line(const char *line)
@@ -144,24 +170,30 @@ static void write_headers_to_file(void)
 		write_file_line(cpu_raw_header);
 }
 
-static bool export_log(const char *export_path, bool compress, bool include_previous)
+/*
+ * Copies previous, unless it is NULL or does not exist, then the active log
+ * into export_path. mode is a gzopen() mode; zlib's transparent mode writes
+ * plain bytes without a gzip wrapper.
+ */
+static bool export_log(const char *export_path, const char *mode, const char *previous)
 {
 	char buffer[LOG_COPY_BUFFER_SIZE];
-	const char *source_paths[] = { previous_log_path, log_path };
-	/* zlib's transparent mode writes plain bytes, without a gzip wrapper. */
-	gzFile destination =
-		gzopen(export_path, compress ? GZIP_MODE_COMPRESSED : GZIP_MODE_TRANSPARENT);
+	const char *source_paths[] = { previous, log_path };
+	gzFile destination = gzopen(export_path, mode);
 	size_t length;
 	size_t index;
 	bool success = true;
 
 	if (destination == NULL)
 		return false;
-	for (index = include_previous ? 0U : 1U; index < 2U; index++) {
-		FILE *source = fopen(source_paths[index], FILE_MODE_READ);
+	for (index = 0U; index < ARRAY_SIZE(source_paths); index++) {
+		FILE *source;
 
+		if (source_paths[index] == NULL)
+			continue;
+		source = fopen(source_paths[index], FILE_MODE_READ);
 		if (source == NULL) {
-			if (index == 0U && errno == ENOENT)
+			if (source_paths[index] == previous && errno == ENOENT)
 				continue;
 			success = false;
 			break;
@@ -172,8 +204,7 @@ static bool export_log(const char *export_path, bool compress, bool include_prev
 				break;
 			}
 		}
-		success = !ferror(source) && success;
-		success = fclose(source) == 0 && success;
+		success = close_stream(source) && success;
 		if (!success)
 			break;
 	}
@@ -200,6 +231,7 @@ int log_export_file(char *export_path, size_t export_path_size)
 	time_t seconds = time(NULL);
 	char stamp[LOG_DATETIME_SIZE];
 	size_t path_length = strlen(log_path);
+	const char *mode = log_compress_exports ? GZIP_MODE_COMPRESSED : GZIP_MODE_TRANSPARENT;
 	int written;
 
 	if (log_file == NULL) {
@@ -230,7 +262,7 @@ int log_export_file(char *export_path, size_t export_path_size)
 	log_message(LOG_LEVEL_DEBUG, "Exporting log file with path: %s", export_path);
 	if (fflush(log_file) != 0)
 		return -1;
-	return export_log(export_path, log_compress_exports, true) ? 0 : -1;
+	return export_log(export_path, mode, previous_log_path) ? 0 : -1;
 }
 
 int log_reset_file(void)
@@ -248,12 +280,18 @@ int log_reset_file(void)
 	return truncate_log_file();
 }
 
-static void rotate_log_file(bool maximum_age_reached)
+enum rotation_reason {
+	ROTATE_MAXIMUM_AGE,
+	ROTATE_MAXIMUM_SIZE,
+};
+
+static void rotate_log_file(enum rotation_reason reason)
 {
 	if (log_maintenance_active)
 		return;
+	/* Set first: the message below is written through the log being rotated. */
 	log_maintenance_active = true;
-	if (maximum_age_reached) {
+	if (reason == ROTATE_MAXIMUM_AGE) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"log file maximum time: %" PRIu64
@@ -269,7 +307,8 @@ static void rotate_log_file(bool maximum_age_reached)
 			log_maximum_size_bytes / KIBIBYTE
 		);
 	}
-	if (fflush(log_file) == 0 && export_log(previous_log_path, false, false))
+	/* The active log becomes the previous one, replacing it. */
+	if (fflush(log_file) == 0 && export_log(previous_log_path, GZIP_MODE_TRANSPARENT, NULL))
 		(void)truncate_log_file();
 	log_maintenance_active = false;
 }
@@ -289,7 +328,7 @@ void log_tick(void)
 	}
 	if (log_maximum_age_microseconds > 0U &&
 	    timestamp_microseconds - log_opened_microseconds > log_maximum_age_microseconds) {
-		rotate_log_file(true);
+		rotate_log_file(ROTATE_MAXIMUM_AGE);
 	}
 }
 
@@ -304,7 +343,7 @@ static void write_line(const char *line)
 		if (log_buffer_timeout_microseconds == 0U)
 			(void)fflush(log_file);
 		if (log_maximum_size_bytes > 0U && log_size_bytes > log_maximum_size_bytes)
-			rotate_log_file(false);
+			rotate_log_file(ROTATE_MAXIMUM_SIZE);
 	}
 }
 
@@ -331,15 +370,15 @@ static const char *local_datetime(time_t seconds)
 static void write_record_at(const char *type, const char *message, uint64_t timestamp_microseconds)
 {
 	char line[LOG_MESSAGE_SIZE];
+	char stamp[TIMESTAMP_SIZE];
 
 	(void)snprintf(
 		line,
 		sizeof(line),
-		"%s; %s; %" PRIu64 ".%06" PRIu64 "; %s",
+		"%s; %s; %s; %s",
 		type,
 		local_datetime((time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND)),
-		timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		timestamp_microseconds % MICROSECONDS_PER_SECOND,
+		timestamp_text(stamp, timestamp_microseconds),
 		message
 	);
 	write_line(line);
@@ -472,7 +511,6 @@ void log_print_cpu_headers(
 	size_t index;
 	size_t size;
 	FILE *stream;
-	bool failed;
 
 	free(cpu_header);
 	cpu_header = NULL;
@@ -482,9 +520,7 @@ void log_print_cpu_headers(
 		if (stream == NULL) {
 			log_message(LOG_LEVEL_WARNING, "could not allocate CPU log header");
 		} else {
-			(
-				void
-			)fputs("CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME", stream);
+			(void)fputs(cpu_header_prefix, stream);
 			for (index = 0U; index < sample->count; index++) {
 				const char *identifier = sample->counters[index].identifier;
 
@@ -493,10 +529,7 @@ void log_print_cpu_headers(
 					(void)fputc(toupper((unsigned char)*identifier++), stream);
 				(void)fputs("_USAGE", stream);
 			}
-			failed = ferror(stream) != 0;
-			if (fclose(stream) != 0)
-				failed = true;
-			if (failed) {
+			if (!close_stream(stream)) {
 				free(cpu_header);
 				cpu_header = NULL;
 				log_message(LOG_LEVEL_WARNING, "could not finish CPU log header");
@@ -509,47 +542,57 @@ void log_print_cpu_headers(
 		write_line(cpu_raw_header);
 }
 
-static void write_formatted_record(const char *type, const char *format, ...)
+/* prefix, when not NULL, starts the record, followed by the formatted fields. */
+static void
+write_record_fields(const char *type, const char *prefix, const char *format, va_list arguments)
 {
 	char message[LOG_MESSAGE_SIZE];
-	va_list arguments;
+	int prefix_length = 0;
 
-	if (!log_to_stdout && log_file == NULL)
-		return;
-	va_start(arguments, format);
-	(void)vsnprintf(message, sizeof(message), format, arguments);
-	va_end(arguments);
-	write_record(type, message);
-}
-
-static void write_timed_record(const char *type, const char *format, ...)
-{
-	char message[LOG_MESSAGE_SIZE];
-	uint64_t processing_time_microseconds;
-	int prefix_length;
-	va_list arguments;
-
-	if (!log_to_stdout && log_file == NULL)
-		return;
-	processing_time_microseconds = log_realtime_microseconds();
-	prefix_length = snprintf(
-		message,
-		sizeof(message),
-		"%" PRIu64 ".%06" PRIu64 "; ",
-		processing_time_microseconds / MICROSECONDS_PER_SECOND,
-		processing_time_microseconds % MICROSECONDS_PER_SECOND
-	);
-	if (prefix_length < 0 || (size_t)prefix_length >= sizeof(message))
-		return;
-	va_start(arguments, format);
+	if (prefix != NULL)
+		prefix_length = snprintf(message, sizeof(message), "%s; ", prefix);
 	(void)vsnprintf(
 		message + prefix_length,
 		sizeof(message) - (size_t)prefix_length,
 		format,
 		arguments
 	);
-	va_end(arguments);
 	write_record(type, message);
+}
+
+static void write_formatted_record(const char *type, const char *format, ...)
+	__attribute__((format(printf, 2, 3)));
+
+static void write_formatted_record(const char *type, const char *format, ...)
+{
+	va_list arguments;
+
+	if (!log_to_stdout && log_file == NULL)
+		return;
+	va_start(arguments, format);
+	write_record_fields(type, NULL, format, arguments);
+	va_end(arguments);
+}
+
+static void write_timed_record(const char *type, const char *format, ...)
+	__attribute__((format(printf, 2, 3)));
+
+/* Starts with the processing time, cake-autorate's PROC_TIME_US column. */
+static void write_timed_record(const char *type, const char *format, ...)
+{
+	char stamp[TIMESTAMP_SIZE];
+	va_list arguments;
+
+	if (!log_to_stdout && log_file == NULL)
+		return;
+	va_start(arguments, format);
+	write_record_fields(
+		type,
+		timestamp_text(stamp, log_realtime_microseconds()),
+		format,
+		arguments
+	);
+	va_end(arguments);
 }
 
 void log_print_tcp_queue_header(void)
@@ -668,27 +711,19 @@ void log_reflector(const struct log_reflector_record *record)
 void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
 {
 	char *message = NULL;
+	char stamp[TIMESTAMP_SIZE];
 	size_t size;
 	size_t index;
 	FILE *stream = open_memstream(&message, &size);
-	bool failed;
 
 	if (stream == NULL) {
 		log_message(LOG_LEVEL_WARNING, "could not allocate CPU log record");
 		return;
 	}
-	(void)fprintf(
-		stream,
-		"%" PRIu64 ".%06" PRIu64,
-		sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		sample->timestamp_microseconds % MICROSECONDS_PER_SECOND
-	);
+	(void)fputs(timestamp_text(stamp, sample->timestamp_microseconds), stream);
 	for (index = 0U; index < sample->count; index++)
 		(void)fprintf(stream, "; %u", usage[index]);
-	failed = ferror(stream) != 0;
-	if (fclose(stream) != 0)
-		failed = true;
-	if (failed)
+	if (!close_stream(stream))
 		log_message(LOG_LEVEL_WARNING, "could not finish CPU log record");
 	else
 		write_record(RECORD_CPU, message);
@@ -697,18 +732,18 @@ void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
 
 void log_cpu_raw(const struct cpu_sample *sample)
 {
+	char stamp[TIMESTAMP_SIZE];
 	size_t index;
 
+	(void)timestamp_text(stamp, sample->timestamp_microseconds);
 	for (index = 0U; index < sample->count; index++) {
 		const struct cpu_counter *counter = &sample->counters[index];
 
 		write_formatted_record(
 			RECORD_CPU_RAW,
-			"%" PRIu64 ".%06" PRIu64 "; %s; %" PRIu64 "; %" PRIu64 "; %" PRIu64
-			"; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
-			"; %" PRIu64 "; %" PRIu64,
-			sample->timestamp_microseconds / MICROSECONDS_PER_SECOND,
-			sample->timestamp_microseconds % MICROSECONDS_PER_SECOND,
+			"%s; %s; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+			"; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
+			stamp,
 			counter->identifier,
 			counter->user,
 			counter->nice,
@@ -734,6 +769,19 @@ void log_shaper(const char *interface, uint64_t rate_kbps)
 	);
 }
 
+/* "<record>: <seconds>.<microseconds> <message>", as cake-autorate sends it. */
+static void
+write_syslog(int priority, const char *record, uint64_t timestamp_microseconds, const char *message)
+{
+	char stamp[TIMESTAMP_SIZE];
+
+	syslog(priority,
+	       "%s: %s %s",
+	       record,
+	       timestamp_text(stamp, timestamp_microseconds),
+	       message);
+}
+
 void log_system_message(const char *format, ...)
 {
 	char message[LOG_MESSAGE_SIZE];
@@ -744,13 +792,8 @@ void log_system_message(const char *format, ...)
 	(void)vsnprintf(message, sizeof(message), format, arguments);
 	va_end(arguments);
 
-	if (log_to_syslog) {
-		syslog(LOG_INFO,
-		       "INFO: %" PRIu64 ".%06" PRIu64 " %s",
-		       timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		       timestamp_microseconds % MICROSECONDS_PER_SECOND,
-		       message);
-	}
+	if (log_to_syslog)
+		write_syslog(LOG_INFO, RECORD_INFO, timestamp_microseconds, message);
 	write_record_at(RECORD_SYSLOG, message, timestamp_microseconds);
 }
 
@@ -775,14 +818,13 @@ void log_message(enum log_level level, const char *format, ...)
 	va_end(arguments);
 
 	timestamp_microseconds = log_realtime_microseconds();
-	if (send_syslog) {
-		syslog(levels[level].priority,
-		       "%s: %" PRIu64 ".%06" PRIu64 " %s",
-		       levels[level].record,
-		       timestamp_microseconds / MICROSECONDS_PER_SECOND,
-		       timestamp_microseconds % MICROSECONDS_PER_SECOND,
-		       message);
-	}
+	if (send_syslog)
+		write_syslog(
+			levels[level].priority,
+			levels[level].record,
+			timestamp_microseconds,
+			message
+		);
 	if (log_to_stdout || log_file != NULL)
 		write_record_at(levels[level].record, message, timestamp_microseconds);
 }

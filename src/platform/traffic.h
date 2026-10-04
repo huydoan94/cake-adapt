@@ -36,9 +36,6 @@ uint64_t traffic_compensated_interval_microseconds(
 	uint64_t upload_rate_bits_per_second
 );
 
-/* uloop accepts milliseconds; round upward and saturate its unsigned range. */
-unsigned int traffic_interval_milliseconds(uint64_t interval_microseconds);
-
 enum traffic_update_result traffic_update(
 	struct traffic_monitor *monitor,
 	const struct traffic_sample *sample,

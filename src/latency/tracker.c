@@ -101,50 +101,56 @@ static void tracker_update_direction(
 	*delta_microseconds = signed_difference(value_microseconds, state->baseline_microseconds);
 }
 
+static void
+report_delta_ewma(const struct latency_tracker *tracker, struct latency_observation *observation)
+{
+	observation->download_owd_delta_ewma_microseconds =
+		tracker->download.delta_ewma_microseconds;
+	observation->upload_owd_delta_ewma_microseconds = tracker->upload.delta_ewma_microseconds;
+}
+
 void tracker_update(
 	struct latency_tracker *tracker,
 	const struct latency_sample *sample,
 	struct latency_observation *observation
 )
 {
-	if (sample_has_timestamp_rollover(tracker, sample)) {
-		tracker->download.baseline_microseconds = sample->download_owd_microseconds;
-		tracker->upload.baseline_microseconds = sample->upload_owd_microseconds;
-		observation->download_owd_microseconds = sample->download_owd_microseconds;
-		observation->download_owd_baseline_microseconds = sample->download_owd_microseconds;
-		observation->download_owd_delta_microseconds = 0;
-		observation->upload_owd_microseconds = sample->upload_owd_microseconds;
-		observation->upload_owd_baseline_microseconds = sample->upload_owd_microseconds;
-		observation->upload_owd_delta_microseconds = 0;
-		observation->download_owd_delta_ewma_microseconds =
-			tracker->download.delta_ewma_microseconds;
-		observation->upload_owd_delta_ewma_microseconds =
-			tracker->upload.delta_ewma_microseconds;
-		observation->timestamp_microseconds = sample->timestamp_microseconds;
-		observation->sequence = sample->sequence;
-		return;
-	}
 	observation->download_owd_microseconds = sample->download_owd_microseconds;
 	observation->upload_owd_microseconds = sample->upload_owd_microseconds;
-	tracker_update_direction(
-		&tracker->config,
-		&tracker->download,
-		sample->download_owd_microseconds,
-		&observation->download_owd_baseline_microseconds,
-		&observation->download_owd_delta_microseconds
-	);
-	tracker_update_direction(
-		&tracker->config,
-		&tracker->upload,
-		sample->upload_owd_microseconds,
-		&observation->upload_owd_baseline_microseconds,
-		&observation->upload_owd_delta_microseconds
-	);
-	observation->download_owd_delta_ewma_microseconds =
-		tracker->download.delta_ewma_microseconds;
-	observation->upload_owd_delta_ewma_microseconds = tracker->upload.delta_ewma_microseconds;
+	if (sample_has_timestamp_rollover(tracker, sample)) {
+		/* Restart both baselines at the sample, so neither direction has a delta. */
+		tracker->download.baseline_microseconds = sample->download_owd_microseconds;
+		tracker->upload.baseline_microseconds = sample->upload_owd_microseconds;
+		observation->download_owd_baseline_microseconds = sample->download_owd_microseconds;
+		observation->download_owd_delta_microseconds = 0;
+		observation->upload_owd_baseline_microseconds = sample->upload_owd_microseconds;
+		observation->upload_owd_delta_microseconds = 0;
+	} else {
+		tracker_update_direction(
+			&tracker->config,
+			&tracker->download,
+			sample->download_owd_microseconds,
+			&observation->download_owd_baseline_microseconds,
+			&observation->download_owd_delta_microseconds
+		);
+		tracker_update_direction(
+			&tracker->config,
+			&tracker->upload,
+			sample->upload_owd_microseconds,
+			&observation->upload_owd_baseline_microseconds,
+			&observation->upload_owd_delta_microseconds
+		);
+	}
+	report_delta_ewma(tracker, observation);
 	observation->timestamp_microseconds = sample->timestamp_microseconds;
 	observation->sequence = sample->sequence;
+}
+
+static void update_delta_ewma(int64_t alpha, int64_t delta_microseconds, int64_t *ewma_microseconds)
+{
+	/* Like the baseline, an EWMA that cannot be represented restarts at the sample. */
+	if (!weighted_average(alpha, delta_microseconds, *ewma_microseconds, ewma_microseconds))
+		*ewma_microseconds = delta_microseconds;
 }
 
 void tracker_update_delta_ewma(
@@ -157,16 +163,16 @@ void tracker_update_delta_ewma(
 
 	/* cake-autorate freezes reflector delay EWMA while either link is busy. */
 	if (low_load) {
-		tracker->download.delta_ewma_microseconds =
-			(alpha * observation->download_owd_delta_microseconds +
-			 ((int64_t)MILLION - alpha) * tracker->download.delta_ewma_microseconds) /
-			(int64_t)MILLION;
-		tracker->upload.delta_ewma_microseconds =
-			(alpha * observation->upload_owd_delta_microseconds +
-			 ((int64_t)MILLION - alpha) * tracker->upload.delta_ewma_microseconds) /
-			(int64_t)MILLION;
+		update_delta_ewma(
+			alpha,
+			observation->download_owd_delta_microseconds,
+			&tracker->download.delta_ewma_microseconds
+		);
+		update_delta_ewma(
+			alpha,
+			observation->upload_owd_delta_microseconds,
+			&tracker->upload.delta_ewma_microseconds
+		);
 	}
-	observation->download_owd_delta_ewma_microseconds =
-		tracker->download.delta_ewma_microseconds;
-	observation->upload_owd_delta_ewma_microseconds = tracker->upload.delta_ewma_microseconds;
+	report_delta_ewma(tracker, observation);
 }

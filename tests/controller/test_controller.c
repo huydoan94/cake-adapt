@@ -243,8 +243,8 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
 	assert(output.download.congestion_changed);
 	assert(output.download.delayed_sample_count == 3U);
 	assert(output.upload.delayed_sample_count == 3U);
-	assert(output.download.delay_sum_microseconds == 90003U);
-	assert(output.upload.delay_sum_microseconds == 90003U);
+	assert(controller.download.delay_sum_microseconds == 90003U);
+	assert(controller.upload.delay_sum_microseconds == 90003U);
 	assert(output.download.average_delay_microseconds == 15000U);
 	assert(output.upload.average_delay_microseconds == 15000U);
 	controller_close(&controller);
@@ -262,8 +262,8 @@ static void test_below_baseline_delay_remains_signed(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 
-	assert(output.download.delay_sum_microseconds == -3000);
-	assert(output.upload.delay_sum_microseconds == -3000);
+	assert(controller.download.delay_sum_microseconds == -3000);
+	assert(controller.upload.delay_sum_microseconds == -3000);
 	assert(output.download.average_delay_microseconds == -500);
 	assert(output.upload.average_delay_microseconds == -500);
 	assert(output.download.delayed_sample_count == 0U);
@@ -1386,7 +1386,7 @@ static void test_compact_delay_window_boundaries(void)
 
 	set_latency_delta(&input, 0);
 	controller_update(&controller, &input, &output);
-	assert(output.download.delay_sum_microseconds == 0);
+	assert(controller.download.delay_sum_microseconds == 0);
 	assert(output.download.delayed_sample_count == 0U);
 	controller_close(&controller);
 }
@@ -1405,11 +1405,11 @@ static void test_directional_latency_windows_are_independent(void)
 	input.upload_latency.owd_delta_microseconds = -5000;
 	update_repeatedly(&controller, &input, &output, 2U);
 
-	assert(output.download.delay_sum_microseconds == 80000);
+	assert(controller.download.delay_sum_microseconds == 80000);
 	assert(output.download.average_delay_microseconds == 26666);
 	assert(output.download.delayed_sample_count == 2U);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
-	assert(output.upload.delay_sum_microseconds == -10000);
+	assert(controller.upload.delay_sum_microseconds == -10000);
 	assert(output.upload.average_delay_microseconds == -3333);
 	assert(output.upload.delayed_sample_count == 0U);
 	assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
@@ -1418,16 +1418,16 @@ static void test_directional_latency_windows_are_independent(void)
 	input.upload_latency.owd_delta_microseconds = 40000;
 	controller_update(&controller, &input, &output);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
-	assert(output.download.delay_sum_microseconds == 80000);
+	assert(controller.download.delay_sum_microseconds == 80000);
 	assert(output.download.delayed_sample_count == 2U);
-	assert(output.upload.delay_sum_microseconds == 30000);
+	assert(controller.upload.delay_sum_microseconds == 30000);
 	assert(output.upload.delayed_sample_count == 1U);
 
 	input.download_latency.valid = true;
 	input.download_latency.owd_delta_microseconds = -1;
 	controller.download.config.delay_threshold_microseconds = UINT64_MAX;
 	controller_update(&controller, &input, &output);
-	assert(output.download.delay_sum_microseconds == 79999);
+	assert(controller.download.delay_sum_microseconds == 79999);
 	assert(output.download.delayed_sample_count == 2U);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
 	controller_close(&controller);
@@ -1470,8 +1470,8 @@ static void test_delay_window_matches_rescanned_history(void)
 			upload_delays += history[slot] > 1000000000 ? 1U : 0U;
 		}
 		controller_update(&controller, &input, &output);
-		assert(output.download.delay_sum_microseconds == sum);
-		assert(output.upload.delay_sum_microseconds == sum);
+		assert(controller.download.delay_sum_microseconds == sum);
+		assert(controller.upload.delay_sum_microseconds == sum);
 		assert(output.download.average_delay_microseconds == sum / WINDOW_SIZE);
 		assert(output.upload.average_delay_microseconds == sum / WINDOW_SIZE);
 		assert(output.download.delayed_sample_count == download_delays);

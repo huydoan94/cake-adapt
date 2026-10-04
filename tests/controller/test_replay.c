@@ -181,32 +181,30 @@ static unsigned int replay(const char *path)
 			    compensated->average_delay_maximum_adjust_down_microseconds !=
 				    sample.adjust_down_threshold[index]) {
 				if (mismatches < REPORT_LIMIT) {
-					(
-						void
-					)printf("%s sample %u %s: rate %" PRIu64 "/%" PRIu64
-						" sum %u/%u avg %" PRId64 "/%" PRId64 " bb %d/%d"
-						" thr %" PRIu64 "/%" PRIu64 " up %" PRIu64
-						"/%" PRIu64 " down %" PRIu64 "/%" PRIu64
-						" (cake-adapt/cake-autorate)\n",
-						path,
-						samples,
-						names[index],
-						rate_kbps,
-						sample.rate_kbps[index],
-						decision->delayed_sample_count,
-						sample.sum_delays[index],
-						decision->average_delay_microseconds,
-						sample.average_delta[index],
-						bufferbloat,
-						sample.bufferbloat[index],
-						compensated->delay_threshold_microseconds,
-						sample.delay_threshold[index],
-						compensated
-							->average_delay_maximum_adjust_up_microseconds,
-						sample.adjust_up_threshold[index],
-						compensated
-							->average_delay_maximum_adjust_down_microseconds,
-						sample.adjust_down_threshold[index]);
+					printf("%s sample %u %s: rate %" PRIu64 "/%" PRIu64
+					       " sum %u/%u avg %" PRId64 "/%" PRId64 " bb %d/%d"
+					       " thr %" PRIu64 "/%" PRIu64 " up %" PRIu64
+					       "/%" PRIu64 " down %" PRIu64 "/%" PRIu64
+					       " (cake-adapt/cake-autorate)\n",
+					       path,
+					       samples,
+					       names[index],
+					       rate_kbps,
+					       sample.rate_kbps[index],
+					       decision->delayed_sample_count,
+					       sample.sum_delays[index],
+					       decision->average_delay_microseconds,
+					       sample.average_delta[index],
+					       bufferbloat,
+					       sample.bufferbloat[index],
+					       compensated->delay_threshold_microseconds,
+					       sample.delay_threshold[index],
+					       compensated
+						       ->average_delay_maximum_adjust_up_microseconds,
+					       sample.adjust_up_threshold[index],
+					       compensated
+						       ->average_delay_maximum_adjust_down_microseconds,
+					       sample.adjust_down_threshold[index]);
 				}
 				mismatches++;
 			}
@@ -216,9 +214,7 @@ static unsigned int replay(const char *path)
 	}
 	assert(fclose(trace) == 0);
 	controller_close(&controller);
-	(
-		void
-	)printf("%s: replayed %u samples, %u mismatching decisions\n", path, samples, mismatches);
+	printf("%s: replayed %u samples, %u mismatching decisions\n", path, samples, mismatches);
 	return mismatches;
 }
 

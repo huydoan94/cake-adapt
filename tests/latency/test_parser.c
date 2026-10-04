@@ -105,24 +105,20 @@ static void test_irtt_reply_is_parsed_directionally(void)
 {
 	struct latency_sample sample;
 
-	assert(parse_irtt_line(
-		"seq=42 rtt=3ms rd=1.234ms sd=567µs ipdv=0s",
-		"2001:db8::1",
-		UINT64_C(123456789),
-		&sample
-	));
+	assert(
+		parse_irtt_line("seq=42 rtt=3ms rd=1.234ms sd=567µs ipdv=0s", "2001:db8::1", &sample)
+	);
 	assert(strcmp(sample.target, "2001:db8::1") == 0);
 	assert(sample.sequence == 42U);
 	assert(sample.download_owd_microseconds == 1234);
 	assert(sample.upload_owd_microseconds == 567);
-	assert(sample.timestamp_microseconds == UINT64_C(123456789));
 	assert(!sample.timestamp_rollover_sensitive);
 
-	assert(parse_irtt_line("seq=9 rd=1500ns sd=2s", "1.1.1.1", 1U, &sample));
+	assert(parse_irtt_line("seq=9 rd=1500ns sd=2s", "1.1.1.1", &sample));
 	assert(sample.download_owd_microseconds == 2);
 	assert(sample.upload_owd_microseconds == 2 * (int64_t)SECOND);
-	assert(!parse_irtt_line("seq=9 rd=-1ms sd=2ms", "1.1.1.1", 1U, &sample));
-	assert(!parse_irtt_line("seq=9 rd=1ms", "1.1.1.1", 1U, &sample));
+	assert(!parse_irtt_line("seq=9 rd=-1ms sd=2ms", "1.1.1.1", &sample));
+	assert(!parse_irtt_line("seq=9 rd=1ms", "1.1.1.1", &sample));
 }
 
 static void test_fping_six_digit_timestamp_is_preserved(void)

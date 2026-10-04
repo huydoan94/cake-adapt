@@ -366,12 +366,13 @@ static double queue_delay_ms(const struct bottleneck *link, double capacity_bps)
 	return link->queue_bytes * 8.0 / capacity_bps * 1000.0;
 }
 
-static void
-run(const struct scenario *scenario,
-    unsigned int seed,
-    bool one_way,
-    bool trace,
-    struct metrics metrics[2])
+static void run_scenario(
+	const struct scenario *scenario,
+	unsigned int seed,
+	bool one_way,
+	bool trace,
+	struct metrics metrics[2]
+)
 {
 	struct controller_config config = controller_config(scenario);
 	const struct latency_tracker_config tracker_config = {
@@ -608,7 +609,7 @@ int main(int argc, char **argv)
 			continue;
 		memset(metrics, 0, sizeof(metrics));
 		for (seed = 0U; seed < scenario->seeds; seed++) {
-			run(scenario, seed, one_way, trace != NULL, metrics);
+			run_scenario(scenario, seed, one_way, trace != NULL, metrics);
 			if (trace != NULL)
 				break;
 		}

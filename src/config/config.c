@@ -27,203 +27,220 @@
 #pragma GCC diagnostic pop
 #endif
 
-struct boolean_option_binding {
-	const char *name;
-	size_t offset;
+enum option_type {
+	TYPE_BOOLEAN,
+	TYPE_STRING,
+	/* A non-negative decimal stored multiplied by scale, such as seconds in microseconds. */
+	TYPE_SCALED,
 };
 
-struct scaled_option_binding {
+struct option_binding {
 	const char *name;
+	enum option_type type;
 	size_t offset;
+	size_t size;
 	uint64_t scale;
 };
 
-struct string_option_binding {
-	const char *name;
-	size_t offset;
-	size_t destination_size;
-};
-
 #define CONFIG_OFFSET(member) offsetof(struct config, member)
+#define CONFIG_SIZE(member) sizeof(((struct config *)0)->member)
+#define BOOLEAN_OPTION(name, member) { name, TYPE_BOOLEAN, CONFIG_OFFSET(member), 0U, 0U }
+#define STRING_OPTION(name, member) \
+	{ name, TYPE_STRING, CONFIG_OFFSET(member), CONFIG_SIZE(member), 0U }
+#define SCALED_OPTION(name, member, scale) { name, TYPE_SCALED, CONFIG_OFFSET(member), 0U, scale }
 
-static const struct boolean_option_binding boolean_options[] = {
-	{ OPTION_ENABLED, CONFIG_OFFSET(enabled) },
-	{ OPTION_ADJUST_DOWNLOAD, CONFIG_OFFSET(adjust_download) },
-	{ OPTION_ADJUST_UPLOAD, CONFIG_OFFSET(adjust_upload) },
-	{ OPTION_OUTPUT_PROCESSING_STATS, CONFIG_OFFSET(output_processing_stats) },
-	{ OPTION_OUTPUT_LOAD_STATS, CONFIG_OFFSET(output_load_stats) },
-	{ OPTION_OUTPUT_REFLECTOR_STATS, CONFIG_OFFSET(output_reflector_stats) },
-	{ OPTION_OUTPUT_SUMMARY_STATS, CONFIG_OFFSET(output_summary_stats) },
-	{ OPTION_OUTPUT_CAKE_CHANGES, CONFIG_OFFSET(output_cake_changes) },
-	{ OPTION_OUTPUT_CPU_STATS, CONFIG_OFFSET(output_cpu_stats) },
-	{ OPTION_OUTPUT_CPU_RAW_STATS, CONFIG_OFFSET(output_cpu_raw_stats) },
-	{ OPTION_DEBUG, CONFIG_OFFSET(debug) },
-	{ OPTION_LOG_DEBUG_TO_SYSLOG, CONFIG_OFFSET(log_debug_messages_to_syslog) },
-	{ OPTION_LOG_TO_FILE, CONFIG_OFFSET(log_to_file) },
-	{ OPTION_RANDOMIZE_REFLECTORS, CONFIG_OFFSET(randomize_reflectors) },
-	{ OPTION_RETAIN_REFLECTOR_STATS, CONFIG_OFFSET(retain_reflector_stats) },
-	{ OPTION_ENABLE_SLEEP_FUNCTION, CONFIG_OFFSET(enable_sleep_function) },
-	{ OPTION_MIN_SHAPER_RATES_ENFORCEMENT, CONFIG_OFFSET(minimum_shaper_rates_enforcement) },
-	{ OPTION_LOG_FILE_EXPORT_COMPRESS, CONFIG_OFFSET(log_file_export_compress) },
-	{ OPTION_TCP_DELAY_ATTRIBUTION, CONFIG_OFFSET(tcp_delay_attribution) },
-};
-
-static const struct string_option_binding string_options[] = {
-	{ OPTION_INTERFACE, CONFIG_OFFSET(interface), sizeof(((struct config *)0)->interface) },
-	{ OPTION_UPLOAD_INTERFACE, CONFIG_OFFSET(ul_if), sizeof(((struct config *)0)->ul_if) },
-	{ OPTION_DOWNLOAD_INTERFACE, CONFIG_OFFSET(dl_if), sizeof(((struct config *)0)->dl_if) },
-	{ OPTION_CONFIG_FILE,
-	  CONFIG_OFFSET(config_file),
-	  sizeof(((struct config *)0)->config_file) },
-	{ OPTION_LOG_FILE_PATH_OVERRIDE,
-	  CONFIG_OFFSET(log_file_path_override),
-	  sizeof(((struct config *)0)->log_file_path_override) },
-	{ OPTION_PINGER_METHOD,
-	  CONFIG_OFFSET(pinger_method),
-	  sizeof(((struct config *)0)->pinger_method) },
-	{ OPTION_PING_EXTRA_ARGS,
-	  CONFIG_OFFSET(ping_extra_args),
-	  sizeof(((struct config *)0)->ping_extra_args) },
-	{ OPTION_PING_PREFIX_STRING,
-	  CONFIG_OFFSET(ping_prefix_string),
-	  sizeof(((struct config *)0)->ping_prefix_string) },
-};
-
-static const struct scaled_option_binding scaled_options[] = {
-	{ OPTION_LOG_FILE_MAX_TIME, CONFIG_OFFSET(log_file_max_time_minutes), 1U },
-	{ OPTION_LOG_FILE_MAX_SIZE, CONFIG_OFFSET(log_file_max_size_kilobytes), 1U },
-	{ OPTION_NO_PINGERS, CONFIG_OFFSET(no_pingers), 1U },
-	{ OPTION_REFLECTOR_PING_INTERVAL,
-	  CONFIG_OFFSET(reflector_ping_interval_microseconds),
-	  SECOND },
-	{ OPTION_MIN_DOWNLOAD_RATE, CONFIG_OFFSET(minimum_download_rate_bits_per_second), KILOBIT },
-	{ OPTION_BASE_DOWNLOAD_RATE, CONFIG_OFFSET(base_download_rate_bits_per_second), KILOBIT },
-	{ OPTION_MAX_DOWNLOAD_RATE, CONFIG_OFFSET(maximum_download_rate_bits_per_second), KILOBIT },
-	{ OPTION_MIN_UPLOAD_RATE, CONFIG_OFFSET(minimum_upload_rate_bits_per_second), KILOBIT },
-	{ OPTION_BASE_UPLOAD_RATE, CONFIG_OFFSET(base_upload_rate_bits_per_second), KILOBIT },
-	{ OPTION_MAX_UPLOAD_RATE, CONFIG_OFFSET(maximum_upload_rate_bits_per_second), KILOBIT },
-	{ OPTION_CONNECTION_ACTIVE_THRESHOLD,
-	  CONFIG_OFFSET(connection_active_threshold_bits_per_second),
-	  KILOBIT },
-	{ OPTION_CONNECTION_STALL_THRESHOLD,
-	  CONFIG_OFFSET(connection_stall_threshold_bits_per_second),
-	  KILOBIT },
-	{ OPTION_DOWNLOAD_AVG_ADJUST_UP,
-	  CONFIG_OFFSET(download_average_owd_delta_maximum_adjust_up_microseconds),
-	  MILLISECOND },
-	{ OPTION_UPLOAD_AVG_ADJUST_UP,
-	  CONFIG_OFFSET(upload_average_owd_delta_maximum_adjust_up_microseconds),
-	  MILLISECOND },
-	{ OPTION_DOWNLOAD_DELAY_THRESHOLD,
-	  CONFIG_OFFSET(download_owd_delta_delay_threshold_microseconds),
-	  MILLISECOND },
-	{ OPTION_UPLOAD_DELAY_THRESHOLD,
-	  CONFIG_OFFSET(upload_owd_delta_delay_threshold_microseconds),
-	  MILLISECOND },
-	{ OPTION_DOWNLOAD_AVG_ADJUST_DOWN,
-	  CONFIG_OFFSET(download_average_owd_delta_maximum_adjust_down_microseconds),
-	  MILLISECOND },
-	{ OPTION_UPLOAD_AVG_ADJUST_DOWN,
-	  CONFIG_OFFSET(upload_average_owd_delta_maximum_adjust_down_microseconds),
-	  MILLISECOND },
-	{ OPTION_SUSTAINED_IDLE_SLEEP,
-	  CONFIG_OFFSET(sustained_idle_sleep_threshold_microseconds),
-	  SECOND },
-	{ OPTION_LOG_FILE_BUFFER_TIMEOUT,
-	  CONFIG_OFFSET(log_file_buffer_timeout_microseconds),
-	  MILLISECOND },
-	{ OPTION_IRTT_SESSION_DURATION, CONFIG_OFFSET(irtt_session_duration_minutes), 1U },
-	{ OPTION_TRAFFIC_MONITOR_INTERVAL,
-	  CONFIG_OFFSET(monitor_achieved_rates_interval_microseconds),
-	  MILLISECOND },
-	{ OPTION_CPU_MONITOR_INTERVAL,
-	  CONFIG_OFFSET(monitor_cpu_usage_interval_microseconds),
-	  MILLISECOND },
-	{ OPTION_BUFFERBLOAT_WINDOW, CONFIG_OFFSET(bufferbloat_detection_window), 1U },
-	{ OPTION_BUFFERBLOAT_THRESHOLD, CONFIG_OFFSET(bufferbloat_detection_threshold), 1U },
-	{ OPTION_ALPHA_BASELINE_INCREASE,
-	  CONFIG_OFFSET(alpha_baseline_increase_per_million),
-	  MILLION },
-	{ OPTION_ALPHA_BASELINE_DECREASE,
-	  CONFIG_OFFSET(alpha_baseline_decrease_per_million),
-	  MILLION },
-	{ OPTION_ALPHA_DELTA_EWMA, CONFIG_OFFSET(alpha_delta_ewma_per_million), MILLION },
-	{ OPTION_RATE_MIN_DOWN_BUFFERBLOAT,
-	  CONFIG_OFFSET(shaper_rate_minimum_adjust_down_bufferbloat_per_million),
-	  MILLION },
-	{ OPTION_RATE_MAX_DOWN_BUFFERBLOAT,
-	  CONFIG_OFFSET(shaper_rate_maximum_adjust_down_bufferbloat_per_million),
-	  MILLION },
-	{ OPTION_RATE_MIN_UP_HIGH_LOAD,
-	  CONFIG_OFFSET(shaper_rate_minimum_adjust_up_load_high_per_million),
-	  MILLION },
-	{ OPTION_RATE_MAX_UP_HIGH_LOAD,
-	  CONFIG_OFFSET(shaper_rate_maximum_adjust_up_load_high_per_million),
-	  MILLION },
-	{ OPTION_RATE_DOWN_LOW_LOAD,
-	  CONFIG_OFFSET(shaper_rate_adjust_down_load_low_per_million),
-	  MILLION },
-	{ OPTION_RATE_UP_LOW_LOAD,
-	  CONFIG_OFFSET(shaper_rate_adjust_up_load_low_per_million),
-	  MILLION },
-	{ OPTION_HIGH_LOAD_THRESHOLD, CONFIG_OFFSET(high_load_threshold_per_million), MILLION },
-	{ OPTION_UPLOAD_ACK_SHARE_MIN, CONFIG_OFFSET(upload_ack_share_min_per_million), MILLION },
-	{ OPTION_BUFFERBLOAT_REFRACTORY,
-	  CONFIG_OFFSET(bufferbloat_refractory_period_microseconds),
-	  MILLISECOND },
-	{ OPTION_DECAY_REFRACTORY,
-	  CONFIG_OFFSET(decay_refractory_period_microseconds),
-	  MILLISECOND },
-	{ OPTION_REFLECTOR_HEALTH_INTERVAL,
-	  CONFIG_OFFSET(reflector_health_check_interval_microseconds),
-	  SECOND },
-	{ OPTION_REFLECTOR_RESPONSE_DEADLINE,
-	  CONFIG_OFFSET(reflector_response_deadline_microseconds),
-	  SECOND },
-	{ OPTION_REFLECTOR_MISBEHAVING_WINDOW,
-	  CONFIG_OFFSET(reflector_misbehaving_detection_window),
-	  1U },
-	{ OPTION_REFLECTOR_MISBEHAVING_THRESHOLD,
-	  CONFIG_OFFSET(reflector_misbehaving_detection_threshold),
-	  1U },
-	{ OPTION_REFLECTOR_REPLACEMENT_INTERVAL,
-	  CONFIG_OFFSET(reflector_replacement_interval_minutes),
-	  1U },
-	{ OPTION_REFLECTOR_COMPARISON_INTERVAL,
-	  CONFIG_OFFSET(reflector_comparison_interval_minutes),
-	  1U },
-	{ OPTION_REFLECTOR_BASELINE_DELTA,
-	  CONFIG_OFFSET(reflector_sum_owd_baselines_delta_threshold_microseconds),
-	  MILLISECOND },
-	{ OPTION_REFLECTOR_EWMA_DELTA,
-	  CONFIG_OFFSET(reflector_owd_delta_ewma_delta_threshold_microseconds),
-	  MILLISECOND },
-	{ OPTION_STALL_DETECTION_THRESHOLD, CONFIG_OFFSET(stall_detection_threshold), 1U },
-	{ OPTION_GLOBAL_PING_TIMEOUT,
-	  CONFIG_OFFSET(global_ping_response_timeout_microseconds),
-	  SECOND },
-	{ OPTION_INTERFACE_UP_INTERVAL,
-	  CONFIG_OFFSET(interface_up_check_interval_microseconds),
-	  SECOND },
+/* Booleans, then strings, then scaled decimals: the order -L lists and loading applies. */
+static const struct option_binding options[] = {
+	BOOLEAN_OPTION(OPTION_ENABLED, enabled),
+	BOOLEAN_OPTION(OPTION_ADJUST_DOWNLOAD, adjust_download),
+	BOOLEAN_OPTION(OPTION_ADJUST_UPLOAD, adjust_upload),
+	BOOLEAN_OPTION(OPTION_OUTPUT_PROCESSING_STATS, output_processing_stats),
+	BOOLEAN_OPTION(OPTION_OUTPUT_LOAD_STATS, output_load_stats),
+	BOOLEAN_OPTION(OPTION_OUTPUT_REFLECTOR_STATS, output_reflector_stats),
+	BOOLEAN_OPTION(OPTION_OUTPUT_SUMMARY_STATS, output_summary_stats),
+	BOOLEAN_OPTION(OPTION_OUTPUT_CAKE_CHANGES, output_cake_changes),
+	BOOLEAN_OPTION(OPTION_OUTPUT_CPU_STATS, output_cpu_stats),
+	BOOLEAN_OPTION(OPTION_OUTPUT_CPU_RAW_STATS, output_cpu_raw_stats),
+	BOOLEAN_OPTION(OPTION_DEBUG, debug),
+	BOOLEAN_OPTION(OPTION_LOG_DEBUG_TO_SYSLOG, log_debug_messages_to_syslog),
+	BOOLEAN_OPTION(OPTION_LOG_TO_FILE, log_to_file),
+	BOOLEAN_OPTION(OPTION_RANDOMIZE_REFLECTORS, randomize_reflectors),
+	BOOLEAN_OPTION(OPTION_RETAIN_REFLECTOR_STATS, retain_reflector_stats),
+	BOOLEAN_OPTION(OPTION_ENABLE_SLEEP_FUNCTION, enable_sleep_function),
+	BOOLEAN_OPTION(OPTION_MIN_SHAPER_RATES_ENFORCEMENT, minimum_shaper_rates_enforcement),
+	BOOLEAN_OPTION(OPTION_LOG_FILE_EXPORT_COMPRESS, log_file_export_compress),
+	BOOLEAN_OPTION(OPTION_TCP_DELAY_ATTRIBUTION, tcp_delay_attribution),
+	STRING_OPTION(OPTION_INTERFACE, interface),
+	STRING_OPTION(OPTION_UPLOAD_INTERFACE, ul_if),
+	STRING_OPTION(OPTION_DOWNLOAD_INTERFACE, dl_if),
+	STRING_OPTION(OPTION_CONFIG_FILE, config_file),
+	STRING_OPTION(OPTION_LOG_FILE_PATH_OVERRIDE, log_file_path_override),
+	STRING_OPTION(OPTION_PINGER_METHOD, pinger_method),
+	STRING_OPTION(OPTION_PING_EXTRA_ARGS, ping_extra_args),
+	STRING_OPTION(OPTION_PING_PREFIX_STRING, ping_prefix_string),
+	SCALED_OPTION(OPTION_LOG_FILE_MAX_TIME, log_file_max_time_minutes, 1U),
+	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_kilobytes, 1U),
+	SCALED_OPTION(OPTION_NO_PINGERS, no_pingers, 1U),
+	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_microseconds, SECOND),
+	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, minimum_download_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, base_download_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, maximum_download_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, minimum_upload_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, base_upload_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, maximum_upload_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(
+		OPTION_CONNECTION_ACTIVE_THRESHOLD,
+		connection_active_threshold_bits_per_second,
+		KILOBIT
+	),
+	SCALED_OPTION(
+		OPTION_CONNECTION_STALL_THRESHOLD,
+		connection_stall_threshold_bits_per_second,
+		KILOBIT
+	),
+	SCALED_OPTION(
+		OPTION_DOWNLOAD_AVG_ADJUST_UP,
+		download_average_owd_delta_maximum_adjust_up_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_UPLOAD_AVG_ADJUST_UP,
+		upload_average_owd_delta_maximum_adjust_up_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_DOWNLOAD_DELAY_THRESHOLD,
+		download_owd_delta_delay_threshold_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_UPLOAD_DELAY_THRESHOLD,
+		upload_owd_delta_delay_threshold_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_DOWNLOAD_AVG_ADJUST_DOWN,
+		download_average_owd_delta_maximum_adjust_down_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_UPLOAD_AVG_ADJUST_DOWN,
+		upload_average_owd_delta_maximum_adjust_down_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_SUSTAINED_IDLE_SLEEP,
+		sustained_idle_sleep_threshold_microseconds,
+		SECOND
+	),
+	SCALED_OPTION(
+		OPTION_LOG_FILE_BUFFER_TIMEOUT,
+		log_file_buffer_timeout_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(OPTION_IRTT_SESSION_DURATION, irtt_session_duration_minutes, 1U),
+	SCALED_OPTION(
+		OPTION_TRAFFIC_MONITOR_INTERVAL,
+		monitor_achieved_rates_interval_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_CPU_MONITOR_INTERVAL,
+		monitor_cpu_usage_interval_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(OPTION_BUFFERBLOAT_WINDOW, bufferbloat_detection_window, 1U),
+	SCALED_OPTION(OPTION_BUFFERBLOAT_THRESHOLD, bufferbloat_detection_threshold, 1U),
+	SCALED_OPTION(OPTION_ALPHA_BASELINE_INCREASE, alpha_baseline_increase_per_million, MILLION),
+	SCALED_OPTION(OPTION_ALPHA_BASELINE_DECREASE, alpha_baseline_decrease_per_million, MILLION),
+	SCALED_OPTION(OPTION_ALPHA_DELTA_EWMA, alpha_delta_ewma_per_million, MILLION),
+	SCALED_OPTION(
+		OPTION_RATE_MIN_DOWN_BUFFERBLOAT,
+		shaper_rate_minimum_adjust_down_bufferbloat_per_million,
+		MILLION
+	),
+	SCALED_OPTION(
+		OPTION_RATE_MAX_DOWN_BUFFERBLOAT,
+		shaper_rate_maximum_adjust_down_bufferbloat_per_million,
+		MILLION
+	),
+	SCALED_OPTION(
+		OPTION_RATE_MIN_UP_HIGH_LOAD,
+		shaper_rate_minimum_adjust_up_load_high_per_million,
+		MILLION
+	),
+	SCALED_OPTION(
+		OPTION_RATE_MAX_UP_HIGH_LOAD,
+		shaper_rate_maximum_adjust_up_load_high_per_million,
+		MILLION
+	),
+	SCALED_OPTION(
+		OPTION_RATE_DOWN_LOW_LOAD,
+		shaper_rate_adjust_down_load_low_per_million,
+		MILLION
+	),
+	SCALED_OPTION(OPTION_RATE_UP_LOW_LOAD, shaper_rate_adjust_up_load_low_per_million, MILLION),
+	SCALED_OPTION(OPTION_HIGH_LOAD_THRESHOLD, high_load_threshold_per_million, MILLION),
+	SCALED_OPTION(OPTION_UPLOAD_ACK_SHARE_MIN, upload_ack_share_min_per_million, MILLION),
+	SCALED_OPTION(
+		OPTION_BUFFERBLOAT_REFRACTORY,
+		bufferbloat_refractory_period_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(OPTION_DECAY_REFRACTORY, decay_refractory_period_microseconds, MILLISECOND),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_HEALTH_INTERVAL,
+		reflector_health_check_interval_microseconds,
+		SECOND
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_RESPONSE_DEADLINE,
+		reflector_response_deadline_microseconds,
+		SECOND
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_MISBEHAVING_WINDOW,
+		reflector_misbehaving_detection_window,
+		1U
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_MISBEHAVING_THRESHOLD,
+		reflector_misbehaving_detection_threshold,
+		1U
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_REPLACEMENT_INTERVAL,
+		reflector_replacement_interval_minutes,
+		1U
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_COMPARISON_INTERVAL,
+		reflector_comparison_interval_minutes,
+		1U
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_BASELINE_DELTA,
+		reflector_sum_owd_baselines_delta_threshold_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(
+		OPTION_REFLECTOR_EWMA_DELTA,
+		reflector_owd_delta_ewma_delta_threshold_microseconds,
+		MILLISECOND
+	),
+	SCALED_OPTION(OPTION_STALL_DETECTION_THRESHOLD, stall_detection_threshold, 1U),
+	SCALED_OPTION(OPTION_GLOBAL_PING_TIMEOUT, global_ping_response_timeout_microseconds, SECOND),
+	SCALED_OPTION(OPTION_INTERFACE_UP_INTERVAL, interface_up_check_interval_microseconds, SECOND),
 };
 
 size_t config_option_count(void)
 {
-	return ARRAY_SIZE(boolean_options) + ARRAY_SIZE(string_options) +
-	       ARRAY_SIZE(scaled_options);
+	return ARRAY_SIZE(options);
 }
 
 const char *config_option_name(size_t index)
 {
-	if (index < ARRAY_SIZE(boolean_options))
-		return boolean_options[index].name;
-	index -= ARRAY_SIZE(boolean_options);
-	if (index < ARRAY_SIZE(string_options))
-		return string_options[index].name;
-	index -= ARRAY_SIZE(string_options);
-	if (index < ARRAY_SIZE(scaled_options))
-		return scaled_options[index].name;
-	return NULL;
+	return index < ARRAY_SIZE(options) ? options[index].name : NULL;
 }
 
 static int
@@ -326,43 +343,6 @@ static int lookup_string_option(
 	return 0;
 }
 
-static int load_boolean_options(
-	struct uci_context *context,
-	struct uci_section *section,
-	struct config *config,
-	char *error,
-	size_t error_size
-)
-{
-	size_t index;
-
-	for (index = 0U; index < ARRAY_SIZE(boolean_options); index++) {
-		const char *value;
-		bool *destination = (bool *)((char *)config + boolean_options[index].offset);
-
-		if (lookup_string_option(
-			    context,
-			    section,
-			    boolean_options[index].name,
-			    &value,
-			    error,
-			    error_size
-		    ) != 0) {
-			return -1;
-		}
-
-		if (value != NULL && parse_boolean(value, destination) != 0) {
-			return error_set(
-				error,
-				error_size,
-				"option '%s' is not a boolean",
-				boolean_options[index].name
-			);
-		}
-	}
-	return 0;
-}
-
 static int parse_scaled_decimal(
 	const char *value,
 	uint64_t scale,
@@ -372,122 +352,94 @@ static int parse_scaled_decimal(
 	size_t error_size
 )
 {
-	const char *character = value;
-	uint64_t scaled_value = 0U;
-	uint64_t fractional_place;
-	size_t integer_digits;
+	const char *character = value + strspn(value, DECIMAL_DIGITS);
+	uint64_t scaled_value;
+	uint64_t fractional_place = scale;
 
 	if (value[0] == '\0')
 		return error_set(error, error_size, "option '%s' is empty", option_name);
-
-	integer_digits = strspn(value, DECIMAL_DIGITS);
-	character = value + integer_digits;
-	if (integer_digits != 0U && !parse_unsigned(value, character, &scaled_value))
-		return error_set(error, error_size, "option '%s' is too large", option_name);
-	if (character == value || (scaled_value > UINT64_MAX / scale)) {
-		return error_set(
-			error,
-			error_size,
-			"option '%s' is not a non-negative decimal",
-			option_name
-		);
-	}
+	if (character == value)
+		goto invalid;
+	if (!parse_unsigned(value, character, &scaled_value) || scaled_value > UINT64_MAX / scale)
+		goto too_large;
 	scaled_value *= scale;
 
-	if (*character == '\0') {
-		*result = scaled_value;
-		return 0;
-	}
-	if (*character != '.' || character[1] == '\0') {
-		return error_set(
-			error,
-			error_size,
-			"option '%s' is not a non-negative decimal",
-			option_name
-		);
-	}
-
-	fractional_place = scale;
-	for (character++; *character != '\0'; character++) {
-		unsigned int digit;
-
-		if (*character < '0' || *character > '9') {
-			return error_set(
-				error,
-				error_size,
-				"option '%s' is not a non-negative decimal",
-				option_name
-			);
+	if (*character != '\0') {
+		/* A point followed by one or more digits. */
+		if (*character != '.' || character[1] == '\0' ||
+		    character[1 + strspn(character + 1, DECIMAL_DIGITS)] != '\0') {
+			goto invalid;
 		}
-		digit = (unsigned int)(*character - '0');
-		if (fractional_place > 1U) {
-			uint64_t contribution;
+		for (character++; *character != '\0'; character++) {
+			uint64_t digit = (uint64_t)(*character - '0');
 
-			fractional_place /= 10U;
-			contribution = (uint64_t)digit * fractional_place;
-			if (scaled_value > UINT64_MAX - contribution) {
-				return error_set(
-					error,
-					error_size,
-					"option '%s' is too large",
-					option_name
-				);
+			if (fractional_place == 1U) {
+				if (digit != 0U) {
+					return error_set(
+						error,
+						error_size,
+						"option '%s' has more precision than cake-adapt stores",
+						option_name
+					);
+				}
+				continue;
 			}
-			scaled_value += contribution;
-		} else if (digit != 0U) {
-			return error_set(
-				error,
-				error_size,
-				"option '%s' has more precision than cake-adapt stores",
-				option_name
-			);
+			fractional_place /= 10U;
+			if (scaled_value > UINT64_MAX - digit * fractional_place)
+				goto too_large;
+			scaled_value += digit * fractional_place;
 		}
 	}
-
 	*result = scaled_value;
 	return 0;
+
+invalid:
+	return error_set(
+		error,
+		error_size,
+		"option '%s' is not a non-negative decimal",
+		option_name
+	);
+too_large:
+	return error_set(error, error_size, "option '%s' is too large", option_name);
 }
 
-static int load_scaled_options(
-	struct uci_context *context,
-	struct uci_section *section,
+static int load_option(
+	const struct option_binding *option,
+	const char *value,
 	struct config *config,
 	char *error,
 	size_t error_size
 )
 {
-	size_t index;
+	char *destination = (char *)config + option->offset;
 
-	for (index = 0U; index < ARRAY_SIZE(scaled_options); index++) {
-		const char *value;
-		uint64_t *destination = (uint64_t *)((char *)config + scaled_options[index].offset);
-
-		if (lookup_string_option(
-			    context,
-			    section,
-			    scaled_options[index].name,
-			    &value,
-			    error,
-			    error_size
-		    ) != 0) {
-			return -1;
-		}
-
-		if (value != NULL && parse_scaled_decimal(
-					     value,
-					     scaled_options[index].scale,
-					     destination,
-					     scaled_options[index].name,
-					     error,
-					     error_size
-				     ) != 0) {
-			return -1;
-		}
+	switch (option->type) {
+	case TYPE_BOOLEAN:
+		if (parse_boolean(value, (bool *)destination) != 0)
+			return error_set(
+				error,
+				error_size,
+				"option '%s' is not a boolean",
+				option->name
+			);
+		return 0;
+	case TYPE_STRING:
+		return copy_option(destination, option->size, value, option->name, error, error_size);
+	case TYPE_SCALED:
+		return parse_scaled_decimal(
+			value,
+			option->scale,
+			(uint64_t *)destination,
+			option->name,
+			error,
+			error_size
+		);
 	}
 	return 0;
 }
 
-static int load_string_options(
+static int load_options(
 	struct uci_context *context,
 	struct uci_section *section,
 	struct config *config,
@@ -497,31 +449,21 @@ static int load_string_options(
 {
 	size_t index;
 
-	for (index = 0U; index < ARRAY_SIZE(string_options); index++) {
+	for (index = 0U; index < ARRAY_SIZE(options); index++) {
 		const char *value;
-		char *destination = (char *)config + string_options[index].offset;
 
 		if (lookup_string_option(
 			    context,
 			    section,
-			    string_options[index].name,
+			    options[index].name,
 			    &value,
 			    error,
 			    error_size
-		    ) != 0) {
+		    ) != 0)
 			return -1;
-		}
-
-		if (value != NULL && copy_option(
-					     destination,
-					     string_options[index].destination_size,
-					     value,
-					     string_options[index].name,
-					     error,
-					     error_size
-				     ) != 0) {
+		if (value != NULL &&
+		    load_option(&options[index], value, config, error, error_size) != 0)
 			return -1;
-		}
 	}
 	return 0;
 }
@@ -610,9 +552,7 @@ static int load_section(
 		return -1;
 	}
 
-	if (load_boolean_options(context, section, config, error, error_size) != 0 ||
-	    load_string_options(context, section, config, error, error_size) != 0 ||
-	    load_scaled_options(context, section, config, error, error_size) != 0 ||
+	if (load_options(context, section, config, error, error_size) != 0 ||
 	    load_reflectors(context, section, config, error, error_size) != 0) {
 		return -1;
 	}

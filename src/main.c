@@ -95,25 +95,17 @@ static int open_log_file(
 	const char *directory = config->log_file_path_override[0] != '\0' ?
 					config->log_file_path_override :
 					DEFAULT_LOG_DIRECTORY;
-	int length;
-
-	if (strcmp(section_name, DEFAULT_SECTION) == 0)
-		length = snprintf(
-			log_path,
-			log_path_size,
-			"%s/%s" LOG_EXTENSION,
-			directory,
-			DEFAULT_LOG_FILE_BASE
-		);
-	else
-		length = snprintf(
-			log_path,
-			log_path_size,
-			"%s/%s.%s" LOG_EXTENSION,
-			directory,
-			DEFAULT_LOG_FILE_BASE,
-			section_name
-		);
+	/* cake-adapt.log for the main section, cake-adapt.<section>.log otherwise. */
+	bool named = strcmp(section_name, DEFAULT_SECTION) != 0;
+	int length = snprintf(
+		log_path,
+		log_path_size,
+		"%s/%s%s%s" LOG_EXTENSION,
+		directory,
+		DEFAULT_LOG_FILE_BASE,
+		named ? "." : "",
+		named ? section_name : ""
+	);
 	if (length < 0 || (size_t)length >= log_path_size) {
 		log_message(LOG_LEVEL_ERROR, "log file path is too long");
 		return -1;
@@ -134,6 +126,22 @@ static int open_log_file(
 		return -1;
 	}
 	return 0;
+}
+
+static void
+log_adjustment(const char *direction, bool adjust, uint64_t minimum, uint64_t base, uint64_t maximum)
+{
+	if (!adjust)
+		return;
+	log_message(
+		LOG_LEVEL_INFO,
+		"%s adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
+		" bit/s maximum=%" PRIu64 " bit/s",
+		direction,
+		minimum,
+		base,
+		maximum
+	);
 }
 
 static void log_configuration(const struct config *config, const char *log_path)
@@ -174,24 +182,20 @@ static void log_configuration(const struct config *config, const char *log_path)
 		config->debug ? 1U : 0U,
 		config->log_to_file ? log_path : STATUS_DISABLED
 	);
-	if (config->adjust_download)
-		log_message(
-			LOG_LEVEL_INFO,
-			"download adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
-			" bit/s maximum=%" PRIu64 " bit/s",
-			config->minimum_download_rate_bits_per_second,
-			config->base_download_rate_bits_per_second,
-			config->maximum_download_rate_bits_per_second
-		);
-	if (config->adjust_upload)
-		log_message(
-			LOG_LEVEL_INFO,
-			"upload adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
-			" bit/s maximum=%" PRIu64 " bit/s",
-			config->minimum_upload_rate_bits_per_second,
-			config->base_upload_rate_bits_per_second,
-			config->maximum_upload_rate_bits_per_second
-		);
+	log_adjustment(
+		DIRECTION_DOWNLOAD,
+		config->adjust_download,
+		config->minimum_download_rate_bits_per_second,
+		config->base_download_rate_bits_per_second,
+		config->maximum_download_rate_bits_per_second
+	);
+	log_adjustment(
+		DIRECTION_UPLOAD,
+		config->adjust_upload,
+		config->minimum_upload_rate_bits_per_second,
+		config->base_upload_rate_bits_per_second,
+		config->maximum_upload_rate_bits_per_second
+	);
 }
 
 static void log_control_mode(const struct config *config)
