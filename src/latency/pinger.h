@@ -74,12 +74,7 @@ static inline void pinger_command_add(struct pinger_command *command, const char
 
 void pinger_command_free(struct pinger_command *command);
 
-int validate_targets(
-	const char *const *targets,
-	size_t target_count,
-	char *error,
-	size_t error_size
-);
+int validate_targets(const char *const *targets, size_t target_count, char *error, size_t error_size);
 
 /*
  * Starts arguments[0] in its own process group with stdout on a nonblocking

@@ -42,8 +42,10 @@ static int set_nonblocking(int descriptor, const char *name, char *error, size_t
 
 void stop_child(pid_t process_identifier)
 {
-	const struct timespec interval = { .tv_sec = 0,
-					   .tv_nsec = CHILD_STOP_INTERVAL_NANOSECONDS };
+	const struct timespec interval = {
+		.tv_sec = 0,
+		.tv_nsec = CHILD_STOP_INTERVAL_NANOSECONDS,
+	};
 	unsigned int attempt;
 
 	if (process_identifier <= 0)
@@ -128,13 +130,7 @@ destroy_actions:
 	(void)posix_spawn_file_actions_destroy(&actions);
 failed:
 	if (result != 0) {
-		return error_set(
-			error,
-			error_size,
-			"could not start %s: %s",
-			name,
-			strerror(result)
-		);
+		return error_set(error, error_size, "could not start %s: %s", name, strerror(result));
 	}
 	return 0;
 }
@@ -175,14 +171,8 @@ int pinger_command_init(
 	size_t index;
 
 	*command = (struct pinger_command){ 0 };
-	if (expand_words(
-		    extra,
-		    false,
-		    OPTION_PING_EXTRA_ARGS,
-		    &command->extra,
-		    error,
-		    error_size
-	    ) != 0 ||
+	if (expand_words(extra, false, OPTION_PING_EXTRA_ARGS, &command->extra, error, error_size) !=
+		    0 ||
 	    expand_words(
 		    prefix,
 		    true,
@@ -223,12 +213,7 @@ void pinger_command_free(struct pinger_command *command)
 	*command = (struct pinger_command){ 0 };
 }
 
-int validate_targets(
-	const char *const *targets,
-	size_t target_count,
-	char *error,
-	size_t error_size
-)
+int validate_targets(const char *const *targets, size_t target_count, char *error, size_t error_size)
 {
 	size_t index;
 
@@ -304,9 +289,11 @@ void latency_init(struct latency *latency)
 static const struct {
 	const char *method;
 	const char *executable;
-} backends[] = { { PINGER_METHOD_FPING, FPING_PATH },
-		 { PINGER_METHOD_FPING_TS, FPING_PATH },
-		 { PINGER_METHOD_IRTT, IRTT_PATH } };
+} backends[] = {
+	{ PINGER_METHOD_FPING, FPING_PATH },
+	{ PINGER_METHOD_FPING_TS, FPING_PATH },
+	{ PINGER_METHOD_IRTT, IRTT_PATH },
+};
 
 const char *latency_backend_executable(const char *pinger_method)
 {
@@ -442,8 +429,8 @@ latency_next_line(const char *data, size_t length, char line[LATENCY_OUTPUT_SIZE
 	size_t line_length;
 
 	if (newline == NULL) {
-		return length < LATENCY_OUTPUT_SIZE ? LATENCY_LINE_INCOMPLETE
-						    : LATENCY_LINE_TOO_LONG;
+		return length < LATENCY_OUTPUT_SIZE ? LATENCY_LINE_INCOMPLETE :
+						      LATENCY_LINE_TOO_LONG;
 	}
 	line_length = (size_t)(newline - data);
 	*consumed = line_length + 1U;
@@ -464,8 +451,7 @@ enum latency_probe_result latency_handle_line(
 	size_t error_size
 )
 {
-	return latency->ops
-		->parse(&latency->children[child_index], line, sample, error, error_size);
+	return latency->ops->parse(&latency->children[child_index], line, sample, error, error_size);
 }
 
 enum latency_probe_result latency_child_exited(

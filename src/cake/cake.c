@@ -30,17 +30,15 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 		[TCA_CAKE_BASE_RATE64] = { .type = NLA_U64 },
 		[TCA_CAKE_ATM] = { .type = NLA_U32 },
 		[TCA_CAKE_OVERHEAD] = { .type = NLA_S32 },
-		[TCA_CAKE_RAW] = { .type = NLA_U32 }
+		[TCA_CAKE_RAW] = { .type = NLA_U32 },
 	};
 	struct nlattr *attributes[TCA_CAKE_MAX + 1];
 
 	if (options == NULL || nla_parse_nested(attributes, TCA_CAKE_MAX, options, policy) < 0)
 		return;
 	if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
-		observation->bandwidth_bits_per_second = saturating_mul(
-			nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]),
-			BITS_PER_BYTE
-		);
+		observation->bandwidth_bits_per_second =
+			saturating_mul(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]), BITS_PER_BYTE);
 		observation->has_bandwidth = true;
 	}
 	if (attributes[TCA_CAKE_ATM] != NULL)
@@ -77,7 +75,7 @@ static void parse_cake_stats(struct nlattr *application, struct cake_observation
 	static const struct nla_policy policy[TCA_CAKE_STATS_MAX + 1] = {
 		[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] = { .type = NLA_U64 },
 		[TCA_CAKE_STATS_MEMORY_LIMIT] = { .type = NLA_U32 },
-		[TCA_CAKE_STATS_MEMORY_USED] = { .type = NLA_U32 }
+		[TCA_CAKE_STATS_MEMORY_USED] = { .type = NLA_U32 },
 	};
 	struct nlattr *attributes[TCA_CAKE_STATS_MAX + 1];
 
@@ -108,7 +106,7 @@ static void parse_stats(struct nlattr *stats, struct cake_observation *observati
 		[TCA_STATS_BASIC] = { .type = NLA_BINARY,
 				      .minlen = sizeof(uint64_t) + sizeof(uint32_t) },
 		[TCA_STATS_QUEUE] = { .type = NLA_BINARY,
-				      .minlen = sizeof(struct gnet_stats_queue) }
+				      .minlen = sizeof(struct gnet_stats_queue) },
 	};
 	struct nlattr *attributes[TCA_STATS_MAX + 1];
 
@@ -137,8 +135,9 @@ static void parse_stats(struct nlattr *stats, struct cake_observation *observati
 static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 {
 	struct cake_read_context *context = context_pointer;
-	static const struct nla_policy policy[TCA_MAX + 1] = { [TCA_KIND] = {
-								       .type = NLA_NUL_STRING } };
+	static const struct nla_policy policy[TCA_MAX + 1] = {
+		[TCA_KIND] = { .type = NLA_NUL_STRING },
+	};
 	const struct tcmsg *traffic_control;
 	struct nlattr *attributes[TCA_MAX + 1];
 	struct cake_read *read = NULL;

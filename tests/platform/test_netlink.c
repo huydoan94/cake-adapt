@@ -113,8 +113,8 @@ static void test_request(enum response_type type, bool fail_send)
 	assert(polls == (fail_send ? 0U : 1U));
 	if (fail_send) {
 		assert(strstr(error,
-			      type == RESPONSE_QDISC_DUMP ? "request qdisc dump"
-							  : "send qdisc change") != NULL);
+			      type == RESPONSE_QDISC_DUMP ? "request qdisc dump" :
+							    "send qdisc change") != NULL);
 	}
 	netlink_close(&netlink);
 }
@@ -122,8 +122,10 @@ static void test_request(enum response_type type, bool fail_send)
 static void test_qdisc_events(void)
 {
 	struct qdisc_event received = { 0 };
-	struct netlink netlink = { .event_handler = record_event,
-				   .event_handler_context = &received };
+	struct netlink netlink = {
+		.event_handler = record_event,
+		.event_handler_context = &received,
+	};
 	struct tcmsg tc = { .tcm_ifindex = 7, .tcm_handle = 0x10000, .tcm_parent = TC_H_ROOT };
 	struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
 

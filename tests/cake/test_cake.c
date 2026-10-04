@@ -75,17 +75,21 @@ static void test_qdisc_message(void)
 /* One dump carries every interface; each root qdisc fills only its own read. */
 static void test_dump_routes_each_interface(void)
 {
-	struct nl_msg *messages[] = { nlmsg_alloc_simple(RTM_NEWQDISC, 0),
-				      nlmsg_alloc_simple(RTM_NEWQDISC, 0),
-				      nlmsg_alloc_simple(RTM_NEWQDISC, 0) };
+	struct nl_msg *messages[] = {
+		nlmsg_alloc_simple(RTM_NEWQDISC, 0),
+		nlmsg_alloc_simple(RTM_NEWQDISC, 0),
+		nlmsg_alloc_simple(RTM_NEWQDISC, 0),
+	};
 	struct tcmsg qdiscs[] = {
 		{ .tcm_ifindex = 8, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x20000U },
 		{ .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x10000U },
-		{ .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x30000U }
+		{ .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x30000U },
 	};
 	struct cake_observation observations[2] = { { 0 } };
-	struct cake_read reads[2] = { { .observation = &observations[0], .interface_index = 7U },
-				      { .observation = &observations[1], .interface_index = 8U } };
+	struct cake_read reads[2] = {
+		{ .observation = &observations[0], .interface_index = 7U },
+		{ .observation = &observations[1], .interface_index = 8U },
+	};
 	struct cake_read_context context = { .reads = reads, .count = 2U };
 	size_t index;
 
@@ -221,8 +225,10 @@ static void test_missing_interface(void)
 static void test_missing_cake_clears_cached_interface(void)
 {
 	struct netlink netlink = { 0 };
-	struct cake_observation observation = { .interface_index = (unsigned int)INT_MAX,
-						.has_mtu = true };
+	struct cake_observation observation = {
+		.interface_index = (unsigned int)INT_MAX,
+		.has_mtu = true,
+	};
 	char error[128] = "";
 
 	/* A stale index cannot match any qdisc, so the next read resolves the name. */
@@ -241,9 +247,10 @@ static void test_read_all_reports_each_interface(void)
 {
 	struct netlink netlink = { 0 };
 	struct cake_observation observations[2] = { { 0 } };
-	struct cake_read reads[2] = { { .interface = "missing-interface",
-					.observation = &observations[0] },
-				      { .interface = "lo", .observation = &observations[1] } };
+	struct cake_read reads[2] = {
+		{ .interface = "missing-interface", .observation = &observations[0] },
+		{ .interface = "lo", .observation = &observations[1] },
+	};
 
 	cake_read_all(&netlink, reads, 2U);
 	assert(reads[0].result == CAKE_READ_ERROR);

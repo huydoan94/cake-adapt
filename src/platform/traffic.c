@@ -16,16 +16,14 @@ uint64_t traffic_compensated_interval_microseconds(
 	uint64_t upload_rate_bits_per_second
 )
 {
-	uint64_t round_trip = serialization_microseconds(
-		download_wire_packet_bits,
-		download_rate_bits_per_second
-	);
+	uint64_t round_trip =
+		serialization_microseconds(download_wire_packet_bits, download_rate_bits_per_second);
 	uint64_t upload =
 		serialization_microseconds(upload_wire_packet_bits, upload_rate_bits_per_second);
 
 	round_trip = saturating_mul(saturating_add(round_trip, upload), 10U);
-	return configured_interval_microseconds > round_trip ? configured_interval_microseconds
-							     : round_trip;
+	return configured_interval_microseconds > round_trip ? configured_interval_microseconds :
+							       round_trip;
 }
 
 void traffic_init(struct traffic_monitor *monitor)

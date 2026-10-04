@@ -102,13 +102,13 @@ void cpu_usage(
 
 	for (index = 0U; index < sample->count; index++) {
 		uint64_t sum = counter_sum(&sample->counters[index]);
-		uint64_t delta = sum >= monitor->previous_sums[index]
-					 ? sum - monitor->previous_sums[index]
-					 : 0U;
+		uint64_t delta = sum >= monitor->previous_sums[index] ?
+					 sum - monitor->previous_sums[index] :
+					 0U;
 		uint64_t idle =
-			sample->counters[index].idle >= monitor->previous_idle[index]
-				? sample->counters[index].idle - monitor->previous_idle[index]
-				: 0U;
+			sample->counters[index].idle >= monitor->previous_idle[index] ?
+				sample->counters[index].idle - monitor->previous_idle[index] :
+				0U;
 
 		usage[index] = delta > idle ? (unsigned int)(100U * (delta - idle) / delta) : 0U;
 		monitor->previous_sums[index] = sum;

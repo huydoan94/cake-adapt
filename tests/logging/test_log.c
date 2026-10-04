@@ -349,12 +349,14 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.download_load_condition = "dl_low",
 		.upload_load_condition = "ul_high_bb",
 		.cake_download_rate_kbps = 260U,
-		.cake_upload_rate_kbps = 270U
+		.cake_upload_rate_kbps = 270U,
 	};
-	const struct log_load_record load_record = { .download_achieved_rate_kbps = 10U,
-						     .upload_achieved_rate_kbps = 20U,
-						     .cake_download_rate_kbps = 30U,
-						     .cake_upload_rate_kbps = 40U };
+	const struct log_load_record load_record = {
+		.download_achieved_rate_kbps = 10U,
+		.upload_achieved_rate_kbps = 20U,
+		.cake_download_rate_kbps = 30U,
+		.cake_upload_rate_kbps = 40U,
+	};
 	const struct log_summary_record summary_record = {
 		.download_achieved_rate_kbps = 11U,
 		.upload_achieved_rate_kbps = 21U,
@@ -365,7 +367,7 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.download_load_condition = "dl_idle",
 		.upload_load_condition = "ul_low",
 		.cake_download_rate_kbps = 71U,
-		.cake_upload_rate_kbps = 81U
+		.cake_upload_rate_kbps = 81U,
 	};
 	const struct log_reflector_record reflector_record = {
 		.reflector = "1.0.0.1",
@@ -379,7 +381,7 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.delta_ewma_delta_threshold_microseconds = 10000U,
 		.minimum_upload_delta_ewma_microseconds = -6,
 		.upload_delta_ewma_microseconds = 8,
-		.upload_delta_ewma_delta_microseconds = 14
+		.upload_delta_ewma_delta_microseconds = 14,
 	};
 	const char *field_end;
 	const char *field_start;
@@ -453,20 +455,22 @@ static void test_cpu_schema_matches_cake_autorate(void)
 {
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[4096];
-	const struct cpu_sample sample = { .timestamp_microseconds = 1234567U,
-					   .count = 2U,
-					   .counters = { { .identifier = "cpu",
-							   .user = 1U,
-							   .nice = 2U,
-							   .system = 3U,
-							   .idle = 4U,
-							   .iowait = 5U,
-							   .irq = 6U,
-							   .softirq = 7U,
-							   .steal = 8U,
-							   .guest = 9U,
-							   .guest_nice = 10U },
-							 { .identifier = "cpu0", .idle = 50U } } };
+	const struct cpu_sample sample = {
+		.timestamp_microseconds = 1234567U,
+		.count = 2U,
+		.counters = { { .identifier = "cpu",
+				.user = 1U,
+				.nice = 2U,
+				.system = 3U,
+				.idle = 4U,
+				.iowait = 5U,
+				.irq = 6U,
+				.softirq = 7U,
+				.steal = 8U,
+				.guest = 9U,
+				.guest_nice = 10U },
+			      { .identifier = "cpu0", .idle = 50U } },
+	};
 	const unsigned int usage[] = { 40U, 50U };
 	int descriptor = mkstemp(path);
 
@@ -498,10 +502,12 @@ static void test_tcp_queue_record(void)
 {
 	char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
 	char contents[4096];
-	const struct log_tcp_queue_record record = { .download_valid = true,
-						     .upload_valid = false,
-						     .download_queue_microseconds = 1500,
-						     .upload_queue_microseconds = -20 };
+	const struct log_tcp_queue_record record = {
+		.download_valid = true,
+		.upload_valid = false,
+		.download_queue_microseconds = 1500,
+		.upload_queue_microseconds = -20,
+	};
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);

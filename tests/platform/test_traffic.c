@@ -8,19 +8,16 @@
 #define QDISC_HANDLE 0x00010000U
 #define QDISC_PARENT UINT32_MAX
 
-static struct traffic_sample sample_with_qdisc(
-	uint64_t bytes,
-	uint32_t handle,
-	uint32_t parent,
-	time_t seconds,
-	long nanoseconds
-)
+static struct traffic_sample
+sample_with_qdisc(uint64_t bytes, uint32_t handle, uint32_t parent, time_t seconds, long nanoseconds)
 {
 	return (struct traffic_sample){ .bytes = bytes,
 					.qdisc_handle = handle,
 					.qdisc_parent = parent,
-					.timestamp = { .tv_sec = seconds,
-						       .tv_nsec = nanoseconds } };
+					.timestamp = {
+						.tv_sec = seconds,
+						.tv_nsec = nanoseconds,
+					} };
 }
 
 static struct traffic_sample sample(uint64_t bytes, time_t seconds, long nanoseconds)
