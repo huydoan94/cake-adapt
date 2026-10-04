@@ -70,43 +70,12 @@ uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
 	return saturating_mul(saturating_add(bits, UINT64_C(376)) / UINT64_C(384), UINT64_C(424));
 }
 
-static void parse_cake_stats(struct nlattr *application, struct cake_observation *observation)
-{
-	static const struct nla_policy policy[TCA_CAKE_STATS_MAX + 1] = {
-		[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] = { .type = NLA_U64 },
-		[TCA_CAKE_STATS_MEMORY_LIMIT] = { .type = NLA_U32 },
-		[TCA_CAKE_STATS_MEMORY_USED] = { .type = NLA_U32 },
-	};
-	struct nlattr *attributes[TCA_CAKE_STATS_MAX + 1];
-
-	if (application == NULL ||
-	    nla_parse_nested(attributes, TCA_CAKE_STATS_MAX, application, policy) < 0) {
-		return;
-	}
-	if (attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64] != NULL) {
-		observation->capacity_estimate_bits_per_second = saturating_mul(
-			nla_get_u64(attributes[TCA_CAKE_STATS_CAPACITY_ESTIMATE64]),
-			BITS_PER_BYTE
-		);
-	}
-	if (attributes[TCA_CAKE_STATS_MEMORY_LIMIT] != NULL) {
-		observation->memory_limit_bytes =
-			nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_LIMIT]);
-	}
-	if (attributes[TCA_CAKE_STATS_MEMORY_USED] != NULL) {
-		observation->memory_used_bytes =
-			nla_get_u32(attributes[TCA_CAKE_STATS_MEMORY_USED]);
-	}
-}
-
 static void parse_stats(struct nlattr *stats, struct cake_observation *observation)
 {
 	static const struct nla_policy policy[TCA_STATS_MAX + 1] = {
 		/* The ABI is 12 bytes; sizeof(gnet_stats_basic) can include padding. */
 		[TCA_STATS_BASIC] = { .type = NLA_BINARY,
 				      .minlen = sizeof(uint64_t) + sizeof(uint32_t) },
-		[TCA_STATS_QUEUE] = { .type = NLA_BINARY,
-				      .minlen = sizeof(struct gnet_stats_queue) },
 	};
 	struct nlattr *attributes[TCA_STATS_MAX + 1];
 
@@ -118,18 +87,8 @@ static void parse_stats(struct nlattr *stats, struct cake_observation *observati
 
 		nla_memcpy(&basic, attributes[TCA_STATS_BASIC], sizeof(basic));
 		observation->bytes = basic.bytes;
-		observation->packets = basic.packets;
 		observation->has_basic_stats = true;
 	}
-	if (attributes[TCA_STATS_QUEUE] != NULL) {
-		struct gnet_stats_queue queue;
-
-		nla_memcpy(&queue, attributes[TCA_STATS_QUEUE], sizeof(queue));
-		observation->queue_length = queue.qlen;
-		observation->backlog_bytes = queue.backlog;
-		observation->drops = queue.drops;
-	}
-	parse_cake_stats(attributes[TCA_STATS_APP], observation);
 }
 
 static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
@@ -185,9 +144,10 @@ static int
 read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *error, size_t error_size)
 {
 	struct ifreq request = { 0 };
+	size_t length = strlen(interface);
 	int socket_fd;
 
-	if (strlen(interface) >= sizeof(request.ifr_name))
+	if (length >= sizeof(request.ifr_name))
 		return error_set(error, error_size, "interface name is too long");
 	socket_fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (socket_fd < 0) {
@@ -198,7 +158,7 @@ read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *error, size
 			strerror(errno)
 		);
 	}
-	memcpy(request.ifr_name, interface, strlen(interface) + 1U);
+	memcpy(request.ifr_name, interface, length + 1U);
 	if (ioctl(socket_fd, SIOCGIFMTU, &request) != 0) {
 		error_set(
 			error,
@@ -207,17 +167,14 @@ read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *error, size
 			interface,
 			strerror(errno)
 		);
-		(void)close(socket_fd);
-		return -1;
-	}
-	if (request.ifr_mtu <= 0) {
+	} else if (request.ifr_mtu <= 0) {
 		error_set(error, error_size, "interface MTU for %s is invalid", interface);
-		(void)close(socket_fd);
-		return -1;
+	} else {
+		*mtu_bytes = (uint32_t)request.ifr_mtu;
 	}
 	(void)close(socket_fd);
-	*mtu_bytes = (uint32_t)request.ifr_mtu;
-	return 0;
+	/* The request starts zeroed, so a failed ioctl leaves no valid MTU either. */
+	return request.ifr_mtu > 0 ? 0 : -1;
 }
 
 static void finish_read(struct cake_read *read)
@@ -332,7 +289,8 @@ int cake_set_bandwidth(
 {
 	uint64_t bandwidth_bytes_per_second;
 
-	if (bandwidth_bits_per_second < 8U || bandwidth_bits_per_second % 8U != 0U) {
+	if (bandwidth_bits_per_second < BITS_PER_BYTE ||
+	    bandwidth_bits_per_second % BITS_PER_BYTE != 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -342,7 +300,7 @@ int cake_set_bandwidth(
 	if (netlink_open(netlink, error, error_size) != 0)
 		return -1;
 
-	bandwidth_bytes_per_second = bandwidth_bits_per_second / 8U;
+	bandwidth_bytes_per_second = bandwidth_bits_per_second / BITS_PER_BYTE;
 	if (netlink_change_qdisc_option(
 		    netlink,
 		    observation->interface_index,

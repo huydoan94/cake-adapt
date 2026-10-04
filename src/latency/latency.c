@@ -8,6 +8,7 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -28,6 +29,7 @@ extern char **environ;
 static int set_nonblocking(int descriptor, const char *name, char *error, size_t error_size)
 {
 	int flags = fcntl(descriptor, F_GETFL);
+
 	if (flags < 0 || fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) != 0) {
 		return error_set(
 			error,
@@ -40,7 +42,8 @@ static int set_nonblocking(int descriptor, const char *name, char *error, size_t
 	return 0;
 }
 
-void stop_child(pid_t process_identifier)
+/* Terminates the child's process group, escalating to SIGKILL, and reaps it. */
+static void stop_child(pid_t process_identifier)
 {
 	const struct timespec interval = {
 		.tv_sec = 0,
@@ -135,23 +138,18 @@ failed:
 	return 0;
 }
 
-int expand_words(
-	const char *value,
-	bool require_word,
-	const char *option,
-	wordexp_t *words,
-	char *error,
-	size_t error_size
-)
+/* Frees and clears words on failure; an empty value expands to no words. */
+static int
+expand_words(const char *value, const char *option, wordexp_t *words, char *error, size_t error_size)
 {
 	int result;
 
 	if (value[0] == '\0')
 		return 0;
 	result = wordexp(value, words, WRDE_NOCMD);
-	if (result == 0 && (!require_word || words->we_wordc > 0U))
+	if (result == 0)
 		return 0;
-	if (result == WRDE_NOSPACE || result == 0) {
+	if (result == WRDE_NOSPACE) {
 		wordfree(words);
 		*words = (wordexp_t){ 0 };
 	}
@@ -168,24 +166,22 @@ int pinger_command_init(
 	size_t error_size
 )
 {
+	size_t count;
 	size_t index;
 
 	*command = (struct pinger_command){ 0 };
-	if (expand_words(extra, false, OPTION_PING_EXTRA_ARGS, &command->extra, error, error_size) !=
-		    0 ||
-	    expand_words(
-		    prefix,
-		    true,
-		    OPTION_PING_PREFIX_STRING,
-		    &command->prefix,
-		    error,
-		    error_size
-	    ) != 0)
+	if (expand_words(extra, OPTION_PING_EXTRA_ARGS, &command->extra, error, error_size) != 0 ||
+	    expand_words(prefix, OPTION_PING_PREFIX_STRING, &command->prefix, error, error_size) !=
+		    0)
 		goto fail;
+	/* A prefix names the program to run, so a set one must leave at least a word. */
+	if (prefix[0] != '\0' && command->prefix.we_wordc == 0U) {
+		error_set(error, error_size, "could not parse %s", OPTION_PING_PREFIX_STRING);
+		goto fail;
+	}
 	/* One more for the terminating NULL. */
-	command->argv =
-		calloc(command->prefix.we_wordc + command->extra.we_wordc + fixed + 1U,
-		       sizeof(*command->argv));
+	count = command->prefix.we_wordc + command->extra.we_wordc + fixed + 1U;
+	command->argv = calloc(count, sizeof(*command->argv));
 	if (command->argv == NULL) {
 		error_set(
 			error,
@@ -223,7 +219,7 @@ int validate_targets(const char *const *targets, size_t target_count, char *erro
 				error,
 				error_size,
 				"latency target '%s' is not a valid IP address or hostname",
-				targets[index] == NULL ? NULL_VALUE : targets[index]
+				targets[index]
 			);
 		}
 	}
@@ -326,18 +322,12 @@ int latency_check_backend(const char *pinger_method, char *error, size_t error_s
 
 bool target_is_valid(const char *target)
 {
-	size_t length;
+	size_t length = strlen(target);
 
-	if (target == NULL || target[0] == '\0')
-		return false;
-	length = strlen(target);
-	if (length >= LATENCY_TARGET_SIZE ||
-	    !(target[0] == ':' || (target[0] >= '0' && target[0] <= '9') ||
-	      (target[0] >= 'A' && target[0] <= 'Z') || (target[0] >= 'a' && target[0] <= 'z'))) {
-		return false;
-	}
-
-	return strspn(target, TARGET_CHARACTERS) == length;
+	/* An address or hostname; it never starts with '-', so fping cannot read it as an option. */
+	return length > 0U && length < LATENCY_TARGET_SIZE &&
+	       (target[0] == ':' || isalnum((unsigned char)target[0])) &&
+	       strspn(target, TARGET_CHARACTERS) == length;
 }
 
 bool latency_is_open(const struct latency *latency)

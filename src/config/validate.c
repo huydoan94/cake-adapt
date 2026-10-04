@@ -6,15 +6,12 @@
 #include <limits.h>
 #include <string.h>
 
-/*
- * Current libuci headers contain inline helpers that trigger -Wsign-conversion.
- * Keep strict conversion warnings for cake-adapt while isolating that external
- * header warning.
- */
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-#endif
+/* A uloop interval: a positive whole number of milliseconds that fits its unsigned argument. */
+static bool timer_interval_valid(uint64_t microseconds)
+{
+	return microseconds > 0U && microseconds % MILLISECOND == 0U &&
+	       microseconds / MILLISECOND <= UINT_MAX;
+}
 
 static int validate_rate_range(
 	bool adjust,
@@ -151,26 +148,13 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 
 static int validate_detection(const struct config *config, char *error, size_t error_size)
 {
-	if (config->monitor_achieved_rates_interval_microseconds == 0U) {
+	if (!timer_interval_valid(config->monitor_achieved_rates_interval_microseconds)) {
 		return error_set(
 			error,
 			error_size,
-			"option 'monitor_achieved_rates_interval_ms' must be positive"
-		);
-	}
-	if (config->monitor_achieved_rates_interval_microseconds % MILLISECOND != 0U) {
-		return error_set(
-			error,
-			error_size,
-			"option 'monitor_achieved_rates_interval_ms' must be a whole"
-			" number of milliseconds"
-		);
-	}
-	if (config->monitor_achieved_rates_interval_microseconds / MILLISECOND > UINT_MAX) {
-		return error_set(
-			error,
-			error_size,
-			"option 'monitor_achieved_rates_interval_ms' is too large"
+			"option 'monitor_achieved_rates_interval_ms' must be a positive whole"
+			" number of milliseconds no greater than %u",
+			UINT_MAX
 		);
 	}
 	if (config->bufferbloat_detection_window == 0U ||
@@ -215,8 +199,7 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 			"reflector health interval and response deadline must be positive"
 		);
 	}
-	if (config->reflector_health_check_interval_microseconds % MILLISECOND != 0U ||
-	    config->reflector_health_check_interval_microseconds / MILLISECOND > UINT_MAX) {
+	if (!timer_interval_valid(config->reflector_health_check_interval_microseconds)) {
 		return error_set(
 			error,
 			error_size,
@@ -263,9 +246,7 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 static int validate_monitoring(const struct config *config, char *error, size_t error_size)
 {
 	if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
-	    (config->monitor_cpu_usage_interval_microseconds == 0U ||
-	     config->monitor_cpu_usage_interval_microseconds % MILLISECOND != 0U ||
-	     config->monitor_cpu_usage_interval_microseconds / MILLISECOND > UINT_MAX)) {
+	    !timer_interval_valid(config->monitor_cpu_usage_interval_microseconds)) {
 		return error_set(
 			error,
 			error_size,

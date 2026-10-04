@@ -121,7 +121,6 @@ struct controller_direction_output {
 	enum controller_congestion_state congestion;
 	enum controller_rate_reason rate_reason;
 	uint64_t rate_bits_per_second;
-	int64_t delay_sum_microseconds;
 	int64_t average_delay_microseconds;
 	unsigned int delayed_sample_count;
 	/*

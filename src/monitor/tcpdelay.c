@@ -134,6 +134,12 @@ static void measure_queues(
 	queue->upload_microseconds = estimate.upload_queue_microseconds;
 }
 
+/* elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_MICROSECONDS, so never zero. */
+static uint64_t rate_since(uint64_t bytes, uint64_t previous_bytes, uint64_t elapsed)
+{
+	return (bytes - previous_bytes) * BITS_PER_BYTE * MICROSECONDS_PER_SECOND / elapsed;
+}
+
 /* Pure-ACK and total upload rates from the filter's byte counters, over >= 500 ms. */
 static void measure_ack_rate(
 	struct monitor *monitor,
@@ -151,11 +157,12 @@ static void measure_ack_rate(
 		if (monitor->tcp.ack_sampled && counters.ack_bytes >= monitor->tcp.ack_bytes &&
 		    counters.upload_bytes >= monitor->tcp.upload_bytes) {
 			monitor->tcp.ack_rate_bits_per_second =
-				(counters.ack_bytes - monitor->tcp.ack_bytes) * BITS_PER_BYTE *
-				MICROSECONDS_PER_SECOND / elapsed;
-			monitor->tcp.upload_rate_bits_per_second =
-				(counters.upload_bytes - monitor->tcp.upload_bytes) *
-				BITS_PER_BYTE * MICROSECONDS_PER_SECOND / elapsed;
+				rate_since(counters.ack_bytes, monitor->tcp.ack_bytes, elapsed);
+			monitor->tcp.upload_rate_bits_per_second = rate_since(
+				counters.upload_bytes,
+				monitor->tcp.upload_bytes,
+				elapsed
+			);
 			monitor->tcp.ack_rate_valid = true;
 		}
 		monitor->tcp.ack_bytes = counters.ack_bytes;
@@ -170,8 +177,8 @@ static void measure_ack_rate(
 
 /*
  * Drains the capture on demand, so the estimates are current whenever the
- * controller runs. Records are submitted without wakeups and simply wait in
- * the ring buffer between latency samples.
+ * controller runs. Records are submitted without wakeups and wait in the ring
+ * buffer until this or the next traffic tick drains them.
  */
 void tcp_observe(
 	struct monitor *monitor,

@@ -95,15 +95,15 @@ int latency_open(
 )
 {
 	struct pinger_command command;
-	char period[32];
-	char response_interval[32];
+	char period[PINGER_ARGUMENT_SIZE];
+	char response_interval[PINGER_ARGUMENT_SIZE];
 	bool interface_selected = false;
 	size_t index;
 	int ret = -1;
 
-	if (interface == NULL || interface[0] == '\0')
+	if (interface[0] == '\0')
 		return error_set(error, error_size, "fping interface is empty");
-	if (targets == NULL || target_count == 0U || extra_arguments == NULL || prefix == NULL)
+	if (target_count == 0U)
 		return error_set(error, error_size, "fping requires at least one target");
 	if (target_count > CONFIG_MAX_REFLECTORS)
 		return error_set(

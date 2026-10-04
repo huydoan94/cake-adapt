@@ -80,55 +80,50 @@ void reflector_compare(
 	struct reflector_comparison *comparisons
 )
 {
-	int64_t minimum_baseline;
-	int64_t minimum_download_delta_ewma;
-	int64_t minimum_upload_delta_ewma;
+	int64_t minimum_baseline = INT64_MAX;
+	int64_t minimum_download_delta_ewma = INT64_MAX;
+	int64_t minimum_upload_delta_ewma = INT64_MAX;
 	size_t index;
 
-	minimum_baseline = signed_sum(
-		trackers[reflector_order[0]].download.baseline_microseconds,
-		trackers[reflector_order[0]].upload.baseline_microseconds
-	);
-	minimum_download_delta_ewma = trackers[reflector_order[0]].download.delta_ewma_microseconds;
-	minimum_upload_delta_ewma = trackers[reflector_order[0]].upload.delta_ewma_microseconds;
-	for (index = 1U; index < active_count; index++) {
+	/* Each reflector's own values first, then the minimums over all of them. */
+	for (index = 0U; index < active_count; index++) {
 		const struct latency_tracker *tracker = &trackers[reflector_order[index]];
-		int64_t sum_baselines = signed_sum(
+		struct reflector_comparison *comparison = &comparisons[index];
+
+		comparison->sum_owd_baselines_microseconds = signed_sum(
 			tracker->download.baseline_microseconds,
 			tracker->upload.baseline_microseconds
 		);
-
-		if (sum_baselines < minimum_baseline)
-			minimum_baseline = sum_baselines;
-		if (tracker->download.delta_ewma_microseconds < minimum_download_delta_ewma)
-			minimum_download_delta_ewma = tracker->download.delta_ewma_microseconds;
-		if (tracker->upload.delta_ewma_microseconds < minimum_upload_delta_ewma)
-			minimum_upload_delta_ewma = tracker->upload.delta_ewma_microseconds;
+		comparison->download_delta_ewma_microseconds =
+			tracker->download.delta_ewma_microseconds;
+		comparison->upload_delta_ewma_microseconds =
+			tracker->upload.delta_ewma_microseconds;
+		if (comparison->sum_owd_baselines_microseconds < minimum_baseline)
+			minimum_baseline = comparison->sum_owd_baselines_microseconds;
+		if (comparison->download_delta_ewma_microseconds < minimum_download_delta_ewma)
+			minimum_download_delta_ewma = comparison->download_delta_ewma_microseconds;
+		if (comparison->upload_delta_ewma_microseconds < minimum_upload_delta_ewma)
+			minimum_upload_delta_ewma = comparison->upload_delta_ewma_microseconds;
 	}
 
 	for (index = 0U; index < active_count; index++) {
-		const struct latency_tracker *tracker = &trackers[reflector_order[index]];
-		int64_t sum_baselines = signed_sum(
-			tracker->download.baseline_microseconds,
-			tracker->upload.baseline_microseconds
-		);
-		int64_t download_delta_ewma = tracker->download.delta_ewma_microseconds;
-		int64_t upload_delta_ewma = tracker->upload.delta_ewma_microseconds;
+		struct reflector_comparison *comparison = &comparisons[index];
 
-		comparisons[index] = (struct reflector_comparison){
-			.minimum_sum_owd_baselines_microseconds = minimum_baseline,
-			.sum_owd_baselines_microseconds = sum_baselines,
-			.sum_owd_baselines_delta_microseconds =
-				absolute_difference(sum_baselines, minimum_baseline),
-			.minimum_download_delta_ewma_microseconds = minimum_download_delta_ewma,
-			.download_delta_ewma_microseconds = download_delta_ewma,
-			.download_delta_ewma_delta_microseconds =
-				signed_difference(download_delta_ewma, minimum_download_delta_ewma),
-			.minimum_upload_delta_ewma_microseconds = minimum_upload_delta_ewma,
-			.upload_delta_ewma_microseconds = upload_delta_ewma,
-			.upload_delta_ewma_delta_microseconds =
-				signed_difference(upload_delta_ewma, minimum_upload_delta_ewma)
-		};
+		comparison->minimum_sum_owd_baselines_microseconds = minimum_baseline;
+		comparison->sum_owd_baselines_delta_microseconds = absolute_difference(
+			comparison->sum_owd_baselines_microseconds,
+			minimum_baseline
+		);
+		comparison->minimum_download_delta_ewma_microseconds = minimum_download_delta_ewma;
+		comparison->download_delta_ewma_delta_microseconds = signed_difference(
+			comparison->download_delta_ewma_microseconds,
+			minimum_download_delta_ewma
+		);
+		comparison->minimum_upload_delta_ewma_microseconds = minimum_upload_delta_ewma;
+		comparison->upload_delta_ewma_delta_microseconds = signed_difference(
+			comparison->upload_delta_ewma_microseconds,
+			minimum_upload_delta_ewma
+		);
 	}
 }
 
@@ -139,12 +134,11 @@ void reflector_rotate(
 	size_t pinger
 )
 {
-	size_t bad_reflector;
+	size_t bad_reflector = reflector_order[pinger];
+	size_t *standby = &reflector_order[active_count];
 
-	bad_reflector = reflector_order[pinger];
-	reflector_order[pinger] = reflector_order[active_count];
-	memmove(&reflector_order[active_count],
-		&reflector_order[active_count + 1U],
-		(reflector_count - active_count - 1U) * sizeof(*reflector_order));
+	/* The first standby takes the slot; the bad reflector queues last. */
+	reflector_order[pinger] = standby[0];
+	memmove(standby, standby + 1, (reflector_count - active_count - 1U) * sizeof(*standby));
 	reflector_order[reflector_count - 1U] = bad_reflector;
 }

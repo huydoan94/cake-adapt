@@ -17,7 +17,10 @@
 #include "common/error.h"
 #include "logging/log.h"
 
+/* Names in tcpdelay.bpf.c: the program and its maps. */
 #define FILTER_PROGRAM "tcpdelay"
+#define FILTER_COUNTERS "counters"
+#define FILTER_SAMPLES "samples"
 
 static int
 forward_libbpf_message(enum libbpf_print_level level, const char *format, va_list arguments)
@@ -27,12 +30,19 @@ forward_libbpf_message(enum libbpf_print_level level, const char *format, va_lis
 
 	if (level == LIBBPF_DEBUG)
 		return 0;
-	vsnprintf(message, sizeof(message), format, arguments);
+	(void)vsnprintf(message, sizeof(message), format, arguments);
 	length = strlen(message);
 	if (length > 0U && message[length - 1U] == '\n')
 		message[length - 1U] = '\0';
 	log_message(level == LIBBPF_WARN ? LOG_LEVEL_WARNING : LOG_LEVEL_DEBUG, "%s", message);
 	return 0;
+}
+
+/* The closed state: nothing allocated and no socket. */
+static void capture_clear(struct tcpdelay_capture *capture)
+{
+	memset(capture, 0, sizeof(*capture));
+	capture->socket_descriptor = -1;
 }
 
 static int add_record(void *context, void *data, size_t size)
@@ -79,9 +89,10 @@ static int load_program(
 			strerror(errno)
 		);
 	program = bpf_object__find_program_by_name(capture->object, FILTER_PROGRAM);
-	capture->counters_descriptor = bpf_object__find_map_fd_by_name(capture->object, "counters");
+	capture->counters_descriptor =
+		bpf_object__find_map_fd_by_name(capture->object, FILTER_COUNTERS);
 	capture->ring = ring_buffer__new(
-		bpf_object__find_map_fd_by_name(capture->object, "samples"),
+		bpf_object__find_map_fd_by_name(capture->object, FILTER_SAMPLES),
 		add_record,
 		capture->estimator,
 		NULL
@@ -147,8 +158,7 @@ int tcpdelay_capture_open(
 	int program;
 	int cpus;
 
-	memset(capture, 0, sizeof(*capture));
-	capture->socket_descriptor = -1;
+	capture_clear(capture);
 	capture->estimator = estimator;
 	libbpf_set_print(forward_libbpf_message);
 
@@ -175,8 +185,7 @@ int tcpdelay_capture_open(
 		error_set(
 			error,
 			error_size,
-			"could not open TCP delay program %s: %s",
-			object_path,
+			"could not allocate TCP delay counters: %s",
 			strerror(errno)
 		);
 		goto fail;
@@ -222,6 +231,5 @@ void tcpdelay_capture_close(struct tcpdelay_capture *capture)
 	ring_buffer__free(capture->ring);
 	bpf_object__close(capture->object);
 	free(capture->counter_values);
-	memset(capture, 0, sizeof(*capture));
-	capture->socket_descriptor = -1;
+	capture_clear(capture);
 }

@@ -97,25 +97,20 @@ void response_timestamp(
 	bool *stale
 )
 {
-	uint64_t age_microseconds = 0U;
+	uint64_t age_microseconds;
 
 	if (response_realtime_microseconds > processing_realtime_microseconds) {
-		age_microseconds =
-			response_realtime_microseconds - processing_realtime_microseconds;
 		*stale = false;
-		*response_monotonic_microseconds =
-			saturating_add(processing_monotonic_microseconds, age_microseconds);
+		*response_monotonic_microseconds = saturating_add(
+			processing_monotonic_microseconds,
+			response_realtime_microseconds - processing_realtime_microseconds
+		);
 		return;
 	}
-	if (processing_realtime_microseconds > response_realtime_microseconds) {
-		age_microseconds =
-			processing_realtime_microseconds - response_realtime_microseconds;
-	}
+	age_microseconds = processing_realtime_microseconds - response_realtime_microseconds;
 	*stale = age_microseconds > LATENCY_STALE_RESPONSE_MICROSECONDS;
 	*response_monotonic_microseconds =
-		age_microseconds >= processing_monotonic_microseconds ?
-			0U :
-			processing_monotonic_microseconds - age_microseconds;
+		saturating_sub(processing_monotonic_microseconds, age_microseconds);
 }
 
 bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp)
@@ -124,8 +119,7 @@ bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp)
 
 	if (clock_gettime(clock_identifier, &value) != 0 || value.tv_sec < 0)
 		return false;
-	*timestamp = (uint64_t)value.tv_sec * MICROSECONDS_PER_SECOND +
-		     (uint64_t)value.tv_nsec / NANOSECONDS_PER_MICROSECOND;
+	*timestamp = timespec_microseconds(&value);
 	return true;
 }
 

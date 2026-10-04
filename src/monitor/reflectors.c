@@ -19,22 +19,26 @@ static bool entropy_u32(uint32_t *value, void *context)
 	return getentropy(value, sizeof(*value)) == 0;
 }
 
+/* The reflector a pinger slot (or a standby position past them) polls. */
+static const char *reflector_name(const struct monitor *monitor, size_t slot)
+{
+	return monitor->config->reflectors[monitor->reflectors.order[slot]];
+}
+
 void reflectors_active(const struct monitor *monitor, const char *targets[])
 {
-	const struct config *config = monitor->config;
 	size_t index;
 
-	for (index = 0U; index < (size_t)config->no_pingers; index++)
-		targets[index] = config->reflectors[monitor->reflectors.order[index]];
+	for (index = 0U; index < (size_t)monitor->config->no_pingers; index++)
+		targets[index] = reflector_name(monitor, index);
 }
 
 size_t reflectors_find(const struct monitor *monitor, const char *target)
 {
-	const struct config *config = monitor->config;
 	size_t index;
 
-	for (index = 0U; index < (size_t)config->no_pingers; index++)
-		if (strcmp(config->reflectors[monitor->reflectors.order[index]], target) == 0)
+	for (index = 0U; index < (size_t)monitor->config->no_pingers; index++)
+		if (strcmp(reflector_name(monitor, index), target) == 0)
 			return index;
 	return SIZE_MAX;
 }
@@ -72,53 +76,47 @@ replace_active_reflector(struct monitor *monitor, size_t pinger, uint64_t timest
 	size_t active_count = (size_t)config->no_pingers;
 	size_t reflector_count = (size_t)config->reflector_count;
 	size_t bad_index = monitor->reflectors.order[pinger];
+	const char *bad = config->reflectors[bad_index];
+	bool rotate = reflector_count > active_count;
 
-	if (reflector_count <= active_count) {
+	if (!rotate) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"No additional reflectors specified so just retaining: %s.",
-			config->reflectors[bad_index]
-		);
-		health_reset(&monitor->reflectors.health[pinger], timestamp_microseconds);
-		log_message(
-			LOG_LEVEL_DEBUG,
-			"Resetting reflector offences associated with reflector: %s.",
-			config->reflectors[bad_index]
-		);
-		return;
-	}
-
-	log_message(
-		LOG_LEVEL_DEBUG,
-		"replacing reflector: %s with %s.",
-		config->reflectors[bad_index],
-		config->reflectors[monitor->reflectors.order[active_count]]
-	);
-	if (config->retain_reflector_stats) {
-		log_message(
-			LOG_LEVEL_DEBUG,
-			"Retaining reflector stats associated with: %s",
-			config->reflectors[bad_index]
+			bad
 		);
 	} else {
 		log_message(
 			LOG_LEVEL_DEBUG,
-			"Discarding reflector stats associated with %s",
-			config->reflectors[bad_index]
+			"replacing reflector: %s with %s.",
+			bad,
+			reflector_name(monitor, active_count)
 		);
-		tracker_reset(&monitor->reflectors.trackers[bad_index]);
+		if (config->retain_reflector_stats) {
+			log_message(
+				LOG_LEVEL_DEBUG,
+				"Retaining reflector stats associated with: %s",
+				bad
+			);
+		} else {
+			log_message(
+				LOG_LEVEL_DEBUG,
+				"Discarding reflector stats associated with %s",
+				bad
+			);
+			tracker_reset(&monitor->reflectors.trackers[bad_index]);
+		}
+		reflector_rotate(monitor->reflectors.order, reflector_count, active_count, pinger);
 	}
-
-	reflector_rotate(monitor->reflectors.order, reflector_count, active_count, pinger);
 	health_reset(&monitor->reflectors.health[pinger], timestamp_microseconds);
 	log_message(
 		LOG_LEVEL_DEBUG,
 		"Resetting reflector offences associated with reflector: %s.",
-		config->reflectors[monitor->reflectors.order[pinger]]
+		reflector_name(monitor, pinger)
 	);
-
 	/* fping owns all active targets in one process, so rotate them together. */
-	pingers_reopen(monitor);
+	if (rotate)
+		pingers_reopen(monitor);
 }
 
 static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestamp_microseconds)
@@ -136,8 +134,8 @@ static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestam
 
 	for (index = 0U; index < active_count; index++) {
 		const struct reflector_comparison *comparison = &comparisons[index];
-		const char *reflector =
-			monitor->config->reflectors[monitor->reflectors.order[index]];
+		const char *reflector = reflector_name(monitor, index);
+		const char *column;
 
 		if (monitor->config->output_reflector_stats) {
 			/* Keep both upstream columns even though fping shares the delay. */
@@ -173,33 +171,23 @@ static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestam
 		}
 
 		if (comparison->sum_owd_baselines_delta_microseconds >
-		    monitor->config->reflector_sum_owd_baselines_delta_threshold_microseconds) {
-			log_message(
-				LOG_LEVEL_DEBUG,
-				"Warning: reflector: %s sum_owd_baselines_us exceeds the"
-				" minimum by set threshold.",
-				reflector
-			);
-		} else if ((uint64_t)comparison->download_delta_ewma_delta_microseconds >
-			   monitor->config->reflector_owd_delta_ewma_delta_threshold_microseconds) {
-			log_message(
-				LOG_LEVEL_DEBUG,
-				"Warning: reflector: %s dl_owd_delta_ewma_us exceeds the"
-				" minimum by set threshold.",
-				reflector
-			);
-		} else if ((uint64_t)comparison->upload_delta_ewma_delta_microseconds >
-			   monitor->config->reflector_owd_delta_ewma_delta_threshold_microseconds) {
-			log_message(
-				LOG_LEVEL_DEBUG,
-				"Warning: reflector: %s ul_owd_delta_ewma_us exceeds the"
-				" minimum by set threshold.",
-				reflector
-			);
-		} else {
+		    monitor->config->reflector_sum_owd_baselines_delta_threshold_microseconds)
+			column = REFLECTOR_SUM_OWD_BASELINES;
+		else if ((uint64_t)comparison->download_delta_ewma_delta_microseconds >
+			 monitor->config->reflector_owd_delta_ewma_delta_threshold_microseconds)
+			column = REFLECTOR_DL_OWD_DELTA_EWMA;
+		else if ((uint64_t)comparison->upload_delta_ewma_delta_microseconds >
+			 monitor->config->reflector_owd_delta_ewma_delta_threshold_microseconds)
+			column = REFLECTOR_UL_OWD_DELTA_EWMA;
+		else
 			continue;
-		}
 
+		log_message(
+			LOG_LEVEL_DEBUG,
+			"Warning: reflector: %s %s exceeds the minimum by set threshold.",
+			reflector,
+			column
+		);
 		replace_active_reflector(monitor, index, timestamp_microseconds);
 		return true;
 	}
@@ -231,7 +219,7 @@ static bool run_scheduled_reflector_work(struct monitor *monitor, uint64_t times
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"reflector: %s randomly selected for replacement.",
-			monitor->config->reflectors[monitor->reflectors.order[pinger]]
+			reflector_name(monitor, pinger)
 		);
 		replace_active_reflector(monitor, pinger, timestamp_microseconds);
 		return true;
@@ -285,6 +273,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 	for (index = 0U; index < (size_t)monitor->config->no_pingers; index++) {
 		enum reflector_health_result result =
 			health_check(&monitor->reflectors.health[index], timestamp_microseconds);
+		const char *reflector = reflector_name(monitor, index);
 
 		if (result == REFLECTOR_HEALTHY)
 			continue;
@@ -292,15 +281,16 @@ static void handle_health_timer(struct uloop_interval *timer)
 			LOG_LEVEL_DEBUG,
 			"no ping response from reflector: %s within"
 			" reflector_response_deadline: %.3fs",
-			monitor->config->reflectors[monitor->reflectors.order[index]],
-			(double)monitor->config->reflector_response_deadline_microseconds /
-				(double)MICROSECONDS_PER_SECOND
+			reflector,
+			seconds_from_microseconds(
+				monitor->config->reflector_response_deadline_microseconds
+			)
 		);
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"reflector=%s, sum_reflector_offences=%zu and"
 			" reflector_misbehaving_detection_thr=%" PRIu64,
-			monitor->config->reflectors[monitor->reflectors.order[index]],
+			reflector,
 			monitor->reflectors.health[index].offence_count,
 			monitor->config->reflector_misbehaving_detection_threshold
 		);
@@ -308,7 +298,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 			log_message(
 				LOG_LEVEL_DEBUG,
 				"Warning: reflector: %s seems to be misbehaving.",
-				monitor->config->reflectors[monitor->reflectors.order[index]]
+				reflector
 			);
 			if (!reflector_replaced) {
 				replace_active_reflector(monitor, index, timestamp_microseconds);
@@ -319,7 +309,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 					"Warning: skipping replacement of reflector: %s given"
 					" prior replacement within this reflector health check"
 					" cycle.",
-					monitor->config->reflectors[monitor->reflectors.order[index]]
+					reflector
 				);
 			}
 		}
@@ -360,10 +350,9 @@ int reflectors_start(struct monitor *monitor, uint64_t start_microseconds)
 	if (config->randomize_reflectors) {
 		size_t randomized_order[CONFIG_MAX_REFLECTORS];
 		size_t reflector_count = (size_t)config->reflector_count;
+		size_t size = reflector_count * sizeof(*randomized_order);
 
-		memcpy(randomized_order,
-		       monitor->reflectors.order,
-		       reflector_count * sizeof(*randomized_order));
+		memcpy(randomized_order, monitor->reflectors.order, size);
 		if (!shuffle(randomized_order, reflector_count, entropy_u32, NULL)) {
 			log_message(
 				LOG_LEVEL_WARNING,
@@ -371,9 +360,7 @@ int reflectors_start(struct monitor *monitor, uint64_t start_microseconds)
 				strerror(errno)
 			);
 		} else {
-			memcpy(monitor->reflectors.order,
-			       randomized_order,
-			       reflector_count * sizeof(*randomized_order));
+			memcpy(monitor->reflectors.order, randomized_order, size);
 		}
 	}
 	for (index = 0U; index < (size_t)config->no_pingers; index++) {
