@@ -132,7 +132,7 @@ differences are in integration and safety:
 
 - [Current-code flowcharts](flowchart/README.md) — architecture, event flow,
   controller decisions, CAKE updates, and lifecycle behavior.
-  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/tcp-measurement/flowchart/index.html).
 - [Controller comparison with cake-autorate](profiling/controller-comparison/README.md)
   — side-by-side VM runs and the replayed upstream traces.
 - [Resource use compared with cake-autorate](profiling/cake-autorate-resources/README.md)
@@ -140,7 +140,7 @@ differences are in integration and safety:
 - [End-to-end run and profiling, 2026-09-30](profiling/2026-09-30/README.md)
   — the final VM run, CPU before and after the optimization pass, flame graphs,
   and raw `perf` data.
-  [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html).
+  [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/tcp-measurement/profiling/2026-09-30/index.html).
 - [All profiling evidence](profiling/README.md), including the superseded first
   capture.
 
