@@ -4,7 +4,7 @@ This capture predates the optimization pass and the source restructure. Its
 function names refer to the old flat `src/` layout. The current profile is in
 [`../2026-09-30`](../2026-09-30/README.md).
 
-[View the rendered profiling dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-26/index.html),
+[View the rendered profiling dashboard](https://raw.githack.com/huydoan94/cake-adapt/tcp-measurement/profiling/2026-09-26/index.html),
 or open `index.html` locally. The hosted link reads the `main` branch and
 therefore reflects the latest version pushed to GitHub.
 
