@@ -27,10 +27,9 @@ struct cake_read_context {
 static void parse_options(struct nlattr *options, struct cake_observation *observation)
 {
 	static const struct nla_policy policy[TCA_CAKE_MAX + 1] = {
-		[TCA_CAKE_BASE_RATE64] = { .type = NLA_U64 },
-		[TCA_CAKE_ATM] = { .type = NLA_U32 },
-		[TCA_CAKE_OVERHEAD] = { .type = NLA_S32 },
-		[TCA_CAKE_RAW] = { .type = NLA_U32 },
+		[TCA_CAKE_BASE_RATE64] = { .type = NLA_U64 }, [TCA_CAKE_ATM] = { .type = NLA_U32 },
+		[TCA_CAKE_OVERHEAD] = { .type = NLA_S32 },    [TCA_CAKE_RAW] = { .type = NLA_U32 },
+		[TCA_CAKE_MPU] = { .type = NLA_U32 },
 	};
 	struct nlattr *attributes[TCA_CAKE_MAX + 1];
 
@@ -47,6 +46,8 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 		observation->overhead_bytes = nla_get_s32(attributes[TCA_CAKE_OVERHEAD]);
 	if (attributes[TCA_CAKE_RAW] != NULL)
 		observation->raw = true;
+	if (attributes[TCA_CAKE_MPU] != NULL)
+		observation->mpu_bytes = nla_get_u32(attributes[TCA_CAKE_MPU]);
 }
 
 uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)

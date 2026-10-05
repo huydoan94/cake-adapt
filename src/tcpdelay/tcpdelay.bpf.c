@@ -16,6 +16,7 @@
  */
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
+#include <linux/if_arp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -72,6 +73,70 @@ struct {
 	__type(key, __u32);
 	__type(value, struct tcpdelay_counters);
 } counters SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct tcpdelay_accounting);
+} accounting SEC(".maps");
+
+/* Packet taps push the Ethernet header back before running a RAW socket filter. */
+static __always_inline int network_offset(struct __sk_buff *skb, __u32 hardware_type, __u32 *offset)
+{
+	struct ethhdr ethernet;
+	__be16 protocol;
+
+	*offset = 0;
+	if (hardware_type == ARPHRD_NONE || hardware_type == ARPHRD_PPP ||
+	    hardware_type == ARPHRD_RAWIP) {
+		return skb->protocol == bpf_htons(ETH_P_IP) ||
+		       skb->protocol == bpf_htons(ETH_P_IPV6);
+	}
+	if (hardware_type != ARPHRD_ETHER ||
+	    bpf_skb_load_bytes(skb, 0, &ethernet, sizeof(ethernet)) < 0)
+		return 0;
+	*offset = sizeof(ethernet);
+	protocol = ethernet.h_proto;
+	return protocol == bpf_htons(ETH_P_IP) || protocol == bpf_htons(ETH_P_IPV6) ||
+	       protocol == bpf_htons(ETH_P_ARP);
+}
+
+/* Both counters use this one charge. Unsupported traffic leaves timing available. */
+static __always_inline __u64 outgoing_bytes(struct __sk_buff *skb, struct tcpdelay_counters *totals)
+{
+	__u32 zero = 0;
+	const struct tcpdelay_accounting *config = bpf_map_lookup_elem(&accounting, &zero);
+	__u32 offset = 0;
+
+	if (config == NULL)
+		goto unsupported;
+	if (!config->enabled)
+		return skb->len;
+	/* A post-qdisc GSO aggregate needs offload/header semantics unavailable here. */
+	if (skb->gso_size || skb->vlan_present ||
+	    (config->cake.atm_mode != CAKE_ATM_NONE && config->cake.atm_mode != CAKE_ATM_ATM &&
+	     config->cake.atm_mode != CAKE_ATM_PTM))
+		goto unsupported;
+	/* Tagged Ethernet changes at offload boundaries; do not infer its charge. */
+	if (config->hardware_type == ARPHRD_ETHER) {
+		struct ethhdr ethernet;
+
+		if (bpf_skb_load_bytes(skb, 0, &ethernet, sizeof(ethernet)) < 0 ||
+		    ethernet.h_proto == bpf_htons(ETH_P_8021Q) ||
+		    ethernet.h_proto == bpf_htons(ETH_P_8021AD))
+			goto unsupported;
+	}
+	if (!config->cake.raw && !network_offset(skb, config->hardware_type, &offset))
+		goto unsupported;
+	if (offset > skb->len)
+		goto unsupported;
+	return cake_accounted_bytes(&config->cake, skb->len, offset);
+
+unsupported:
+	totals->unaccounted_packets++;
+	return 0;
+}
 
 static __always_inline int load(struct __sk_buff *skb, __u32 offset, void *to, __u32 length)
 {
@@ -269,6 +334,7 @@ int tcpdelay(struct __sk_buff *skb)
 {
 	/* Only outgoing packets are counted, so only they look the counters up. */
 	struct tcpdelay_counters *totals = NULL;
+	__u64 charge = 0;
 	struct tcpdelay_record_flow flow = {};
 	__u8 options[TCP_OPTIONS_MAX] = {};
 	struct tcphdr tcp;
@@ -288,7 +354,8 @@ int tcpdelay(struct __sk_buff *skb)
 		/* For the verifier; the array's one entry exists from creation. */
 		if (totals == NULL)
 			return 0;
-		totals->upload_bytes += skb->len;
+		charge = outgoing_bytes(skb, totals);
+		totals->upload_bytes += charge;
 	}
 	if (parse_ip(skb, &flow, &tcp_offset, &ip_payload) < 0 ||
 	    load(skb, tcp_offset, &tcp, sizeof(tcp)) < 0) {
@@ -297,7 +364,7 @@ int tcpdelay(struct __sk_buff *skb)
 	/* A pure ACK carries no data and none of SYN, FIN or RST. */
 	if (totals != NULL && ip_payload == tcp.doff * 4U && tcp.ack && !tcp.syn && !tcp.fin &&
 	    !tcp.rst) {
-		totals->ack_bytes += skb->len;
+		totals->ack_bytes += charge;
 	}
 	options_length = tcp.doff * 4U;
 	if (options_length < sizeof(tcp) + TCP_OPTION_TIMESTAMP_LENGTH)

@@ -8,7 +8,7 @@
         {
             "label": "Test cake-adapt (host)",
             "type": "shell",
-            "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; headers=$(cd \"$sdk\" && echo \"$PWD\"/staging_dir/target-*/usr/include); make -C tests check check-netlink check-config UCI_CFLAGS=\"-isystem $headers\"",
+            "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; headers=$(cd \"$sdk\" && echo \"$PWD\"/staging_dir/target-*/usr/include); make -C tests check check-netlink check-config check-tcpdelay UCI_CFLAGS=\"-isystem $headers\"",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
