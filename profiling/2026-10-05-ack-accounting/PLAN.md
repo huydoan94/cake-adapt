@@ -65,3 +65,13 @@ The local harness now uses MTU1600; it was not rerun. Remaining fallback paths
 were checked through the actual filter's native helper seam and sanitizers.
 Test payloads were collected and removed; no further VM tests are authorized by
 this batch.
+
+## Authorized follow-up
+
+The user requested completing the pending cases on 2026-10-05. Reuse the
+corrected MTU1600 harness and exact prior probe/objects. Run only `pending`: QinQ,
+unknown EtherType, RAW unknown EtherType, nonsplit GSO, RAW GSO and disabled
+accounting, before/after once each. No new preflight for this existing harness.
+Preserve the original counter/JIT/run-count assertions and restoration checks.
+Deadline 90 seconds; stop on the first failed assertion, retain raw output.
+Any retry must address that exact failure; two failures require reassessment.

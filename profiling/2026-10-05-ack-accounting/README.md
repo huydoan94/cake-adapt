@@ -15,8 +15,8 @@ one 1514-byte data frame. The before object is unchanged from a0b52af; the imple
 | --- | ---: | ---: | ---: |
 | RAW, overhead0 | 66 / 1580 | 66 / 1580 | 66 / 1514 |
 | Ethernet, overhead0, MPU0 | 66 / 1580 | 52 / 1552 | 52 / 1500 |
-| Ethernet, overhead44, MPU0 | 66 / 1580 | 96 / 1640 | 96 / 1544 |
-| Ethernet, overhead0, MPU84 | 66 / 1580 | 84 / 1584 | 84 / 1500 |
+| Ethernet, overhead 44, MPU0 | 66 / 1580 | 96 / 1640 | 96 / 1544 |
+| Ethernet, overhead0, MPU 84 | 66 / 1580 | 84 / 1584 | 84 / 1500 |
 | Ethernet, overhead-20, MPU0 | 66 / 1580 | 32 / 1512 | 32 / 1480 |
 | ATM, overhead0, MPU0 | 66 / 1580 | 106 / 1802 | 106 / 1696 |
 | PTM, overhead0, MPU0 | 66 / 1580 | 53 / 1577 | 53 / 1524 |
@@ -31,7 +31,7 @@ same-handle qdisc recreation. These seams and the scalar accounting tests pass
 ASan/UBSan (LeakSanitizer disabled because this environment uses ptrace).
 Both SDK builds pass; the controller replay retains 4703 matching decisions.
 
-## Partial batch and retained failures
+## Completed follow-up and retained failures
 
 The first candidate preflight was interpreted despite correct byte counts.
 i386 JIT rejects BPF-to-BPF calls and 64-bit division. Forcing the small shared
@@ -42,19 +42,34 @@ map is added. These are ABI/capacity sizes, not total allocated memory.
 The x86 packaged executable grows 4096 bytes (102405 to 106501); Filogic stays
 98313 bytes. Two-packet run times are retained but establish no CPU-cost claim.
 
-The first batch kernel check caught tc's Ethernet preset selecting MPU84;
+The first batch kernel check caught tc's Ethernet preset selecting MPU 84;
 explicit MPU0 fixed the intended test setup. The final retry then stopped at
 the double-tagged data frame: the veth MTU rejected it with Message too large.
-No more VM tests were run. QinQ, unknown-protocol, nonsplit-GSO and disabled
-accounting kernel cases remain unverified; their relevant fallback branches
-are covered locally. No generic offload parser was added. The harness
-now sets MTU1600 for both isolated veth endpoints; that correction has not been
-rerun. `raw/run-as-executed.sh` preserves the tested version.
+That attempt ended as planned. The user then authorized completing only the
+pending cases using MTU 1600. The follow-up ran QinQ, unknown protocol, RAW
+unknown protocol, nonsplit GSO, RAW GSO and disabled accounting once each on
+both exact filters. All twelve cases passed, JIT lengths stayed 6701/8483,
+run counts were exactly two per pair or one per GSO frame, with no ring loss.
 
-This verifies supported packet charges and a fallback, not controlled download
-headroom, throughput, internet reflectors, arm64 runtime, or scheduler/tuple
-lifetime safety. Tuple-lifetime finding 2 remains deferred. The complete extended
-batch is **partial**, not a passing acceptance campaign.
+| Follow-up | After ACK / total bytes | Incomplete packets |
+| --- | ---: | ---: |
+| QinQ | 0 / 0 | 2 |
+| Unknown EtherType | 0 / 0 | 2 |
+| RAW unknown EtherType | 0 / 1580 | 0 |
+| Nonsplit GSO / RAW GSO | 0 / 0 | 1 |
+| Accounting disabled | 66 / 1580 | 0 |
+
+`raw/pending/` retains output, exact artifacts, restoration snapshots, exit 0
+and unchanged log inode 163. Original service/PIDs/package/configuration/root
+qdisc options, links/routes and namespace list matched before/after; owned
+namespace/probe/payloads were removed after collection. The extended kernel
+cases are now complete; prior failed attempts remain preserved. `raw/run-as-executed.sh`
+is the earlier harness, while `tools/run.sh pending` is the corrected follow-up.
+
+This verifies conservative packet charges/fallbacks, not customer-link headroom,
+internet reflectors, arm64 runtime, or scheduler/tuple-lifetime safety.
+Tuple-lifetime finding 2 remains deferred. A separately authorized bounded
+control comparison is recorded in `../2026-10-05-ack-control/`.
 
 [PLAN.md](PLAN.md) records the limits, diagnosis and stopping decisions.
 [tools/probe.c](tools/probe.c) uses the production capture for after and safely
