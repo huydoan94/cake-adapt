@@ -18,6 +18,11 @@ spin-lock helpers are unavailable to this socket-filter program type. Safely
 handling lost reset evidence requires a larger protocol change, so the existing
 scope stop condition was honored. No production changes or VM runs followed.
 
+The [tuple-lifetime work orders](TUPLE_LIFETIME_WORK_ORDERS.md) now define the
+problem, portable design requirements, dependent tasks and acceptance gates.
+They require common behavior across OpenWrt architectures, including 32/64-bit
+and both byte orders. They are planning work; no redesign is selected or started.
+
 **2026-10-05: standing-floor and conflicting ACK-delay mitigations implemented.**
 Fresh clear fping permits rolling floor adaptation; congestion or unavailable
 independent observations hold the retained minimum. TCP direction classifications
