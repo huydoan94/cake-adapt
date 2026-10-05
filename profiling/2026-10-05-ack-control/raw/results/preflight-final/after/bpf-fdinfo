@@ -1,0 +1,13 @@
+pos:	0
+flags:	02000002
+mnt_id:	10
+ino:	1035
+prog_type:	1
+prog_jited:	1
+prog_tag:	1a92932acb008231
+memlock:	8192
+prog_id:	56
+run_time_ns:	0
+run_cnt:	0
+recursion_misses:	0
+verified_insns:	199283

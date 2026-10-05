@@ -1,0 +1,86 @@
+# hz=100 page_bytes=4096 possible_cpus=2
+# program_id=52 jit_bytes=8483 xlated_bytes=4776
+# pos:	0
+# flags:	02000002
+# mnt_id:	10
+# ino:	1035
+# prog_type:	1
+# prog_jited:	1
+# prog_tag:	1a92932acb008231
+# memlock:	8192
+# prog_id:	52
+# run_time_ns:	0
+# run_cnt:	0
+# recursion_misses:	0
+# verified_insns:	199283
+# map=counters type=6 key=4 value=32 max_entries=1
+# pos:	0
+# flags:	02000002
+# mnt_id:	10
+# ino:	1035
+# map_type:	6
+# key_size:	4
+# value_size:	32
+# max_entries:	1
+# map_flags:	0x0
+# map_extra:	0x0
+# memlock:	268
+# map_id:	58
+# frozen:	0
+# map=accounting type=2 key=4 value=24 max_entries=1
+# pos:	0
+# flags:	02000002
+# mnt_id:	10
+# ino:	1035
+# map_type:	2
+# key_size:	4
+# value_size:	24
+# max_entries:	1
+# map_flags:	0x0
+# map_extra:	0x0
+# memlock:	224
+# map_id:	59
+# frozen:	0
+# map=flows type=9 key=36 value=32 max_entries=1024
+# pos:	0
+# flags:	02000002
+# mnt_id:	10
+# ino:	1035
+# map_type:	9
+# key_size:	36
+# value_size:	32
+# max_entries:	1024
+# map_flags:	0x0
+# map_extra:	0x0
+# memlock:	107456
+# map_id:	56
+# frozen:	0
+# map=departures type=9 key=40 value=8 max_entries=8192
+# pos:	0
+# flags:	02000002
+# mnt_id:	10
+# ino:	1035
+# map_type:	9
+# key_size:	40
+# value_size:	8
+# max_entries:	8192
+# map_flags:	0x0
+# map_extra:	0x0
+# memlock:	656320
+# map_id:	55
+# frozen:	0
+# map=samples type=27 key=0 value=0 max_entries=262144
+# pos:	0
+# flags:	02000002
+# mnt_id:	10
+# ino:	1035
+# map_type:	27
+# key_size:	0
+# value_size:	0
+# max_entries:	262144
+# map_flags:	0x0
+# map_extra:	0x0
+# memlock:	275148
+# map_id:	57
+# frozen:	0
+realtime_us monotonic_us daemon_ticks rss_pages runs runtime_ns ring_full ack_bytes upload_bytes unaccounted host_user host_nice host_system host_idle host_iowait host_irq host_softirq host_steal

@@ -1,0 +1,9 @@
+PASS acceptance exit0
+PASS originalservicePID2649 and serviceconfiguration identical
+PASS package/file/config/init/rootqdisc/link/route/namespacestate identical
+PASS protectedlog inode163 unchanged
+PASS foregroundSSH completed and supervisor reaped/exited
+PASS finalread-onlyaudit: noowned before/after/sample/udpping executable
+PASS no testnamespaces or temporary /lib/bpf/cake-adapt-tcpdelay.o
+PASS collectedtestpayload /tmp/cake-adapt-ack-control-20261005 removed
+PASS protectedlog still inode163 afterpayload removal
