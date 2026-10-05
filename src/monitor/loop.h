@@ -185,12 +185,7 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microse
 
 /* tcpdelay.c */
 
-void tcp_observe(
-	struct monitor *monitor,
-	uint64_t timestamp_microseconds,
-	struct controller_queue_input *queue,
-	struct controller_ack_input *acks
-);
+void tcp_observe(struct monitor *monitor, struct controller_input *input);
 
 /* Empties the ring buffer between ping replies; see tcpdelay.c. */
 void tcp_drain(struct monitor *monitor);

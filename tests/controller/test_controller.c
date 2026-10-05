@@ -717,40 +717,37 @@ measured_queue(int64_t download_microseconds, int64_t upload_microseconds)
 
 static void test_measured_queues_attribute_shared_delay(void)
 {
-	/*
-	 * Download delivers fully, which alone would blame upload. Upload, with no
-	 * measured queue, also sees no delay and raises its rate under high load.
-	 */
+	/* Full delivery blames upload; a conflicting download-only pair falls back. */
 	check_queue_attribution(
 		true,
 		8U * MEBABIT,
 		measured_queue(40000, 0),
-		6U * MEBABIT,
-		8320U * 1000U
+		8U * MEBABIT,
+		6U * MEBABIT
 	);
-	/* Download delivers less, which alone would blame download. */
+	/* Partial loaded delivery blames download despite a conflicting upload-only pair. */
 	check_queue_attribution(
 		true,
 		7U * MEBABIT,
 		measured_queue(1000, 60000),
-		8320U * 1000U,
-		6U * MEBABIT
+		6U * MEBABIT,
+		8U * MEBABIT
 	);
-	/* Both hold at least a quarter; download's smaller share cuts less. */
+	/* A two-direction pair conflicts with full delivery's upload-only attribution. */
 	check_queue_attribution(
 		true,
 		8U * MEBABIT,
 		measured_queue(10000, 30000),
-		7920U * 1000U,
+		8U * MEBABIT,
 		6U * MEBABIT
 	);
-	/* Less than a quarter is not blamed. */
+	/* A sub-quarter download share cannot veto partial delivery's download attribution. */
 	check_queue_attribution(
 		true,
 		7U * MEBABIT,
 		measured_queue(9000, 30000),
-		8U * MEBABIT,
-		6U * MEBABIT
+		6U * MEBABIT,
+		8U * MEBABIT
 	);
 	/* Too little measured queue to explain the delay: delivery decides. */
 	check_queue_attribution(
@@ -796,12 +793,13 @@ static void test_measured_queues_split_round_trip_delta(void)
 	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
 	assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
 
-	/* The 50 ms round trip splits by the 10/40 ms shares: 10 ms down, 40 ms up. */
-	input.queue = measured_queue(10000, 40000);
+	/* The consistent 10/30 ms shares split 50 ms as 12.5 ms down, 37.5 ms up. */
+	input.download.traffic_rate_bits_per_second = 2U * MEBABIT;
+	input.queue = measured_queue(10000, 30000);
 	update_repeatedly(&controller, &input, &output, 6U);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
 	assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
-	assert(output.upload.average_delay_microseconds == 40000);
+	assert(output.upload.average_delay_microseconds == 37500);
 
 	/* Below the attribution floor, RTT/2 applies again. */
 	input.queue = measured_queue(1000, 3000);
@@ -810,7 +808,7 @@ static void test_measured_queues_split_round_trip_delta(void)
 	controller_close(&controller);
 }
 
-static void test_sustained_ack_wait_can_misdirect_shared_delay(void)
+static void test_sustained_ack_wait_does_not_override_delivery_evidence(void)
 {
 	struct controller controller;
 	struct controller_config config = adjusting_config();
@@ -822,10 +820,9 @@ static void test_sustained_ack_wait_can_misdirect_shared_delay(void)
 	input.queue = measured_queue(0, 40000);
 	init_controller(&controller, &config);
 	detect_congestion(&controller, &input, &output);
-	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
-	assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
-	assert(output.download.rate_bits_per_second == 8320U * 1000U);
-	assert(output.upload.rate_bits_per_second == 6U * MEBABIT);
+	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
+	assert(output.download.rate_bits_per_second == 6U * MEBABIT);
+	assert(output.upload.rate_bits_per_second >= 8U * MEBABIT);
 	controller_close(&controller);
 
 	/* The same false pair alone, with clear fping latency, does not cut rates. */
@@ -928,6 +925,7 @@ static void test_attribution_changes_are_reported(void)
 	assert(output.upload.bufferbloat_attributed);
 	assert(!output.upload.bufferbloat_attribution_changed);
 
+	input.download.traffic_rate_bits_per_second = 7U * MEBABIT;
 	input.queue = measured_queue(40000, 0);
 	controller_update(&controller, &input, &output);
 	assert(output.download.bufferbloat_attributed &&
@@ -1643,7 +1641,7 @@ int main(void)
 	test_measured_queues_attribute_shared_delay();
 	test_zero_measured_queues_keep_delivery_fallback();
 	test_measured_queues_split_round_trip_delta();
-	test_sustained_ack_wait_can_misdirect_shared_delay();
+	test_sustained_ack_wait_does_not_override_delivery_evidence();
 	test_ack_share_follows_other_traffic();
 	test_attribution_changes_are_reported();
 	test_severe_bufferbloat_reduces_both_rates();

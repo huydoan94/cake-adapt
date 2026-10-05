@@ -102,17 +102,25 @@ differences are in integration and safety:
   - `tcp_delay_attribution` (default off, `fping` only): measure each
     direction's queueing delay from TCP timestamps with an eBPF socket filter
     on the upload interface (`/lib/bpf/cake-adapt-tcpdelay.o`, loaded with
-    libbpf). It sees packets after the upload CAKE and before the ingress IFB,
-    so it measures the ISP's queues, not ours. Once the measured queues total
-    at least 5 ms, fping's round-trip delay is split between the directions by
-    their measured shares instead of RTT/2 each way, and only a direction
-    holding at least a quarter of the queue is cut. With `output_processing_stats`
+    libbpf). It sees packets after upload CAKE and before the ingress IFB, and
+    measures TCP timing changes that include both path delay and remote
+    response timing. Once measured queues total at least 5 ms, fping's
+    round-trip delay is split by their measured shares only when both
+    quarter-share classifications agree with the download-delivery heuristic;
+    only a direction holding at least a quarter of the queue is then cut. With
+    `output_processing_stats`
     the estimates are logged as `TCP_QUEUE` records.
     Directional estimates now come from one flow: prefer a fresh complete pair,
     then the longest measurement history, instead of independent minima across
     flows. This keeps a new connection's congested baseline from overwriting a
-    fresh established pair. Estimates remain relative to rolling per-flow
-    baselines; age alone cannot prove that the initial path was uncongested.
+    fresh established pair. Estimates remain relative to per-flow floors; age
+    alone cannot prove that a new flow's initial path was uncongested.
+    The estimator holds its minimum baseline while fping reports at least 5 ms
+    of added round-trip delay or no fresh independent observation is available.
+    This keeps standing queues visible, but persistent fping congestion can hold
+    a stale baseline; clear fping allows upward adaptation for route or clock
+    drift. A new flow's initial queue remains unknown, and TCP timestamps cannot
+    distinguish sustained receiver ACK wait from upload queueing.
     See the [flow-pair regression evidence](profiling/2026-10-04-flow-pair/README.md).
   - `ul_congest_ack_share` (default `0`, off): download ACKs can fill a slow
     upload. The same eBPF filter splits upload, after the upload CAKE, into

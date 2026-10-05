@@ -18,10 +18,33 @@ static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = {
 	UINT64_C(100000000),
 };
 
-static int64_t floor_update(struct tcpdelay_floor *floor, int64_t value, uint64_t now_ns)
+static int64_t floor_update(
+	struct tcpdelay_floor *floor,
+	int64_t value,
+	uint64_t now_ns,
+	enum tcpdelay_baseline_policy policy
+)
 {
 	uint64_t bucket = now_ns / FLOOR_BUCKET_NS;
 
+	if (policy == TCPDELAY_BASELINE_HOLD) {
+		if (!floor->valid) {
+			floor->current = value;
+			floor->previous = value;
+			floor->bucket = bucket;
+			floor->valid = true;
+		} else {
+			int64_t held = floor->current < floor->previous ? floor->current :
+									  floor->previous;
+
+			if (value < held)
+				held = value;
+			floor->current = held;
+			floor->previous = held;
+			floor->bucket = bucket;
+		}
+		return floor->current;
+	}
 	if (!floor->valid) {
 		floor->current = value;
 		floor->previous = value;
@@ -143,7 +166,8 @@ static void flow_measure(
 	size_t tick_index,
 	const struct tcpdelay_sample *sample,
 	int64_t *download_ns,
-	int64_t *upload_ns
+	int64_t *upload_ns,
+	enum tcpdelay_baseline_policy policy
 )
 {
 	int64_t elapsed_ns = (int64_t)(sample->arrival_ns - flow->first_arrival_ns);
@@ -151,8 +175,12 @@ static void flow_measure(
 
 	/* Arrival minus remote send time: only the downstream delay varies. */
 	*download_ns = elapsed_ns - remote_ns;
-	*download_ns -=
-		floor_update(&flow->download_floor[tick_index], *download_ns, sample->arrival_ns);
+	*download_ns -= floor_update(
+		&flow->download_floor[tick_index],
+		*download_ns,
+		sample->arrival_ns,
+		policy
+	);
 
 	/*
 	 * Remote send timestamp minus our departure of the echoed TSval includes both
@@ -168,7 +196,8 @@ static void flow_measure(
 		*upload_ns -= floor_update(
 			&flow->upload_floor[tick_index],
 			*upload_ns,
-			sample->arrival_ns
+			sample->arrival_ns,
+			policy
 		);
 	}
 }
@@ -176,6 +205,14 @@ static void flow_measure(
 void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator)
 {
 	memset(estimator, 0, sizeof(*estimator));
+}
+
+void tcpdelay_estimator_set_policy(
+	struct tcpdelay_estimator *estimator,
+	enum tcpdelay_baseline_policy policy
+)
+{
+	estimator->baseline_policy = policy;
 }
 
 void tcpdelay_estimator_add(
@@ -200,11 +237,25 @@ void tcpdelay_estimator_add(
 	flow->last_tsval = sample->tsval;
 	if (flow->tick_ns == 0U) {
 		for (index = 0U; index < TCPDELAY_TICKS; index++)
-			flow_measure(flow, index, sample, &download_ns, &upload_ns);
+			flow_measure(
+				flow,
+				index,
+				sample,
+				&download_ns,
+				&upload_ns,
+				estimator->baseline_policy
+			);
 		fit_tick(flow, sample->arrival_ns - flow->first_arrival_ns);
 		return;
 	}
-	flow_measure(flow, flow->tick_index, sample, &download_ns, &upload_ns);
+	flow_measure(
+		flow,
+		flow->tick_index,
+		sample,
+		&download_ns,
+		&upload_ns,
+		estimator->baseline_policy
+	);
 	if (download_ns > IMPLAUSIBLE_QUEUE_NS || upload_ns > IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
 		return;

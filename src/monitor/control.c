@@ -383,7 +383,7 @@ void control_update(
 	};
 
 	(void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
-	tcp_observe(monitor, input.timestamp_microseconds, &input.queue, &input.acks);
+	tcp_observe(monitor, &input);
 
 	controller_update(&control->controller, &input, &output);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {

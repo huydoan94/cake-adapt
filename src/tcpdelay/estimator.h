@@ -59,8 +59,15 @@ struct tcpdelay_flow {
 	struct tcpdelay_window upload;
 };
 
+/* HOLD preserves the lowest baseline; FOLLOW uses the rolling buckets. */
+enum tcpdelay_baseline_policy {
+	TCPDELAY_BASELINE_HOLD,
+	TCPDELAY_BASELINE_FOLLOW,
+};
+
 struct tcpdelay_estimator {
 	struct tcpdelay_flow flows[TCPDELAY_FLOWS];
+	enum tcpdelay_baseline_policy baseline_policy;
 };
 
 struct tcpdelay_estimate {
@@ -71,6 +78,11 @@ struct tcpdelay_estimate {
 };
 
 void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator);
+
+void tcpdelay_estimator_set_policy(
+	struct tcpdelay_estimator *estimator,
+	enum tcpdelay_baseline_policy policy
+);
 
 void tcpdelay_estimator_add(
 	struct tcpdelay_estimator *estimator,

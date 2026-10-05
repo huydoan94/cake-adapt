@@ -280,6 +280,7 @@ static void test_standing_queue_floor_tracks_two_absolute_phases(uint64_t phase_
 	uint64_t end_ns;
 
 	tcpdelay_estimator_init(&estimator);
+	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
 	now = send_span(&estimator, &remote, phase_ns, phase_ns + 3000U * MILLISECOND, 0U, 0U);
 	now = send_span(
 		&estimator,
@@ -310,7 +311,7 @@ static void test_standing_queue_floor_tracks_two_absolute_phases(uint64_t phase_
 	assert_close(estimate.download_queue_microseconds, 80);
 	assert_close(estimate.upload_queue_microseconds, 20);
 
-	/* Cross the second bucket boundary while the same queues remain present. */
+	/* FOLLOW keeps the existing rolling behavior after the second bucket. */
 	end_ns = expiry_ns + 100U * MILLISECOND - path_origin_ns - 80U * MILLISECOND;
 	now = send_span(&estimator, &remote, now, end_ns, 80U * MILLISECOND, 20U * MILLISECOND);
 	tcpdelay_estimator_result(
@@ -340,6 +341,160 @@ static void test_standing_queue_floor_tracks_two_absolute_phases(uint64_t phase_
 	assert(estimate.download_valid && estimate.upload_valid);
 	assert_close(estimate.download_queue_microseconds, 80);
 	assert_close(estimate.upload_queue_microseconds, 20);
+}
+
+static void test_hold_preserves_standing_queue(uint64_t phase_ns)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote remote = remote_flow(50017U, MILLISECOND, 113U);
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(&estimator, &remote, phase_ns, phase_ns + 3000U * MILLISECOND, 0U, 0U);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		now + 61000U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 80);
+	assert_close(estimate.upload_queue_microseconds, 20);
+
+	/* The original low-delay floor keeps the same standing queue visible. */
+	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 0U, 0U);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		now + 1000U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	result_after(&estimator, now, &estimate);
+	assert_close(estimate.download_queue_microseconds, 80);
+	assert_close(estimate.upload_queue_microseconds, 20);
+}
+
+static void test_hold_accepts_lower_raw_minimum(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote remote = remote_flow(50019U, MILLISECOND, 131U);
+	struct tcpdelay_floor *download_floor;
+	struct tcpdelay_floor *upload_floor;
+	int64_t initial_download_floor;
+	int64_t initial_upload_floor;
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(
+		&estimator,
+		&remote,
+		0U,
+		3000U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	initial_download_floor = estimator.flows[0].download_floor[0].current;
+	initial_upload_floor = estimator.flows[0].upload_floor[0].current;
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		now + 1000U * MILLISECOND,
+		60U * MILLISECOND,
+		10U * MILLISECOND
+	);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		now + 1000U * MILLISECOND,
+		40U * MILLISECOND,
+		5U * MILLISECOND
+	);
+
+	download_floor = &estimator.flows[0].download_floor[0];
+	upload_floor = &estimator.flows[0].upload_floor[0];
+	assert(download_floor->current < initial_download_floor);
+	assert(download_floor->previous == download_floor->current);
+	assert(upload_floor->current < initial_upload_floor);
+	assert(upload_floor->previous == upload_floor->current);
+
+	/* Returning to the initial 80/20-ms path shows delay relative to the lower floor. */
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		now + 1000U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 40);
+	assert_close(estimate.upload_queue_microseconds, 15);
+}
+
+static void test_follow_hold_follow_transition(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct remote remote = remote_flow(50018U, MILLISECOND, 127U);
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(
+		&estimator,
+		&remote,
+		0U,
+		3000U * MILLISECOND,
+		80U * MILLISECOND,
+		20U * MILLISECOND
+	);
+	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		31000U * MILLISECOND,
+		100U * MILLISECOND,
+		40U * MILLISECOND
+	);
+	assert(estimator.flows[0].download_floor[0].previous == 0);
+	assert(estimator.flows[0].download_floor[0].current == (int64_t)(20U * MILLISECOND));
+
+	/* HOLD retains FOLLOW's older low bucket when its current bucket has risen. */
+	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_HOLD);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		61000U * MILLISECOND,
+		140U * MILLISECOND,
+		60U * MILLISECOND
+	);
+	assert(estimator.flows[0].download_floor[0].current == 0);
+	assert(estimator.flows[0].download_floor[0].current ==
+	       estimator.flows[0].download_floor[0].previous);
+
+	/* With clear evidence, FOLLOW can move the floor up after its rolling window. */
+	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		121000U * MILLISECOND,
+		140U * MILLISECOND,
+		60U * MILLISECOND
+	);
+	assert(estimator.flows[0].download_floor[0].current == (int64_t)(60U * MILLISECOND));
+	assert(estimator.flows[0].download_floor[0].previous ==
+	       estimator.flows[0].download_floor[0].current);
 }
 
 static void test_samples_without_departure(void)
@@ -624,6 +779,10 @@ int main(void)
 	test_results_expire();
 	test_standing_queue_floor_tracks_two_absolute_phases(2000U * MILLISECOND);
 	test_standing_queue_floor_tracks_two_absolute_phases(22000U * MILLISECOND);
+	test_hold_preserves_standing_queue(2000U * MILLISECOND);
+	test_hold_preserves_standing_queue(22000U * MILLISECOND);
+	test_hold_accepts_lower_raw_minimum();
+	test_follow_hold_follow_transition();
 	test_samples_without_departure();
 	test_new_flow_keeps_established_queues(false);
 	test_new_flow_keeps_established_queues(true);
