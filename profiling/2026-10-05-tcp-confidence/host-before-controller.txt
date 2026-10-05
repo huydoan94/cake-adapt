@@ -1,0 +1,1 @@
+ack-conflict: dl_attributed=0 dl_rate=8320000 ul_attributed=1 ul_rate=6000000

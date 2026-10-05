@@ -1,0 +1,3 @@
+    183 /tmp/sqm-mon-test.log
+2646
+test payload cleanup complete
