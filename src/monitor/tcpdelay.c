@@ -76,7 +76,11 @@ static bool drain(struct monitor *monitor)
 }
 
 /* Opens, follows and drains the capture; false when it is not usable. */
-static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microseconds)
+static bool capture_ready(
+	struct monitor *monitor,
+	uint64_t timestamp_microseconds,
+	enum tcpdelay_baseline_policy policy
+)
 {
 	const struct config *config = monitor->config;
 	const struct monitor_direction *upload = &monitor->links.upload;
@@ -98,6 +102,7 @@ static bool capture_ready(struct monitor *monitor, uint64_t timestamp_microsecon
 				   !open_capture(monitor, upload))) {
 		return false;
 	}
+	tcpdelay_estimator_set_policy(&monitor->tcp.estimator, policy);
 	/* Records wait in the ring buffer until drained, even without attribution. */
 	if (!drain(monitor))
 		return false;
@@ -180,23 +185,24 @@ static void measure_ack_rate(
  * controller runs. Records are submitted without wakeups and wait in the ring
  * buffer until this or the next traffic tick drains them.
  */
-void tcp_observe(
-	struct monitor *monitor,
-	uint64_t timestamp_microseconds,
-	struct controller_queue_input *queue,
-	struct controller_ack_input *acks
-)
+void tcp_observe(struct monitor *monitor, struct controller_input *input)
 {
 	const struct config *config = monitor->config;
+	int64_t round_trip = input->download_latency.owd_delta_microseconds +
+			     input->upload_latency.owd_delta_microseconds;
+	enum tcpdelay_baseline_policy policy = TCPDELAY_BASELINE_HOLD;
 
-	queue->valid = false;
-	acks->valid = false;
-	if (!capture_ready(monitor, timestamp_microseconds))
+	input->queue.valid = false;
+	input->acks.valid = false;
+	if (input->download_latency.valid && input->upload_latency.valid &&
+	    round_trip < QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS)
+		policy = TCPDELAY_BASELINE_FOLLOW;
+	if (!capture_ready(monitor, input->timestamp_microseconds, policy))
 		return;
 	if (config->tcp_delay_attribution)
-		measure_queues(monitor, timestamp_microseconds, queue);
+		measure_queues(monitor, input->timestamp_microseconds, &input->queue);
 	if (config->ul_congest_ack_share_per_million != 0U)
-		measure_ack_rate(monitor, timestamp_microseconds, acks);
+		measure_ack_rate(monitor, input->timestamp_microseconds, &input->acks);
 }
 
 /*
@@ -206,8 +212,10 @@ void tcp_observe(
  */
 void tcp_drain(struct monitor *monitor)
 {
-	if (monitor->tcp.open)
+	if (monitor->tcp.open) {
+		tcpdelay_estimator_set_policy(&monitor->tcp.estimator, TCPDELAY_BASELINE_HOLD);
 		(void)drain(monitor);
+	}
 }
 
 void tcp_close(struct monitor *monitor)
