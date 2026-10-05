@@ -11,6 +11,13 @@ diagnosis and links to all test evidence are preserved in the
 Issue 2 remains open; historical candidate test results do not describe the
 restored source or establish deployment readiness.
 
+The [bounded resumption analysis](profiling/2026-10-05-tcp-lifetime-resume/README.md)
+also rejects a helper-mediated try-lock replacement: a contended replacement SYN
+can be discarded while later data still inherits the old generation. Kernel
+spin-lock helpers are unavailable to this socket-filter program type. Safely
+handling lost reset evidence requires a larger protocol change, so the existing
+scope stop condition was honored. No production changes or VM runs followed.
+
 **2026-10-05: standing-floor and conflicting ACK-delay mitigations implemented.**
 Fresh clear fping permits rolling floor adaptation; congestion or unavailable
 independent observations hold the retained minimum. TCP direction classifications
