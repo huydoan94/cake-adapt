@@ -19,7 +19,7 @@ WARNINGS := \
 # Test sources mirror src/; objects and binaries stay below build/.
 OBJECT_DIR ?= ../build/tests
 BINARY_DIR := $(OBJECT_DIR)/bin
-TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_helpers test_defaults test_estimator
+TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_helpers test_defaults test_estimator test_accounting
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 
 test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
@@ -35,6 +35,7 @@ test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o sr
 test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
 test_defaults_OBJECTS := config/test_defaults.o src/config/defaults.o
 test_estimator_OBJECTS := tcpdelay/test_estimator.o src/tcpdelay/estimator.o
+test_accounting_OBJECTS := cake/test_accounting.o
 
 OBJECTS := $(sort $(addprefix $(OBJECT_DIR)/,$(foreach target,$(TARGETS),$($(target)_OBJECTS))))
 
@@ -42,6 +43,22 @@ OBJECTS := $(sort $(addprefix $(OBJECT_DIR)/,$(foreach target,$(TARGETS),$($(tar
 NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0))
 NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0)
 UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
+
+# The monitor needs UCI/libubox and the filter seam needs libbpf headers.
+# UCI_CFLAGS may expose all three from the SDK staged include directory.
+.PHONY: check-tcpdelay
+check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_filter_accounting
+	$(BINARY_DIR)/test_monitor_tcpdelay
+	$(BINARY_DIR)/test_filter_accounting
+
+# libbpf map-definition macros require GNU typeof, as in the BPF build.
+$(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE_DIR)/tcpdelay/tcpdelay.bpf.c $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/cake/accounting.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=gnu11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
+
+$(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/cake/accounting.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
 CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c logging/log.c common/error.c common/helpers.c)

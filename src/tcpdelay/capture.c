@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "tcpdelay/capture.h"
 
 #include <arpa/inet.h>
@@ -12,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "common/error.h"
@@ -20,6 +23,7 @@
 /* Names in tcpdelay.bpf.c: the program and its maps. */
 #define FILTER_PROGRAM "tcpdelay"
 #define FILTER_COUNTERS "counters"
+#define FILTER_ACCOUNTING "accounting"
 #define FILTER_SAMPLES "samples"
 
 static int
@@ -70,6 +74,8 @@ static int load_program(
 )
 {
 	struct bpf_program *program;
+	struct bpf_map *counters;
+	struct bpf_map *accounting;
 
 	capture->object = bpf_object__open_file(object_path, NULL);
 	if (capture->object == NULL)
@@ -80,6 +86,21 @@ static int load_program(
 			object_path,
 			strerror(errno)
 		);
+	counters = bpf_object__find_map_by_name(capture->object, FILTER_COUNTERS);
+	accounting = bpf_object__find_map_by_name(capture->object, FILTER_ACCOUNTING);
+	if (counters == NULL || accounting == NULL ||
+	    bpf_map__value_size(counters) != sizeof(struct tcpdelay_counters) ||
+	    bpf_map__value_size(accounting) != sizeof(struct tcpdelay_accounting) ||
+	    bpf_map__key_size(counters) != sizeof(uint32_t) ||
+	    bpf_map__key_size(accounting) != sizeof(uint32_t) ||
+	    bpf_map__type(counters) != BPF_MAP_TYPE_PERCPU_ARRAY ||
+	    bpf_map__type(accounting) != BPF_MAP_TYPE_ARRAY ||
+	    bpf_map__max_entries(counters) != 1U || bpf_map__max_entries(accounting) != 1U)
+		return error_set(
+			error,
+			error_size,
+			"TCP delay object has incompatible accounting maps"
+		);
 	if (bpf_object__load(capture->object) != 0)
 		return error_set(
 			error,
@@ -89,8 +110,8 @@ static int load_program(
 			strerror(errno)
 		);
 	program = bpf_object__find_program_by_name(capture->object, FILTER_PROGRAM);
-	capture->counters_descriptor =
-		bpf_object__find_map_fd_by_name(capture->object, FILTER_COUNTERS);
+	capture->counters_descriptor = bpf_map__fd(counters);
+	capture->accounting_descriptor = bpf_map__fd(accounting);
 	capture->ring = ring_buffer__new(
 		bpf_object__find_map_fd_by_name(capture->object, FILTER_SAMPLES),
 		add_record,
@@ -125,9 +146,21 @@ static int attach_socket(
 		.sll_protocol = htons(ETH_P_ALL),
 		.sll_ifindex = (int)capture->interface_index,
 	};
+	struct ifreq request = { 0 };
+	uint32_t key = 0U;
 
 	capture->socket_descriptor = socket(AF_PACKET, SOCK_RAW | SOCK_CLOEXEC, 0);
-	if (capture->socket_descriptor < 0 ||
+	if (capture->socket_descriptor < 0)
+		goto fail;
+	if (capture->accounting.enabled) {
+		(void)snprintf(request.ifr_name, sizeof(request.ifr_name), "%s", interface);
+		if (ioctl(capture->socket_descriptor, SIOCGIFHWADDR, &request) != 0)
+			goto fail;
+		capture->accounting.hardware_type =
+			(uint32_t)(unsigned short)request.ifr_hwaddr.sa_family;
+	}
+	if (bpf_map_update_elem(capture->accounting_descriptor, &key, &capture->accounting, BPF_ANY) !=
+		    0 ||
 	    setsockopt(
 		    capture->socket_descriptor,
 		    SOL_SOCKET,
@@ -136,20 +169,24 @@ static int attach_socket(
 		    sizeof(program)
 	    ) != 0 ||
 	    bind(capture->socket_descriptor, (struct sockaddr *)&address, sizeof(address)) != 0)
-		return error_set(
-			error,
-			error_size,
-			"could not attach TCP delay program to %s: %s",
-			interface,
-			strerror(errno)
-		);
+		goto fail;
 	return 0;
+
+fail:
+	return error_set(
+		error,
+		error_size,
+		"could not attach TCP delay program to %s: %s",
+		interface,
+		strerror(errno)
+	);
 }
 
 int tcpdelay_capture_open(
 	struct tcpdelay_capture *capture,
 	const char *object_path,
 	const char *interface,
+	const struct cake_accounting *accounting,
 	struct tcpdelay_estimator *estimator,
 	char *error,
 	size_t error_size
@@ -160,6 +197,10 @@ int tcpdelay_capture_open(
 
 	capture_clear(capture);
 	capture->estimator = estimator;
+	if (accounting != NULL) {
+		capture->accounting.cake = *accounting;
+		capture->accounting.enabled = 1U;
+	}
 	libbpf_set_print(forward_libbpf_message);
 
 	capture->interface_index = if_nametoindex(interface);
@@ -220,6 +261,7 @@ int tcpdelay_capture_counters(
 		counters->ring_full += capture->counter_values[cpu].ring_full;
 		counters->ack_bytes += capture->counter_values[cpu].ack_bytes;
 		counters->upload_bytes += capture->counter_values[cpu].upload_bytes;
+		counters->unaccounted_packets += capture->counter_values[cpu].unaccounted_packets;
 	}
 	return 0;
 }

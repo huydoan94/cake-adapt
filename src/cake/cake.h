@@ -17,6 +17,7 @@ struct cake_observation {
 	uint64_t bytes;
 	uint32_t mtu_bytes;
 	int32_t overhead_bytes;
+	uint32_t mpu_bytes;
 	uint32_t atm_mode;
 	bool raw;
 	bool has_bandwidth;

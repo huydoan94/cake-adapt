@@ -384,6 +384,8 @@ static void process_qdisc_event(const struct qdisc_event *event, void *context)
 		direction->cake_state = CAKE_OBSERVATION_NOT_FOUND;
 		direction->next_cake_observation_microseconds = UINT64_MAX;
 		reset_traffic_observation(direction);
+		if (direction == &monitor->links.upload)
+			tcp_close(monitor);
 		pingers_close(monitor);
 		return;
 	}
