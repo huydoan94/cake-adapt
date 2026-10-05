@@ -155,9 +155,9 @@ static void flow_measure(
 		floor_update(&flow->download_floor[tick_index], *download_ns, sample->arrival_ns);
 
 	/*
-	 * Remote receive time minus our departure of the echoed TSval: only the
-	 * upstream delay varies. Delayed ACKs only add, which the window minimum
-	 * removes.
+	 * Remote send timestamp minus our departure of the echoed TSval includes both
+	 * upload path delay and receiver response wait. A window minimum can suppress
+	 * intermittent waits only while prompt echoes remain in its result windows.
 	 */
 	*upload_ns = -1;
 	if (sample->departure_ns != 0U) {

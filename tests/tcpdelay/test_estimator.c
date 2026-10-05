@@ -210,6 +210,48 @@ static void test_delayed_acks_are_ignored(void)
 	assert_close(estimate.upload_queue_microseconds, 60);
 }
 
+/* A changed receiver wait looks like upload queueing while no prompt echoes remain. */
+static void test_sustained_ack_wait_change_and_recovery(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote remote = remote_flow(50015U, MILLISECOND, 91U);
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
+	for (; now < 4000U * MILLISECOND; now += MILLISECOND)
+		send_sample(&estimator, &remote, now, 0U, 0U, 40U * MILLISECOND);
+	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 40);
+
+	/* Confirm recovery after 300 ms; a prompt minimum may restore zero earlier. */
+	now = send_span(&estimator, &remote, now, now + 300U * MILLISECOND, 0U, 0U);
+	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 0);
+}
+
+/* A constant receiver wait present during calibration is absorbed by its floor. */
+static void test_constant_ack_wait_is_baseline(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote remote = remote_flow(50016U, MILLISECOND, 101U);
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	for (now = 0U; now < 4000U * MILLISECOND; now += MILLISECOND)
+		send_sample(&estimator, &remote, now, 0U, 0U, 40U * MILLISECOND);
+	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 0);
+}
+
 static void test_results_expire(void)
 {
 	struct tcpdelay_estimator estimator;
@@ -577,6 +619,8 @@ int main(void)
 	test_queue_attributed_to_its_direction(MILLISECOND, 0xffffff00U);
 	test_queue_built_before_the_tick_is_known();
 	test_delayed_acks_are_ignored();
+	test_sustained_ack_wait_change_and_recovery();
+	test_constant_ack_wait_is_baseline();
 	test_results_expire();
 	test_standing_queue_floor_tracks_two_absolute_phases(2000U * MILLISECOND);
 	test_standing_queue_floor_tracks_two_absolute_phases(22000U * MILLISECOND);

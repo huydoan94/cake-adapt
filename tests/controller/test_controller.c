@@ -810,6 +810,36 @@ static void test_measured_queues_split_round_trip_delta(void)
 	controller_close(&controller);
 }
 
+static void test_sustained_ack_wait_can_misdirect_shared_delay(void)
+{
+	struct controller controller;
+	struct controller_config config = adjusting_config();
+	struct controller_input input =
+		input_with_rates(7U * MEBABIT, 8U * MEBABIT, 8U * MEBABIT, 8U * MEBABIT);
+	struct controller_output output;
+
+	config.shared_delay = true;
+	input.queue = measured_queue(0, 40000);
+	init_controller(&controller, &config);
+	detect_congestion(&controller, &input, &output);
+	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
+	assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
+	assert(output.download.rate_bits_per_second == 8320U * 1000U);
+	assert(output.upload.rate_bits_per_second == 6U * MEBABIT);
+	controller_close(&controller);
+
+	/* The same false pair alone, with clear fping latency, does not cut rates. */
+	input = input_with_rates(7U * MEBABIT, 8U * MEBABIT, 8U * MEBABIT, 8U * MEBABIT);
+	input.queue = measured_queue(0, 40000);
+	init_controller(&controller, &config);
+	update_repeatedly(&controller, &input, &output, 6U);
+	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
+	assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
+	assert(output.download.rate_bits_per_second >= 8U * MEBABIT);
+	assert(output.upload.rate_bits_per_second >= 8U * MEBABIT);
+	controller_close(&controller);
+}
+
 /* Download after one update, with upload's shaper at 8 Mbit/s. */
 static struct controller_direction_output ack_capped_download(
 	uint64_t share_percent,
@@ -1613,6 +1643,7 @@ int main(void)
 	test_measured_queues_attribute_shared_delay();
 	test_zero_measured_queues_keep_delivery_fallback();
 	test_measured_queues_split_round_trip_delta();
+	test_sustained_ack_wait_can_misdirect_shared_delay();
 	test_ack_share_follows_other_traffic();
 	test_attribution_changes_are_reported();
 	test_severe_bufferbloat_reduces_both_rates();
