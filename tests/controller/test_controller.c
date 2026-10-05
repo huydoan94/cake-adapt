@@ -770,6 +770,16 @@ static void test_measured_queues_attribute_shared_delay(void)
 	);
 }
 
+static void test_zero_measured_queues_keep_delivery_fallback(void)
+{
+	const bool shared_delay = true;
+	const struct controller_queue_input zero_queue = measured_queue(0, 0);
+
+	check_queue_attribution(shared_delay, 8U * MEBABIT, zero_queue, 8U * MEBABIT, 6U * MEBABIT);
+	check_queue_attribution(shared_delay, 7U * MEBABIT, zero_queue, 6U * MEBABIT, 8U * MEBABIT);
+	check_queue_attribution(shared_delay, 2U * MEBABIT, zero_queue, 6U * MEBABIT, 6U * MEBABIT);
+}
+
 static void test_measured_queues_split_round_trip_delta(void)
 {
 	struct controller controller;
@@ -1601,6 +1611,7 @@ int main(void)
 	test_configured_high_load_adjustment_is_used();
 	test_shared_delay_is_attributed_by_download_delivery();
 	test_measured_queues_attribute_shared_delay();
+	test_zero_measured_queues_keep_delivery_fallback();
 	test_measured_queues_split_round_trip_delta();
 	test_ack_share_follows_other_traffic();
 	test_attribution_changes_are_reported();

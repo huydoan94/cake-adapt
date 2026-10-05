@@ -419,9 +419,13 @@ do not mutate the estimator flow or refresh its LRU position.
 4-62 seconds:  the same queues remain continuously present
 ```
 
-Output near the beginning: 80/20 ms, both valid.
-
-Output at the end: 0/0 ms, both valid.
+Host synthetic characterization confirms 80/20 ms near the beginning and
+0/0 ms after the two low-delay buckets expire. The regression test runs the
+same sequence from two absolute arrival-time phases, checks that the original
+evidence remains before the second boundary, then clears the path and confirms
+that later 80/20-ms congestion is visible again. This tests the observed
+retention and recovery behavior; it does not make the rolling baseline safer
+for sustained queues.
 
 `floor_update()` keeps the minimum in the current and preceding 30-second
 buckets. Once the old empty-queue observations leave both buckets, the smallest
@@ -442,11 +446,14 @@ This case loses directional TCP evidence. It does **not** disable fping or all
 congestion handling: a 0/0-ms total fails the 5-ms gate, so the controller uses
 its delivery-rate attribution heuristic again.
 
-The review question is whether that loss of evidence during sustained congestion
-is acceptable. Consider separating clock-drift compensation from upward baseline
-adaptation, or inhibiting baseline rise when independent evidence indicates
-congestion. Any such rule must also handle real route changes and must not
-permanently freeze a stale floor.
+The controller test also confirms that valid 0/0 measurements fall through the
+5-ms gate and retain delivery-rate attribution for full, loaded, and
+app-limited downloads. The review question remains whether losing directional
+evidence during sustained congestion is acceptable. Separating clock-drift
+compensation from upward baseline adaptation, or inhibiting baseline rise when
+independent evidence indicates congestion, requires an explicit policy trade-off
+and must account for real route changes without permanently freezing a stale
+floor. No safe production change follows from this characterization alone.
 
 ## 5. Finding: sustained delayed ACKs look like upload queueing
 
@@ -724,8 +731,10 @@ Limits of this harness:
 ## 9. Working order and status
 
 This was the original proposed order. Fix 1 above implements the scoped
-new-flow aggregation change and its regression tests. The other findings and
-the broader confidence policy remain for separate decisions.
+new-flow aggregation change and its regression tests. Section 4 now has host
+regression coverage for absolute bucket phases, expiry, recovery, and the
+controller's zero-pair fallback; the baseline policy and other findings remain
+for separate decisions.
 
 1. **Lock down the demonstrated cases with regression tests.** Add assertions
    for new-flow baseline contamination, tuple reuse, persistent queueing, and
