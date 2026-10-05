@@ -55,7 +55,7 @@ cleanup() {
     printf '%s\n' "$status" > "$DIR/$MODE.exit-status"
     exit "$status"
 }
-case "$MODE" in preflight|jit-retry|batch|batch-retry) ;; *) exit 2 ;; esac
+case "$MODE" in preflight|jit-retry|batch|batch-retry|pending) ;; *) exit 2 ;; esac
 [ ! -e "$DIR/logs/cake-adapt.log" ]
 snapshot before
 touch "$LOG"
@@ -93,6 +93,8 @@ if [ "$MODE" = jit-retry ]; then
 elif [ "$MODE" = preflight ]; then
     cases=raw
     ip netns exec "$NS" "$DIR/probe" "$DIR/before.o" after stale > "$DIR/results/$MODE/stale.txt" 2>&1
+elif [ "$MODE" = pending ]; then
+    cases='qinq unknown raw-unknown gso raw-gso disabled'
 else
     cases='ether overhead mpu negative atm ptm vlan qinq unknown raw-unknown gso raw-gso disabled'
 fi
