@@ -26,6 +26,16 @@ accounting disables the ACK ceiling for that interval; qdisc removal and model
 changes reset the capture/baseline. Section 6 describes the fix and its limits.
 Tuple-lifetime finding 2 remains deferred.
 
+**2026-10-05: extended ACK kernel cases complete; bounded control comparison regressed.**
+QinQ, unknown/RAW-unknown protocol, GSO/RAW-GSO fallback and disabled accounting
+passed on the exact x86 filters; all restoration checks passed. The single
+options-off/previous-on/current-on control batch produced valid measurements,
+but current download goodput was 15.780 versus 22.805 Mbit/s before, and mixed
+added RTT p95 was 93.9 versus 65.2 ms. Current download retained 52.6% nominal
+capacity; this fails performance acceptance. No retuning or further experiment
+followed. See [bounded control evidence](profiling/2026-10-05-ack-control/README.md).
+This does not establish causality or deployment readiness; finding 2 stays deferred.
+
 Review date: 2026-10-03. Source snapshot: `7b52801304cccb224cef2a08ef9ba31d3e4d23f8`.
 The working tree was clean before this document was added.
 
@@ -792,8 +802,9 @@ shares disagree with that heuristic. Host/target tests cover those bounded
 mitigations, and the observation-only VM batch verifies floor retention and
 recovery. ACK counters now use the upload CAKE's charge within documented
 non-GSO coverage; the bounded kernel comparison verifies the supported charge
-models and single-tagged fallback. Full tuple-lifetime handling remains deferred;
-control-performance acceptance and extended kernel coverage remain open.
+models and all planned conservative fallback/disabled cases. Full tuple-lifetime
+handling remains deferred; the bounded control comparison failed performance
+acceptance despite valid measurements and complete restoration.
 
 1. **Lock down the demonstrated cases with regression tests.** Host assertions
    now cover new-flow baseline contamination, accepted-sample freshness,

@@ -1,0 +1,15 @@
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/targets/x86/generic/packages/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/base/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/luci/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/packages/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/routing/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/telephony/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/video/packages.adb: No such file or directory
+sh: can't kill pid 6469: No such process
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/targets/x86/generic/packages/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/base/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/luci/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/packages/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/routing/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/telephony/packages.adb: No such file or directory
+WARNING: opening from cache https://downloads.openwrt.org/releases/25.12-SNAPSHOT/packages/i386_pentium4/video/packages.adb: No such file or directory

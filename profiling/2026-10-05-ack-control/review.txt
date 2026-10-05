@@ -1,0 +1,13 @@
+Bounded GPT5.6Sol review: harness/API/control-unit review completed.
+Gates now validate payloads/latency/PCAP/map agreement/JIT/runs/loss/ratebounds
+and graceful daemon exit; libraries hashed, UDP uses own baseline.
+Supervisor signal setup race fixed with mask acrossfork/setup andcheckedhandlers.
+Expected parent supervisor PID6796 was sole false leftover atpreflight exit.
+All comparedrootstate fields identical, inode163 unchanged, daemon0/0, no loss
+or incompleteaccounting, exactPCAP/map381352 ACKbyte agreement. Reviewer
+accepted retainedpreflight without rerun; no blocker forsingleacceptancebatch.
+
+Final evidence reviewapproved: reportedlatency/goodput/ACK/CPU figuresmatch
+analysisJSON, validmeasurementgates andcleanupclaims agree withrawstatus.
+Performanceacceptancefailure andoneorderedrun/differentcompilerflag limits
+arecorrectlystated. Documentationunitspacingnit corrected.
