@@ -1,0 +1,6 @@
+case=vlan variant=before ack=0 upload=1588 unaccounted=0 ring_full=0 runs=2 runtime_ns=758 jit_bytes=6701 xlated_bytes=3728 affinity=0
+map=departures value_bytes=8 max_entries=8192 type=9
+map=flows value_bytes=32 max_entries=1024 type=9
+map=samples value_bytes=0 max_entries=262144 type=27
+map=counters value_bytes=24 max_entries=1 type=6
+PASS
