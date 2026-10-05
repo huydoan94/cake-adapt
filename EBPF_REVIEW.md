@@ -489,6 +489,17 @@ remove the changed receiver delay. A constant receiver wait present from the
 start can be absorbed into the initial floor; a change after calibration is
 the failure demonstrated here.
 
+The estimator tests also cover the boundaries: a 40-ms wait from the first
+sample is absorbed by calibration, and a changed 40-ms wait reports as upload
+delay before prompt replies return. In the test, zero is restored after 300 ms
+of prompt replies; an earlier prompt minimum may restore zero sooner when it
+remains in the queried result windows. This recovery follows from the rolling
+window minimum, not from identifying the delay source. A real 40-ms upload
+queue and a 40-ms receiver wait introduced after calibration produce the same
+supplied timestamps. The passive inputs cannot distinguish them, so
+subtracting an assumed ACK wait would also subtract indistinguishable network
+delay.
+
 ### Effect and proposed direction
 
 This alone does not demonstrate a rate cut: rate control still uses fping
@@ -497,9 +508,14 @@ directional evidence. If an unrelated download queue raises fping RTT at the
 same time, that RTT can be incorrectly assigned to upload.
 
 Treat this as a measurement ambiguity, not something solved by another map or
-a more precise local timestamp. Consider consistency checks against independent
-latency evidence and conservative fallback for unsupported directional claims.
-Validate with sustained ACK-policy changes, not only intermittent delayed ACKs.
+a more precise local timestamp. Host controller coverage confirms the
+consequence when independent fping latency also indicates congestion: a false
+0/40-ms pair replaces the delivery heuristic and assigns the shared delay to
+upload. With clear independent latency, the false pair alone does not produce
+a congestion cut. Consider consistency checks against independent latency
+evidence and conservative fallback for unsupported directional claims. These
+are host characterizations; they do not establish a safe confidence policy or
+live behavior.
 
 ## 6. Finding: ACK-byte accounting is not CAKE bandwidth accounting
 
@@ -731,16 +747,20 @@ Limits of this harness:
 ## 9. Working order and status
 
 This was the original proposed order. Fix 1 above implements the scoped
-new-flow aggregation change and its regression tests. Section 4 now has host
-regression coverage for absolute bucket phases, expiry, recovery, and the
-controller's zero-pair fallback; the baseline policy and other findings remain
-for separate decisions.
+new-flow aggregation change and its regression tests. Sections 4 and 5 have
+host regression coverage for absolute bucket phases, expiry, recovery, delayed
+ACK behavior, and the controller's zero-pair fallback and false-pair
+attribution. The ACK-delay confidence policy, baseline policy, and other
+findings remain open; these tests do not select or validate a production
+mitigation.
 
-1. **Lock down the demonstrated cases with regression tests.** Add assertions
-   for new-flow baseline contamination, tuple reuse, persistent queueing, and
-   sustained receiver delay. Retain reordering and rollover coverage. Add a
-   controller test showing exactly when questionable evidence overrides the
-   fallback heuristic.
+1. **Lock down the demonstrated cases with regression tests.** Host assertions
+   now cover new-flow baseline contamination, accepted-sample freshness,
+   persistent queueing, sustained and constant receiver delay, and prompt-reply
+   recovery. Existing reordering and rollover coverage remains. Controller
+   assertions cover when questionable directional evidence overrides the
+   fallback heuristic. These tests establish synthetic behavior only; full
+   tuple-lifetime handling remains deferred and open.
 2. **Define measurement confidence before rate policy.** Distinguish fresh
    samples from a credible baseline and compatible flow/path evidence. Specify
    when the controller may use a queue ratio and when it must fall back. Do not
@@ -749,10 +769,13 @@ for separate decisions.
    recovery after credible connection restart without destroying reorder
    filtering. Prevent a new unknown baseline from silently overriding mature
    directional evidence. Check BPF departure generations independently.
-4. **Resolve baseline/ACK-delay ambiguity explicitly.** Choose a documented,
-   measured trade-off for persistent queues, clock drift, path changes, and
-   receiver timing. Avoid replacing a short implementation with a complex
-   estimator whose confidence still cannot be justified.
+4. **Resolve baseline/ACK-delay ambiguity explicitly.** Still open. Choose a
+   documented, measured trade-off for persistent queues, clock drift, path
+   changes, and receiver timing. Passive samples cannot distinguish a changed
+   receiver wait from equal upload path delay, so no safe small ACK-wait
+   subtraction follows from these observations. Avoid replacing a short
+   implementation with a complex estimator whose confidence still cannot be
+   justified.
 5. **Validate the ACK accounting basis.** Exercise CAKE overhead and minimum
    packet sizes, then measure whether the dynamic allowance actually leaves the
    intended upload room. Keep plain `ack-filter`, not aggressive filtering.
