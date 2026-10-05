@@ -1,0 +1,59 @@
+RUN	short-baseline
+MAP	departures	type=9	key=40	value=8	max=8192	flags=0	max_payload_lower_bound_bytes=393216	ring_reserved_bytes=0
+FDINFO	departures	pos:	0
+FDINFO	departures	flags:	02000002
+FDINFO	departures	mnt_id:	10
+FDINFO	departures	ino:	26
+FDINFO	departures	map_type:	9
+FDINFO	departures	key_size:	40
+FDINFO	departures	value_size:	8
+FDINFO	departures	max_entries:	8192
+FDINFO	departures	map_flags:	0x0
+FDINFO	departures	map_extra:	0x0
+FDINFO	departures	memlock:	656320
+FDINFO	departures	map_id:	61
+FDINFO	departures	frozen:	0
+MAP	flows	type=9	key=36	value=32	max=1024	flags=0	max_payload_lower_bound_bytes=69632	ring_reserved_bytes=0
+FDINFO	flows	pos:	0
+FDINFO	flows	flags:	02000002
+FDINFO	flows	mnt_id:	10
+FDINFO	flows	ino:	26
+FDINFO	flows	map_type:	9
+FDINFO	flows	key_size:	36
+FDINFO	flows	value_size:	32
+FDINFO	flows	max_entries:	1024
+FDINFO	flows	map_flags:	0x0
+FDINFO	flows	map_extra:	0x0
+FDINFO	flows	memlock:	107456
+FDINFO	flows	map_id:	62
+FDINFO	flows	frozen:	0
+MAP	samples	type=27	key=0	value=0	max=262144	flags=0	max_payload_lower_bound_bytes=0	ring_reserved_bytes=262144
+FDINFO	samples	pos:	0
+FDINFO	samples	flags:	02000002
+FDINFO	samples	mnt_id:	10
+FDINFO	samples	ino:	26
+FDINFO	samples	map_type:	27
+FDINFO	samples	key_size:	0
+FDINFO	samples	value_size:	0
+FDINFO	samples	max_entries:	262144
+FDINFO	samples	map_flags:	0x0
+FDINFO	samples	map_extra:	0x0
+FDINFO	samples	memlock:	275148
+FDINFO	samples	map_id:	63
+FDINFO	samples	frozen:	0
+MAP	counters	type=6	key=4	value=24	max=1	flags=0	max_payload_lower_bound_bytes=48	ring_reserved_bytes=0
+FDINFO	counters	pos:	0
+FDINFO	counters	flags:	02000002
+FDINFO	counters	mnt_id:	10
+FDINFO	counters	ino:	26
+FDINFO	counters	map_type:	6
+FDINFO	counters	key_size:	4
+FDINFO	counters	value_size:	24
+FDINFO	counters	max_entries:	1
+FDINFO	counters	map_flags:	0x0
+FDINFO	counters	map_extra:	0x0
+FDINFO	counters	memlock:	252
+FDINFO	counters	map_id:	64
+FDINFO	counters	frozen:	0
+COST	steady	packets=803	bpf_runs=803	bpf_ns=282908	ns_per_run=352.314	ring_records=1	ring_full=0	coverage=PASS
+COST	churn	packets=192	bpf_runs=192	bpf_ns=109911	ns_per_run=572.453	ring_records=64	ring_full=0	coverage=PASS

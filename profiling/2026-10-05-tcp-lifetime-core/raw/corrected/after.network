@@ -1,0 +1,47 @@
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel master br-lan state UP mode DEFAULT group default qlen 1000\    link/ether 08:00:27:6e:b4:8c brd ff:ff:ff:ff:ff:ff
+3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc cake state UP mode DEFAULT group default qlen 1000\    link/ether 08:00:27:26:ef:fa brd ff:ff:ff:ff:ff:ff
+4: teql0: <NOARP> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 100\    link/void 
+5: br-lan: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000\    link/ether 08:00:27:6e:b4:8c brd ff:ff:ff:ff:ff:ff
+21: ifb4eth1: <BROADCAST,NOARP,UP,LOWER_UP> mtu 1500 qdisc cake state UNKNOWN mode DEFAULT group default qlen 32\    link/ether 16:82:39:9a:97:ba brd ff:ff:ff:ff:ff:ff
+0:	from all lookup local
+32766:	from all lookup main
+32767:	from all lookup default
+default via 10.0.3.2 dev eth1 proto static src 10.0.3.15 
+10.0.3.0/24 dev eth1 proto kernel scope link src 10.0.3.15 
+192.168.56.0/24 dev br-lan proto kernel scope link src 192.168.56.2 
+local 10.0.3.15 dev eth1 table local proto kernel scope host src 10.0.3.15 
+broadcast 10.0.3.255 dev eth1 table local proto kernel scope link src 10.0.3.15 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 192.168.56.2 dev br-lan table local proto kernel scope host src 192.168.56.2 
+broadcast 192.168.56.255 dev br-lan table local proto kernel scope link src 192.168.56.2 
+default from fd17:625c:f037:3::/64 via fe80::2 dev eth1 proto static metric 512 pref medium
+fd17:625c:f037:3::/64 dev eth1 proto static metric 256 pref medium
+unreachable fd17:625c:f037:3::/64 dev lo proto static metric 2147483647 pref medium
+fd57:53c:2034::/64 dev br-lan proto static metric 1024 pref medium
+unreachable fd57:53c:2034::/48 dev lo proto static metric 2147483647 pref medium
+fe80::/64 dev br-lan proto kernel metric 256 pref medium
+fe80::/64 dev eth1 proto kernel metric 256 pref medium
+fe80::/64 dev ifb4eth1 proto kernel metric 256 pref medium
+local ::1 dev lo table local proto kernel metric 0 pref medium
+anycast fd17:625c:f037:3:: dev eth1 table local proto kernel metric 0 pref medium
+local fd17:625c:f037:3:a00:27ff:fe26:effa dev eth1 table local proto kernel metric 0 pref medium
+anycast fd57:53c:2034:: dev br-lan table local proto kernel metric 0 pref medium
+local fd57:53c:2034::1 dev br-lan table local proto kernel metric 0 pref medium
+anycast fe80:: dev br-lan table local proto kernel metric 0 pref medium
+anycast fe80:: dev eth1 table local proto kernel metric 0 pref medium
+anycast fe80:: dev ifb4eth1 table local proto kernel metric 0 pref medium
+local fe80::a00:27ff:fe26:effa dev eth1 table local proto kernel metric 0 pref medium
+local fe80::a00:27ff:fe6e:b48c dev br-lan table local proto kernel metric 0 pref medium
+local fe80::1482:39ff:fe9a:97ba dev ifb4eth1 table local proto kernel metric 0 pref medium
+multicast ff00::/8 dev br-lan table local proto kernel metric 256 pref medium
+multicast ff00::/8 dev eth1 table local proto kernel metric 256 pref medium
+multicast ff00::/8 dev ifb4eth1 table local proto kernel metric 256 pref medium
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 4Mb ecn drop_batch 64 
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- 
+qdisc noqueue 0: dev br-lan root refcnt 2 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 

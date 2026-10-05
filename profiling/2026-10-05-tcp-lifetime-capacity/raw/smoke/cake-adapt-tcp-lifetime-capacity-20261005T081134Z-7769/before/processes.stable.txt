@@ -1,0 +1,2 @@
+pid=2646 exe=/usr/sbin/cake-adapt
+cmdline=/usr/sbin/cake-adapt -C /tmp/cake-adapt-config/main -S main 

@@ -1,0 +1,1395 @@
+diff --git a/EBPF_REVIEW.md b/EBPF_REVIEW.md
+index e802dbe..a6fa002 100644
+--- a/EBPF_REVIEW.md
++++ b/EBPF_REVIEW.md
+@@ -89,7 +89,7 @@ not from a new end-to-end VM run.
+ 
+ ```text
+ WAN upload interface
+-  outgoing packet after root qdisc -> departure map: (flow, TSval) -> local time
++  outgoing packet after root qdisc -> departure map: (flow, generation, TSval) -> local time
+   incoming TCP packet             -> remote TSval + echoed departure, if found
+                                       |
+                                       v
+@@ -319,9 +319,15 @@ any later policy decision.
+ 
+ ## 3. Finding: a reused tuple inherits an old timestamp clock
+ 
+-**Status: OPEN.** Phase 1 corrects accepted-sample freshness and protects the
+-LRU order from rejected records. It does not identify a replacement connection
+-or restart its clock calibration.
++**Status: OPEN; bounded target verification passed, acceptance incomplete.** The
++userspace estimator now resets a tuple when it accepts a higher generation and
++ignores generation zero or a lower generation. The BPF source assigns a
++monotonic generation on an observed SYN/ACK pair, carries it in the unchanged
++64-byte ring record, and keys timestamp departures and sampling state by it.
++The exact packaged filter passed the target verifier and core tuple-reuse
++tests. Additional target evidence covers each LRU map's capacity and real-entry
++eviction, plus one pinned two-CPU SYN/ACK race. These runs do not prove
++exhaustive cross-CPU ordering or CAS contention, so the finding remains open.
+ 
+ ### Reproduced sequence
+ 
+@@ -358,45 +364,61 @@ Per-connection random timestamp offsets are recommended by
+ [RFC 7323, section 7](https://www.rfc-editor.org/rfc/rfc7323.html#section-7).
+ The new connection need not preserve the old connection's timestamp value.
+ 
+-### Effect and proposed direction
++### Effect and implementation limits
+ 
+ In this example TCP attribution becomes unavailable and fping remains available.
+ The daemon does not need to terminate. Persistent unrelated traffic can also
+ evict the slot, but relying on eviction is not a bounded recovery policy.
+ 
+-Distinguish connection restart from reordering using credible lifecycle or
+-expiry evidence, then restart calibration when justified. Keep the signed
+-timestamp rollover handling: resetting on every negative step would incorrectly
+-treat ordinary reordering as a new connection.
+-
+-Full restart recovery remains a separate phase. It needs connection-lifetime
+-identity, generation-specific departure tracking, idempotent handling of SYN
+-retransmissions and SYN/ACKs, rejection of records from an old generation,
+-bounded map eviction, and defined cross-CPU event ordering. The BPF departure
+-map is currently keyed by tuple and TSval and uses `BPF_NOEXIST`; stale
+-departure collisions across connection generations need kernel-path tests.
+-Phase 1 has only host-side estimator tests and makes no claim about that kernel
+-behavior.
+-
+-The remaining issue-2 work and acceptance order is:
+-
+-1. Distinguish connection lifetimes using observed handshake evidence. Do not
+-   reset calibration on an arbitrary negative timestamp step or an invented
+-   idle timeout.
+-2. Carry ordered lifetime identity through the ring-buffer record and
+-   estimator, preserving the existing 64-byte record layout. The currently
+-   unused `tsecr` and reserved fields may be investigated; they are not an
+-   approved ABI design.
+-3. Qualify departure matching by lifetime so an old tuple-plus-TSval entry
+-   cannot match a packet from a replacement connection.
+-4. Prove SYN retransmission and SYN/ACK handling is idempotent, delayed records
+-   from an old lifetime are rejected, and map eviction and cross-CPU ordering
+-   preserve the selected lifetime.
+-5. Pass kernel verifier checks and controlled tuple-reuse tests before marking
+-   this finding fixed. Retain raw evidence for those checks.
+-
+-Until those conditions are met, phase 1 establishes only that rejected samples
+-do not mutate the estimator flow or refresh its LRU position.
++The implementation identifies an observed connection using both initial
++sequence numbers: the SYN/ACK wire ACK must equal the current opposite-side ISN
++plus one (with TCP's 32-bit wrap), and the immutable identity stores the raw
++local and remote ISNs. A timestamp-bearing pure SYN creates pending state but
++no generation; exact retransmissions reuse the same pending ISN, including
++restoring a pending entry evicted from its LRU map. A SYN/ACK that cannot match
++the current opposite-side ISN does not activate a lifetime. Once that ACK
++matches, its SYN/ACK ISN replaces any older pending value for its own side,
++allowing a reused tuple to confirm the new pair. Simultaneous open converges
++when both current ISNs are observed. Ordinary traffic can bootstrap only when
++no lifecycle or pending SYN-side state exists; that path has no handshake proof
++and uses an identity mask with neither ISN known.
++
++History is bounded. Seen SYN keys are LRU; pending sides, lifecycle,
++confirmed-pair, identity, generation-sampling, and departure maps are all
++LRU. Eviction can therefore make a handshake or sample unavailable instead of
++permanently filling a map. These maps do not provide an atomic transaction
++across lifecycle, identity, and pending-side state; code rechecks the current
++lifecycle after identity validation and fails closed when required state is
++missing. Missing or failed required lifetime state and bounded allocator
++contention/exhaustion are counted; the monitor emits one warning that names
++those failure classes.
++A missing sampling entry can restart sampling cleanly, and a missing departure
++can make upload evidence unavailable. An evicted SYN key cannot distinguish a
++later retransmission from an unseen SYN; a connection that reuses the exact
++tuple and both exact ISNs is also indistinguishable from its earlier handshake.
++Map capacity and real-entry eviction passed the [2026-10-05 capacity run](profiling/2026-10-05-tcp-lifetime-capacity/README.md).
++One pinned cross-CPU SYN/ACK race converged on one active generation; it does
++not prove every interleaving. Core tuple reuse passed the
++[2026-10-05 kernel run](profiling/2026-10-05-tcp-lifetime-core/README.md).
++TCP timestamp options are parsed before generation handling, so
++flows without timestamps cannot change lifecycle state; upload and pure-ACK
++byte accounting still runs first. Ordinary traffic seen only after capture
++attachment may bootstrap without observed handshake evidence; a missing SYN
++followed by a SYN/ACK is not confirmed. A late non-SYN wire packet carries no
++generation field and is assigned the tuple's currently active generation.
++Normal TCP TIME_WAIT/MSL and sequence protection bound that ambiguity, but this
++design cannot identify arbitrary delayed wire packets across tuple reuse.
++
++The estimator preserves signed timestamp rollover within one generation. A
++higher generation clears prior tuple calibration even when its first TSval is
++numerically lower; generation zero and delayed lower-generation records are
++ignored while that tuple remains in the estimator table. Fix 1 still only
++corrects same-flow directional aggregation. The exact packaged filter passed the
++kernel verifier and 62 core lifetime assertions on 2026-10-05, including tuple
++reuse, retransmissions, delayed records and allocator exhaustion. Capacity and
++real-entry eviction passed, and one observed cross-CPU race converged. The
++issue remains open pending broader cross-CPU ordering, CAS contention, and
++performance acceptance.
+ 
+ ## 4. Finding: a standing queue becomes the baseline
+ 
+@@ -712,9 +734,21 @@ Limits of this harness:
+ 
+ ## 9. Working order and status
+ 
+-This was the original proposed order. Fix 1 above implements the scoped
+-new-flow aggregation change and its regression tests. The other findings and
+-the broader confidence policy remain for separate decisions.
++Fix 1 implements the scoped new-flow aggregation change. Issue 2 has a source
++implementation, host estimator regressions, and passing kernel verifier/core
++lifetime evidence
++([core](profiling/2026-10-05-tcp-lifetime-core/README.md)). Capacity and
++real-entry eviction passed, and one pinned cross-CPU SYN/ACK race converged
++([capacity evidence](profiling/2026-10-05-tcp-lifetime-capacity/README.md)).
++The bounded x86 cost run measured higher filter cost: median 444 to 5,212 ns
++per steady-flow invocation and 514 to 7,889 ns under tuple churn. The baseline
++was JIT compiled while the candidate ran interpreted, a major confounder for
++attributing the increase or projecting it to Filogic. Kernel map `memlock`
++accounting increased by 1,127,328 bytes. See the [cost evidence](profiling/2026-10-05-tcp-lifetime-cost/README.md).
++Comparable-mode CPU acceptance, exhaustive cross-CPU ordering, and CAS
++contention remain open; no Filogic performance impact is established. Issue 2
++is still open. The other findings and broader confidence policy remain for
++separate decisions.
+ 
+ 1. **Lock down the demonstrated cases with regression tests.** Add assertions
+    for new-flow baseline contamination, tuple reuse, persistent queueing, and
+@@ -725,10 +759,12 @@ the broader confidence policy remain for separate decisions.
+    samples from a credible baseline and compatible flow/path evidence. Specify
+    when the controller may use a queue ratio and when it must fall back. Do not
+    assume a zero proves absence of congestion.
+-3. **Repair flow lifetime and aggregation together with focused tests.** Bound
+-   recovery after credible connection restart without destroying reorder
+-   filtering. Prevent a new unknown baseline from silently overriding mature
+-   directional evidence. Check BPF departure generations independently.
++3. **Verify issue-2 lifetime handling on the target.** Prove SYN/SYN-ACK
++   idempotency, exact ISN matching, old-generation departure isolation,
++   generation exhaustion and map-capacity fail-closed behavior, delayed ring
++   records, eviction behavior, and cross-CPU ordering before marking it fixed.
++   The bounded maps and ordinary-traffic bootstrap limitations above remain
++   part of the result, not cases to hide with timeouts.
+ 4. **Resolve baseline/ACK-delay ambiguity explicitly.** Choose a documented,
+    measured trade-off for persistent queues, clock drift, path changes, and
+    receiver timing. Avoid replacing a short implementation with a complex
+diff --git a/src/monitor/loop.h b/src/monitor/loop.h
+index 2a07af3..6319e77 100644
+--- a/src/monitor/loop.h
++++ b/src/monitor/loop.h
+@@ -119,6 +119,7 @@ struct monitor_tcp {
+ 	/* Upload interface whose capture failed; retried once it is recreated. */
+ 	unsigned int failed_index;
+ 	uint64_t dropped_records;
++	bool generation_failure_warned;
+ 	uint64_t next_counter_check_microseconds;
+ 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
+ 	bool ack_sampled;
+diff --git a/src/monitor/tcpdelay.c b/src/monitor/tcpdelay.c
+index 74b9ea9..bff1e57 100644
+--- a/src/monitor/tcpdelay.c
++++ b/src/monitor/tcpdelay.c
+@@ -32,6 +32,7 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
+ 	monitor->tcp.open = true;
+ 	monitor->tcp.failed_index = 0U;
+ 	monitor->tcp.dropped_records = 0U;
++	monitor->tcp.generation_failure_warned = false;
+ 	monitor->tcp.next_counter_check_microseconds = 0U;
+ 	/* The counters restart with the new filter. */
+ 	monitor->tcp.ack_sampled = false;
+@@ -50,6 +51,13 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_m
+ 		timestamp_microseconds + TCPDELAY_COUNTER_CHECK_MICROSECONDS;
+ 	if (tcpdelay_capture_counters(&monitor->tcp.capture, &counters) != 0)
+ 		return;
++	if (!monitor->tcp.generation_failure_warned && counters.generation_failures != 0U) {
++		log_message(
++			LOG_LEVEL_WARNING,
++			"TCP generation unavailable: allocator exhausted/contended or state-map failure"
++		);
++		monitor->tcp.generation_failure_warned = true;
++	}
+ 	if (counters.ring_full > monitor->tcp.dropped_records) {
+ 		log_message(
+ 			LOG_LEVEL_WARNING,
+diff --git a/src/tcpdelay/capture.c b/src/tcpdelay/capture.c
+index 6191799..1d3b980 100644
+--- a/src/tcpdelay/capture.c
++++ b/src/tcpdelay/capture.c
+@@ -21,6 +21,7 @@
+ #define FILTER_PROGRAM "tcpdelay"
+ #define FILTER_COUNTERS "counters"
+ #define FILTER_SAMPLES "samples"
++#define FILTER_GENERATION_ALLOCATOR "generation_allocator"
+ 
+ static int
+ forward_libbpf_message(enum libbpf_print_level level, const char *format, va_list arguments)
+@@ -57,6 +58,7 @@ static int add_record(void *context, void *data, size_t size)
+ 	sample.arrival_ns = record->arrival_ns;
+ 	sample.departure_ns = record->departure_ns;
+ 	sample.tsval = record->tsval;
++	sample.generation = record->generation;
+ 	tcpdelay_estimator_add(estimator, &sample);
+ 	return 0;
+ }
+@@ -70,6 +72,9 @@ static int load_program(
+ )
+ {
+ 	struct bpf_program *program;
++	uint32_t allocator_key = 0U;
++	uint32_t first_generation = 1U;
++	int allocator_descriptor;
+ 
+ 	capture->object = bpf_object__open_file(object_path, NULL);
+ 	if (capture->object == NULL)
+@@ -88,6 +93,23 @@ static int load_program(
+ 			object_path,
+ 			strerror(errno)
+ 		);
++	allocator_descriptor =
++		bpf_object__find_map_fd_by_name(capture->object, FILTER_GENERATION_ALLOCATOR);
++	if (allocator_descriptor < 0)
++		return error_set(
++			error,
++			error_size,
++			"TCP delay program %s lacks its generation allocator map",
++			object_path
++		);
++	if (bpf_map_update_elem(allocator_descriptor, &allocator_key, &first_generation, BPF_ANY) !=
++	    0)
++		return error_set(
++			error,
++			error_size,
++			"could not initialize TCP connection generations: %s",
++			strerror(errno)
++		);
+ 	program = bpf_object__find_program_by_name(capture->object, FILTER_PROGRAM);
+ 	capture->counters_descriptor =
+ 		bpf_object__find_map_fd_by_name(capture->object, FILTER_COUNTERS);
+@@ -218,6 +240,7 @@ int tcpdelay_capture_counters(
+ 		return -1;
+ 	for (cpu = 0U; cpu < capture->cpu_count; cpu++) {
+ 		counters->ring_full += capture->counter_values[cpu].ring_full;
++		counters->generation_failures += capture->counter_values[cpu].generation_failures;
+ 		counters->ack_bytes += capture->counter_values[cpu].ack_bytes;
+ 		counters->upload_bytes += capture->counter_values[cpu].upload_bytes;
+ 	}
+diff --git a/src/tcpdelay/estimator.c b/src/tcpdelay/estimator.c
+index be95c3b..1dfffb6 100644
+--- a/src/tcpdelay/estimator.c
++++ b/src/tcpdelay/estimator.c
+@@ -84,6 +84,7 @@ static void flow_start(struct tcpdelay_flow *flow, const struct tcpdelay_sample
+ 	memset(flow, 0, sizeof(*flow));
+ 	flow->key = sample->flow;
+ 	flow->used = true;
++	flow->generation = sample->generation;
+ 	flow->first_arrival_ns = sample->arrival_ns;
+ 	flow->last_tsval = sample->tsval;
+ 	flow->last_accepted_ns = sample->arrival_ns;
+@@ -103,8 +104,13 @@ flow_for(struct tcpdelay_estimator *estimator, const struct tcpdelay_sample *sam
+ 			oldest = flow;
+ 			break;
+ 		}
+-		if (memcmp(&flow->key, &sample->flow, sizeof(flow->key)) == 0)
++		if (memcmp(&flow->key, &sample->flow, sizeof(flow->key)) == 0) {
++			if (sample->generation < flow->generation)
++				return NULL;
++			if (sample->generation > flow->generation)
++				flow_start(flow, sample);
+ 			return flow;
++		}
+ 		if (oldest == NULL || flow->last_accepted_ns < oldest->last_accepted_ns)
+ 			oldest = flow;
+ 	}
+@@ -183,16 +189,22 @@ void tcpdelay_estimator_add(
+ 	const struct tcpdelay_sample *sample
+ )
+ {
+-	struct tcpdelay_flow *flow = flow_for(estimator, sample);
++	struct tcpdelay_flow *flow;
+ 	/*
+ 	 * TSval wraps at 32 bits, so progress is the difference read as signed
+ 	 * (RFC 7323). A reordered packet carries an older TSval and is skipped.
+ 	 */
+-	int32_t step = (int32_t)(sample->tsval - flow->last_tsval);
++	int32_t step;
+ 	int64_t download_ns;
+ 	int64_t upload_ns;
+ 	size_t index;
+ 
++	if (sample->generation == 0U)
++		return;
++	flow = flow_for(estimator, sample);
++	if (flow == NULL)
++		return;
++	step = (int32_t)(sample->tsval - flow->last_tsval);
+ 	if (step < 0 || sample->arrival_ns < flow->last_accepted_ns)
+ 		return;
+ 	flow->last_accepted_ns = sample->arrival_ns;
+diff --git a/src/tcpdelay/estimator.h b/src/tcpdelay/estimator.h
+index e2e32cc..4b77f6a 100644
+--- a/src/tcpdelay/estimator.h
++++ b/src/tcpdelay/estimator.h
+@@ -19,6 +19,8 @@ struct tcpdelay_sample {
+ 	/* When the packet whose TSval this one echoes left; zero when unknown. */
+ 	uint64_t departure_ns;
+ 	uint32_t tsval;
++	/* Zero is reserved for records without a confirmed lifetime. */
++	uint32_t generation;
+ };
+ 
+ /* Minimum of a value over two alternating time buckets. */
+@@ -41,6 +43,7 @@ struct tcpdelay_flow {
+ 	bool used;
+ 	/* Arrival of the last accepted sample; rejected records do not affect LRU. */
+ 	uint64_t last_accepted_ns;
++	uint32_t generation;
+ 	uint64_t first_arrival_ns;
+ 	uint32_t last_tsval;
+ 	/* Remote timestamp ticks since the first sample, unwrapped. */
+diff --git a/src/tcpdelay/record.h b/src/tcpdelay/record.h
+index 1054739..dd7be5b 100644
+--- a/src/tcpdelay/record.h
++++ b/src/tcpdelay/record.h
+@@ -5,7 +5,13 @@
+ #include <linux/types.h>
+ 
+ #define TCPDELAY_DEPARTURES 8192
+-#define TCPDELAY_FLOW_STATES 1024
++#define TCPDELAY_SEEN_SYN 4096
++#define TCPDELAY_PENDING_SIDES 2048
++#define TCPDELAY_LIFETIMES 1024
++#define TCPDELAY_CONFIRMED_PAIRS 4096
++#define TCPDELAY_IDENTITIES 1024
++#define TCPDELAY_GENERATION_STATES 1024
++#define TCPDELAY_GENERATION_ALLOCATOR_ENTRIES 1
+ #define TCPDELAY_RING_BYTES (256 * 1024)
+ /*
+  * Per flow, at most one departure is recorded per interval, and at most one
+@@ -27,6 +33,7 @@ struct tcpdelay_record_flow {
+  */
+ struct tcpdelay_counters {
+ 	__u64 ring_full;
++	__u64 generation_failures;
+ 	/* Bytes of outgoing pure ACKs, and of all outgoing packets; link-layer
+ 	 * header included, as CAKE counts them. */
+ 	__u64 ack_bytes;
+@@ -44,10 +51,14 @@ struct tcpdelay_record {
+ 	__u64 departure_ns;
+ 	struct tcpdelay_record_flow flow;
+ 	__u32 tsval;
+-	__u32 tsecr;
++	__u32 generation;
+ 	__u32 reserved;
+ };
+ 
+ _Static_assert(sizeof(struct tcpdelay_record) == 64, "record layout must match on both sides");
++_Static_assert(
++	__builtin_offsetof(struct tcpdelay_record, generation) == 56,
++	"generation must use the former TSecr offset"
++);
+ 
+ #endif
+diff --git a/src/tcpdelay/tcpdelay.bpf.c b/src/tcpdelay/tcpdelay.bpf.c
+index fed796c..d907319 100644
+--- a/src/tcpdelay/tcpdelay.bpf.c
++++ b/src/tcpdelay/tcpdelay.bpf.c
+@@ -31,22 +31,108 @@
+ #define TCP_OPTION_NOP 1U
+ #define TCP_OPTION_TIMESTAMP 8U
+ #define TCP_OPTION_TIMESTAMP_LENGTH 10U
++#define TCPDELAY_ATOMIC_ATTEMPTS 32U
++#define TCPDELAY_SIDE_LOCAL 0U
++#define TCPDELAY_SIDE_REMOTE 1U
++#define TCPDELAY_IDENTITY_LOCAL 1U
++#define TCPDELAY_IDENTITY_REMOTE 2U
+ 
+ struct departure_key {
+ 	struct tcpdelay_record_flow flow;
++	__u32 generation;
+ 	__u32 tsval;
+ };
+ 
+-/* Racy updates from several CPUs only cost an extra or a skipped sample. */
++struct generation_flow_key {
++	struct tcpdelay_record_flow flow;
++	__u32 generation;
++};
++
++struct side_key {
++	struct tcpdelay_record_flow flow;
++	__u32 side;
++};
++
++struct seen_syn_key {
++	struct tcpdelay_record_flow flow;
++	__u32 side;
++	__u32 isn;
++};
++
++struct confirmed_pair_key {
++	struct tcpdelay_record_flow flow;
++	__u32 local_isn;
++	__u32 remote_isn;
++};
++
++struct identity_key {
++	struct tcpdelay_record_flow flow;
++	__u32 generation;
++};
++
++struct connection_identity {
++	__u32 local_isn;
++	__u32 remote_isn;
++	__u8 mask;
++	__u8 reserved[3];
++};
++
++struct connection_lifecycle {
++	__u32 active_generation;
++	__u32 latest_generation;
++};
++
++/* Updates are racy only within a confirmed generation. */
+ struct flow_state {
+ 	__u64 departure_ns;
+ 	__u64 sample_ns;
+ 	__u32 outgoing_tsval;
+ 	__u32 incoming_tsval;
+ 	__u32 incoming_tsecr;
+-	__u32 reserved;
+ };
+ 
++struct {
++	__uint(type, BPF_MAP_TYPE_LRU_HASH);
++	__uint(max_entries, TCPDELAY_SEEN_SYN);
++	__type(key, struct seen_syn_key);
++	__type(value, __u8);
++} seen_syn SEC(".maps");
++
++struct {
++	__uint(type, BPF_MAP_TYPE_LRU_HASH);
++	__uint(max_entries, TCPDELAY_PENDING_SIDES);
++	__type(key, struct side_key);
++	__type(value, __u32);
++} pending_sides SEC(".maps");
++
++struct {
++	__uint(type, BPF_MAP_TYPE_LRU_HASH);
++	__uint(max_entries, TCPDELAY_LIFETIMES);
++	__type(key, struct tcpdelay_record_flow);
++	__type(value, struct connection_lifecycle);
++} lifecycles SEC(".maps");
++
++struct {
++	__uint(type, BPF_MAP_TYPE_LRU_HASH);
++	__uint(max_entries, TCPDELAY_CONFIRMED_PAIRS);
++	__type(key, struct confirmed_pair_key);
++	__type(value, __u32);
++} confirmed_pairs SEC(".maps");
++
++struct {
++	__uint(type, BPF_MAP_TYPE_LRU_HASH);
++	__uint(max_entries, TCPDELAY_IDENTITIES);
++	__type(key, struct identity_key);
++	__type(value, struct connection_identity);
++} identities SEC(".maps");
++
++struct {
++	__uint(type, BPF_MAP_TYPE_LRU_HASH);
++	__uint(max_entries, TCPDELAY_GENERATION_STATES);
++	__type(key, struct generation_flow_key);
++	__type(value, struct flow_state);
++} generation_states SEC(".maps");
++
+ struct {
+ 	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+ 	__uint(max_entries, TCPDELAY_DEPARTURES);
+@@ -55,11 +141,11 @@ struct {
+ } departures SEC(".maps");
+ 
+ struct {
+-	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+-	__uint(max_entries, TCPDELAY_FLOW_STATES);
+-	__type(key, struct tcpdelay_record_flow);
+-	__type(value, struct flow_state);
+-} flows SEC(".maps");
++	__uint(type, BPF_MAP_TYPE_ARRAY);
++	__uint(max_entries, TCPDELAY_GENERATION_ALLOCATOR_ENTRIES);
++	__type(key, __u32);
++	__type(value, __u32);
++} generation_allocator SEC(".maps");
+ 
+ struct {
+ 	__uint(type, BPF_MAP_TYPE_RINGBUF);
+@@ -183,70 +269,612 @@ static __always_inline void swap_flow(struct tcpdelay_record_flow *flow)
+ 	flow->remote_port = port;
+ }
+ 
+-static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __u32 tsval)
++static __always_inline struct tcpdelay_counters *counters_entry(void)
+ {
+-	struct departure_key key = { .flow = *flow, .tsval = tsval };
+-	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
+-	__u64 now;
++	__u32 zero = 0;
+ 
+-	if (state != NULL && state->outgoing_tsval == tsval)
+-		return;
+-	now = bpf_ktime_get_ns();
+-	if (state == NULL) {
+-		struct flow_state initial = { .outgoing_tsval = tsval, .departure_ns = now };
++	return bpf_map_lookup_elem(&counters, &zero);
++}
+ 
+-		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
+-	} else {
+-		state->outgoing_tsval = tsval;
+-		if (now - state->departure_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
++static __always_inline void generation_failure(void)
++{
++	struct tcpdelay_counters *totals = counters_entry();
++
++	if (totals != NULL)
++		totals->generation_failures++;
++}
++
++static __always_inline __u32 allocate_generation(void)
++{
++	__u32 zero = 0U;
++	__u32 *next_generation = bpf_map_lookup_elem(&generation_allocator, &zero);
++	__u32 attempt;
++
++	if (next_generation == NULL) {
++		generation_failure();
++		return 0U;
++	}
++	for (attempt = 0U; attempt < TCPDELAY_ATOMIC_ATTEMPTS; attempt++) {
++		__u32 current = *next_generation;
++		__u32 next;
++		__u32 observed;
++
++		if (current == 0U) {
++			generation_failure();
++			return 0U;
++		}
++		next = current == ~0U ? 0U : current + 1U;
++		observed = __sync_val_compare_and_swap(next_generation, current, next);
++		if (observed == current)
++			return current;
++	}
++	generation_failure();
++	return 0U;
++}
++
++static __always_inline __u32 *pending_side(const struct tcpdelay_record_flow *flow, __u32 side)
++{
++	struct side_key key = { .flow = *flow, .side = side };
++
++	return bpf_map_lookup_elem(&pending_sides, &key);
++}
++
++static __always_inline int
++publish_pending_side(const struct tcpdelay_record_flow *flow, __u32 side, __u32 isn)
++{
++	struct side_key key = { .flow = *flow, .side = side };
++	int result = bpf_map_update_elem(&pending_sides, &key, &isn, BPF_ANY);
++
++	if (result < 0)
++		generation_failure();
++	return result;
++}
++
++static __always_inline struct connection_lifecycle *
++lifecycle_lookup(const struct tcpdelay_record_flow *flow)
++{
++	return bpf_map_lookup_elem(&lifecycles, flow);
++}
++
++static __always_inline int lifecycle_ensure(const struct tcpdelay_record_flow *flow)
++{
++	struct connection_lifecycle initial = {};
++
++	if (lifecycle_lookup(flow) != NULL)
++		return 1;
++	if (bpf_map_update_elem(&lifecycles, flow, &initial, BPF_NOEXIST) < 0 &&
++	    lifecycle_lookup(flow) == NULL) {
++		generation_failure();
++		return 0;
++	}
++	if (lifecycle_lookup(flow) == NULL) {
++		generation_failure();
++		return 0;
++	}
++	return 1;
++}
++
++static __always_inline int identity_pending_matches(
++	const struct tcpdelay_record_flow *flow,
++	const struct connection_identity *identity
++)
++{
++	__u32 *local_isn = pending_side(flow, TCPDELAY_SIDE_LOCAL);
++	int local_present = local_isn != NULL;
++	__u32 local_value = local_present ? *local_isn : 0U;
++	__u32 *remote_isn = pending_side(flow, TCPDELAY_SIDE_REMOTE);
++	int remote_present = remote_isn != NULL;
++	__u32 remote_value = remote_present ? *remote_isn : 0U;
++
++	if ((identity->mask & TCPDELAY_IDENTITY_LOCAL) != 0U) {
++		if (!local_present) {
++			generation_failure();
++			return 0;
++		}
++		if (local_value != identity->local_isn)
++			return 0;
++	} else if (local_present) {
++		return 0;
++	}
++	if ((identity->mask & TCPDELAY_IDENTITY_REMOTE) != 0U) {
++		if (!remote_present) {
++			generation_failure();
++			return 0;
++		}
++		if (remote_value != identity->remote_isn)
++			return 0;
++	} else if (remote_present) {
++		return 0;
++	}
++	return 1;
++}
++
++static __always_inline int
++identity_is_current(const struct tcpdelay_record_flow *flow, __u32 generation)
++{
++	struct identity_key key = { .flow = *flow, .generation = generation };
++	struct connection_identity value;
++	struct connection_identity *identity;
++
++	if (generation == 0U)
++		return 0;
++	identity = bpf_map_lookup_elem(&identities, &key);
++	if (identity == NULL) {
++		generation_failure();
++		return 0;
++	}
++	value = *identity;
++	return identity_pending_matches(flow, &value);
++}
++
++static __always_inline int
++generation_is_current(const struct tcpdelay_record_flow *flow, __u32 generation)
++{
++	struct connection_lifecycle *lifecycle = lifecycle_lookup(flow);
++
++	if (generation == 0U)
++		return 0;
++	if (lifecycle == NULL) {
++		generation_failure();
++		return 0;
++	}
++	if (lifecycle->active_generation != generation ||
++	    lifecycle->latest_generation != generation)
++		return 0;
++	if (!identity_is_current(flow, generation))
++		return 0;
++	/* Identity and pending-side lookups may evict this LRU lifecycle entry. */
++	lifecycle = lifecycle_lookup(flow);
++	if (lifecycle == NULL)
++		return 0;
++	return lifecycle->active_generation == generation &&
++	       lifecycle->latest_generation == generation;
++}
++
++static __always_inline void deactivate_stale_generation(const struct tcpdelay_record_flow *flow)
++{
++	__u32 attempt;
++
++	for (attempt = 0U; attempt < TCPDELAY_ATOMIC_ATTEMPTS; attempt++) {
++		struct connection_lifecycle *lifecycle = lifecycle_lookup(flow);
++		__u32 active;
++		__u32 observed;
++
++		if (lifecycle == NULL)
++			return;
++		active = lifecycle->active_generation;
++		if (active == 0U || generation_is_current(flow, active))
++			return;
++		lifecycle = lifecycle_lookup(flow);
++		if (lifecycle == NULL)
++			return;
++		if (lifecycle->active_generation != active)
++			continue;
++		observed = __sync_val_compare_and_swap(&lifecycle->active_generation, active, 0U);
++		if (observed == active)
+ 			return;
+-		state->departure_ns = now;
+ 	}
+-	bpf_map_update_elem(&departures, &key, &now, BPF_NOEXIST);
+ }
+ 
+-static __always_inline struct tcpdelay_counters *counters_entry(void)
++static __always_inline __u32
++advance_latest_generation(const struct tcpdelay_record_flow *flow, __u32 generation)
+ {
+-	__u32 zero = 0;
++	__u32 attempt;
+ 
+-	return bpf_map_lookup_elem(&counters, &zero);
++	for (attempt = 0U; attempt < TCPDELAY_ATOMIC_ATTEMPTS; attempt++) {
++		struct connection_lifecycle *lifecycle = lifecycle_lookup(flow);
++		__u32 current;
++		__u32 observed;
++
++		if (lifecycle == NULL)
++			return 0U;
++		current = lifecycle->latest_generation;
++		if (current >= generation)
++			return current;
++		observed = __sync_val_compare_and_swap(
++			&lifecycle->latest_generation,
++			current,
++			generation
++		);
++		if (observed == current)
++			return generation;
++	}
++	return 0U;
++}
++
++static __always_inline int
++activate_generation(const struct tcpdelay_record_flow *flow, __u32 generation)
++{
++	__u32 attempt;
++
++	for (attempt = 0U; attempt < TCPDELAY_ATOMIC_ATTEMPTS; attempt++) {
++		struct connection_lifecycle *lifecycle = lifecycle_lookup(flow);
++		__u32 active;
++		__u32 observed;
++
++		if (lifecycle == NULL) {
++			generation_failure();
++			return 0;
++		}
++		active = lifecycle->active_generation;
++		if (lifecycle->latest_generation != generation || active > generation)
++			return 0;
++		if (active == generation)
++			break;
++		observed = __sync_val_compare_and_swap(
++			&lifecycle->active_generation,
++			active,
++			generation
++		);
++		if (observed == active)
++			break;
++	}
++	if (attempt == TCPDELAY_ATOMIC_ATTEMPTS) {
++		generation_failure();
++		return 0;
++	}
++	if (!generation_is_current(flow, generation))
++		return 0;
++	{
++		struct connection_lifecycle *lifecycle = lifecycle_lookup(flow);
++
++		if (lifecycle == NULL || lifecycle->active_generation != generation ||
++		    lifecycle->latest_generation != generation)
++			return 0;
++	}
++	return 1;
++}
++
++static __always_inline int
++remember_syn(const struct tcpdelay_record_flow *flow, __u32 side, __u32 isn)
++{
++	struct seen_syn_key key = { .flow = *flow, .side = side, .isn = isn };
++	__u8 value = 1U;
++
++	if (bpf_map_lookup_elem(&seen_syn, &key) != NULL) {
++		__u32 *pending = pending_side(flow, side);
++
++		if (pending != NULL)
++			return 0;
++		if (publish_pending_side(flow, side, isn) < 0)
++			return -1;
++		return 1;
++	}
++	if (bpf_map_update_elem(&seen_syn, &key, &value, BPF_NOEXIST) < 0) {
++		if (bpf_map_lookup_elem(&seen_syn, &key) != NULL)
++			return 0;
++		generation_failure();
++		return -1;
++	}
++	if (publish_pending_side(flow, side, isn) < 0) {
++		bpf_map_delete_elem(&seen_syn, &key);
++		return -1;
++	}
++	return 1;
++}
++
++static __always_inline int publish_identity(
++	const struct tcpdelay_record_flow *flow,
++	__u32 generation,
++	__u32 local_isn,
++	__u32 remote_isn,
++	__u8 mask
++)
++{
++	struct identity_key key = { .flow = *flow, .generation = generation };
++	struct connection_identity value = {
++		.local_isn = local_isn,
++		.remote_isn = remote_isn,
++		.mask = mask,
++	};
++	struct connection_identity *existing;
++
++	if (bpf_map_update_elem(&identities, &key, &value, BPF_NOEXIST) == 0)
++		return 0;
++	existing = bpf_map_lookup_elem(&identities, &key);
++	if (existing != NULL && existing->local_isn == value.local_isn &&
++	    existing->remote_isn == value.remote_isn && existing->mask == value.mask)
++		return 0;
++	return -1;
++}
++
++static __always_inline int
++advance_and_activate(const struct tcpdelay_record_flow *flow, __u32 generation)
++{
++	__u32 latest;
++
++	if (!identity_is_current(flow, generation))
++		return 0;
++	latest = advance_latest_generation(flow, generation);
++	if (latest == 0U) {
++		generation_failure();
++		return 0;
++	}
++	if (latest != generation)
++		return 0;
++	return activate_generation(flow, generation);
++}
++
++static __always_inline __u32
++confirm_pair(const struct tcpdelay_record_flow *flow, __u32 local_isn, __u32 remote_isn)
++{
++	struct confirmed_pair_key pair_key = {
++		.flow = *flow,
++		.local_isn = local_isn,
++		.remote_isn = remote_isn,
++	};
++	struct identity_key identity_key;
++	struct connection_identity expected = {
++		.local_isn = local_isn,
++		.remote_isn = remote_isn,
++		.mask = TCPDELAY_IDENTITY_LOCAL | TCPDELAY_IDENTITY_REMOTE,
++	};
++	struct connection_identity *identity;
++	__u32 *known_generation;
++	__u32 generation;
++
++	if (!lifecycle_ensure(flow))
++		return 0U;
++	known_generation = bpf_map_lookup_elem(&confirmed_pairs, &pair_key);
++	if (known_generation != NULL) {
++		generation = *known_generation;
++		identity_key.flow = *flow;
++		identity_key.generation = generation;
++		identity = bpf_map_lookup_elem(&identities, &identity_key);
++		if (identity != NULL) {
++			struct connection_identity value = *identity;
++
++			if (value.mask != expected.mask || value.local_isn != local_isn ||
++			    value.remote_isn != remote_isn ||
++			    !identity_pending_matches(flow, &value))
++				return 0U;
++		} else if (!identity_pending_matches(flow, &expected) ||
++			   publish_identity(flow, generation, local_isn, remote_isn, expected.mask) <
++				   0) {
++			generation_failure();
++			return 0U;
++		}
++		return advance_and_activate(flow, generation) ? generation : 0U;
++	}
++
++	generation = allocate_generation();
++	if (generation == 0U)
++		return 0U;
++	if (publish_identity(
++		    flow,
++		    generation,
++		    local_isn,
++		    remote_isn,
++		    TCPDELAY_IDENTITY_LOCAL | TCPDELAY_IDENTITY_REMOTE
++	    ) < 0) {
++		generation_failure();
++		return 0U;
++	}
++	if (bpf_map_update_elem(&confirmed_pairs, &pair_key, &generation, BPF_NOEXIST) < 0) {
++		known_generation = bpf_map_lookup_elem(&confirmed_pairs, &pair_key);
++		if (known_generation == NULL) {
++			generation_failure();
++			return 0U;
++		}
++		generation = *known_generation;
++	}
++	identity_key.flow = *flow;
++	identity_key.generation = generation;
++	identity = bpf_map_lookup_elem(&identities, &identity_key);
++	if (identity == NULL) {
++		generation_failure();
++		return 0U;
++	}
++	{
++		struct connection_identity value = *identity;
++
++		if (value.local_isn != local_isn || value.remote_isn != remote_isn ||
++		    !identity_pending_matches(flow, &value)) {
++			generation_failure();
++			return 0U;
++		}
++	}
++	return advance_and_activate(flow, generation) ? generation : 0U;
++}
++
++static __always_inline __u32
++handle_synack(const struct tcpdelay_record_flow *flow, __u32 side, __u32 isn, __u32 acked_isn)
++{
++	__u32 opposite = side == TCPDELAY_SIDE_LOCAL ? TCPDELAY_SIDE_REMOTE : TCPDELAY_SIDE_LOCAL;
++	__u32 *opposite_isn = pending_side(flow, opposite);
++	__u32 opposite_value;
++	__u32 local_value;
++	__u32 remote_value;
++
++	/* The ACK field names the next sequence after the SYN's one consumed byte. */
++	if (opposite_isn == NULL)
++		return 0U;
++	opposite_value = *opposite_isn;
++	if (opposite_value + 1U != acked_isn)
++		return 0U;
++	/* A matching ACK proves this SYN/ACK answers the current opposite-side SYN. */
++	if (publish_pending_side(flow, side, isn) < 0)
++		return 0U;
++	{
++		__u32 *local_isn = pending_side(flow, TCPDELAY_SIDE_LOCAL);
++
++		if (local_isn == NULL)
++			return 0U;
++		local_value = *local_isn;
++	}
++	{
++		__u32 *remote_isn = pending_side(flow, TCPDELAY_SIDE_REMOTE);
++
++		if (remote_isn == NULL)
++			return 0U;
++		remote_value = *remote_isn;
++	}
++	if ((side == TCPDELAY_SIDE_LOCAL ? remote_value : local_value) + 1U != acked_isn)
++		return 0U;
++	return confirm_pair(flow, local_value, remote_value);
++}
++
++static __always_inline __u32 bootstrap_generation(const struct tcpdelay_record_flow *flow)
++{
++	struct connection_identity identity = {};
++	struct identity_key identity_key;
++	struct connection_lifecycle initial = {};
++	__u32 generation;
++
++	if (lifecycle_lookup(flow) != NULL || pending_side(flow, TCPDELAY_SIDE_LOCAL) != NULL ||
++	    pending_side(flow, TCPDELAY_SIDE_REMOTE) != NULL)
++		return 0U;
++	generation = allocate_generation();
++	if (generation == 0U)
++		return 0U;
++	if (bpf_map_update_elem(&lifecycles, flow, &initial, BPF_NOEXIST) < 0) {
++		if (lifecycle_lookup(flow) == NULL)
++			generation_failure();
++		return 0U;
++	}
++	identity_key.flow = *flow;
++	identity_key.generation = generation;
++	if (bpf_map_update_elem(&identities, &identity_key, &identity, BPF_NOEXIST) < 0) {
++		generation_failure();
++		return 0U;
++	}
++	if (pending_side(flow, TCPDELAY_SIDE_LOCAL) != NULL ||
++	    pending_side(flow, TCPDELAY_SIDE_REMOTE) != NULL ||
++	    !advance_and_activate(flow, generation))
++		return 0U;
++	return generation;
++}
++
++static __always_inline __u32 packet_generation(
++	const struct tcpdelay_record_flow *flow,
++	__u32 sequence,
++	__u32 acknowledgment,
++	int syn,
++	int ack,
++	__u32 side
++)
++{
++	struct connection_lifecycle *lifecycle = lifecycle_lookup(flow);
++	__u32 generation;
++
++	if (syn && !ack) {
++		int remembered = remember_syn(flow, side, sequence);
++
++		if (remembered > 0)
++			deactivate_stale_generation(flow);
++		return 0U;
++	}
++	if (syn && ack) {
++		generation = handle_synack(flow, side, sequence, acknowledgment);
++		return generation;
++	}
++	if (lifecycle == NULL) {
++		generation = bootstrap_generation(flow);
++		if (generation == 0U)
++			return 0U;
++		lifecycle = lifecycle_lookup(flow);
++		if (lifecycle == NULL) {
++			generation_failure();
++			return 0U;
++		}
++	}
++	generation = lifecycle->active_generation;
++	if (generation == 0U)
++		return 0U;
++	if (!generation_is_current(flow, generation)) {
++		deactivate_stale_generation(flow);
++		return 0U;
++	}
++	return generation;
+ }
+ 
+-/*
+- * A reply whose new TSecr echoes a recorded departure is always sampled; any
+- * other change of TSval or TSecr at most once per interval, which still feeds
+- * the downstream estimate of flows that send no data.
+- */
+ static __always_inline void
+-incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
++outgoing(const struct tcpdelay_record_flow *flow, __u32 generation, __u32 tsval)
+ {
+-	struct departure_key key = { .flow = *flow, .tsval = tsecr };
+-	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
+-	struct tcpdelay_record *record;
+-	__u64 *departure = NULL;
+-	__u64 now = bpf_ktime_get_ns();
++	struct generation_flow_key state_key = { .flow = *flow, .generation = generation };
++	struct departure_key departure_key = {
++		.flow = *flow,
++		.generation = generation,
++		.tsval = tsval,
++	};
++	struct flow_state initial = { .outgoing_tsval = tsval };
++	struct flow_state *state;
++	__u64 now;
++	int new_state = 0;
+ 
++	state = bpf_map_lookup_elem(&generation_states, &state_key);
+ 	if (state == NULL) {
+-		struct flow_state initial = {
+-			.incoming_tsval = tsval,
+-			.incoming_tsecr = tsecr,
+-			.sample_ns = now,
+-		};
+-
+-		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
+-		if (tsecr != 0)
+-			departure = bpf_map_lookup_elem(&departures, &key);
+-	} else {
+-		if (state->incoming_tsval == tsval && state->incoming_tsecr == tsecr)
++		if (bpf_map_update_elem(&generation_states, &state_key, &initial, BPF_NOEXIST) < 0)
++			state = bpf_map_lookup_elem(&generation_states, &state_key);
++		else {
++			state = bpf_map_lookup_elem(&generation_states, &state_key);
++			new_state = 1;
++		}
++	}
++	if (state == NULL)
++		return;
++	if (!new_state && state->outgoing_tsval == tsval)
++		return;
++	now = bpf_ktime_get_ns();
++	if (!new_state) {
++		state->outgoing_tsval = tsval;
++		if (now - state->departure_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
+ 			return;
+-		if (state->incoming_tsecr != tsecr && tsecr != 0)
+-			departure = bpf_map_lookup_elem(&departures, &key);
++	}
++	state->departure_ns = now;
++	bpf_map_update_elem(&departures, &departure_key, &now, BPF_NOEXIST);
++}
++
++/* A matched echo bypasses thinning; other changes are sampled at most per interval. */
++static __always_inline void
++incoming(const struct tcpdelay_record_flow *flow, __u32 generation, __u32 tsval, __u32 tsecr)
++{
++	struct generation_flow_key state_key = { .flow = *flow, .generation = generation };
++	struct departure_key departure_key = {
++		.flow = *flow,
++		.generation = generation,
++		.tsval = tsecr,
++	};
++	struct flow_state initial = {
++		.incoming_tsval = tsval,
++		.incoming_tsecr = tsecr,
++	};
++	struct flow_state *state;
++	struct tcpdelay_record *record;
++	__u64 departure_ns = 0U;
++	__u64 now;
++	int new_state = 0;
++	int has_departure = 0;
++
++	state = bpf_map_lookup_elem(&generation_states, &state_key);
++	if (state == NULL) {
++		if (bpf_map_update_elem(&generation_states, &state_key, &initial, BPF_NOEXIST) < 0)
++			state = bpf_map_lookup_elem(&generation_states, &state_key);
++		else {
++			state = bpf_map_lookup_elem(&generation_states, &state_key);
++			new_state = 1;
++		}
++	}
++	if (state == NULL)
++		return;
++	if (!new_state && state->incoming_tsval == tsval && state->incoming_tsecr == tsecr)
++		return;
++	now = bpf_ktime_get_ns();
++	if ((new_state || state->incoming_tsecr != tsecr) && tsecr != 0U) {
++		__u64 *departure = bpf_map_lookup_elem(&departures, &departure_key);
++
++		if (departure != NULL) {
++			departure_ns = *departure;
++			has_departure = 1;
++		}
++	}
++	if (!new_state) {
+ 		state->incoming_tsval = tsval;
+ 		state->incoming_tsecr = tsecr;
+-		if (departure == NULL && now - state->sample_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
++		if (!has_departure && now - state->sample_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
+ 			return;
+-		state->sample_ns = now;
+ 	}
++	state->sample_ns = now;
+ 	record = bpf_ringbuf_reserve(&samples, sizeof(*record), 0);
+ 	if (record == NULL) {
+ 		struct tcpdelay_counters *totals = counters_entry();
+@@ -256,11 +884,15 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
+ 		return;
+ 	}
+ 	record->arrival_ns = now;
+-	record->departure_ns = departure != NULL ? *departure : 0;
++	record->departure_ns = departure_ns;
+ 	record->flow = *flow;
+ 	record->tsval = tsval;
+-	record->tsecr = tsecr;
+-	/* Userspace drains the ring on each traffic tick and controller run. */
++	record->generation = generation;
++	record->reserved = 0U;
++	if (!generation_is_current(flow, generation)) {
++		bpf_ringbuf_discard(record, 0);
++		return;
++	}
+ 	bpf_ringbuf_submit(record, BPF_RB_NO_WAKEUP);
+ }
+ 
+@@ -268,6 +900,7 @@ SEC("socket")
+ int tcpdelay(struct __sk_buff *skb)
+ {
+ 	/* Only outgoing packets are counted, so only they look the counters up. */
++	int outgoing_packet = skb->pkt_type == PACKET_OUTGOING;
+ 	struct tcpdelay_counters *totals = NULL;
+ 	struct tcpdelay_record_flow flow = {};
+ 	__u8 options[TCP_OPTIONS_MAX] = {};
+@@ -282,8 +915,12 @@ int tcpdelay(struct __sk_buff *skb)
+ 	__u32 options_length;
+ 	__u32 tsval;
+ 	__u32 tsecr;
++	__u32 generation;
++	__u32 sequence;
++	__u32 acknowledgment;
++	__u32 side;
+ 
+-	if (skb->pkt_type == PACKET_OUTGOING) {
++	if (outgoing_packet) {
+ 		totals = counters_entry();
+ 		/* For the verifier; the array's one entry exists from creation. */
+ 		if (totals == NULL)
+@@ -299,6 +936,10 @@ int tcpdelay(struct __sk_buff *skb)
+ 	    !tcp.rst) {
+ 		totals->ack_bytes += skb->len;
+ 	}
++	flow.local_port = tcp.source;
++	flow.remote_port = tcp.dest;
++	if (!outgoing_packet)
++		swap_flow(&flow);
+ 	options_length = tcp.doff * 4U;
+ 	if (options_length < sizeof(tcp) + TCP_OPTION_TIMESTAMP_LENGTH)
+ 		return 0;
+@@ -309,14 +950,16 @@ int tcpdelay(struct __sk_buff *skb)
+ 	    !find_timestamp(options, options_length, &tsval, &tsecr)) {
+ 		return 0;
+ 	}
+-	flow.local_port = tcp.source;
+-	flow.remote_port = tcp.dest;
+-	if (skb->pkt_type == PACKET_OUTGOING) {
+-		outgoing(&flow, tsval);
+-	} else {
+-		swap_flow(&flow);
+-		incoming(&flow, tsval, tsecr);
+-	}
++	sequence = bpf_ntohl(tcp.seq);
++	acknowledgment = bpf_ntohl(tcp.ack_seq);
++	side = outgoing_packet ? TCPDELAY_SIDE_LOCAL : TCPDELAY_SIDE_REMOTE;
++	generation = packet_generation(&flow, sequence, acknowledgment, tcp.syn, tcp.ack, side);
++	if (generation == 0U)
++		return 0;
++	if (outgoing_packet)
++		outgoing(&flow, generation, tsval);
++	else
++		incoming(&flow, generation, tsval, tsecr);
+ 	return 0;
+ }
+ 
+diff --git a/tests/tcpdelay/test_estimator.c b/tests/tcpdelay/test_estimator.c
+index 47a4e8a..d817f7f 100644
+--- a/tests/tcpdelay/test_estimator.c
++++ b/tests/tcpdelay/test_estimator.c
+@@ -15,12 +15,18 @@ struct remote {
+ 	struct tcpdelay_record_flow key;
+ 	uint64_t tick_ns;
+ 	uint32_t tsval_base;
++	uint32_t generation;
+ 	bool departures;
+ };
+ 
+ static struct remote remote_flow(uint16_t port, uint64_t tick_ns, uint32_t tsval_base)
+ {
+-	struct remote remote = { .tick_ns = tick_ns, .tsval_base = tsval_base, .departures = true };
++	struct remote remote = {
++		.tick_ns = tick_ns,
++		.tsval_base = tsval_base,
++		.generation = 1U,
++		.departures = true,
++	};
+ 
+ 	remote.key.local_address[15] = 2U;
+ 	remote.key.remote_address[15] = 1U;
+@@ -47,6 +53,7 @@ static void send_sample(
+ 		.flow = remote->key,
+ 		.arrival_ns = ORIGIN_NS + sent_ns + PATH_NS + download_queue_ns,
+ 		.tsval = remote->tsval_base + (uint32_t)(sent_ns / remote->tick_ns),
++		.generation = remote->generation,
+ 	};
+ 
+ 	if (remote->departures) {
+@@ -357,6 +364,7 @@ static void test_later_arrival_with_older_timestamp_is_ignored(void)
+ 	sample.arrival_ns = ORIGIN_NS + 3000U * MILLISECOND + PATH_NS;
+ 	sample.departure_ns = 0U;
+ 	sample.tsval = before.last_tsval - 1U;
++	sample.generation = before.generation;
+ 	tcpdelay_estimator_add(&estimator, &sample);
+ 
+ 	assert(memcmp(&estimator.flows[0], &before, sizeof(before)) == 0);
+@@ -377,6 +385,7 @@ static void test_earlier_arrival_with_newer_timestamp_is_ignored(void)
+ 	sample.arrival_ns = ORIGIN_NS + 2998U * MILLISECOND + PATH_NS;
+ 	sample.departure_ns = 0U;
+ 	sample.tsval = before.last_tsval + 1U;
++	sample.generation = before.generation;
+ 	tcpdelay_estimator_add(&estimator, &sample);
+ 
+ 	assert(memcmp(&estimator.flows[0], &before, sizeof(before)) == 0);
+@@ -385,7 +394,7 @@ static void test_earlier_arrival_with_newer_timestamp_is_ignored(void)
+ static void test_equal_timestamp_with_later_arrival_refreshes_lru(void)
+ {
+ 	struct tcpdelay_estimator estimator;
+-	struct tcpdelay_sample sample = { 0 };
++	struct tcpdelay_sample sample = { .generation = 1U };
+ 	size_t index;
+ 	bool oldest = false;
+ 	bool second_oldest = false;
+@@ -427,6 +436,7 @@ static void test_newer_timestamp_with_equal_arrival_is_accepted(void)
+ 		.flow = { .local_port = 42000U },
+ 		.arrival_ns = ORIGIN_NS,
+ 		.tsval = 100U,
++		.generation = 1U,
+ 	};
+ 
+ 	tcpdelay_estimator_init(&estimator);
+@@ -438,6 +448,60 @@ static void test_newer_timestamp_with_equal_arrival_is_accepted(void)
+ 	assert(estimator.flows[0].last_tsval == sample.tsval);
+ }
+ 
++static void test_new_generation_recalibrates_and_old_generation_is_ignored(void)
++{
++	struct tcpdelay_estimator estimator;
++	struct tcpdelay_estimate estimate;
++	struct tcpdelay_sample replacement;
++	struct tcpdelay_flow before;
++	struct remote old = remote_flow(42001U, MILLISECOND, 1000000U);
++	struct remote current = remote_flow(42001U, MILLISECOND, 100U - 3000U);
++	uint64_t sent_ns;
++
++	tcpdelay_estimator_init(&estimator);
++	send_span(&estimator, &old, 0U, 3000U * MILLISECOND, 0U, 0U);
++	assert(estimator.flows[0].last_tsval > 1000000U);
++
++	current.generation = 2U;
++	replacement.flow = current.key;
++	replacement.arrival_ns = ORIGIN_NS + 3000U * MILLISECOND + PATH_NS;
++	replacement.departure_ns = 0U;
++	replacement.tsval = 100U;
++	replacement.generation = current.generation;
++	tcpdelay_estimator_add(&estimator, &replacement);
++	assert(estimator.flows[0].generation == 2U);
++	assert(estimator.flows[0].last_tsval == 100U);
++	assert(estimator.flows[0].ticks == 0U);
++	assert(estimator.flows[0].first_arrival_ns == replacement.arrival_ns);
++
++	for (sent_ns = 3001U * MILLISECOND; sent_ns < 6001U * MILLISECOND; sent_ns += MILLISECOND)
++		send_sample(&estimator, &current, sent_ns, 0U, 0U, 0U);
++	result_after(&estimator, sent_ns, &estimate);
++	assert(estimate.download_valid && estimate.upload_valid);
++	assert_close(estimate.download_queue_microseconds, 0);
++	assert_close(estimate.upload_queue_microseconds, 0);
++	memcpy(&before, &estimator.flows[0], sizeof(before));
++	replacement.arrival_ns = ORIGIN_NS + sent_ns + PATH_NS;
++	replacement.tsval = before.last_tsval + 1U;
++	replacement.generation = 1U;
++	tcpdelay_estimator_add(&estimator, &replacement);
++	assert(memcmp(&estimator.flows[0], &before, sizeof(before)) == 0);
++}
++
++static void test_zero_generation_is_ignored(void)
++{
++	struct tcpdelay_estimator estimator;
++	struct tcpdelay_sample sample = {
++		.flow = { .local_port = 42002U },
++		.arrival_ns = ORIGIN_NS,
++		.tsval = 1U,
++	};
++
++	tcpdelay_estimator_init(&estimator);
++	tcpdelay_estimator_add(&estimator, &sample);
++	assert(!estimator.flows[0].used);
++}
++
+ /* An unknown clock rate is never adopted; that flow gives no estimate. */
+ static void test_nonstandard_tick_is_rejected(void)
+ {
+@@ -465,6 +529,7 @@ static void test_rejected_sample_does_not_refresh_lru(void)
+ 
+ 	tcpdelay_estimator_init(&estimator);
+ 	memset(&sample, 0, sizeof(sample));
++	sample.generation = 1U;
+ 	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
+ 		sample.flow.local_port = (uint16_t)(40000U + index);
+ 		sample.arrival_ns = ORIGIN_NS + index * MILLISECOND;
+@@ -513,6 +578,8 @@ int main(void)
+ 	test_earlier_arrival_with_newer_timestamp_is_ignored();
+ 	test_equal_timestamp_with_later_arrival_refreshes_lru();
+ 	test_newer_timestamp_with_equal_arrival_is_accepted();
++	test_new_generation_recalibrates_and_old_generation_is_ignored();
++	test_zero_generation_is_ignored();
+ 	test_nonstandard_tick_is_rejected();
+ 	test_rejected_sample_does_not_refresh_lru();
+ 	puts("tcpdelay estimator tests passed");
