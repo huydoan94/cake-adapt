@@ -1,0 +1,3 @@
+=== BPF statistics ===
+0
+bpftool unavailable

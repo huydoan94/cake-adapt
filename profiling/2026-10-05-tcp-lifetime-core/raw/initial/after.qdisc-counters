@@ -1,0 +1,78 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 4Mb ecn drop_batch 64 
+ Sent 38500 bytes 207 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+  maxpacket 0 drop_overlimit 0 new_flow_count 0 ecn_mark 0
+  new_flows_len 0 old_flows_len 0
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 148374 bytes 1447 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 2304b of 4Mb
+ capacity estimate: 30Mbit
+ min/max network layer size:           42 /     166
+ min/max overhead-adjusted size:       42 /     166
+ active queues:                         0
+ average network hdr offset:           14
+
+                   Bulk  Best Effort        Voice
+  thresh       1250Kbit       20Mbit        5Mbit
+  target         14.5ms          5ms          5ms
+  interval        110ms        100ms        100ms
+  pk_delay          0us         60us         47us
+  av_delay          0us          8us          2us
+  sp_delay          0us          3us          2us
+  backlog            0b           0b           0b
+  pkts                0         1362           85
+  bytes               0       144804         3570
+  way_inds            0           54            0
+  way_miss            0          237            1
+  way_cols            0            0            0
+  drops               0            0            0
+  marks               0            0            0
+  ack_drop            0            0            0
+  sp_flows            0            1            0
+  bk_flows            0            1            0
+  un_flows            0            0            0
+  max_len             0          166           42
+  quantum           300          610          300
+
+qdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- 
+ Sent 103482 bytes 1272 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc noqueue 0: dev br-lan root refcnt 2 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 121290 bytes 1272 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 1280b of 4Mb
+ capacity estimate: 30Mbit
+ min/max network layer size:           64 /     134
+ min/max overhead-adjusted size:       64 /     134
+ active queues:                         0
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh         20Mbit
+  target            5ms
+  interval        100ms
+  pk_delay         42us
+  av_delay          8us
+  sp_delay          2us
+  backlog            0b
+  pkts             1272
+  bytes          121290
+  way_inds            0
+  way_miss          234
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            1
+  bk_flows            0
+  un_flows            0
+  max_len           134
+  quantum           610
+

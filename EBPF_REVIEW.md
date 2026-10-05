@@ -1,5 +1,16 @@
 # eBPF TCP-delay review
 
+**2026-10-05: full tuple-lifetime implementation deferred and reverted.**
+The uncommitted generation-handling implementation and its tests were restored
+to the current committed baseline at the user's request. Phase 1's committed
+accepted-sample freshness fix remains. The candidate's atomic instructions are
+unsupported by the tested kernel's 32-bit x86 JIT; fixing that without losing
+concurrency guarantees would require a larger change. The implementation patch,
+diagnosis and links to all test evidence are preserved in the
+[deferral record](profiling/2026-10-05-tcp-lifetime-deferred/README.md).
+Issue 2 remains open; historical candidate test results do not describe the
+restored source or establish deployment readiness.
+
 Review date: 2026-10-03. Source snapshot: `7b52801304cccb224cef2a08ef9ba31d3e4d23f8`.
 The working tree was clean before this document was added.
 
