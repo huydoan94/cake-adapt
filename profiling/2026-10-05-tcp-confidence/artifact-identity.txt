@@ -1,0 +1,1 @@
+All five VM artifact hashes match the locally selected bundle files.
