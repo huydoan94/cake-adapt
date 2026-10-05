@@ -37,7 +37,7 @@ struct config;
 /* TCP-timestamp queue estimation. */
 /* Result windows; a result covers the current and the previous one. */
 #define TCPDELAY_WINDOW_MICROSECONDS (100U * MILLISECOND)
-/* Baselines are minimums over two such buckets, following slow clock drift. */
+/* FOLLOW baselines use two such buckets; HOLD retains their lowest minimum. */
 #define TCPDELAY_FLOOR_BUCKET_MICROSECONDS (30U * SECOND)
 /* A remote clock needs this much history before its period is fitted. */
 #define TCPDELAY_TICK_FIT_MICROSECONDS (2U * SECOND)

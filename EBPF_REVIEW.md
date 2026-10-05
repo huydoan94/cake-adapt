@@ -11,6 +11,15 @@ diagnosis and links to all test evidence are preserved in the
 Issue 2 remains open; historical candidate test results do not describe the
 restored source or establish deployment readiness.
 
+**2026-10-05: standing-floor and conflicting ACK-delay mitigations implemented.**
+Fresh clear fping permits rolling floor adaptation; congestion or unavailable
+independent observations hold the retained minimum. TCP direction classifications
+must agree with delivery attribution before they split RTT. Host and target
+regressions pass, and a bounded observation-only VM comparison verifies baseline
+retention and recovery. See the
+[before/after evidence](profiling/2026-10-05-tcp-confidence/README.md).
+This does not identify receiver wait or establish throughput under rate control.
+
 Review date: 2026-10-03. Source snapshot: `7b52801304cccb224cef2a08ef9ba31d3e4d23f8`.
 The working tree was clean before this document was added.
 
@@ -84,7 +93,7 @@ design is the project's upstream reference.
 
 Priority is a proposed review order, not a claim about observed customer impact.
 
-| Priority | Finding | Evidence | Possible consequence |
+| Priority | Finding | Evidence | Possible consequence before mitigation |
 | --- | --- | --- | --- |
 | High | A newly calibrated flow can hide an established download queue. | Estimator reproduction: 80/20 ms becomes 0/20 ms. | Controller attributes all measured delay to upload and excludes download from the congestion-cut path. |
 | High | Reusing a connection tuple can preserve the previous connection's timestamp state. | Estimator reproduction: neither direction is valid after seven seconds of replacement traffic. | TCP attribution becomes unavailable until recovery or replacement of that state. |
@@ -409,7 +418,7 @@ The remaining issue-2 work and acceptance order is:
 Until those conditions are met, phase 1 establishes only that rejected samples
 do not mutate the estimator flow or refresh its LRU position.
 
-## 4. Finding: a standing queue becomes the baseline
+## 4. Finding: a standing queue becomes the baseline (pre-fix behavior)
 
 ### Reproduced sequence
 
@@ -424,8 +433,9 @@ Host synthetic characterization confirms 80/20 ms near the beginning and
 same sequence from two absolute arrival-time phases, checks that the original
 evidence remains before the second boundary, then clears the path and confirms
 that later 80/20-ms congestion is visible again. This tests the observed
-retention and recovery behavior; it does not make the rolling baseline safer
-for sustained queues.
+retention and recovery behavior of FOLLOW. Separate HOLD regression cases now
+verify retention across the same two absolute phases and acceptance of a lower
+minimum. The production policy and its trade-off are described in section 9.
 
 `floor_update()` keeps the minimum in the current and preceding 30-second
 buckets. Once the old empty-queue observations leave both buckets, the smallest
@@ -446,16 +456,22 @@ This case loses directional TCP evidence. It does **not** disable fping or all
 congestion handling: a 0/0-ms total fails the 5-ms gate, so the controller uses
 its delivery-rate attribution heuristic again.
 
-The controller test also confirms that valid 0/0 measurements fall through the
-5-ms gate and retain delivery-rate attribution for full, loaded, and
-app-limited downloads. The review question remains whether losing directional
-evidence during sustained congestion is acceptable. Separating clock-drift
-compensation from upward baseline adaptation, or inhibiting baseline rise when
-independent evidence indicates congestion, requires an explicit policy trade-off
-and must account for real route changes without permanently freezing a stale
-floor. No safe production change follows from this characterization alone.
+The production estimator now has explicit HOLD and FOLLOW policies. HOLD is the
+default and keeps the lowest retained raw value while accepting
+new lower minima. Only a fresh fping observation with total added RTT below the
+existing 5-ms gate permits FOLLOW's rolling-floor behavior. Missing observations
+and fping congestion retain HOLD; traffic-tick drains always use HOLD. This keeps
+standing queues visible beyond the former two-bucket expiry, while clear fping
+still allows adaptation to route or clock drift. Persistent congestion can hold
+a stale floor, and a newly calibrated flow's initial queue remains unknown.
+These policies mitigate the reproduced failure; they do not identify an empty
+path or solve queue measurement exactly.
+The bounded before/after VM run retained an approximately 80/20-ms pair late in
+a 70-second added-delay period, where the old download estimate fell below 1 ms.
+It recovered after clearing the path; rate adjustment was disabled. This verifies
+integration of the floor policy, not accuracy against actual ISP backlog.
 
-## 5. Finding: sustained delayed ACKs look like upload queueing
+## 5. Finding: sustained delayed ACKs look like upload queueing (pre-fix behavior)
 
 ### Concrete example
 
@@ -507,15 +523,15 @@ latency and the normal congestion conditions. It does demonstrate false
 directional evidence. If an unrelated download queue raises fping RTT at the
 same time, that RTT can be incorrectly assigned to upload.
 
-Treat this as a measurement ambiguity, not something solved by another map or
-a more precise local timestamp. Host controller coverage confirms the
-consequence when independent fping latency also indicates congestion: a false
-0/40-ms pair replaces the delivery heuristic and assigns the shared delay to
-upload. With clear independent latency, the false pair alone does not produce
-a congestion cut. Consider consistency checks against independent latency
-evidence and conservative fallback for unsupported directional claims. These
-are host characterizations; they do not establish a safe confidence policy or
-live behavior.
+The controller now uses measured queue shares only when both quarter-share
+classifications agree with the existing download-delivery heuristic. If the
+direction classifications contradict, it keeps RTT/2 and delivery attribution,
+so a false 0/40-ms pair cannot move an independently detected download cut to
+upload. Agreement permits the measured ratio to split RTT; it does not prove
+that the ratio reflects link queues. Sustained delayed-ACK evidence that agrees
+with the heuristic remains ambiguous and can still affect the split. The
+deterministic fallback regression passes on the host and x86 target. Live
+receiver-wait identification and control-throughput effects remain unverified.
 
 ## 6. Finding: ACK-byte accounting is not CAKE bandwidth accounting
 
@@ -747,12 +763,13 @@ Limits of this harness:
 ## 9. Working order and status
 
 This was the original proposed order. Fix 1 above implements the scoped
-new-flow aggregation change and its regression tests. Sections 4 and 5 have
-host regression coverage for absolute bucket phases, expiry, recovery, delayed
-ACK behavior, and the controller's zero-pair fallback and false-pair
-attribution. The ACK-delay confidence policy, baseline policy, and other
-findings remain open; these tests do not select or validate a production
-mitigation.
+new-flow aggregation change and its regression tests. Sections 4 and 5 retain
+the original failure characterizations; production now adds a HOLD/FOLLOW
+baseline policy and falls back to delivery attribution when measured queue
+shares disagree with that heuristic. Host/target tests cover those bounded
+mitigations, and the observation-only VM batch verifies floor retention and
+recovery. Full control-performance acceptance remains open. Full tuple-lifetime
+handling and the other findings remain open.
 
 1. **Lock down the demonstrated cases with regression tests.** Host assertions
    now cover new-flow baseline contamination, accepted-sample freshness,
@@ -761,26 +778,27 @@ mitigation.
    assertions cover when questionable directional evidence overrides the
    fallback heuristic. These tests establish synthetic behavior only; full
    tuple-lifetime handling remains deferred and open.
-2. **Define measurement confidence before rate policy.** Distinguish fresh
-   samples from a credible baseline and compatible flow/path evidence. Specify
-   when the controller may use a queue ratio and when it must fall back. Do not
-   assume a zero proves absence of congestion.
+2. **Define measurement confidence before rate policy.** The implemented
+   confidence rules use fresh fping evidence to select baseline policy and
+   require queue shares to agree with delivery attribution. Do not assume a
+   zero proves absence of congestion; the bounded runtime batch verifies floor
+   integration, with deployment-specific confidence limits remaining.
 3. **Repair flow lifetime and aggregation together with focused tests.** Bound
    recovery after credible connection restart without destroying reorder
    filtering. Prevent a new unknown baseline from silently overriding mature
    directional evidence. Check BPF departure generations independently.
-4. **Resolve baseline/ACK-delay ambiguity explicitly.** Still open. Choose a
-   documented, measured trade-off for persistent queues, clock drift, path
-   changes, and receiver timing. Passive samples cannot distinguish a changed
-   receiver wait from equal upload path delay, so no safe small ACK-wait
-   subtraction follows from these observations. Avoid replacing a short
-   implementation with a complex estimator whose confidence still cannot be
-   justified.
+4. **Resolve baseline/ACK-delay ambiguity explicitly.** The documented
+   mitigation holds the baseline during fping congestion or missing
+   observations, and allows rolling adaptation when fping is clear. Persistent
+   congestion can therefore hold a stale floor. Passive samples still cannot
+   distinguish a changed receiver wait from equal upload path delay, so no ACK
+   wait is subtracted. Runtime evidence must assess the trade-off for path
+   changes and receiver timing.
 5. **Validate the ACK accounting basis.** Exercise CAKE overhead and minimum
    packet sizes, then measure whether the dynamic allowance actually leaves the
    intended upload room. Keep plain `ack-filter`, not aggressive filtering.
-6. **Run controlled before/after evidence.** Compare the current option-on
-   behavior, options-off baseline, and proposed changes under the same workloads.
+6. **Run controlled before/after evidence.** Compare the previous option-on
+   behavior, options-off baseline, and these mitigations under the same workloads.
    Include flows starting after congestion, short-lived connection churn,
    queues lasting more than two floor buckets, sustained delayed ACKs, and
    small-packet upload. Include download, upload, bidirectional load, recovery,
