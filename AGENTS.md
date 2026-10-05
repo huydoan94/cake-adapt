@@ -1,8 +1,9 @@
 # cake-adapt — Agent Guide
 
-**At session start, resumption, and after a long break, read
+**At session start, resumption after a long break (more than 2 hours), the primary agent reads
 [`COLLABORATION.md`](COLLABORATION.md) together with this guide. Inspect the
-current worktree and identify unfinished work before continuing.**
+current worktree and identify unfinished work before continuing. Delegated
+agents use a scoped task brief with the applicable policy excerpts.**
 
 ## Product contract
 
@@ -536,13 +537,16 @@ Do not claim parity for a new behavior from host tests alone. `fping` remains
 the only supported production pinger until every additional backend has
 independent parser, lifecycle, fixture, and runtime verification.
 
-### Handoff state (2026-10-04)
+### Current status (2026-10-05)
 
-- Uncommitted in the worktree: phase 1 for the tuple-reuse finding
-  (`src/tcpdelay/estimator.c`, `estimator.h`, `tests/tcpdelay/test_estimator.c`
-  and `EBPF_REVIEW.md`). It keeps rejected records from refreshing a flow's
-  LRU state; recovering a reused tuple's clock is still open. Its owner
-  finishes, verifies and commits it; do not overwrite or revert it.
+- Full tuple-lifetime generation handling was deferred and reverted at the
+  user's request. Its atomic instructions prevent JIT compilation on the
+  tested 32-bit x86 kernel; a synchronization redesign is outside this task.
+  The committed accepted-sample freshness fix remains. The recoverable patch,
+  functional results, cost measurements and rollback details are preserved in
+  [`profiling/2026-10-05-tcp-lifetime-deferred/README.md`](profiling/2026-10-05-tcp-lifetime-deferred/README.md).
+  Issue 2 remains open; do not restart the deferred work automatically.
+  Previously built candidate packages do not represent the restored source.
 - The Filogic build has not run on the arm64 VM since `58fb835`, and the
   current code has had no lifecycle or controlled run. Before the user deploys,
   run both with the Filogic build on the arm64 VM.
@@ -552,13 +556,21 @@ independent parser, lifecycle, fixture, and runtime verification.
 
 ## VM testing and delegation
 
-At session start, resumption, and after a long break, read
-`COLLABORATION.md` alongside this guide and inspect the current worktree and
+At session start, resumption, and after a long break, the primary agent reads
+`COLLABORATION.md` alongside this guide and inspects the current worktree and
 unfinished work. Follow its assigned roles and handoff workflow for diagnosis,
 implementation, review, verification, and acceptance. Do not run parallel
 writers on overlapping files. Delegation does not expand the user's granted
 authority or override the branch, remote, Windows, version, and deployment
 restrictions in this guide.
+
+Use the context and usage budget in `COLLABORATION.md`: short per-task files,
+context-free delegation, one implementer and one bounded review by default,
+and only the checks selected for the affected behavior. Reports and evidence
+should be sufficient and concise. Broad reviews, exhaustive testing, detailed
+documentation and instructions to finish every plan are task-specific requests,
+not standing rules unless the user explicitly makes them so. Preserve required
+safety checks and runtime evidence for behavioral claims.
 
 Sandbox failures such as `Read-only file system` or `socket: Operation not
 permitted` are not product failures. Use an existing narrow approval or return
