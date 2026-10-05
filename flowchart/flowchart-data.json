@@ -885,7 +885,7 @@
         },
         {
           "id": "removed",
-          "label": "log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; pingers_close",
+          "label": "log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; close upload TCP capture;\nreset ACK sampling; pingers_close",
           "kind": "error"
         },
         {

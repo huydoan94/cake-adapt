@@ -4,6 +4,8 @@
 /* Shared by tcpdelay.bpf.c and capture.c; kernel types work on both sides. */
 #include <linux/types.h>
 
+#include "cake/accounting.h"
+
 #define TCPDELAY_DEPARTURES 8192
 #define TCPDELAY_FLOW_STATES 1024
 #define TCPDELAY_RING_BYTES (256 * 1024)
@@ -27,11 +29,22 @@ struct tcpdelay_record_flow {
  */
 struct tcpdelay_counters {
 	__u64 ring_full;
-	/* Bytes of outgoing pure ACKs, and of all outgoing packets; link-layer
-	 * header included, as CAKE counts them. */
+	/* CAKE charges when accounting is enabled; otherwise raw observed bytes. */
 	__u64 ack_bytes;
 	__u64 upload_bytes;
+	/* Unsupported accounting invalidates the ACK-rate interval, not TCP timing. */
+	__u64 unaccounted_packets;
 };
+
+/* Written before socket bind, then immutable for this capture's lifetime. */
+struct tcpdelay_accounting {
+	struct cake_accounting cake;
+	__u32 hardware_type;
+	__u32 enabled;
+};
+
+_Static_assert(sizeof(struct tcpdelay_accounting) == 24, "accounting map layout");
+_Static_assert(sizeof(struct tcpdelay_counters) == 32, "counter map layout");
 
 /*
  * Times are CLOCK_MONOTONIC nanoseconds. The 64-bit fields come first and

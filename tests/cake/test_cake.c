@@ -29,6 +29,7 @@ static void test_qdisc_message(void)
 	assert(nested != NULL);
 	assert(nla_put(message, TCA_CAKE_BASE_RATE64, sizeof(bandwidth), &bandwidth) == 0);
 	assert(nla_put_u32(message, TCA_CAKE_RAW, 0U) == 0);
+	assert(nla_put_u32(message, TCA_CAKE_MPU, 84U) == 0);
 	assert(nla_nest_end(message, nested) == 0);
 	memcpy(basic, &bytes, sizeof(bytes));
 	memcpy(basic + sizeof(bytes), &packets, sizeof(packets));
@@ -50,6 +51,7 @@ static void test_qdisc_message(void)
 	assert(read.found);
 	assert(observation.has_bandwidth);
 	assert(observation.raw);
+	assert(observation.mpu_bytes == 84U);
 	assert(observation.bandwidth_bits_per_second == 10000000U);
 	assert(observation.has_basic_stats);
 	assert(observation.bytes == bytes);

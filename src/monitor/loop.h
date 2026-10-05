@@ -118,13 +118,17 @@ struct monitor_tcp {
 	bool open;
 	/* Upload interface whose capture failed; retried once it is recreated. */
 	unsigned int failed_index;
+	uint32_t capture_handle;
+	uint32_t capture_parent;
 	uint64_t dropped_records;
 	uint64_t next_counter_check_microseconds;
 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
 	bool ack_sampled;
 	bool ack_rate_valid;
+	bool ack_degraded;
 	uint64_t ack_bytes;
 	uint64_t upload_bytes;
+	uint64_t unaccounted_packets;
 	uint64_t ack_sampled_microseconds;
 	uint64_t ack_rate_bits_per_second;
 	uint64_t upload_rate_bits_per_second;

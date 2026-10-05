@@ -130,6 +130,15 @@ differences are in integration and safety:
     they fall below this share of the upload shaper rate (for example
     `0.45`). It is not a reservation: while ACKs need less, other traffic
     uses the rest. Download is never held below its minimum rate.
+    Both byte counters use the upload CAKE's overhead, minimum packet size
+    (MPU), RAW setting and ATM/PTM framing, with a fresh capture when those
+    settings or the qdisc change. Accounting supports non-GSO, untagged
+    Ethernet IP/ARP and IP packets on PPP or raw-IP links; RAW also permits
+    other untagged packet protocols. Tagged packets, post-qdisc GSO aggregates
+    and unknown framing disable the ACK ceiling for that sampling interval,
+    report degradation, and recover after a clean interval. TCP timestamp
+    measurement continues. This is conservative coverage, not full offload
+    or tunnel accounting.
     This setting was renamed from `upload_ack_share_min`; update existing UCI
     and standalone shell configurations to `ul_congest_ack_share`.
 - Configuration is typed UCI. A cake-autorate configuration file can be

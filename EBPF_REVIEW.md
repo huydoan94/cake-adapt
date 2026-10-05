@@ -20,6 +20,12 @@ retention and recovery. See the
 [before/after evidence](profiling/2026-10-05-tcp-confidence/README.md).
 This does not identify receiver wait or establish throughput under rate control.
 
+**2026-10-05: ACK-accounting fix implemented within conservative coverage.**
+Both counters use the upload CAKE's non-GSO packet charge. Unsupported
+accounting disables the ACK ceiling for that interval; qdisc removal and model
+changes reset the capture/baseline. Section 6 describes the fix and its limits.
+Tuple-lifetime finding 2 remains deferred.
+
 Review date: 2026-10-03. Source snapshot: `7b52801304cccb224cef2a08ef9ba31d3e4d23f8`.
 The working tree was clean before this document was added.
 
@@ -535,6 +541,22 @@ receiver-wait identification and control-throughput effects remain unverified.
 
 ## 6. Finding: ACK-byte accounting is not CAKE bandwidth accounting
 
+**2026-10-05 implementation:** both counters now share one CAKE byte charge
+for each supported non-GSO packet: link-header normalization unless RAW,
+signed overhead, MPU clamp and ATM/PTM framing. The capture receives an
+immutable accounting model before binding; qdisc removal or changed accounting
+closes it and discards the ACK sampling baseline, including same-handle
+recreation. The loader rejects an incompatible object/map layout.
+
+Unsupported tagged traffic, post-qdisc GSO aggregates or unknown non-RAW
+framing increment an incomplete-accounting counter. That interval disables
+the optional ACK ceiling; clean intervals recover. Counter read failure or
+reset also invalidates rates. Timestamp measurements continue. The supported
+scope and conservative fallback are documented in the README. This does not
+claim full encapsulation/offload coverage or measured customer-link headroom.
+
+The following describes the **pre-fix** raw-counter implementation.
+
 The filter increments its outgoing and pure-ACK counters with `skb->len`.
 `download_ceiling()` then subtracts the derived rates from the configured upload
 shaper bandwidth and reserves headroom in that same bandwidth budget.
@@ -768,8 +790,10 @@ the original failure characterizations; production now adds a HOLD/FOLLOW
 baseline policy and falls back to delivery attribution when measured queue
 shares disagree with that heuristic. Host/target tests cover those bounded
 mitigations, and the observation-only VM batch verifies floor retention and
-recovery. Full control-performance acceptance remains open. Full tuple-lifetime
-handling and the other findings remain open.
+recovery. ACK counters now use the upload CAKE's charge within documented
+non-GSO coverage; the bounded kernel comparison verifies the supported charge
+models and single-tagged fallback. Full tuple-lifetime handling remains deferred;
+control-performance acceptance and extended kernel coverage remain open.
 
 1. **Lock down the demonstrated cases with regression tests.** Host assertions
    now cover new-flow baseline contamination, accepted-sample freshness,
@@ -794,9 +818,12 @@ handling and the other findings remain open.
    distinguish a changed receiver wait from equal upload path delay, so no ACK
    wait is subtracted. Runtime evidence must assess the trade-off for path
    changes and receiver timing.
-5. **Validate the ACK accounting basis.** Exercise CAKE overhead and minimum
-   packet sizes, then measure whether the dynamic allowance actually leaves the
-   intended upload room. Keep plain `ack-filter`, not aggressive filtering.
+5. **ACK accounting basis implemented within explicit coverage.** Both
+   counters use the upload CAKE's non-GSO charge; incomplete accounting disables
+   the optional ceiling for that interval. The bounded packet comparison is
+   recorded in `profiling/2026-10-05-ack-accounting/`. Customer-link headroom and
+   generic offload/encapsulation accounting remain unverified. Keep plain
+   `ack-filter`, not aggressive filtering.
 6. **Run controlled before/after evidence.** Compare the previous option-on
    behavior, options-off baseline, and these mitigations under the same workloads.
    Include flows starting after congestion, short-lived connection churn,
