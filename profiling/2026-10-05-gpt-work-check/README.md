@@ -73,6 +73,25 @@ queue uncut. Recovery p95 was 3-6 ms for every variant.
   compiled. Total map memory is unchanged at about 1.05 MB (the earlier +108%
   belonged to the reverted design). Daemon CPU stayed at 0.2-0.4% of a core.
 
+## After the reverts
+
+The guard (`d6564a6`) and the tuple-lifetime stream (`5458100`) were then
+reverted. Two more repetitions compared the result, `final` (`d6564a6`), with
+`before` and `off`, in alternating order (`confirm-summary.md`,
+`conf1-2-analysis.json`, `raw/conf1-2/`):
+
+| Variant | Mixed DL Mb/s | Mixed p95 ms | Upload-only p95 ms | Download-only DL Mb/s / p95 ms | Filter ns/packet (download) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `off` | 11.4 | 93.5 | 108.0 | 18.4 / 67.8 | - |
+| `before` | 20.1 | 67.5 | 72.6 | 22.9 / 41.8 | 2,951 |
+| `final` | **21.1** | **59.7** | **69.9** | **23.0** / 46.0 | 2,858 |
+
+`final` matches `before` within the run-to-run spread, keeps the ACK
+accounting and floor hold, and its filter cost is back to the level before the
+lifetime stream. The VM's installed package was replaced with the `final` x86
+package (`cake-adapt-0.2.11-r1.apk`, SHA-256
+`687322c55e7c2e9ffecd1fc556c9f7120c7b316477636c865829214d8546838b`).
+
 ## Limits
 
 One x86 VM, three repetitions of a short scripted workload; ranges, not

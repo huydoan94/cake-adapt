@@ -5,7 +5,7 @@ import statistics
 import sys
 from pathlib import Path
 
-ORDER = ["off", "before", "after", "head", "noguard"]
+ORDER = ["off", "before", "after", "head", "noguard", "final"]
 PHASES = ["upload", "download", "mixed", "recovery"]
 METRICS = [
     ("UL Mb/s", lambda r, p: r["throughput"].get(p, {}).get("upload", {}).get("mbps")),
