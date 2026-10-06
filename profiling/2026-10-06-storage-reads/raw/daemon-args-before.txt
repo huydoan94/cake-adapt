@@ -1,0 +1,1 @@
+/usr/sbin/cake-adapt -C /tmp/cake-adapt-config/main -S main 

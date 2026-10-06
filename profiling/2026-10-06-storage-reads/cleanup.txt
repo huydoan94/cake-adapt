@@ -1,0 +1,25 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+{
+	"kernel": "6.12.108",
+	"hostname": "OpenWrt",
+	"system": "Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz",
+	"model": "innotek GmbH VirtualBox",
+	"board_name": "innotek-gmbh-virtualbox",
+	"rootfs_type": "ext4",
+	"release": {
+		"distribution": "OpenWrt",
+		"version": "25.12-SNAPSHOT",
+		"firmware_url": "https://downloads.openwrt.org/",
+		"revision": "r33241-44b73b738d",
+		"target": "x86/generic",
+		"description": "OpenWrt 25.12-SNAPSHOT r33241-44b73b738d",
+		"builddate": "1790319989"
+	}
+}
+/tmp/TZ
+tmp
+CST6
+    288 /tmp/sqm-mon-test.log
+12141
+12173
+    288 /tmp/sqm-mon-test.log

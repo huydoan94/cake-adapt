@@ -1,0 +1,773 @@
+12044 1791265458.992740 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265458.993018 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265458.993144 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.106617 read(12<pipe:[173916]>, "[1791265459.10577] 192.168.56.1 : [11], 64 bytes, 1.30 ms (1.52 avg, 0% loss)\n", 4096) = 78
+12044 1791265459.107309 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265459.107392 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265459.107643 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265459.107799 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265459.192793 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.193072 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.193204 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.292424 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.393041 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.393256 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.393379 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.407211 read(12<pipe:[173916]>, "[1791265459.40636] 192.168.56.1 : [12], 64 bytes, 1.44 ms (1.51 avg, 0% loss)\n", 4096) = 78
+12044 1791265459.410457 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265459.411850 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265459.412877 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2268
+12044 1791265459.415189 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1827}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265459.416126 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.422377 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265459.594031 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.596623 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.599092 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.707989 read(12<pipe:[173916]>, "[1791265459.70722] 192.168.56.1 : [13], 64 bytes, 1.57 ms (1.51 avg, 0% loss)\n", 4096) = 78
+12044 1791265459.710553 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265459.793770 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.796274 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.798562 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.801325 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.802125 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.993339 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265459.997079 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265459.999599 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.002720 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265460.003718 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265460.004513 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265460.009165 read(12<pipe:[173916]>, "[1791265460.00815] 192.168.56.1 : [14], 64 bytes, 1.82 ms (1.53 avg, 0% loss)\n", 4096) = 78
+12044 1791265460.012517 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265460.193833 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.197058 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.199650 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.293294 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.311437 read(12<pipe:[173916]>, "[1791265460.31010] 192.168.56.1 : [15], 64 bytes, 2.50 ms (1.59 avg, 0% loss)\n", 4096) = 78
+12044 1791265460.314748 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265460.315881 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265460.316712 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2184
+12044 1791265460.317689 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1911}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265460.318631 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.326155 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265460.394199 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.397188 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.399481 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.593912 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.596270 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.598748 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.611833 read(12<pipe:[173916]>, "[1791265460.61082] 192.168.56.1 : [16], 64 bytes, 2.23 ms (1.63 avg, 0% loss)\n", 4096) = 78
+12044 1791265460.614429 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265460.793408 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.797671 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.800835 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.804502 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.809684 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.913732 read(12<pipe:[173916]>, "[1791265460.91266] 192.168.56.1 : [17], 64 bytes, 3.47 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265460.916974 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265460.993508 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265460.995932 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265460.998548 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.002429 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265461.003405 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265461.004516 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265461.193432 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.196058 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.198175 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.213117 read(12<pipe:[173916]>, "[1791265461.21212] 192.168.56.1 : [18], 64 bytes, 1.72 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265461.217682 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265461.218796 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265461.219927 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2266
+12044 1791265461.220911 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1829}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265461.221697 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.229107 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265461.293748 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.394117 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.396758 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.399499 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.514890 read(12<pipe:[173916]>, "[1791265461.51368] 192.168.56.1 : [19], 64 bytes, 1.70 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265461.518455 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265461.593588 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.595974 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.598347 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.793148 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.794770 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.797382 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.799683 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.802789 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.814724 read(12<pipe:[173916]>, "[1791265461.81400] 192.168.56.1 : [20], 64 bytes, 1.36 ms (1.71 avg, 0% loss)\n", 4096) = 78
+12044 1791265461.818076 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265461.994007 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265461.996877 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265461.999375 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.002681 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265462.003581 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265462.005095 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265462.115904 read(12<pipe:[173916]>, "[1791265462.11576] 192.168.56.1 : [21], 64 bytes, 1.70 ms (1.71 avg, 0% loss)\n", 4096) = 78
+12044 1791265462.116325 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265462.116519 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265462.116653 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2178
+12044 1791265462.116981 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1917}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265462.117037 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.117210 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265462.193019 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.193374 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.193533 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.292854 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.392594 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.392840 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.393000 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.418532 read(12<pipe:[173916]>, "[1791265462.41829] 192.168.56.1 : [22], 64 bytes, 3.10 ms (1.77 avg, 0% loss)\n", 4096) = 78
+12044 1791265462.418782 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265462.593989 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.594355 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.594559 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.717350 read(12<pipe:[173916]>, "[1791265462.71721] 192.168.56.1 : [23], 64 bytes, 1.58 ms (1.77 avg, 0% loss)\n", 4096) = 78
+12044 1791265462.717570 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265462.793183 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.793340 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.793541 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.793700 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.793870 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.993577 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265462.994120 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265462.994370 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.019277 read(12<pipe:[173916]>, "[1791265463.01909] 192.168.56.1 : [24], 64 bytes, 2.37 ms (1.79 avg, 0% loss)\n", 4096) = 78
+12044 1791265463.019418 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265463.019475 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265463.019911 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265463.020049 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265463.020139 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265463.020263 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2268
+12044 1791265463.020451 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1827}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265463.020504 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.020665 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265463.193044 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.193271 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.193490 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.292570 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.318516 read(12<pipe:[173916]>, "[1791265463.31826] 192.168.56.1 : [25], 64 bytes, 1.20 ms (1.77 avg, 0% loss)\n", 4096) = 78
+12044 1791265463.318764 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265463.392720 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.393065 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.393307 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.592869 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.593250 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.593537 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.620506 read(12<pipe:[173916]>, "[1791265463.62034] 192.168.56.1 : [26], 64 bytes, 2.65 ms (1.80 avg, 0% loss)\n", 4096) = 78
+12044 1791265463.620783 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265463.793394 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.793548 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.793717 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.793992 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.794264 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.921221 read(12<pipe:[173916]>, "[1791265463.92070] 192.168.56.1 : [27], 64 bytes, 2.04 ms (1.81 avg, 0% loss)\n", 4096) = 78
+12044 1791265463.921566 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265463.921705 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265463.921826 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265463.922274 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265463.922374 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.922631 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265463.993209 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265463.993574 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265463.993778 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.192622 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.192929 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.193353 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.193500 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265464.193573 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265464.193749 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265464.221810 read(12<pipe:[173916]>, "[1791265464.22163] 192.168.56.1 : [28], 64 bytes, 1.65 ms (1.80 avg, 0% loss)\n", 4096) = 78
+12044 1791265464.222069 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265464.292969 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.392876 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.393293 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.393454 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.522212 read(12<pipe:[173916]>, "[1791265464.52201] 192.168.56.1 : [29], 64 bytes, 1.47 ms (1.79 avg, 0% loss)\n", 4096) = 78
+12044 1791265464.522394 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265464.593766 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.594975 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.595740 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265464.792571 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.793047 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.793502 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265464.823873 read(12<pipe:[173916]>, "[1791265464.82368] 192.168.56.1 : [30], 64 bytes, 2.50 ms (1.82 avg, 0% loss)\n", 4096) = 78
+12044 1791265464.824131 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265464.824268 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265464.824367 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2264
+12044 1791265464.824560 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1831}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265464.824714 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265464.993383 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.124419 read(12<pipe:[173916]>, "[1791265465.12423] 192.168.56.1 : [31], 64 bytes, 1.57 ms (1.81 avg, 0% loss)\n", 4096) = 78
+12044 1791265465.124599 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265465.124674 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265465.125006 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265465.127581 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265465.193166 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.293118 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.393329 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.426725 read(12<pipe:[173916]>, "[1791265465.42645] 192.168.56.1 : [32], 64 bytes, 2.47 ms (1.83 avg, 0% loss)\n", 4096) = 78
+12044 1791265465.427045 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265465.593471 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.726868 read(12<pipe:[173916]>, "[1791265465.72638] 192.168.56.1 : [33], 64 bytes, 1.47 ms (1.82 avg, 0% loss)\n", 4096) = 78
+12044 1791265465.727270 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265465.727381 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265465.727462 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265465.727681 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265465.727864 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265465.792367 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.792486 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.792818 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265465.993460 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.028453 read(12<pipe:[173916]>, "[1791265466.02827] 192.168.56.1 : [34], 64 bytes, 3.23 ms (1.86 avg, 0% loss)\n", 4096) = 78
+12044 1791265466.028615 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265466.028671 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265466.028866 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265466.028984 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265466.193271 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.293324 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.327760 read(12<pipe:[173916]>, "[1791265466.32751] 192.168.56.1 : [35], 64 bytes, 2.24 ms (1.87 avg, 0% loss)\n", 4096) = 78
+12044 1791265466.328001 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265466.394099 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.592508 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.628364 read(12<pipe:[173916]>, "[1791265466.62818] 192.168.56.1 : [36], 64 bytes, 1.91 ms (1.87 avg, 0% loss)\n", 4096) = 78
+12044 1791265466.628573 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265466.628674 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265466.628772 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2268
+12044 1791265466.629106 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1827}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265466.629293 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265466.792612 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.792795 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.793322 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265466.928320 read(12<pipe:[173916]>, "[1791265466.92814] 192.168.56.1 : [37], 64 bytes, 1.57 ms (1.86 avg, 0% loss)\n", 4096) = 78
+12044 1791265466.928492 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265466.992876 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.193036 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.193465 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265467.193569 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265467.193827 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265467.229309 read(12<pipe:[173916]>, "[1791265467.22916] 192.168.56.1 : [38], 64 bytes, 1.43 ms (1.85 avg, 0% loss)\n", 4096) = 78
+12044 1791265467.229507 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265467.292526 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.392673 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.530186 read(12<pipe:[173916]>, "[1791265467.53005] 192.168.56.1 : [39], 64 bytes, 1.73 ms (1.85 avg, 0% loss)\n", 4096) = 78
+12044 1791265467.530523 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265467.530680 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265467.530791 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2178
+12044 1791265467.531059 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1917}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265467.531231 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265467.592675 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.792771 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.793098 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.793389 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265467.831298 read(12<pipe:[173916]>, "[1791265467.83109] 192.168.56.1 : [40], 64 bytes, 1.52 ms (1.84 avg, 0% loss)\n", 4096) = 78
+12044 1791265467.831541 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265467.993070 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.132681 read(12<pipe:[173916]>, "[1791265468.13254] 192.168.56.1 : [41], 64 bytes, 1.77 ms (1.84 avg, 0% loss)\n", 4096) = 78
+12044 1791265468.132813 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265468.132863 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265468.133028 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265468.133128 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265468.192689 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.292607 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.393306 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.432957 read(12<pipe:[173916]>, "[1791265468.43283] 192.168.56.1 : [42], 64 bytes, 1.20 ms (1.82 avg, 0% loss)\n", 4096) = 78
+12044 1791265468.433127 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265468.433211 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265468.433331 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2260
+12044 1791265468.433514 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1835}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265468.433656 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265468.592863 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.733667 read(12<pipe:[173916]>, "[1791265468.73349] 192.168.56.1 : [43], 64 bytes, 1.29 ms (1.81 avg, 0% loss)\n", 4096) = 78
+12044 1791265468.733892 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265468.792833 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.792972 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.793212 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265468.992993 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.035335 read(12<pipe:[173916]>, "[1791265469.03499] 192.168.56.1 : [44], 64 bytes, 2.19 ms (1.82 avg, 0% loss)\n", 4096) = 78
+12044 1791265469.035580 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265469.035659 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265469.035878 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265469.036031 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265469.192750 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.292932 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.335364 read(12<pipe:[173916]>, "[1791265469.33481] 192.168.56.1 : [45], 64 bytes, 1.49 ms (1.81 avg, 0% loss)\n", 4096) = 78
+12044 1791265469.335622 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265469.335729 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265469.335814 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265469.336033 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265469.336135 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265469.336319 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265469.392831 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.593863 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.636030 read(12<pipe:[173916]>, "[1791265469.63584] 192.168.56.1 : [46], 64 bytes, 1.78 ms (1.81 avg, 0% loss)\n", 4096) = 78
+12044 1791265469.636359 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265469.792647 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.792794 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.793135 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265469.936283 read(12<pipe:[173916]>, "[1791265469.93611] 192.168.56.1 : [47], 64 bytes, 1.48 ms (1.80 avg, 0% loss)\n", 4096) = 78
+12044 1791265469.936467 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265469.992412 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.193482 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.193816 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265470.193885 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265470.194066 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265470.237309 read(12<pipe:[173916]>, "[1791265470.23714] 192.168.56.1 : [48], 64 bytes, 1.82 ms (1.80 avg, 0% loss)\n", 4096) = 78
+12044 1791265470.237518 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265470.237621 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265470.237725 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265470.237953 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265470.238120 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265470.292642 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.393480 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.537644 read(12<pipe:[173916]>, "[1791265470.53752] 192.168.56.1 : [49], 64 bytes, 1.55 ms (1.80 avg, 0% loss)\n", 4096) = 78
+12044 1791265470.537864 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265470.592641 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.792847 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.793185 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.793619 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265470.838358 read(12<pipe:[173916]>, "[1791265470.83824] 192.168.56.1 : [50], 64 bytes, 1.30 ms (1.79 avg, 0% loss)\n", 4096) = 78
+12044 1791265470.838520 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265470.993312 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.140343 read(12<pipe:[173916]>, "[1791265471.14000] 192.168.56.1 : [51], 64 bytes, 2.02 ms (1.79 avg, 0% loss)\n", 4096) = 78
+12044 1791265471.140540 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265471.140613 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265471.140829 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265471.141014 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265471.141143 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265471.141249 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265471.141496 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265471.141739 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265471.193470 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.292650 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.392443 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.440922 read(12<pipe:[173916]>, "[1791265471.44069] 192.168.56.1 : [52], 64 bytes, 1.75 ms (1.79 avg, 0% loss)\n", 4096) = 78
+12044 1791265471.441157 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265471.592407 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.741591 read(12<pipe:[173916]>, "[1791265471.74141] 192.168.56.1 : [53], 64 bytes, 1.65 ms (1.79 avg, 0% loss)\n", 4096) = 78
+12044 1791265471.741764 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265471.793352 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.793506 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.793808 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265471.992887 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.041917 read(12<pipe:[173916]>, "[1791265472.04178] 192.168.56.1 : [54], 64 bytes, 1.40 ms (1.78 avg, 0% loss)\n", 4096) = 78
+12044 1791265472.042054 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265472.042104 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265472.042262 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265472.042439 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265472.042610 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265472.042746 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265472.043043 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265472.043214 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265472.193116 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.292316 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.343370 read(12<pipe:[173916]>, "[1791265472.34307] 192.168.56.1 : [55], 64 bytes, 1.54 ms (1.78 avg, 0% loss)\n", 4096) = 78
+12044 1791265472.343642 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265472.393750 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.593549 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.645052 read(12<pipe:[173916]>, "[1791265472.64478] 192.168.56.1 : [56], 64 bytes, 2.01 ms (1.78 avg, 0% loss)\n", 4096) = 78
+12044 1791265472.645332 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265472.792618 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.792762 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.793051 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265472.945746 read(12<pipe:[173916]>, "[1791265472.94552] 192.168.56.1 : [57], 64 bytes, 1.76 ms (1.78 avg, 0% loss)\n", 4096) = 78
+12044 1791265472.946053 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265472.946185 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265472.946286 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265472.946535 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265472.946746 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265472.993071 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.192687 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.193006 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265473.193089 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265473.193281 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265473.245795 read(12<pipe:[173916]>, "[1791265473.24569] 192.168.56.1 : [58], 64 bytes, 1.13 ms (1.77 avg, 0% loss)\n", 4096) = 78
+12044 1791265473.245956 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265473.292742 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.392566 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.546663 read(12<pipe:[173916]>, "[1791265473.54655] 192.168.56.1 : [59], 64 bytes, 1.39 ms (1.77 avg, 0% loss)\n", 4096) = 78
+12044 1791265473.546828 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265473.592686 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.793138 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.793278 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.793467 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.847179 read(12<pipe:[173916]>, "[1791265473.84703] 192.168.56.1 : [60], 64 bytes, 1.12 ms (1.76 avg, 0% loss)\n", 4096) = 78
+12044 1791265473.847391 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265473.847484 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265473.847559 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2258
+12044 1791265473.847757 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1837}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265473.847963 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265473.993342 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265473.993492 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265474.149222 read(12<pipe:[173916]>, "[1791265474.14909] 192.168.56.1 : [61], 64 bytes, 1.26 ms (1.75 avg, 0% loss)\n", 4096) = 78
+12044 1791265474.149376 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265474.149453 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265474.149658 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265474.149793 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265474.192951 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.292806 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.392789 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.450174 read(12<pipe:[173916]>, "[1791265474.45006] 192.168.56.1 : [62], 64 bytes, 1.12 ms (1.74 avg, 0% loss)\n", 4096) = 78
+12044 1791265474.450318 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265474.592489 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.752139 read(12<pipe:[173916]>, "[1791265474.75198] 192.168.56.1 : [63], 64 bytes, 1.45 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265474.752314 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265474.752416 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265474.752520 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2172
+12044 1791265474.752687 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1923}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265474.752828 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265474.792131 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.792497 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.792707 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265474.992823 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.052547 read(12<pipe:[173916]>, "[1791265475.05240] 192.168.56.1 : [64], 64 bytes, 1.59 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265475.052687 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265475.052742 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265475.052952 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265475.053068 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265475.192886 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.292511 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.353778 read(12<pipe:[173916]>, "[1791265475.35357] 192.168.56.1 : [65], 64 bytes, 1.60 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265475.354015 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265475.392571 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.593235 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.654194 read(12<pipe:[173916]>, "[1791265475.65406] 192.168.56.1 : [66], 64 bytes, 1.30 ms (1.72 avg, 0% loss)\n", 4096) = 78
+12044 1791265475.654387 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265475.654519 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265475.654638 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265475.654831 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265475.654979 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265475.793480 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.793585 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.793775 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265475.955918 read(12<pipe:[173916]>, "[1791265475.95572] 192.168.56.1 : [67], 64 bytes, 1.73 ms (1.72 avg, 0% loss)\n", 4096) = 78
+12044 1791265475.956119 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265475.992725 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.192631 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.193078 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265476.193256 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265476.193519 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265476.257138 read(12<pipe:[173916]>, "[1791265476.25696] 192.168.56.1 : [68], 64 bytes, 1.92 ms (1.73 avg, 0% loss)\n", 4096) = 78
+12044 1791265476.257323 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265476.293132 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.393923 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.556944 read(12<pipe:[173916]>, "[1791265476.55682] 192.168.56.1 : [69], 64 bytes, 1.27 ms (1.72 avg, 0% loss)\n", 4096) = 78
+12044 1791265476.557126 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265476.557248 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265476.557360 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2176
+12044 1791265476.557548 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1919}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265476.557694 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265476.592697 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.792062 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.792392 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.792578 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265476.857356 read(12<pipe:[173916]>, "[1791265476.85722] 192.168.56.1 : [70], 64 bytes, 1.24 ms (1.71 avg, 0% loss)\n", 4096) = 78
+12044 1791265476.857519 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265476.993095 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.158586 read(12<pipe:[173916]>, "[1791265477.15844] 192.168.56.1 : [71], 64 bytes, 1.52 ms (1.71 avg, 0% loss)\n", 4096) = 78
+12044 1791265477.158755 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265477.158817 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265477.158995 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265477.159110 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265477.192651 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.292793 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.392832 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.458978 read(12<pipe:[173916]>, "[1791265477.45871] 192.168.56.1 : [72], 64 bytes, 1.27 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265477.459252 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265477.459356 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265477.459447 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2258
+12044 1791265477.459679 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1837}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265477.459868 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265477.592647 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.760337 read(12<pipe:[173916]>, "[1791265477.76014] 192.168.56.1 : [73], 64 bytes, 2.08 ms (1.71 avg, 0% loss)\n", 4096) = 78
+12044 1791265477.760567 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265477.792739 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.793037 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.793682 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265477.993419 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.061051 read(12<pipe:[173916]>, "[1791265478.06089] 192.168.56.1 : [74], 64 bytes, 1.39 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265478.061209 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265478.061326 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265478.061510 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265478.061643 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265478.192406 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.293039 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.362258 read(12<pipe:[173916]>, "[1791265478.36212] 192.168.56.1 : [75], 64 bytes, 1.41 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265478.362464 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265478.362564 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265478.362647 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265478.362836 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265478.363012 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265478.392402 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.592924 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.593476 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265478.662873 read(12<pipe:[173916]>, "[1791265478.66267] 192.168.56.1 : [76], 64 bytes, 1.71 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265478.663056 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265478.793503 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.793926 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.794265 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265478.962883 read(12<pipe:[173916]>, "[1791265478.96271] 192.168.56.1 : [77], 64 bytes, 1.48 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265478.963080 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265478.992472 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.192836 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.193285 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265479.193362 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265479.193557 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265479.263852 read(12<pipe:[173916]>, "[1791265479.26366] 192.168.56.1 : [78], 64 bytes, 1.79 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265479.264107 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265479.264247 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265479.264338 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265479.264587 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265479.264830 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265479.292666 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.392886 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.564095 read(12<pipe:[173916]>, "[1791265479.56394] 192.168.56.1 : [79], 64 bytes, 1.43 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265479.564282 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265479.592924 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.792961 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.793107 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.793317 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265479.866055 read(12<pipe:[173916]>, "[1791265479.86590] 192.168.56.1 : [80], 64 bytes, 1.81 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265479.866235 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265479.992959 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.167267 read(12<pipe:[173916]>, "[1791265480.16713] 192.168.56.1 : [81], 64 bytes, 1.71 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265480.167439 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265480.167501 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265480.167691 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265480.167833 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265480.167988 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265480.168137 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2178
+12044 1791265480.168417 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1917}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265480.168702 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265480.193170 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.293960 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.392705 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.467263 read(12<pipe:[173916]>, "[1791265480.46714] 192.168.56.1 : [82], 64 bytes, 1.48 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265480.467429 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265480.592869 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.769044 read(12<pipe:[173916]>, "[1791265480.76875] 192.168.56.1 : [83], 64 bytes, 1.66 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265480.769252 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265480.791961 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.792324 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.792609 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265480.992986 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.069729 read(12<pipe:[173916]>, "[1791265481.06950] 192.168.56.1 : [84], 64 bytes, 1.54 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265481.069993 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265481.070090 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265481.070308 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265481.070445 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265481.070538 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265481.070702 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265481.070900 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265481.071060 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265481.192436 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.293446 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.370930 read(12<pipe:[173916]>, "[1791265481.37077] 192.168.56.1 : [85], 64 bytes, 1.78 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265481.371098 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265481.393182 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.592713 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.672848 read(12<pipe:[173916]>, "[1791265481.67268] 192.168.56.1 : [86], 64 bytes, 1.95 ms (1.70 avg, 0% loss)\n", 4096) = 78
+12044 1791265481.673064 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265481.791959 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.792492 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.792775 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265481.973257 read(12<pipe:[173916]>, "[1791265481.97309] 192.168.56.1 : [87], 64 bytes, 1.44 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265481.973539 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265481.973652 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265481.973740 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2178
+12044 1791265481.973946 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1917}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265481.974109 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265481.992716 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.193055 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.193411 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265482.193475 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265482.193652 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265482.274213 read(12<pipe:[173916]>, "[1791265482.27407] 192.168.56.1 : [88], 64 bytes, 1.34 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265482.274393 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265482.292878 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.393663 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.575898 read(12<pipe:[173916]>, "[1791265482.57542] 192.168.56.1 : [89], 64 bytes, 1.80 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265482.576074 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265482.592684 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.792695 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.792932 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.793263 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265482.876086 read(12<pipe:[173916]>, "[1791265482.87594] 192.168.56.1 : [90], 64 bytes, 1.38 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265482.876302 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265482.876456 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265482.876579 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265482.876820 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265482.877056 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265482.993236 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.176856 read(12<pipe:[173916]>, "[1791265483.17665] 192.168.56.1 : [91], 64 bytes, 1.72 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265483.177076 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265483.177165 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265483.177398 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265483.177574 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265483.193002 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.293103 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.393083 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.393280 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265483.477883 read(12<pipe:[173916]>, "[1791265483.47769] 192.168.56.1 : [92], 64 bytes, 2.08 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265483.478080 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265483.592506 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.778461 read(12<pipe:[173916]>, "[1791265483.77812] 192.168.56.1 : [93], 64 bytes, 1.74 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265483.778793 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265483.778953 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265483.779150 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2180
+12044 1791265483.779487 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1915}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265483.779730 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265483.792646 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.792819 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.793158 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265483.992853 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.079723 read(12<pipe:[173916]>, "[1791265484.07958] 192.168.56.1 : [94], 64 bytes, 1.81 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265484.079868 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265484.079921 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265484.080150 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265484.080263 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265484.192874 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.292967 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.379837 read(12<pipe:[173916]>, "[1791265484.37969] 192.168.56.1 : [95], 64 bytes, 1.33 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265484.380051 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265484.392766 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.593303 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.680568 read(12<pipe:[173916]>, "[1791265484.68037] 192.168.56.1 : [96], 64 bytes, 1.31 ms (1.69 avg, 0% loss)\n", 4096) = 78
+12044 1791265484.680874 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265484.681055 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265484.681171 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2262
+12044 1791265484.681465 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1833}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265484.681829 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265484.792380 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.792503 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.792755 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265484.982409 read(12<pipe:[173916]>, "[1791265484.98223] 192.168.56.1 : [97], 64 bytes, 1.47 ms (1.68 avg, 0% loss)\n", 4096) = 78
+12044 1791265484.982680 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265484.992553 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.193092 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.193582 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265485.193686 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265485.193981 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265485.282968 read(12<pipe:[173916]>, "[1791265485.28284] 192.168.56.1 : [98], 64 bytes, 1.14 ms (1.68 avg, 0% loss)\n", 4096) = 78
+12044 1791265485.283331 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265485.293610 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.393009 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.584739 read(12<pipe:[173916]>, "[1791265485.58460] 192.168.56.1 : [99], 64 bytes, 1.68 ms (1.68 avg, 0% loss)\n", 4096) = 78
+12044 1791265485.584967 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265485.585083 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265485.585188 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2176
+12044 1791265485.585402 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1919}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265485.585567 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265485.592458 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.792082 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.792433 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.792715 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265485.885709 read(12<pipe:[173916]>, "[1791265485.88555] 192.168.56.1 : [100], 64 bytes, 1.43 ms (1.68 avg, 0% loss)\n", 4096) = 79
+12044 1791265485.885894 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265485.993174 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.187031 read(12<pipe:[173916]>, "[1791265486.18690] 192.168.56.1 : [101], 64 bytes, 1.97 ms (1.68 avg, 0% loss)\n", 4096) = 79
+12044 1791265486.187171 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265486.187227 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265486.187406 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265486.187515 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265486.192903 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.293206 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.393128 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.486577 read(12<pipe:[173916]>, "[1791265486.48644] 192.168.56.1 : [102], 64 bytes, 1.41 ms (1.68 avg, 0% loss)\n", 4096) = 79
+12044 1791265486.486760 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265486.486884 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265486.487002 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2265
+12044 1791265486.487241 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1830}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265486.487398 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265486.592590 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.787379 read(12<pipe:[173916]>, "[1791265486.78722] 192.168.56.1 : [103], 64 bytes, 1.47 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265486.787620 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265486.792150 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.792792 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.793324 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265486.992841 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.088591 read(12<pipe:[173916]>, "[1791265487.08846] 192.168.56.1 : [104], 64 bytes, 1.87 ms (1.68 avg, 0% loss)\n", 4096) = 79
+12044 1791265487.088765 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265487.088857 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265487.089105 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265487.089225 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265487.192644 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.293012 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.388982 read(12<pipe:[173916]>, "[1791265487.38883] 192.168.56.1 : [105], 64 bytes, 1.16 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265487.389191 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265487.389331 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265487.389442 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2179
+12044 1791265487.389717 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1916}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265487.389883 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265487.392934 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.593026 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.689821 read(12<pipe:[173916]>, "[1791265487.68964] 192.168.56.1 : [106], 64 bytes, 1.36 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265487.690007 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265487.792339 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.792454 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.792727 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.991072 read(12<pipe:[173916]>, "[1791265487.99094] 192.168.56.1 : [107], 64 bytes, 1.58 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265487.991288 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265487.993018 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265487.993558 mmap2(NULL, 20480, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0xb7dab000
+12044 1791265488.192549 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.192797 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265488.192860 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265488.193129 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265488.292323 read(12<pipe:[173916]>, "[1791265488.29216] 192.168.56.1 : [108], 64 bytes, 1.43 ms (1.66 avg, 0% loss)\n", 4096) = 79
+12044 1791265488.292504 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265488.292589 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265488.292658 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2265
+12044 1791265488.292819 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1830}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265488.292988 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265488.293313 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.392895 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.592992 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.594024 read(12<pipe:[173916]>, "[1791265488.59380] 192.168.56.1 : [109], 64 bytes, 1.79 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265488.594177 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265488.792767 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.792865 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.793191 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265488.894837 read(12<pipe:[173916]>, "[1791265488.89464] 192.168.56.1 : [110], 64 bytes, 1.69 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265488.895039 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265488.992846 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.192415 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.192662 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265489.192726 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265489.192918 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265489.195478 read(12<pipe:[173916]>, "[1791265489.19533] 192.168.56.1 : [111], 64 bytes, 1.71 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265489.195708 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265489.195812 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265489.195896 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2265
+12044 1791265489.196084 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1830}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265489.196234 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265489.292372 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.392998 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.497312 read(12<pipe:[173916]>, "[1791265489.49710] 192.168.56.1 : [112], 64 bytes, 2.08 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265489.497538 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265489.593139 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.793058 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.793404 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.793706 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265489.798087 read(12<pipe:[173916]>, "[1791265489.79793] 192.168.56.1 : [113], 64 bytes, 1.24 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265489.798256 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265489.993174 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.099264 read(12<pipe:[173916]>, "[1791265490.09901] 192.168.56.1 : [114], 64 bytes, 2.00 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265490.099454 open("/etc/TZ", O_RDONLY|O_NONBLOCK|O_LARGEFILE|O_CLOEXEC) = 22</tmp/TZ>
+12044 1791265490.099526 statx(22</tmp/TZ>, "", AT_STATX_SYNC_AS_STAT|AT_NO_AUTOMOUNT|AT_EMPTY_PATH, STATX_BASIC_STATS, {stx_mask=STATX_BASIC_STATS|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0644, stx_size=5, ...}) = 0
+12044 1791265490.099731 mmap2(NULL, 5, PROT_READ, MAP_SHARED, 22</tmp/TZ>, 0) = 0xb7e3b000
+12044 1791265490.099908 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old", O_WRONLY|O_CREAT|O_TRUNC|O_LARGEFILE, 0666) = 22</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log.old>
+12044 1791265490.100037 open("/tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log", O_RDONLY|O_LARGEFILE) = 23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>
+12044 1791265490.100134 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="DATA_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; DL_ACHIEVED_RATE_KBPS; UL_ACHIEVED_RATE_KBPS; DL_LOAD_PERCENT; UL_LOAD_PERCENT; ICMP_TIMESTAMP; REFLECTOR; SEQUENCE; DL_OWD_BASELINE; DL_OWD_US; DL_OWD_DELTA_EWMA_US; DL_OWD_DELTA_US; DL_ADJ_DELAY_THR"..., iov_len=4095}, {iov_base="", iov_len=1024}], 2) = 2183
+12044 1791265490.100409 readv(23</tmp/cake-adapt-storage-20261006-data/isolated-log/cake-adapt.log>, [{iov_base="", iov_len=1912}, {iov_base="", iov_len=1024}], 2) = 0
+12044 1791265490.100595 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265490.192601 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.292785 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.392844 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.400146 read(12<pipe:[173916]>, "[1791265490.39981] 192.168.56.1 : [115], 64 bytes, 1.55 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265490.400548 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265490.592771 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.700684 read(12<pipe:[173916]>, "[1791265490.70052] 192.168.56.1 : [116], 64 bytes, 1.28 ms (1.67 avg, 0% loss)\n", 4096) = 79
+12044 1791265490.700868 read(12<pipe:[173916]>, 0xb7e37080, 4096) = -1 EAGAIN (Resource temporarily unavailable)
+12044 1791265490.793387 read(9<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.793509 read(8<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8
+12044 1791265490.793711 read(11<anon_inode:[timerfd]>, "\1\0\0\0\0\0\0\0", 8) = 8

@@ -1,0 +1,16 @@
+1791268669 control-before
+1791268729 start
+1791268739 idle
+1791268789 download
+1791268849 upload
+1791268910 bidirectional
+1791268970 log-export
+1791268975 log-reset
+1791268980 cake-removed
+1791268985 cake-recreated
+1791268995 idle-sleep
+1791269085 wake
+1791269115 idle-until-time-rotation
+1791269355 stop
+1791269356 stopped trace-exit=0
+1791269446 end
