@@ -121,6 +121,12 @@ differences are in integration and safety:
     a stale baseline; clear fping allows upward adaptation for route or clock
     drift. A new flow's initial queue remains unknown, and TCP timestamps cannot
     distinguish sustained receiver ACK wait from upload queueing.
+    Tuple-lifetime isolation is implemented with host unit coverage: observed replacement
+    handshakes start fresh calibration, and departures match only within the
+    corresponding lifetime. Detected capture uncertainty withdraws TCP queue
+    attribution while ACK accounting continues. Package, architecture, kernel
+    and performance validation remain pending; this draft is not deployment-ready. See the
+    [portable lifetime design and remaining gates](TUPLE_LIFETIME_DESIGN.md).
     See the [flow-pair regression evidence](profiling/2026-10-04-flow-pair/README.md).
   - `ul_congest_ack_share` (default `0`, off): download ACKs can fill a slow
     upload. The same eBPF filter splits upload, after the upload CAKE, into
