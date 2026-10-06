@@ -106,10 +106,9 @@ struct controller_input {
 	struct controller_latency_input download_latency;
 	struct controller_latency_input upload_latency;
 	/*
-	 * Used only with shared_delay. When valid and large enough, its quarter-share
-	 * direction classifications must agree with delivery attribution before its
-	 * measured shares split the round-trip delta; otherwise RTT/2 and delivery
-	 * attribution remain in use.
+	 * Used only with shared_delay. When valid and large enough, it replaces
+	 * the delivery heuristic and splits the round-trip delta between the
+	 * directions by their measured shares.
 	 */
 	struct controller_queue_input queue;
 	/* Used only with ul_congest_ack_share_percent. */
