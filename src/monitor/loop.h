@@ -147,16 +147,18 @@ struct monitor {
 	struct monitor_pingers pingers;
 	struct monitor_reflectors reflectors;
 	struct monitor_tcp tcp;
-	/* monitor.c: the traffic tick, activity state, CPU and log upkeep. */
+	/* monitor.c: the traffic tick, activity state, CPU, memory and log upkeep. */
 	struct controller_activity activity;
 	struct uloop_interval traffic_timer;
 	struct uloop_interval cpu_timer;
+	struct uloop_interval memory_timer;
 	struct uloop_interval log_timer;
 	struct uloop_signal log_export_signal;
 	struct uloop_signal log_reset_signal;
 	struct cpu_monitor cpu_monitor;
 	size_t cpu_count;
 	bool cpu_observation_failed;
+	bool memory_observation_failed;
 	int result;
 };
 

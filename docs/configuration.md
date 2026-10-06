@@ -111,6 +111,7 @@ RAM, so the defaults never write to flash.
 | `output_cake_changes` | boolean | `0` | Log a `SHAPER` record for each rate change. |
 | `output_cpu_stats` | boolean | `0` | Log CPU usage. |
 | `output_cpu_raw_stats` | boolean | `0` | Log raw CPU counters. |
+| `output_memory_stats` | boolean | `0` | Not in cake-autorate: log the daemon's own memory every 10 s as a `MEMORY` record: resident (`RSS_KB`), peak resident (`PEAK_RSS_KB`), resident heap (`RSS_ANON_KB`) and data size (`DATA_KB`), from `/proc/self/status`. About 60,000 lines a week; use it to spot leaks on long runs. |
 
 The structured records keep cake-autorate's names, fields and units, so its
 log analysis tools work on them. The `output_*` records are frequent: enable
