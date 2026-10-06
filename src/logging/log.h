@@ -112,6 +112,9 @@ int log_reset_file(void);
 
 void log_set_debug_syslog(bool enabled);
 
+/* Also writes warnings and errors to stderr, for a configuration check run by hand. */
+void log_problems_to_stderr(void);
+
 /* The record types written to the log file; their headers start every rotated file. */
 struct log_records {
 	bool data;

@@ -216,6 +216,8 @@ int main(int argc, char **argv)
 	active_config = options.config_directory ? options.config_directory : DEFAULT_CONFIG_PATH;
 
 	log_init(PROGRAM_NAME, options.foreground);
+	if (options.validate_only)
+		log_problems_to_stderr();
 
 	ret = 1;
 	if (config_load(
