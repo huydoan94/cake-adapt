@@ -1,5 +1,31 @@
 # eBPF TCP-delay review
 
+**2026-10-06: queue bound replaces HOLD/FOLLOW.** On the Filogic router the TCP
+upload estimate reached seconds (95th percentile 1.2 s, maximum 9.8 s, just
+under the 10 s plausibility reset) while download stayed near zero. The
+controller then blamed upload for any delay and declined to cut download. A
+remote TCP clock within 5% of a standard period snaps to it, so the estimate
+drifts by the clock error times the flow's age. FOLLOW was meant to absorb such
+drift, but every traffic-tick drain used HOLD, which reset FOLLOW's buckets to
+the lowest value ever seen, so floors never rose. A unit test with a 2% fast
+remote on an empty path reproduced 2.24 s of upload queue after 10 minutes.
+
+A queue on the access link delays fping's round trip as well, so the estimator
+now takes fping's largest added round-trip delay over the current and previous
+second as an upper bound on every flow's queue (`4f5cedc`, `cb348e4`). A sample
+whose queue would exceed it raises its floor; a clear path re-zeroes floors
+within about two seconds; the bound stays in force through IDLE. The 30 s
+floor buckets and the HOLD/FOLLOW policies are gone. In the VM's 70-second
+80/20-ms standing-delay check the estimates held 80/28 to 68/21 ms as fping's
+own baseline absorbed part of the delay (HOLD kept 80/20). Three controlled
+repetitions matched the previous build within noise, with equal throughput and
+equal or lower added-delay p95
+([evidence](profiling/2026-10-06-tcp-bound-check/README.md)). The TCP filter is also loaded once, before pingers
+start, so a reopen only rebinds a socket (`84a13f3`). On the router, 0.3.4
+held the upload estimate to a 95th percentile of 3.6 ms and a maximum of 46 ms
+over six load runs, and download to 9.1 and 22 ms
+([evidence](profiling/2026-10-06-router-libreqos/README.md)).
+
 **2026-10-05 (evening): agreement guard and lifetime stream reverted.** A
 three-repetition VM check ([evidence](profiling/2026-10-05-gpt-work-check/README.md))
 found that requiring TCP queue shares to agree with the delivery heuristic
@@ -499,16 +525,16 @@ This case loses directional TCP evidence. It does **not** disable fping or all
 congestion handling: a 0/0-ms total fails the 5-ms gate, so the controller uses
 its delivery-rate attribution heuristic again.
 
-The production estimator now has explicit HOLD and FOLLOW policies. HOLD is the
-default and keeps the lowest retained raw value while accepting
-new lower minima. Only a fresh fping observation with total added RTT below the
-existing 5-ms gate permits FOLLOW's rolling-floor behavior. Missing observations
-and fping congestion retain HOLD; traffic-tick drains always use HOLD. This keeps
-standing queues visible beyond the former two-bucket expiry, while clear fping
-still allows adaptation to route or clock drift. Persistent congestion can hold
-a stale floor, and a newly calibrated flow's initial queue remains unknown.
-These policies mitigate the reproduced failure; they do not identify an empty
-path or solve queue measurement exactly.
+On 2026-10-05 the estimator gained HOLD and FOLLOW policies: HOLD kept the
+lowest retained raw value, and only a fresh fping observation with less than
+5 ms of added RTT permitted FOLLOW's rolling floor. Because traffic-tick drains
+always used HOLD, floors in practice never rose, which let remote clock drift
+grow without limit on the Filogic router. Since 2026-10-06 floors move down to
+any new minimum and up only as far as fping's largest added round-trip delay
+over the last two seconds requires (see the note at the top). A standing queue
+stays visible while fping still sees it; once fping's baseline absorbs part of
+it, the TCP estimate follows. A newly calibrated flow's initial queue remains
+unknown, and this does not identify an empty path exactly.
 The bounded before/after VM run retained an approximately 80/20-ms pair late in
 a 70-second added-delay period, where the old download estimate fell below 1 ms.
 It recovered after clearing the path; rate adjustment was disabled. This verifies
@@ -820,8 +846,8 @@ Limits of this harness:
 
 This was the original proposed order. Fix 1 above implements the scoped
 new-flow aggregation change and its regression tests. Sections 4 and 5 retain
-the original failure characterizations; production now adds a HOLD/FOLLOW
-baseline policy and falls back to delivery attribution when measured queue
+the original failure characterizations; production added a HOLD/FOLLOW
+baseline policy (replaced by the fping queue bound on 2026-10-06) and fell back to delivery attribution when measured queue
 shares disagree with that heuristic; that guard was reverted (see the top of
 this document). Host/target tests cover those bounded mitigations, and the observation-only VM batch verifies floor retention and
 recovery. ACK counters now use the upload CAKE's charge within documented
