@@ -1,0 +1,89 @@
+
+startup: 3.0s
+  loop0 (7:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop1 (7:1, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop2 (7:2, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop3 (7:3, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop4 (7:4, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop5 (7:5, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop6 (7:6, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop7 (7:7, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda (8:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+    I/Os in progress: 0 -> 0 (instantaneous gauge)
+  sda1 (8:1, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda2 (8:2, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sr0 (11:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  IRQ 14 IO-APIC 14-edge ata_piix: 0
+  IRQ 15 IO-APIC 15-edge ata_piix: 0
+  IRQ 21 IO-APIC 21-fasteoi ahci[0000:00:0d.0]: 0
+
+control-before: 15.0s
+  loop0 (7:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop1 (7:1, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop2 (7:2, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop3 (7:3, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop4 (7:4, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop5 (7:5, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop6 (7:6, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop7 (7:7, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda (8:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+    I/Os in progress: 0 -> 0 (instantaneous gauge)
+  sda1 (8:1, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda2 (8:2, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sr0 (11:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  IRQ 14 IO-APIC 14-edge ata_piix: 0
+  IRQ 15 IO-APIC 15-edge ata_piix: 0
+  IRQ 21 IO-APIC 21-fasteoi ahci[0000:00:0d.0]: 0
+
+running: 30.0s
+  loop0 (7:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop1 (7:1, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop2 (7:2, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop3 (7:3, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop4 (7:4, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop5 (7:5, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop6 (7:6, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop7 (7:7, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda (8:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+    I/Os in progress: 0 -> 0 (instantaneous gauge)
+  sda1 (8:1, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda2 (8:2, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sr0 (11:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  IRQ 14 IO-APIC 14-edge ata_piix: 0
+  IRQ 15 IO-APIC 15-edge ata_piix: 0
+  IRQ 21 IO-APIC 21-fasteoi ahci[0000:00:0d.0]: 0
+
+control-after: 15.0s
+  loop0 (7:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop1 (7:1, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop2 (7:2, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop3 (7:3, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop4 (7:4, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop5 (7:5, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop6 (7:6, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  loop7 (7:7, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda (8:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+    I/Os in progress: 0 -> 0 (instantaneous gauge)
+  sda1 (8:1, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sda2 (8:2, partition): reads=0 sectors_read=0 writes=0 sectors_written=0
+  sr0 (11:0, whole disk/device): reads=0 sectors_read=0 writes=0 sectors_written=0
+  IRQ 14 IO-APIC 14-edge ata_piix: 0
+  IRQ 15 IO-APIC 15-edge ata_piix: 0
+  IRQ 21 IO-APIC 21-fasteoi ahci[0000:00:0d.0]: 0
+
+monitor LOAD records: 175
+traced /etc/TZ opens: 32
+path-resolved mapped/read/open calls: 32
+distinct traced persistent-path calls:
+unresolved-FD read calls:
+  read: fd 11<anon_inode:[timerfd]>
+  read: fd 12<pipe:[173916]>
+  read: fd 8<anon_inode:[timerfd]>
+  read: fd 9<anon_inode:[timerfd]>
+daemon read_bytes: unavailable (read_bytes absent in taskio-running-start.txt)
+classification: bounded no-recurring-device-read observation
+IRQ deltas corroborate activity only; control windows and task/path evidence matter.
+VM block counters do not establish physical host media or router NAND behavior.
+authorized log inode preserved: yes
+restored qdisc dump exactly matches: yes
+packages, installed hashes, service settings, mounts, and symlinks preserved: yes
