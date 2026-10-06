@@ -416,6 +416,21 @@ void control_update(
 				queue->upload_microseconds
 			);
 		}
+		/* Only the start and end of a hold: the ceiling itself moves with traffic. */
+		if (decision->ack_share_changed && decision->ack_share_active)
+			log_message(
+				LOG_LEVEL_DEBUG,
+				"ACK share holding %s: ceiling=%" PRIu64 " bit/s ack_rate=%" PRIu64
+				" bit/s upload_rate=%" PRIu64 " bit/s upload_shaper_rate=%" PRIu64
+				" bit/s",
+				direction->name,
+				decision->ack_share_ceiling_bits_per_second,
+				step.input.acks.upload_ack_rate_bits_per_second,
+				step.input.acks.upload_rate_bits_per_second,
+				control->controller.upload.shaper_rate_bits_per_second
+			);
+		else if (decision->ack_share_changed)
+			log_message(LOG_LEVEL_DEBUG, "ACK share released %s", direction->name);
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
 		if (!control->initial_shaper_reported &&
 		    !directions[index].controller->config.adjust && config->output_cake_changes) {

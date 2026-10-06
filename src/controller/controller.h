@@ -128,10 +128,14 @@ struct controller_direction_output {
 	 * cut its rate. Always true unless one shared delay must be attributed.
 	 */
 	bool bufferbloat_attributed;
+	/* Download only: the ACK share limits the rate to this ceiling. */
+	bool ack_share_active;
+	uint64_t ack_share_ceiling_bits_per_second;
 	bool state_changed;
 	bool congestion_changed;
 	bool rate_changed;
 	bool bufferbloat_attribution_changed;
+	bool ack_share_changed;
 };
 
 struct controller_output {
@@ -195,8 +199,9 @@ struct controller_direction {
 	uint64_t last_decay_adjustment_microseconds;
 	uint64_t last_increase_sample_id;
 	bool initial_rate_pending;
-	/* The last decision, for reporting changes. */
+	/* The last decisions, for reporting changes. */
 	bool bufferbloat_attributed;
+	bool ack_share_active;
 };
 
 struct controller {

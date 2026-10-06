@@ -912,6 +912,40 @@ static void test_ack_share_follows_other_traffic(void)
 	assert(download.rate_bits_per_second == KBIT(8320U));
 }
 
+/* A hold is reported when it starts and ends, not on every update. */
+static void test_ack_share_changes_are_reported(void)
+{
+	struct controller controller;
+	struct controller_config config = adjusting_config();
+	struct controller_input input =
+		input_with_rates(8U * MEBABIT, 8U * MEBABIT, KBIT(7900U), 8U * MEBABIT);
+	struct controller_output output;
+
+	config.ul_congest_ack_share_percent = 45U;
+	input.acks.valid = true;
+	input.acks.upload_ack_rate_bits_per_second = KBIT(4900U);
+	input.acks.upload_rate_bits_per_second = KBIT(7900U);
+	init_controller(&controller, &config);
+	controller_update(&controller, &input, &output);
+	assert(output.download.ack_share_active && output.download.ack_share_changed);
+	assert(output.download.ack_share_ceiling_bits_per_second == KBIT(7510U));
+	assert(!output.upload.ack_share_active && !output.upload.ack_share_changed);
+
+	accept_rates(&input, &output);
+	input.timestamp_microseconds += 1000000U;
+	controller_update(&controller, &input, &output);
+	assert(output.download.ack_share_active && !output.download.ack_share_changed);
+
+	/* Upload falls below high load, so ACKs may use all of it again. */
+	accept_rates(&input, &output);
+	input.upload.traffic_rate_bits_per_second = KBIT(5000U);
+	input.timestamp_microseconds += 1000000U;
+	controller_update(&controller, &input, &output);
+	assert(!output.download.ack_share_active && output.download.ack_share_changed);
+	assert(output.download.ack_share_ceiling_bits_per_second == UINT64_MAX);
+	controller_close(&controller);
+}
+
 static void test_attribution_changes_are_reported(void)
 {
 	struct controller controller;
@@ -1649,6 +1683,7 @@ int main(void)
 	test_measured_queues_split_round_trip_delta();
 	test_sustained_ack_wait_can_misdirect_shared_delay();
 	test_ack_share_follows_other_traffic();
+	test_ack_share_changes_are_reported();
 	test_attribution_changes_are_reported();
 	test_severe_bufferbloat_reduces_both_rates();
 	test_bufferbloat_reduction_scales_with_average_delay();
