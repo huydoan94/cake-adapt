@@ -189,6 +189,38 @@ static void read_log(const char *path, char *contents, size_t contents_size)
 	assert(fclose(file) == 0);
 }
 
+/* A configuration check run by hand also prints warnings and errors to stderr. */
+static void test_problems_to_stderr(void)
+{
+	char path[] = "/tmp/cake-adapt-stderr-XXXXXX";
+	char contents[512];
+	int descriptor = mkstemp(path);
+	int saved = dup(STDERR_FILENO);
+
+	assert(descriptor >= 0 && saved >= 0);
+	assert(fflush(stderr) == 0 && dup2(descriptor, STDERR_FILENO) == STDERR_FILENO);
+	log_init("cake-adapt-test", false);
+	log_message(LOG_LEVEL_ERROR, "before the check");
+	log_problems_to_stderr();
+	syslog_count = 0U;
+	log_message(LOG_LEVEL_ERROR, "configuration error: %s", "rates");
+	log_message(LOG_LEVEL_WARNING, "interface overridden");
+	log_message(LOG_LEVEL_NOTICE, "routine notice");
+	assert(syslog_count == 2U);
+	log_close();
+	/* A new log_init() turns it off again. */
+	log_init("cake-adapt-test", false);
+	log_message(LOG_LEVEL_ERROR, "after the check");
+	log_close();
+	assert(fflush(stderr) == 0 && dup2(saved, STDERR_FILENO) == STDERR_FILENO);
+	assert(close(saved) == 0 && close(descriptor) == 0);
+	read_log(path, contents, sizeof(contents));
+	assert(unlink(path) == 0);
+	assert(strcmp(contents,
+		      "ERROR: configuration error: rates\n"
+		      "WARNING: interface overridden\n") == 0);
+}
+
 static void test_debug_logging_to_file(void)
 {
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
@@ -850,6 +882,7 @@ static void test_disabled_output_skips_formatting_clocks(void)
 int main(void)
 {
 	test_operational_syslog();
+	test_problems_to_stderr();
 	test_disabled_output_skips_formatting_clocks();
 	test_failed_file_switch_preserves_rotation_path();
 	test_debug_logging_to_file();
