@@ -1,8 +1,31 @@
 # Tuple-lifetime finding 2: work orders
 
-Status: planned; no redesign selected or implemented. These are persistent
-project work orders, not a session handoff. Creating them does not start the
-implementation, restore the saved patch, or authorize a VM campaign.
+Status: selected protocol implemented with unit tests and bounded source review;
+focused host checks pass. These are persistent project work orders, not a session
+handoff. Package builds, architecture validation, kernel checks, VM, profiling and
+end-to-end acceptance remain pending. The saved patch has not been restored.
+Implementation checkpoint: `885f7d9` (`tcpdelay: isolate tuple lifetimes in an
+ordered capture stream`). This identifies the host-tested source; it does not
+mark target acceptance complete.
+
+## One-time implementation mode (2026-10-05)
+
+The user explicitly authorized progressing through the feature and unit-test
+implementation tasks in this pass, with execution deferred until the end. This
+overrides the normal incremental validation gates below for this pass only.
+Write unit tests alongside the feature; do not run builds, tests, VM, profiling
+or end-to-end work during implementation. Preserve a reviewable draft at the
+usage limit rather than marking unverified tasks complete or reverting solely
+because validation was deferred. Other branch, deployment and policy restrictions
+remain unchanged. This is not a standing rule for future work.
+
+The [selected lifetime-stream design](TUPLE_LIFETIME_DESIGN.md) records ownership,
+ordering, loss/recovery, ABI and numerical bounds. TL-01/TL-02 design work is
+recorded there; the architecture capability inventory remains partial. TL-03 and
+TL-04 source implementation and host unit checks are complete; their kernel,
+instruction and package gates remain pending. TL-05 harness work, TL-06 target
+validation and TL-07 measurement remain deferred. Host checks and source review
+do not satisfy those acceptance gates.
 
 ## Problem and intended result
 
@@ -51,7 +74,8 @@ rate-control defaults, own SQM setup, or implement a full TCP stack.
   accepted resolution. Socket-filter spin-lock helpers are not an accepted
   replacement under the checked kernel contract.
 
-No proposed synchronization or recovery mechanism is approved by this document.
+The selected protocol is recorded in [the design](TUPLE_LIFETIME_DESIGN.md).
+Source review and implementation authorization do not establish runtime acceptance.
 
 ## Portability contract
 
@@ -112,8 +136,9 @@ the tested kernel/configuration; untested configurations remain listed as such.
 
 ## Delivery order and ownership
 
-All orders below are **not started**. Dependencies are completion gates, not
-permission to execute the entire backlog automatically.
+Order progress is recorded above. Dependencies normally require completion gates;
+the one-time implementation mode permits source work to proceed while executable
+validation is deferred. It does not authorize a VM campaign.
 
 | Order | Deliverable / problem it solves | Depends on | Accountable role |
 | --- | --- | --- | --- |
@@ -362,11 +387,12 @@ No version bump, remote operation, router installation or release is included.
 ## Checks and operational boundaries
 
 Behavioral tests accompany TL-03/TL-04 rather than being deferred to the VM order.
-Use existing focused targets first: estimator and replay binaries plus
+When deferred execution begins, use existing focused targets first: estimator and replay binaries plus
 `check-tcpdelay` with the SDK headers from the host task. Add a narrowly named
 lifetime target if the selected design needs it. The existing Make targets and
 SDK commands are in [.vscode/tasks.json](.vscode/tasks.json); retain strict warnings
-and clang-format stability. Do not run builds/tests for this documentation order.
+and clang-format stability. The one-time implementation mode above controls when
+these checks run; none is implied by a source-only review.
 
 Before any VM mutation, the run plan must require fresh service/process/package/
 configuration/link/route/qdisc snapshots and exact restoration on x86. Prefer
@@ -382,6 +408,8 @@ claim of production readiness from lifetime tests alone.
 
 If a work order needs a larger design or new authority, stop at that gate,
 describe the concrete change and retain evidence. Preserve policy and existing
-accepted fixes. Revert an unsuccessful tuple-lifetime implementation attempt
-under the user's scope stop condition; do not leave a partial fix presented as
-complete. No automatic continuation across these gates is implied.
+accepted fixes. Outside the one-time implementation pass, revert an unsuccessful
+tuple-lifetime implementation attempt under the user's scope stop condition.
+During this pass, preserve the reviewable draft if validation or usage limits
+leave work pending; do not present it as complete. No standing authorization to
+continue across these gates is implied.
