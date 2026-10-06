@@ -592,7 +592,7 @@
         "src/monitor/monitor.c:monitor_tick",
         "src/monitor/links.c:links_observe",
         "src/monitor/links.c:observe_cake",
-        "src/cake/cake.c:cake_read_all",
+        "src/cake/cake.c:cake_read",
         "src/monitor/links.c:observe_traffic",
         "src/platform/traffic.c:traffic_update",
         "src/platform/traffic.c:traffic_compensated_interval_microseconds"
@@ -628,7 +628,7 @@
         },
         {
           "id": "dump",
-          "label": "cake_read_all\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",
+          "label": "cake_read\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",
           "kind": "process"
         },
         {
@@ -996,7 +996,8 @@
       "title": "05 — Pinger process ownership and reply parsing",
       "refs": [
         "src/monitor/pingers.c:ensure_latency_open",
-        "src/latency/fping.c:latency_open",
+        "src/latency/latency.c:latency_open",
+        "src/latency/fping.c:fping_open",
         "src/monitor/pingers.c:watch_started_latency_children",
         "src/monitor/pingers.c:handle_pinger_output",
         "src/latency/latency.c:latency_next_line",
@@ -1034,12 +1035,12 @@
         },
         {
           "id": "fping",
-          "label": "latency_open\none fping for all active targets",
+          "label": "fping_open\none fping for all active targets",
           "kind": "process"
         },
         {
           "id": "irtt",
-          "label": "latency_open_irtt\none irtt per target,\nstarts aligned to ping slots",
+          "label": "irtt_open\none irtt per target,\nstarts aligned to ping slots",
           "kind": "process"
         },
         {
@@ -1235,7 +1236,8 @@
         "src/latency/tracker.c:tracker_update_direction",
         "src/latency/tracker.c:tracker_update_delta_ewma",
         "src/controller/controller.c:controller_low_load",
-        "src/common/helpers.c:response_timestamp"
+        "src/common/helpers.c:response_monotonic_microseconds",
+        "src/common/helpers.c:response_stale"
       ],
       "notes": [
         "The baseline starts at 100 ms. It moves by alpha_baseline_increase (0.001) when the sample is at or above it, and by alpha_baseline_decrease (0.9) when below. A rising delay therefore barely moves the baseline, and an improvement is adopted almost at once.",
@@ -1968,7 +1970,7 @@
         "src/monitor/control.c:control_update",
         "src/monitor/control.c:apply_bandwidth",
         "src/cake/cake.c:cake_set_bandwidth",
-        "src/platform/netlink.c:netlink_change_qdisc_option",
+        "src/platform/netlink.c:netlink_change_qdisc",
         "src/platform/netlink.c:receive_response",
         "src/cake/cake.c:cake_read"
       ],
