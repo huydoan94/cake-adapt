@@ -48,6 +48,8 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	monitor->tcp.failed_index = 0U;
 	monitor->tcp.dropped_records = 0U;
 	monitor->tcp.next_counter_check_microseconds = 0U;
+	monitor->tcp.queue_timing_state_known = false;
+	monitor->tcp.queue_timing_available = false;
 	/* The counters restart with the new filter. */
 	monitor->tcp.ack_sampled = false;
 	monitor->tcp.ack_rate_valid = false;
@@ -83,7 +85,7 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_m
 static bool drain(struct monitor *monitor)
 {
 	if (tcpdelay_capture_drain(&monitor->tcp.capture) >= 0)
-		return true;
+		goto timing_state;
 	log_message(
 		LOG_LEVEL_WARNING,
 		"TCP measurement degraded: capture failed: %s",
@@ -92,6 +94,20 @@ static bool drain(struct monitor *monitor)
 	tcp_close(monitor);
 	monitor->tcp.failed_index = monitor->links.upload.cake.interface_index;
 	return false;
+
+timing_state:
+	if (monitor->tcp.capture.state != TCPDELAY_CAPTURE_READY) {
+		if (!monitor->tcp.queue_timing_state_known || monitor->tcp.queue_timing_available)
+			log_message(LOG_LEVEL_WARNING, "TCP queue attribution unavailable");
+		monitor->tcp.queue_timing_available = false;
+		monitor->tcp.queue_timing_state_known = true;
+	} else if (tcpdelay_capture_timing_available(&monitor->tcp.capture)) {
+		if (monitor->tcp.queue_timing_state_known && !monitor->tcp.queue_timing_available)
+			log_message(LOG_LEVEL_NOTICE, "TCP queue attribution recovered");
+		monitor->tcp.queue_timing_available = true;
+		monitor->tcp.queue_timing_state_known = true;
+	}
+	return true;
 }
 
 /* Opens, follows and drains the capture; false when it is not usable. */
@@ -260,7 +276,8 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 		policy = TCPDELAY_BASELINE_FOLLOW;
 	if (!capture_ready(monitor, input->timestamp_microseconds, policy))
 		return;
-	if (config->tcp_delay_attribution)
+	if (config->tcp_delay_attribution && monitor->tcp.queue_timing_available &&
+	    tcpdelay_capture_timing_available(&monitor->tcp.capture))
 		measure_queues(monitor, input->timestamp_microseconds, &input->queue);
 	if (config->ul_congest_ack_share_per_million != 0U)
 		measure_ack_rate(monitor, input->timestamp_microseconds, &input->acks);
@@ -289,6 +306,8 @@ void tcp_close(struct monitor *monitor)
 		return;
 	tcpdelay_capture_close(&monitor->tcp.capture);
 	monitor->tcp.open = false;
+	monitor->tcp.queue_timing_state_known = false;
+	monitor->tcp.queue_timing_available = false;
 	monitor->tcp.ack_sampled = false;
 	monitor->tcp.ack_rate_valid = false;
 }
