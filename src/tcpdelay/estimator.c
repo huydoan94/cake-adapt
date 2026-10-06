@@ -116,23 +116,43 @@ static struct tcpdelay_flow *
 flow_for(struct tcpdelay_estimator *estimator, const struct tcpdelay_sample *sample)
 {
 	struct tcpdelay_flow *oldest = NULL;
+	struct tcpdelay_flow *unused = NULL;
 	size_t index;
 
-	/* Slots fill in order and are never freed, so the first unused one ends the table. */
+	/* Search every slot: explicit forgets leave holes before later live flows. */
 	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		struct tcpdelay_flow *flow = &estimator->flows[index];
 
 		if (!flow->used) {
-			oldest = flow;
-			break;
+			if (unused == NULL)
+				unused = flow;
+			continue;
 		}
 		if (memcmp(&flow->key, &sample->flow, sizeof(flow->key)) == 0)
 			return flow;
 		if (oldest == NULL || flow->last_accepted_ns < oldest->last_accepted_ns)
 			oldest = flow;
 	}
+	if (unused != NULL)
+		oldest = unused;
 	flow_start(oldest, sample);
+	oldest->generation = sample->generation;
 	return oldest;
+}
+
+void tcpdelay_estimator_forget(
+	struct tcpdelay_estimator *estimator,
+	const struct tcpdelay_record_flow *flow
+)
+{
+	size_t index;
+
+	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
+		struct tcpdelay_flow *entry = &estimator->flows[index];
+
+		if (entry->used && memcmp(&entry->key, flow, sizeof(entry->key)) == 0)
+			memset(entry, 0, sizeof(*entry));
+	}
 }
 
 /* Adopts the remote clock period once it fits a standard one within 5%. */
@@ -220,15 +240,27 @@ void tcpdelay_estimator_add(
 	const struct tcpdelay_sample *sample
 )
 {
-	struct tcpdelay_flow *flow = flow_for(estimator, sample);
+	struct tcpdelay_flow *flow;
 	/*
 	 * TSval wraps at 32 bits, so progress is the difference read as signed
 	 * (RFC 7323). A reordered packet carries an older TSval and is skipped.
 	 */
-	int32_t step = (int32_t)(sample->tsval - flow->last_tsval);
+	int32_t step;
 	int64_t download_ns;
 	int64_t upload_ns;
 	size_t index;
+
+	if (sample->generation == 0U)
+		return;
+	flow = flow_for(estimator, sample);
+	if (sample->generation < flow->generation)
+		return;
+	if (flow->generation != sample->generation) {
+		flow_start(flow, sample);
+		flow->generation = sample->generation;
+		return;
+	}
+	step = (int32_t)(sample->tsval - flow->last_tsval);
 
 	if (step < 0 || sample->arrival_ns < flow->last_accepted_ns)
 		return;
@@ -258,6 +290,7 @@ void tcpdelay_estimator_add(
 	);
 	if (download_ns > IMPLAUSIBLE_QUEUE_NS || upload_ns > IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
+		flow->generation = sample->generation;
 		return;
 	}
 	window_add(&flow->download, download_ns, sample->arrival_ns);
@@ -275,7 +308,7 @@ void tcpdelay_estimator_result(
 	size_t index;
 
 	memset(estimate, 0, sizeof(*estimate));
-	for (index = 0U; index < TCPDELAY_FLOWS && estimator->flows[index].used; index++) {
+	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		const struct tcpdelay_flow *flow = &estimator->flows[index];
 		int64_t download_ns;
 		int64_t upload_ns = 0;

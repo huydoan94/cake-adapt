@@ -11,16 +11,27 @@
 /* Arbitrary monotonic origin, so departures before the first sample stay positive. */
 #define ORIGIN_NS (1000U * MILLISECOND)
 
+enum test_departure_state {
+	TEST_DEPARTURES_PRESENT,
+	TEST_DEPARTURES_ABSENT,
+};
+
 struct remote {
 	struct tcpdelay_record_flow key;
 	uint64_t tick_ns;
+	uint64_t generation;
 	uint32_t tsval_base;
 	bool departures;
 };
 
 static struct remote remote_flow(uint16_t port, uint64_t tick_ns, uint32_t tsval_base)
 {
-	struct remote remote = { .tick_ns = tick_ns, .tsval_base = tsval_base, .departures = true };
+	struct remote remote = {
+		.tick_ns = tick_ns,
+		.generation = 1U,
+		.tsval_base = tsval_base,
+		.departures = true,
+	};
 
 	remote.key.local_address[15] = 2U;
 	remote.key.remote_address[15] = 1U;
@@ -47,6 +58,7 @@ static void send_sample(
 		.flow = remote->key,
 		.arrival_ns = ORIGIN_NS + sent_ns + PATH_NS + download_queue_ns,
 		.tsval = remote->tsval_base + (uint32_t)(sent_ns / remote->tick_ns),
+		.generation = remote->generation,
 	};
 
 	if (remote->departures) {
@@ -515,7 +527,7 @@ static void test_samples_without_departure(void)
 }
 
 /* A new flow's congested baseline cannot erase an established flow's queue. */
-static void test_new_flow_keeps_established_queues(bool departures)
+static void test_new_flow_keeps_established_queues(enum test_departure_state departures)
 {
 	struct tcpdelay_estimator estimator;
 	struct tcpdelay_estimate estimate;
@@ -533,7 +545,7 @@ static void test_new_flow_keeps_established_queues(bool departures)
 		80U * MILLISECOND,
 		20U * MILLISECOND
 	);
-	newcomer.departures = departures;
+	newcomer.departures = departures == TEST_DEPARTURES_PRESENT;
 	for (; now < 7000U * MILLISECOND; now += MILLISECOND) {
 		send_sample(&estimator, &established, now, 80U * MILLISECOND, 20U * MILLISECOND, 0U);
 		send_sample(&estimator, &newcomer, now, 80U * MILLISECOND, 20U * MILLISECOND, 0U);
@@ -554,7 +566,7 @@ static void test_new_flow_keeps_established_queues(bool departures)
 	);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid);
-	assert(estimate.upload_valid == departures);
+	assert(estimate.upload_valid == (departures == TEST_DEPARTURES_PRESENT));
 	assert_close(estimate.download_queue_microseconds, 0);
 	assert_close(estimate.upload_queue_microseconds, 0);
 }
@@ -624,6 +636,7 @@ static void test_later_arrival_with_older_timestamp_is_ignored(void)
 	send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	memcpy(&before, &estimator.flows[0], sizeof(before));
 	sample.flow = before.key;
+	sample.generation = 1U;
 	/* send_span is end-exclusive, so the last sent time is 2999 ms. */
 	sample.arrival_ns = ORIGIN_NS + 3000U * MILLISECOND + PATH_NS;
 	sample.departure_ns = 0U;
@@ -644,6 +657,7 @@ static void test_earlier_arrival_with_newer_timestamp_is_ignored(void)
 	send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	memcpy(&before, &estimator.flows[0], sizeof(before));
 	sample.flow = before.key;
+	sample.generation = 1U;
 	/* One millisecond before the last packet produced by the end-exclusive span. */
 	sample.arrival_ns = ORIGIN_NS + 2998U * MILLISECOND + PATH_NS;
 	sample.departure_ns = 0U;
@@ -656,7 +670,7 @@ static void test_earlier_arrival_with_newer_timestamp_is_ignored(void)
 static void test_equal_timestamp_with_later_arrival_refreshes_lru(void)
 {
 	struct tcpdelay_estimator estimator;
-	struct tcpdelay_sample sample = { 0 };
+	struct tcpdelay_sample sample = { .generation = 1U };
 	size_t index;
 	bool oldest = false;
 	bool second_oldest = false;
@@ -698,6 +712,7 @@ static void test_newer_timestamp_with_equal_arrival_is_accepted(void)
 		.flow = { .local_port = 42000U },
 		.arrival_ns = ORIGIN_NS,
 		.tsval = 100U,
+		.generation = 1U,
 	};
 
 	tcpdelay_estimator_init(&estimator);
@@ -736,6 +751,7 @@ static void test_rejected_sample_does_not_refresh_lru(void)
 
 	tcpdelay_estimator_init(&estimator);
 	memset(&sample, 0, sizeof(sample));
+	sample.generation = 1U;
 	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		sample.flow.local_port = (uint16_t)(40000U + index);
 		sample.arrival_ns = ORIGIN_NS + index * MILLISECOND;
@@ -764,6 +780,100 @@ static void test_rejected_sample_does_not_refresh_lru(void)
 	assert(second_oldest);
 }
 
+static void test_generation_reset_and_forget(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote remote = remote_flow(50020U, MILLISECOND, 1000U);
+	struct tcpdelay_sample sample = { 0 };
+	struct tcpdelay_flow before;
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
+	assert(estimator.flows[0].generation == 1U);
+	sample.flow = remote.key;
+	sample.arrival_ns = ORIGIN_NS + now + PATH_NS;
+	sample.tsval = 5U;
+	sample.generation = 2U;
+	tcpdelay_estimator_add(&estimator, &sample);
+	assert(estimator.flows[0].generation == 2U);
+	assert(estimator.flows[0].last_tsval == sample.tsval);
+	assert(estimator.flows[0].first_arrival_ns == sample.arrival_ns);
+	result_after(&estimator, now + 100U * MILLISECOND, &estimate);
+	assert(!estimate.download_valid && !estimate.upload_valid);
+
+	memcpy(&before, &estimator.flows[0], sizeof(before));
+	sample.generation = 1U;
+	sample.arrival_ns += MILLISECOND;
+	sample.tsval++;
+	tcpdelay_estimator_add(&estimator, &sample);
+	assert(memcmp(&before, &estimator.flows[0], sizeof(before)) == 0);
+	sample.generation = 0U;
+	tcpdelay_estimator_add(&estimator, &sample);
+	assert(memcmp(&before, &estimator.flows[0], sizeof(before)) == 0);
+	tcpdelay_estimator_forget(&estimator, &remote.key);
+	assert(!estimator.flows[0].used);
+}
+
+static void test_generation_recalibrates_with_replacement_clock(uint32_t replacement_base)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote original = remote_flow(50023U, MILLISECOND, 1000U);
+	struct remote replacement = remote_flow(50023U, MILLISECOND, replacement_base);
+	struct tcpdelay_flow replacement_start;
+	uint64_t now;
+
+	replacement.generation = 2U;
+	tcpdelay_estimator_init(&estimator);
+	now = send_span(&estimator, &original, 0U, 3000U * MILLISECOND, 0U, 0U);
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+
+	/* A fresh generation starts a new clock fit, regardless of TSval offset. */
+	send_sample(&estimator, &replacement, now, 0U, 0U, 0U);
+	assert(estimator.flows[0].generation == replacement.generation);
+	assert(estimator.flows[0].tick_ns == 0U);
+	memcpy(&replacement_start, &estimator.flows[0], sizeof(replacement_start));
+	send_sample(&estimator, &original, now + MILLISECOND, 0U, 0U, 0U);
+	assert(memcmp(&replacement_start, &estimator.flows[0], sizeof(replacement_start)) == 0);
+
+	now = send_span(
+		&estimator,
+		&replacement,
+		now + MILLISECOND,
+		now + 3001U * MILLISECOND,
+		0U,
+		0U
+	);
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 0);
+}
+
+static void test_forget_hole_preserves_later_flow_lookup_and_result(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote first = remote_flow(50021U, MILLISECOND, 1000U);
+	struct remote second = remote_flow(50022U, MILLISECOND, 2000U);
+	uint64_t now;
+
+	tcpdelay_estimator_init(&estimator);
+	send_span(&estimator, &first, 0U, 3000U * MILLISECOND, 0U, 0U);
+	now = send_span(&estimator, &second, 0U, 3000U * MILLISECOND, 0U, 0U);
+	assert(estimator.flows[0].used && estimator.flows[1].used);
+	tcpdelay_estimator_forget(&estimator, &first.key);
+	assert(!estimator.flows[0].used && estimator.flows[1].used);
+	send_sample(&estimator, &second, now, 0U, 0U, 0U);
+	assert(estimator.flows[1].last_tsval ==
+	       second.tsval_base + (uint32_t)(now / second.tick_ns));
+	result_after(&estimator, now, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+}
+
 int main(void)
 {
 	test_no_estimate_before_the_tick_is_known();
@@ -784,8 +894,8 @@ int main(void)
 	test_hold_accepts_lower_raw_minimum();
 	test_follow_hold_follow_transition();
 	test_samples_without_departure();
-	test_new_flow_keeps_established_queues(false);
-	test_new_flow_keeps_established_queues(true);
+	test_new_flow_keeps_established_queues(TEST_DEPARTURES_ABSENT);
+	test_new_flow_keeps_established_queues(TEST_DEPARTURES_PRESENT);
 	test_directional_pair_comes_from_one_flow();
 	test_reordered_packet_is_skipped();
 	test_later_arrival_with_older_timestamp_is_ignored();
@@ -794,6 +904,10 @@ int main(void)
 	test_newer_timestamp_with_equal_arrival_is_accepted();
 	test_nonstandard_tick_is_rejected();
 	test_rejected_sample_does_not_refresh_lru();
+	test_generation_reset_and_forget();
+	test_generation_recalibrates_with_replacement_clock(10U);
+	test_generation_recalibrates_with_replacement_clock(10000U);
+	test_forget_hole_preserves_later_flow_lookup_and_result();
 	puts("tcpdelay estimator tests passed");
 	return 0;
 }

@@ -16,10 +16,12 @@ static long test_load_relative(
 	unsigned int length,
 	unsigned int start
 );
+static unsigned long long test_now(void);
 
 #define bpf_map_lookup_elem test_lookup
 #define bpf_skb_load_bytes test_load
 #define bpf_skb_load_bytes_relative test_load_relative
+#define bpf_ktime_get_ns test_now
 /* The BPF source uses GNU empty initializers and helpers returning long; its
  * existing native sizeof/int conversions are outside the tested substitutions.
  */
@@ -33,6 +35,11 @@ static long test_load_relative(
 static struct tcpdelay_accounting model;
 static struct tcpdelay_counters totals;
 static unsigned char packet[128];
+
+static unsigned long long test_now(void)
+{
+	return 1U;
+}
 
 static void *test_lookup(const void *map, const void *key)
 {
