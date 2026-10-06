@@ -15,7 +15,9 @@
 #
 # HOST is anything ssh accepts (user@address or a Host from ~/.ssh/config) and
 # needs key authentication. REMOTE_LOG defaults to /var/log/cake-adapt.log.
-# Stop with Ctrl-C.
+# Stop with Ctrl-C. On the router the follower runs as
+# "sh /tmp/cake-adapt-capture.sh"; it exits by itself within 30 s of the
+# connection ending.
 set -u
 
 limit_mb=1024
@@ -38,7 +40,7 @@ events=$local_file.events
 last_file=$local_file.last
 limit_bytes=$((limit_mb * 1024 * 1024))
 marker=@@cake-adapt-capture-replay-end@@
-keepalive=@@cake-adapt-capture-keepalive@@
+remote_script=/tmp/cake-adapt-capture.sh
 
 event() {
 	printf '%s %s\n' "$(date '+%F %T')" "$1" | tee -a "$events" >&2
@@ -56,15 +58,22 @@ write() {
 	fi
 	LAST_LINE=$last_line LC_ALL=C awk -F'; ' \
 		-v file="$local_file" -v limit="$limit_bytes" -v marker="$marker" \
-		-v keepalive="$keepalive" -v size="$(stat -c %s "$local_file" 2>/dev/null || echo 0)" \
+		-v size="$(stat -c %s "$local_file" 2>/dev/null || echo 0)" \
 		-v events="$events" -v last_file="$last_file" '
-	function archive(   name, stamp) {
+	function exists(path) {
+		return system("test -e \"" path "\"") == 0
+	}
+	function archive(   base, name, stamp, n) {
 		close(file)
 		"date +%Y%m%d-%H%M%S" | getline stamp
 		close("date +%Y%m%d-%H%M%S")
-		name = file
-		sub(/\.log$/, "", name)
-		name = name "." stamp ".log"
+		base = file
+		sub(/\.log$/, "", base)
+		base = base "." stamp
+		name = base ".log"
+		# A second archive within the same second gets a suffix.
+		for (n = 2; exists(name) || exists(name ".gz"); n++)
+			name = base "-" n ".log"
 		print last > last_file
 		close(last_file)
 		system("mv \"" file "\" \"" name "\" && (gzip \"" name "\" &)")
@@ -90,7 +99,6 @@ write() {
 			archive()
 	}
 	BEGIN { replaying = 1; last = ENVIRON["LAST_LINE"] }
-	$0 == keepalive { next }
 	replaying && $0 == marker {
 		start = 1
 		for (i = held; i >= 1; i--)
@@ -108,40 +116,62 @@ write() {
 	{ emit($0) }'
 }
 
+# One line every 5 s for the router-side watchdog; it ends with the connection.
+heartbeat() {
+	while echo; do
+		sleep 5
+	done
+}
+
 ssh_pid=
 trap 'event "stopped"; [ -n "$ssh_pid" ] && kill "$ssh_pid" 2>/dev/null; exit 0' INT TERM
 
 event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
-# Runs on the router (BusyBox sh): replays the .old copy and the live log up
-# to its current size, prints the marker, then follows the live log by byte
-# offset once a second. tail -F would lose what was written in the second
-# before a rotation, which cake-adapt does by copying the log to .old and
-# truncating it in place: when the log shrinks, the rest of the old content is
-# read from .old at the same offset. The log cannot regrow past the old offset
-# within a second, since it rotates at 2 MB or after 10 minutes of growth.
-# After 10 quiet seconds it sends the keepalive line, between whole lines only,
-# so that a follower whose connection is gone fails to write and exits.
-follower='f=$1
+# Runs on the router (BusyBox sh) as /tmp/cake-adapt-capture.sh, so that ps
+# shows it by name; each session writes it afresh under a temporary name and
+# renames it, so a follower still running keeps its own copy. It replays the
+# .old copy and the live log, prints
+# the marker, then follows the live log once a second. The log stays open on
+# descriptor 3, so each read continues where the last stopped instead of
+# rereading the file: its position comes from /proc/self/fdinfo, and its size
+# from ls, which reads no content. tail -F would lose what was written in the
+# second before a rotation, which cake-adapt does by copying the log to .old and
+# truncating it in place: when the log shrinks below the position, the rest of
+# the old content is read from .old at the same offset. The log cannot regrow
+# past that offset within a second, since it rotates at 2 MB or after 10
+# minutes of growth.
+#
+# The PC sends a heartbeat line every 5 s on the follower's stdin. A watchdog
+# beside the follower reads them; at end of input (the session closed) or after
+# 30 s without one (the network silently gone), it kills the whole session's
+# process group, including a reader blocked writing to a dead connection.
+follower='#!/bin/sh
+# Written by capture-log.sh for each SSH session; safe to delete.
+f=$1
+exec 4<&0
+(
+	while read -r -t 30 beat; do :; done
+	kill -TERM 0
+) <&4 &
 cat "$f.old" 2>/dev/null
-offset=$(wc -c < "$f" 2>/dev/null || echo 0)
-head -c "$offset" "$f" 2>/dev/null
+exec 3< "$f"
+cat <&3
 echo "$2"
-quiet=0
 while :; do
-	size=$(wc -c < "$f" 2>/dev/null || echo 0)
+	set -- "$1" "$2" $(ls -ln "$f" 2>/dev/null)
+	size=${7:-0}
+	while read -r key value; do
+		[ "$key" = pos: ] && offset=$value
+	done < /proc/$$/fdinfo/3
 	if [ "$size" -lt "$offset" ]; then
 		tail -c +$((offset + 1)) "$f.old" 2>/dev/null
-		offset=0
+		[ $? -lt 128 ] || exit
+		exec 3< "$f"
 		continue
 	fi
 	if [ "$size" -gt "$offset" ]; then
-		tail -c +$((offset + 1)) "$f" 2>/dev/null | head -c $((size - offset))
-		offset=$size
-		quiet=0
-	elif [ $((quiet += 1)) -ge 10 ]; then
-		quiet=0
-		[ "$offset" -eq 0 ] || [ -z "$(tail -c +$offset "$f" | head -c 1)" ] &&
-			echo "$3"
+		cat <&3
+		[ $? -lt 128 ] || exit
 	fi
 	sleep 1
 done'
@@ -150,8 +180,10 @@ while true; do
 	event "connecting"
 	ssh -o BatchMode=yes -o ConnectTimeout=10 \
 		-o ServerAliveInterval=15 -o ServerAliveCountMax=4 "$host" \
-		"sh -c '$follower' follower '$remote_log' '$marker' '$keepalive'" \
-		< /dev/null > >(write) &
+		"printf '%s\\n' '$follower' > $remote_script.\$\$ &&
+		mv -f $remote_script.\$\$ $remote_script &&
+		exec sh $remote_script '$remote_log' '$marker'" \
+		< <(heartbeat) > >(write) &
 	ssh_pid=$!
 	wait "$ssh_pid"
 	status=$?
