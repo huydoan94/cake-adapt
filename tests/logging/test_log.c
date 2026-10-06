@@ -37,6 +37,7 @@ static const struct log_records every_record = {
 };
 static const struct log_records load_records = { .load = true };
 static const struct log_records tcp_queue_records = { .tcp_queue = true };
+static const struct log_records memory_records = { .memory = true };
 static bool use_mock_time;
 static struct timespec mock_time;
 static time_t mock_realtime_offset;
@@ -579,6 +580,34 @@ static void test_tcp_queue_record(void)
 	assert(unlink(path) == 0);
 }
 
+static void test_memory_record(void)
+{
+	char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
+	char contents[4096];
+	const struct memory_sample sample = {
+		.rss_kilobytes = 2136U,
+		.peak_rss_kilobytes = 2200U,
+		.anonymous_kilobytes = 412U,
+		.data_kilobytes = 900U,
+	};
+	int descriptor = mkstemp(path);
+
+	assert(descriptor >= 0);
+	assert(close(descriptor) == 0);
+	log_init("cake-adapt-test", false);
+	assert(log_set_file(path, &unlimited) == 0);
+	log_print_headers(&memory_records);
+	log_memory(&sample);
+	log_close();
+	read_log(path, contents, sizeof(contents));
+	assert(strstr(contents,
+		      "MEMORY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
+		      " RSS_KB; PEAK_RSS_KB; RSS_ANON_KB; DATA_KB\nMEMORY; ") == contents);
+	assert_record_delimiter_count(strstr(contents, "\nMEMORY; ") + 1, 7U);
+	assert(strstr(contents, "; 2136; 2200; 412; 900\n") != NULL);
+	assert(unlink(path) == 0);
+}
+
 static void
 test_rotation_export_and_reset_preserve_live_inode(const struct log_file_settings *settings)
 {
@@ -893,6 +922,7 @@ int main(void)
 	test_cpu_schema_matches_cake_autorate();
 	test_cpu_log_allocation_failures();
 	test_tcp_queue_record();
+	test_memory_record();
 	test_rotation_export_and_reset_preserve_live_inode(&size_limited);
 	test_rotation_export_and_reset_preserve_live_inode(&size_limited_compressed);
 	test_buffer_timeout_and_time_rotation();
