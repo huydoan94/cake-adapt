@@ -1,0 +1,32 @@
+default via 10.0.3.2 dev eth1 proto static src 10.0.3.15 
+10.0.3.0/24 dev eth1 proto kernel scope link src 10.0.3.15 
+192.168.56.0/24 dev br-lan proto kernel scope link src 192.168.56.2 
+local 10.0.3.15 dev eth1 table local proto kernel scope host src 10.0.3.15 
+broadcast 10.0.3.255 dev eth1 table local proto kernel scope link src 10.0.3.15 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 192.168.56.2 dev br-lan table local proto kernel scope host src 192.168.56.2 
+broadcast 192.168.56.255 dev br-lan table local proto kernel scope link src 192.168.56.2 
+default from fd17:625c:f037:3::/64 via fe80::2 dev eth1 proto static metric 512 pref medium
+fd17:625c:f037:3::/64 dev eth1 proto static metric 256 pref medium
+unreachable fd17:625c:f037:3::/64 dev lo proto static metric 2147483647 pref medium
+fd57:53c:2034::/64 dev br-lan proto static metric 1024 pref medium
+unreachable fd57:53c:2034::/48 dev lo proto static metric 2147483647 pref medium
+fe80::/64 dev br-lan proto kernel metric 256 pref medium
+fe80::/64 dev eth1 proto kernel metric 256 pref medium
+fe80::/64 dev ifb4eth1 proto kernel metric 256 pref medium
+local ::1 dev lo table local proto kernel metric 0 pref medium
+anycast fd17:625c:f037:3:: dev eth1 table local proto kernel metric 0 pref medium
+local fd17:625c:f037:3:a00:27ff:fe26:effa dev eth1 table local proto kernel metric 0 pref medium
+anycast fd57:53c:2034:: dev br-lan table local proto kernel metric 0 pref medium
+local fd57:53c:2034::1 dev br-lan table local proto kernel metric 0 pref medium
+anycast fe80:: dev eth1 table local proto kernel metric 0 pref medium
+anycast fe80:: dev br-lan table local proto kernel metric 0 pref medium
+anycast fe80:: dev ifb4eth1 table local proto kernel metric 0 pref medium
+local fe80::a00:27ff:fe26:effa dev eth1 table local proto kernel metric 0 pref medium
+local fe80::a00:27ff:fe6e:b48c dev br-lan table local proto kernel metric 0 pref medium
+local fe80::8070:1bff:feb8:24ed dev ifb4eth1 table local proto kernel metric 0 pref medium
+multicast ff00::/8 dev br-lan table local proto kernel metric 256 pref medium
+multicast ff00::/8 dev eth1 table local proto kernel metric 256 pref medium
+multicast ff00::/8 dev ifb4eth1 table local proto kernel metric 256 pref medium

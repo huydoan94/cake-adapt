@@ -1,0 +1,2 @@
+Initial dot-directory SCP transfer: scp: error: unexpected filename: .
+Retry used explicit payload names and succeeded. No test state changed.

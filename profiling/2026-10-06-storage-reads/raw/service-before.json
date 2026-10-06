@@ -1,0 +1,23 @@
+{
+	"cake-adapt": {
+		"instances": {
+			"main": {
+				"running": true,
+				"pid": 7621,
+				"command": [
+					"/usr/sbin/cake-adapt",
+					"-C",
+					"/tmp/cake-adapt-config/main",
+					"-S",
+					"main"
+				],
+				"term_timeout": 5,
+				"respawn": {
+					"threshold": 3600,
+					"timeout": 5,
+					"retry": 5
+				}
+			}
+		}
+	}
+}

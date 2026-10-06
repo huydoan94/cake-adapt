@@ -1,0 +1,88 @@
+  PID USER       VSZ STAT COMMAND
+    1 root      1532 S    /sbin/procd
+    2 root         0 SW   [kthreadd]
+    3 root         0 SW   [pool_workqueue_]
+    4 root         0 IW<  [kworker/R-kvfre]
+    5 root         0 IW<  [kworker/R-rcu_g]
+    6 root         0 IW<  [kworker/R-sync_]
+    7 root         0 IW<  [kworker/R-slub_]
+    8 root         0 IW<  [kworker/R-netns]
+   10 root         0 IW<  [kworker/0:0H-ev]
+   12 root         0 IW   [kworker/u8:0-ip]
+   13 root         0 IW<  [kworker/R-mm_pe]
+   14 root         0 IW   [rcu_tasks_trace]
+   15 root         0 SW   [ksoftirqd/0]
+   16 root         0 IW   [rcu_sched]
+   17 root         0 SW   [rcu_exp_par_gp_]
+   18 root         0 SW   [rcu_exp_gp_kthr]
+   19 root         0 SW   [migration/0]
+   20 root         0 SW   [idle_inject/0]
+   21 root         0 SW   [cpuhp/0]
+   22 root         0 SW   [cpuhp/1]
+   23 root         0 SW   [idle_inject/1]
+   24 root         0 SW   [migration/1]
+   25 root         0 SW   [ksoftirqd/1]
+   27 root         0 IW<  [kworker/1:0H-kb]
+   30 root         0 IW<  [kworker/R-inet_]
+   31 root         0 SW   [oom_reaper]
+   32 root         0 IW<  [kworker/R-write]
+   33 root         0 SW   [kcompactd0]
+   34 root         0 IW<  [kworker/R-pencr]
+   35 root         0 IW<  [kworker/R-pdecr]
+   36 root         0 IW<  [kworker/R-kbloc]
+   37 root         0 SW   [irq/9-acpi]
+   38 root         0 IW<  [kworker/0:1H-kb]
+   40 root         0 IW<  [kworker/R-tifm]
+   41 root         0 IW<  [kworker/R-ata_s]
+   42 root         0 SW   [watchdogd]
+   43 root         0 IW   [kworker/u10:1-e]
+   67 root         0 SW   [kswapd0]
+   68 root         0 IW<  [kworker/R-kthro]
+  105 root         0 IW<  [kworker/R-acpi_]
+  187 root         0 SW   [scsi_eh_0]
+  188 root         0 IW<  [kworker/R-scsi_]
+  192 root         0 SW   [scsi_eh_1]
+  193 root         0 IW<  [kworker/R-scsi_]
+  197 root         0 SW   [scsi_eh_2]
+  209 root         0 IW<  [kworker/R-scsi_]
+  213 root         0 SW   [scsi_eh_3]
+  215 root         0 IW<  [kworker/R-scsi_]
+  271 root         0 IW<  [kworker/R-kvub3]
+  272 root         0 IW<  [kworker/R-kvub3]
+  273 root         0 IW<  [kworker/R-kvub3]
+  311 root         0 IW<  [kworker/1:1H]
+  312 root         0 IW   [kworker/1:2-eve]
+  316 root         0 IW<  [kworker/R-mld]
+  319 root         0 IW<  [kworker/R-ipv6_]
+  320 root         0 IW   [kworker/u8:1-ip]
+  743 root         0 SW   [jbd2/sda2-8]
+  744 root         0 IW<  [kworker/R-ext4-]
+  885 root         0 IW<  [kworker/R-ext4-]
+ 1007 ubus      1056 S    /sbin/ubusd
+ 1008 root       856 S    /sbin/askfirst /usr/libexec/login.sh
+ 1009 root      1208 S    /bin/login -f root
+ 1044 root       936 S    /sbin/urngd
+ 1407 logd      1708 S    /sbin/logd -S 128
+ 1679 root      1052 S    /usr/sbin/dropbear -F -P /var/run/dropbear.main.pid -p 22 -K 300 -T 3
+ 1797 root      2172 S    /sbin/netifd
+ 1914 root      1436 S    /usr/sbin/odhcpd
+ 2749 root      2280 S    {ntpd} /sbin/ujail -t 5 -n ntpd -U ntp -G ntp -C /etc/capabilities/ntpd.json -c -u -r /bin/ubus -r /usr/b
+ 2800 ntp       1208 S    /usr/sbin/ntpd -n -N -S /usr/sbin/ntpd-hotplug -p 0.openwrt.pool.ntp.org -p 1.openwrt.pool.ntp.org -p 2.o
+ 3139 root      1208 S    udhcpc -p /var/run/udhcpc-eth1.pid -s /lib/netifd/dhcp.script -f -t 0 -i eth1 -x hostname:OpenWrt -x 0x3d
+ 3147 root      1080 S    odhcp6c -s /lib/netifd/dhcpv6.script -P0:6f1799c8 -c0004aba80de8e07e4db1a2108333eca5d81f -t120 eth1
+ 3656 root      2280 S    {dnsmasq} /sbin/ujail -t 5 -n dnsmasq -u -l -r /bin/ubus -r /etc/TZ -r /etc/dnsmasq.conf -r /etc/ethers -
+ 3707 dnsmasq   1412 S    /usr/sbin/dnsmasq -C /var/etc/dnsmasq.conf.cfg01411c -k -x /var/run/dnsmasq/dnsmasq.cfg01411c.pid
+ 3730 root         0 IW   [kworker/u9:2-ev]
+ 4291 root      1212 S    -ash
+ 4399 root      1140 S    logread -f
+ 4400 root      1208 S    grep -v dropbear
+ 5163 root         0 IW   [kworker/u10:3-e]
+ 9933 root         0 IW   [kworker/u10:0-e]
+10768 root         0 IW   [kworker/u9:3-kv]
+11343 root         0 IW   [kworker/1:0-eve]
+11508 root      1068 S    /usr/sbin/dropbear -F -P /var/run/dropbear.main.pid -p 22 -K 300 -T 3 -2 9
+11509 root      1232 S    sh /tmp/cake-adapt-storage-20261006-run.sh /tmp/cake-adapt-storage-20261006-data
+12096 root      1216 R    ps w
+12476 root         0 IW   [kworker/0:1-eve]
+13645 root         0 IW   [kworker/u9:1-ev]
+14946 root         0 IW   [kworker/0:0]

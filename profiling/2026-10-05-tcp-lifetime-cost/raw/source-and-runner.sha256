@@ -1,0 +1,4 @@
+38f070c2232270dadccfd8029f65d352ea0ff611fd8e5d7fb8baefcf463d0fe5  profiling/2026-10-05-tcp-lifetime-cost/tools/runner.c
+4c750956e24f5889489abc7c20031c31cff64ff651a3ad3b4ad20a683ce015e2  profiling/2026-10-05-tcp-lifetime-cost/tools/run.sh
+9c1c1c53759c65c2888739c5ec5c6badb59d2964ce3b5610cab1899300e0b473  profiling/2026-10-05-tcp-lifetime-cost/tools/evidence.sh
+d18724d8328b119571e39897de8b4559c89357e78101296bde689a3f61838d97  profiling/2026-10-05-tcp-lifetime-cost/raw/inputs/runner-jit-diagnostics

@@ -1,5 +1,10 @@
 # cake-adapt — Agent Guide
 
+**At session start, resumption after a long break (more than 2 hours), the primary agent reads
+[`COLLABORATION.md`](COLLABORATION.md) together with this guide. Inspect the
+current worktree and identify unfinished work before continuing. Delegated
+agents use a scoped task brief with the applicable policy excerpts.**
+
 ## Product contract
 
 `cake-adapt` is an OpenWrt-native C daemon for adapting the bandwidth of
@@ -42,6 +47,15 @@ Treat upstream cake-autorate as the reference for:
 - defaults and configuration meaning; and
 - profiling/statistics log formats.
 
+Since 2026-10-01 the goal is to minimize bufferbloat, not to port faithfully:
+cake-autorate is the origin of the design and the baseline to beat. Departures
+are allowed when they are opt-in (or a documented deliberate default), measured
+on the testbed against the upstream-identical behavior with raw evidence under
+`profiling/`, and documented in code and user-facing docs. The replay test must
+keep matching with every departure switched off. Judge a change by latency
+first (added delay percentiles, time bufferbloated) with bounded throughput
+loss (keep at least about 85% of capacity unless the user agrees otherwise).
+
 Port behavior deliberately and verify it. Preserve record names, field order,
 units, headers, and content exactly where cake-autorate log compatibility is
 intended. Document and test intentional differences instead of silently
@@ -51,7 +65,9 @@ Keep every supported cake-autorate option in the typed UCI model. Parsing an
 option does not mean its behavior is implemented; do not claim support until
 the corresponding path is tested. `fping` is the only supported pinger for now,
 and reflector targets come from local UCI configuration rather than a remotely
-retrieved list.
+retrieved list. `fping-ts` is verified on the emulated testbed but not on
+internet reflectors; the IRTT backend is experimental and must be described as
+such.
 
 Upstream may be consulted during implementation, but production code, init
 scripts, and configuration must never source, execute, or read files from an
@@ -95,35 +111,48 @@ in that directory and is not included from outside it.
 - `main.c`: CLI, startup, logging initialization, configuration loading,
   top-level lifecycle, and orderly shutdown only.
 - `monitor/`: uloop orchestration and coordination between measurements,
-  controller decisions, qdisc lifecycle, timers, and signals. Its files share
-  the private `loop.h` state; `monitor.h` is the only public header.
-  - `monitor.c`: loop setup and teardown, the traffic timer, the activity
-    state machine, CPU and log timers, and signals.
-  - `observe.c`: CAKE discovery, achieved-rate observation, compensated
-    traffic cadence, and qdisc lifecycle events.
-  - `control.c`: controller configuration and input, CAKE bandwidth changes
-    with readback, minimum-rate enforcement, and controller records.
-  - `pingers.c`: pinger start, output, exit, restart, setup grace, and
-    per-reply latency processing.
-  - `reflectors.c`: reflector ordering, scheduled comparison and replacement,
-    and health checks.
+  controller decisions, qdisc lifecycle, timers, and signals. All state is one
+  `struct monitor` in the private `loop.h`, passed to every function; each
+  file owns one part of it and prefixes its functions with that part's name.
+  `monitor.h` is the only public header.
+  - `monitor.c`: loop setup and teardown, the traffic tick
+    (`monitor_tick`), the activity state machine, CPU and log timers, and
+    signals.
+  - `links.c` (`links`): both directions' CAKE discovery, achieved rates,
+    compensated traffic cadence, and qdisc lifecycle events.
+  - `control.c` (`control`): controller configuration and input, CAKE
+    bandwidth changes with readback, minimum-rate enforcement, and controller
+    records.
+  - `pingers.c` (`pingers`): pinger start, output, exit, restart, setup grace,
+    and per-reply latency processing.
+  - `reflectors.c` (`reflectors`): latency trackers, reflector ordering,
+    scheduled comparison and replacement, and health checks.
+  - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, and the upload
+    ACK rate.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
-  - `helpers.c`: small genuinely generic operations shared by modules, such as
-    numeric parsing, percentages, saturating arithmetic, clocks, and safe
-    conversions.
+  - `utils.h`: trivial operations as `static inline` functions: saturating
+    arithmetic (`saturating_add`, `saturating_sub`, `saturating_mul`,
+    `signed_sum`), `min_u64`, `max_u64`, `mul_div`, percentages, rounding,
+    clock and timer conversions (`timespec_microseconds`, `timer_milliseconds`,
+    `seconds_from_microseconds`), and `ARRAY_SIZE`. A module never keeps its
+    own copy of one.
+  - `helpers.c`: generic operations too large to inline, such as numeric
+    parsing, random selection, clocks, and rate conversions.
   - `error.c`: shared error-buffer formatting.
 - `config/`
-  - `config.c`: typed UCI loading and conversion through `libuci`; never
-    parse `/etc/config/cake-adapt` manually.
+  - `config.c`: typed UCI loading and conversion through `libuci`, driven by
+    one table of typed option bindings (`options[]`, whose order is also the
+    `-L` listing); never parse `/etc/config/cake-adapt` manually.
   - `validate.c`: cross-option validation of a loaded configuration
     (`config_validate`), run before control starts.
   - `defaults.c` and `defaults.h`: built-in application and configuration
     defaults.
 - `controller/`
-  - `controller.c`: platform-independent autorate, congestion, and activity
-    policy; keep it directly unit-testable with synthetic inputs.
+  - `controller.c`: platform-independent load classification, autorate,
+    congestion, and activity policy; keep it directly unit-testable with
+    synthetic inputs.
   - `reflector.c`: reflector health, comparison, and rotation policy over
     latency trackers.
 - `latency/`
@@ -132,9 +161,24 @@ in that directory and is not included from outside it.
     through `uloop_process`. The only synchronous, bounded waits are shutdown
     (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
   - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
-  - `pinger.h`: private interface between the session and its backends.
+  - `pinger.h`: private interface between the session and its backends;
+    each backend exports a `struct pinger_ops` (name, line parser, exit
+    handler) that the session calls through.
   - `parser.c`: pinger output parsing into latency samples.
   - `tracker.c`: per-reflector baseline and delta EWMA tracking.
+- `tcpdelay/`: passive per-direction queue measurement from TCP timestamps.
+  - `tcpdelay.bpf.c`: `AF_PACKET` socket filter on the upload interface (it
+    sees packets after the root qdisc and before the ingress redirect). It
+    counts upload and pure-ACK bytes, records departures and emits reply
+    samples to a ring buffer, each at most once per flow per
+    `TCPDELAY_SAMPLE_INTERVAL_NS`, without wakeups.
+  - `record.h`: layouts and limits shared by the filter and userspace.
+  - `capture.c`: loading and attaching the filter with libbpf, draining the
+    ring buffer, and reading the counters.
+  - `estimator.c`: per-flow one-way queue estimates (remote clock tick fit,
+    floors, window minimums); platform-independent and unit-tested.
+  The filter object is installed as `/lib/bpf/cake-adapt-tcpdelay.o`; a filter
+  the kernel rejects degrades TCP measurement, never the daemon.
 - `cake/cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
 - `platform/`
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
@@ -247,52 +291,95 @@ strings, and module-owned schemas beside the code that uses them. Tests should
 keep literal expected values when importing the production constant would make
 the check tautological.
 
+Every fixed string value, meaning a name, token or label stored or passed as
+data, is a named constant in `common/constants.h`, or a `#define` beside the
+file's other names when only that file uses it (as `capture.c` names the BPF
+program and maps). Only format strings and complete messages stay inline; do
+not split a message into fragments that are passed around as values.
+
+Never pass a literal `true` or `false` as a function argument. Give the call a
+meaning instead: separate functions sharing a static worker, an enum, a
+pointer that is `NULL` or not, or a variable whose name says what it holds.
+
+Write quantities for quick visual understanding. Express durations and rates
+in readable units using the existing unit constants (for example,
+`10U * SECOND` or `5U * MEGABIT`) rather than long digit strings. Derive unit
+conversions from the existing unit table instead of repeating numeric factors
+or inventing another scale. Distinguish a percentage from a ratio and from its
+fixed-point representation; preserve fractional values without integer
+truncation. Names, comments, configuration units, and calculations must agree.
+
 Do not repeat the program name in every log message because the backend already
 identifies the service.
 
 ### Formatting
 
-- Use four spaces and no tabs in C.
-- Keep ordinary declarations on one line.
-- Do not impose an arbitrary 80-column limit; wrap for readability.
-- Keep a simple condition on one line.
-- Put genuinely compound conditions in the following form:
+C follows the Linux kernel style used by OpenWrt's libubox and unetd.
+`.clang-format` is the kernel's own configuration, with checkpatch's 100-column
+limit and one deliberate exception: the parameter and argument layout shown
+below. Format every changed C file with clang-format (the SDK's
+`staging_dir/host/llvm-bpf/bin/clang-format` works) and keep every file
+clang-format-stable: running it again changes nothing. Never hand-format
+against it. Where a preferred layout cannot be expressed in clang-format, take
+clang-format's output and drop the preference.
+
+- tabs for indentation, 8 columns wide, and lines up to 100 columns; string
+  literals are never split;
+- function braces on their own line, other braces on the statement line;
+- no braces around a single-statement body, unless its condition spans lines:
 
 ```c
-if (
-    result < 0 ||
-    nla_put_string(message, TCA_KIND, kind) < 0
-) {
-    return -1;
-}
+if (result < 0)
+	return -1;
 ```
 
-- Keep return-only blocks in normal multiline form; do not compress the entire
-  `if` statement onto one line.
-- For declarations, definitions, or calls with several substantial arguments,
-  place one argument on each line:
+- a declaration, definition or call whose parameters or arguments do not fit
+  on one line puts each on its own line, one tab in, with the closing
+  parenthesis on its own line:
 
 ```c
-int controller_update(
-    struct controller *controller,
-    const struct controller_input *input,
-    struct controller_output *output
+int tcpdelay_capture_open(
+	struct tcpdelay_capture *capture,
+	const char *object_path,
+	const char *interface,
+	struct tcpdelay_estimator *estimator,
+	char *error,
+	size_t error_size
 )
 {
 ```
 
 ```c
-result = operation(
-    context,
-    &input,
-    &output
+log_message(
+	LOG_LEVEL_WARNING,
+	"TCP measurement degraded: capture failed: %s",
+	strerror(errno)
 );
 ```
 
-- Short, obvious calls may remain on one line.
-- Comments should explain formulas, invariants, units, ownership, or non-obvious
-  kernel/upstream behavior. Do not narrate obvious syntax.
-- Do not reformat unrelated working code during a focused change.
+- compound conditions break after the operator and align with the condition;
+- for a callee name of seven characters or fewer (`memcpy`, `printf`, `read`),
+  clang-format aligns arguments after the parenthesis instead; accept that, and
+  give the project's own helpers longer names;
+- a multi-line top-level initializer ends with a trailing comma, so each entry
+  gets its own line, as in unetd; nested designated initializers keep
+  clang-format's own layout.
+
+Commit a pure reformat on its own, apart from any logic change.
+
+Write code that reads like `unetd`'s `wg-user.c`: small static functions with
+a module prefix that form a little internal API, and trivial operations from
+`common/utils.h` instead of open-coded arithmetic. Comments should explain
+formulas, invariants, units, ownership, or non-obvious kernel/upstream
+behavior. Do not narrate obvious syntax. Do not reformat unrelated working
+code during a focused change.
+
+Keep a call inside its condition. Never add a `ret` or `result` temporary only
+to move a call out of an `if`; solve layout in `.clang-format` or by shortening
+the call itself.
+
+Logic, performance and reliability come before binary size. Measure and report
+size, but accept negligible growth and do not propose size-only changes.
 
 Keep strict warnings enabled:
 
@@ -404,6 +491,56 @@ profiling are recorded under `profiling/` (`controller-comparison/` and
 `flowchart-data.json` by `generate.mjs`; regenerate them when event ordering or
 module ownership changes.
 
+Since parity, these deliberate departures are implemented, opt-in, and
+measured (evidence directories under `profiling/`, indexed in its README):
+
+- `tcp_delay_attribution` (fping only): the eBPF TCP queue estimate splits
+  fping's round-trip delta between the directions
+  (`2026-10-02-tcp-queue-split`);
+- `ul_congest_ack_share` (named `upload_ack_share_min` until 2026-10-04):
+  download is held so its ACKs leave other upload traffic room, down to the
+  configured share (`2026-10-03-ack-share-dynamic`); since 2026-10-05 its byte
+  counters use the upload CAKE's packet charge (`2026-10-05-ack-accounting`);
+- the filter samples at most every 4 ms per flow
+  (`2026-10-03-sample-thinning`, with its cost in `2026-10-03-ebpf-filter-cost`);
+- `fping-ts` was verified on the testbed (`2026-10-03-fping-ts-testbed`), and
+  the Filogic build ran on an emulated arm64 VM (`2026-10-03-arm64-vm`).
+
+`profiling/2026-10-03-ebpf-design-history/` records why these designs were
+chosen.
+
+On 2026-10-03 the C sources moved to the kernel `.clang-format` (`aecacfa`) and
+a cleanup pass removed duplication, dead code and hand-written arithmetic
+(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass, and
+the current code has run in controlled x86 VM comparisons
+(`2026-10-05-gpt-work-check`), but not through a lifecycle run.
+
+The TCP-delay estimator is under review in `EBPF_REVIEW.md`, whose section 9 is
+the working order. Findings and their state:
+
+- new flow hiding a queue: fixed, both directions come from one flow (`20cc841`,
+  `2026-10-04-flow-pair`);
+- standing queue becoming the baseline: mitigated, the floor is held while
+  fping sees congestion (`0321661`, `2026-10-05-tcp-confidence`);
+- ACK-byte accounting: fixed, counters use CAKE's packet charge (`bbca799`,
+  `2026-10-05-ack-accounting`);
+- tuple reuse: open and accepted as rare; a reused tuple only removes that
+  flow's estimate. Rejected samples no longer keep a stale slot fresh
+  (`7665e7e`); both full tuple-lifetime designs were reverted (see below);
+- sustained change in remote reply timing read as upload queue: open and
+  uncommon.
+
+On 2026-10-05 a guard that used TCP queue shares only when they agreed with the
+delivery heuristic caused a measured control regression and was reverted
+(`d6564a6`); the controller matches `518df81` again. Controlled VM comparisons
+with raw evidence are in `profiling/2026-10-05-gpt-work-check/` and
+`profiling/2026-10-05-ack-control/`. The earlier attempted VM run in
+`profiling/2026-10-04-ebpf-vm/` produced no `TCP_QUEUE` records and validates
+nothing; its conclusions are withdrawn.
+
+Recommend plain CAKE `ack-filter` only; never use or recommend
+`ack-filter-aggressive`.
+
 Remaining work must remain behavior-first:
 
 - keep raw logs, traces, profiler output, and reproducibility metadata for any
@@ -414,13 +551,40 @@ Do not claim parity for a new behavior from host tests alone. `fping` remains
 the only supported production pinger until every additional backend has
 independent parser, lifecycle, fixture, and runtime verification.
 
+### Current status (2026-10-05)
+
+- Tuple-lifetime handling was tried twice and reverted both times: first an
+  atomics-based design that the 32-bit x86 JIT cannot compile
+  (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
+  measured neutral at about 50-64% more filter time per packet for a rare case
+  (`5458100`, design, tools and unfinished work archived in
+  `2026-10-05-tcp-lifetime-stream`). Do not restart it without a user decision
+  and a concrete deployment need.
+- The x86 test VM runs the `d6564a6` package. The Filogic build has not run
+  on the arm64 VM since `58fb835`, and the current code has had no lifecycle
+  run. Before the user deploys, run the lifecycle and a controlled run with
+  the Filogic build on the arm64 VM.
+- The user keeps the version bump (packages are still 0.2.11-r1), pushing,
+  the router install, fping-ts on internet reflectors, and the profiling and
+  flowchart indexes.
+
 ## VM testing and delegation
 
-For testing or deployment, delegate routine build/deploy/verification to one
-available Luna-class lower-cost subagent with low reasoning effort and minimal
-context. One agent may run independent x86 and Filogic builds concurrently.
-Keep architecture, production changes, ambiguous diagnosis, destructive
-actions, and final acceptance on the primary model.
+At session start, resumption, and after a long break, the primary agent reads
+`COLLABORATION.md` alongside this guide and inspects the current worktree and
+unfinished work. Follow its assigned roles and handoff workflow for diagnosis,
+implementation, review, verification, and acceptance. Do not run parallel
+writers on overlapping files. Delegation does not expand the user's granted
+authority or override the branch, remote, Windows, version, and deployment
+restrictions in this guide.
+
+Use the context and usage budget in `COLLABORATION.md`: short per-task files,
+context-free delegation, one implementer and one bounded review by default,
+and only the checks selected for the affected behavior. Reports and evidence
+should be sufficient and concise. Broad reviews, exhaustive testing, detailed
+documentation and instructions to finish every plan are task-specific requests,
+not standing rules unless the user explicitly makes them so. Preserve required
+safety checks and runtime evidence for behavioral claims.
 
 Sandbox failures such as `Read-only file system` or `socket: Operation not
 permitted` are not product failures. Use an existing narrow approval or return
@@ -466,6 +630,48 @@ child remains. Use exact executable paths or `pidof` for process checks because
 `pgrep -af cake-adapt` can match the audit command itself. Do not kill an
 unrelated legacy process merely because it owns an `fping` child.
 
+## Test machines and permissions
+
+All work happens only in WSL and the test VMs. Never read, list, write or run
+anything under `/mnt/c`, `/mnt/d` or any other Windows mount, and never touch
+the Windows host, unless the user says exactly what to do. The only allowed
+access to the Windows host is pinging `192.168.56.1` (also as a test
+reflector).
+
+- **x86 VM, `192.168.56.2`:** the primary test VM (OpenWrt 25.12 x86, a 32-bit
+  kernel). It and its clone panic about once per 25-60 minutes of load in the
+  i386 exception-entry path, with or without cake-adapt loaded; a reboot
+  mid-test is not evidence against cake-adapt. Check the serial console log,
+  copy it before the VM is powered off (VirtualBox truncates it on start), and
+  rerun the lost run.
+- **x86 VM clone, `192.168.56.5`:** a second x86 VM for parallel work, such as
+  soak tests.
+- **arm64 VM, `192.168.50.5`:** OpenWrt 25.12 `armsr/armv8`, used to run the
+  Filogic build. Its CPU is emulated, so it gives functional results only, never
+  timings. Packages may be installed and files changed freely there, with no
+  rollback: the user resets it.
+
+During long VM runs, move each run's results to disk (for example under
+`/root`) as soon as it ends, so a panic loses only the run in progress, and
+remove them after collecting them. `tools/testbed/` holds the emulated bloated
+ISP (`testbed.sh`), a full controlled run (`run.sh`), the filter-cost
+benchmark (`bench.sh`, using `kernel.bpf_stats_enabled`) and the scoring
+scripts (`queues.py`, `analyze.py`, `shapers.py`); its README explains them.
+
+Permissions the user has granted:
+
+- deviate from cake-autorate to reduce bufferbloat, as described above;
+- restructure `monitor/` and move responsibilities between its files and the
+  controller (done on 2026-10-03: one `struct monitor`, a part per file, load
+  classification in the controller);
+- install packages on the arm64 VM without restoring them;
+- rebuild the VM image with `openwrt-dev-builder` (never touch
+  `openwrt-image-builder`).
+
+Keep program changes and measurement material (tools, evidence) in separate
+commits, and keep evidence to before/after comparisons. Branch, remote, push,
+and version management stay with the user.
+
 ## Change discipline
 
 - Work only on the currently checked-out local branch. Never inspect, switch,
@@ -483,3 +689,33 @@ unrelated legacy process merely because it owns an `fping` child.
 - If a request conflicts with this guide, explain the conflict before changing
   direction.
 - Do not commit generated or machine-specific files.
+
+## Working style and collaboration
+
+- Optimize for quick comprehension: small functions, clear ownership, readable
+  units, and an execution path that can be followed without unnecessary
+  indirection. Use `CODING_STYLE.md` for the reusable engineering principles;
+  this guide and `.clang-format` govern the current project's conventions.
+- During cleanup, prove callers and validated invariants before deleting a
+  condition or code path. Check resource lifetime, leaks, memory corruption,
+  and performance as well as behavior; code movement alone is not evidence
+  that the result is equivalent.
+- Plan substantial work in an explicit order with acceptance criteria and
+  evidence requirements. When a milestone or stop point is agreed, track it,
+  report completion and remaining work, and honor the requested stopping point.
+  Keep commits focused when committing is authorized.
+- Verify changes in increasing realism as appropriate: focused host tests,
+  sanitizers, SDK builds, controlled VM runs, then real-world validation.
+  Simulation identifies candidates; replay checks matching decisions; live
+  tests establish runtime behavior. State the limits of each result.
+- Preserve raw graphs, logs, traces, and before/after measurements so the user
+  can independently judge conclusions. Update documentation and generated
+  flowcharts when the documented behavior or ownership changes.
+- Lead reports with the outcome and explain consequential decisions with
+  concrete evidence. Separate observations, assumptions, and unverified
+  claims; identify completed work, remaining work, and blockers plainly.
+  Keep updates concise and avoid filler or unsupported praise.
+- Continue authorized work without repeated confirmation. Explain a material
+  scope change or conflict before acting; do not infer permission for branch,
+  remote, version, publication, deployment, or Windows operations beyond the
+  user's explicit instructions.

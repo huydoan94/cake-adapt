@@ -1,0 +1,2 @@
+estimator_bytes=13064
+standing: dl_valid=1 dl_us=80000 ul_valid=1 ul_us=20000

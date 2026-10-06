@@ -1,0 +1,17 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+T1-fping       upload-steady        7521    7501     37.7    10785     176      40      71
+T1-fping       upload-step          6122    6028     26.8    10110     144      27      63
+T1-fping       download-steady      4828     606      0.0    49131   36700      73      46
+T1-fping       bidirectional        7736    7542     45.7    19236   14252      85      70
+T1-fping-ts    upload-steady        7387    7403     31.5    30000     163       0      62
+T1-fping-ts    upload-step          5839    5844     17.5    30000     133       0      52
+T1-fping-ts    download-steady      6037     513      0.0    44651   35057      90      14
+T1-fping-ts    bidirectional        7581    7467     37.3    46536   29436      70      68
+T2-fping       upload-steady        7518    7470     37.8    10893     171      39      71
+T2-fping       upload-step          6027    5990     24.3    10109     148      27      65
+T2-fping       download-steady      4322     495      0.0    47386   35078      68      28
+T2-fping       bidirectional        7831    7619     45.7    22890   15559      85      73
+T2-fping-ts    upload-steady        7213    7257     29.0    30000     161       0      56
+T2-fping-ts    upload-step          5731    5767     17.4    30000     138       0      55
+T2-fping-ts    download-steady      6000     519      0.0    44612   35140      94       0
+T2-fping-ts    bidirectional        7675    7460     41.3    45146   31013      70      69

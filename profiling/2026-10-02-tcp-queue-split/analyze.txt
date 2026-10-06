@@ -1,0 +1,26 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+Q1-validation          upload-steady     7.4  161.8  173.8   40.2   36.0     0      84.5       nan
+Q1-validation          upload-step       8.2  163.8  201.8   38.1   35.3     0      82.8       nan
+Q1-validation          download-steady   17.5   75.1  120.8   53.7   27.4     0       nan      77.4
+Q1-validation          bidirectional    56.1   86.8   94.8   93.2   80.6     0      76.3      66.5
+                       (idle base RTT 21.1 ms; delays are added RTT in ms)
+S1-off                 upload-steady     6.1  160.4  174.4   34.1   31.1     0      82.1       nan
+S1-off                 upload-step       8.1  170.4  314.4   41.0   35.9     0      82.3       nan
+S1-off                 download-steady   22.8   69.7   86.4   67.9   36.9     0       nan      82.6
+S1-off                 bidirectional    52.7   88.4   95.4   81.9   73.3     0      82.0      42.9
+                       (idle base RTT 21.6 ms; delays are added RTT in ms)
+S1-split               upload-steady     3.8  106.7  122.7   29.7   25.4     0      85.5       nan
+S1-split               upload-step       4.8  107.7  225.7   30.1   25.2     0      84.9       nan
+S1-split               download-steady   12.1   42.6   50.2   40.8   13.0     0       nan      81.8
+S1-split               bidirectional    27.1   58.6   75.6   71.0   45.6     0      75.5      64.8
+                       (idle base RTT 21.4 ms; delays are added RTT in ms)
+S2-off                 upload-steady     5.8  163.2  179.2   33.9   30.4     0      82.1       nan
+S2-off                 upload-step       9.2  157.2  175.2   43.8   39.4     0      86.5       nan
+S2-off                 download-steady   18.6   71.2  103.2   62.3   24.6     0       nan      81.7
+S2-off                 bidirectional    46.2   87.2  109.2   74.6   62.5     0      83.3      39.3
+                       (idle base RTT 20.8 ms; delays are added RTT in ms)
+S2-split               upload-steady     4.2  106.9  123.9   28.6   24.9     0      85.2       nan
+S2-split               upload-step       6.5  124.9  454.9   32.1   27.9     0      82.8       nan
+S2-split               download-steady   12.4   54.2  116.9   41.5   16.1     0       nan      76.0
+S2-split               bidirectional    28.4   59.4   70.4   75.9   45.7     0      76.4      69.1
+                       (idle base RTT 21.1 ms; delays are added RTT in ms)

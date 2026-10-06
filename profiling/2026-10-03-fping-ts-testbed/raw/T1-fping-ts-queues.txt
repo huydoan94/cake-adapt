@@ -1,0 +1,15 @@
+Per phase and direction, in ms: true and estimated queue p50/p90/p99, their
+correlation, detection (estimate > 15 ms while the true queue is > 30 ms)
+and false alarms (estimate > 15 ms while the true queue is < 5 ms).
+
+fping per-direction delta (RTT/2, DATA records)
+phase            dir     n |    true p50/p90/p99 |     est p50/p90/p99 |  corr |  detected |  false
+upload-steady    up    510 |       0.0/51.6/77.3 |       4.0/51.7/76.9 |  0.97 |  100% /114 |   0.6%
+upload-steady    down  510 |         0.0/0.0/0.0 |         1.0/3.0/9.0 |   -   |         - |   0.2%
+upload-step      up    509 |      0.0/60.6/325.6 |      3.8/60.8/322.1 |  0.94 |  100% /115 |   0.2%
+upload-step      down  509 |         0.0/0.0/0.0 |         1.0/3.0/7.0 |   -   |         - |   0.2%
+download-steady  up    494 |         0.0/0.0/0.0 |        1.0/4.0/11.0 |   -   |         - |   0.2%
+download-steady  down  494 |      11.5/20.3/24.8 |      12.9/23.9/33.7 |  0.86 |         - |   0.4%
+bidirectional    up    499 |       0.0/44.8/72.8 |       5.0/45.8/72.8 |  0.96 |  100% /106 |   0.4%
+bidirectional    down  499 |       0.6/19.2/30.7 |       3.0/21.9/39.9 |  0.89 |  100% /  5 |   0.4%
+

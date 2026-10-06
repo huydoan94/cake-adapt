@@ -1,0 +1,9 @@
+flow_bytes=360 estimator_bytes=11520
+established alone: dl=80000 us (1), ul=20000 us (1)
+newcomer has download only: dl=80000 us (1), ul=20000 us (1)
+established stops; newcomer remains: dl=0 us (1), ul=0 us (0)
+all samples expired: dl=0 us (0), ul=0 us (0)
+established alone: dl=80000 us (1), ul=20000 us (1)
+newcomer has both directions: dl=80000 us (1), ul=20000 us (1)
+established stops; newcomer remains: dl=0 us (1), ul=0 us (1)
+all samples expired: dl=0 us (0), ul=0 us (0)

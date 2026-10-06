@@ -1,0 +1,64 @@
+# Linux kernel style, as used by OpenWrt's libubox and unetd. Based on the
+# kernel's own .clang-format; the column limit is checkpatch's 100. One
+# deliberate difference: parameters and arguments that do not fit on one line
+# go one per line, with the closing parenthesis on its own line.
+BasedOnStyle: LLVM
+UseTab: Always
+IndentWidth: 8
+TabWidth: 8
+ContinuationIndentWidth: 8
+ColumnLimit: 100
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: true
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeElse: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+AlignAfterOpenBracket: BlockIndent
+AllowAllArgumentsOnNextLine: false
+AlignOperands: true
+AlignEscapedNewlines: Left
+AlignTrailingComments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
+BreakStringLiterals: false
+Cpp11BracedListStyle: false
+ForEachMacros:
+  - uci_foreach_element
+IncludeBlocks: Preserve
+IndentCaseLabels: false
+IndentGotoLabels: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+PenaltyBreakAssignment: 10
+PenaltyBreakBeforeFirstCallParameter: 30
+PenaltyBreakComment: 10
+PenaltyBreakFirstLessLess: 0
+PenaltyBreakString: 10
+PenaltyExcessCharacter: 100
+PenaltyReturnTypeOnItsOwnLine: 60
+PointerAlignment: Right
+ReflowComments: false
+# Kernel style: no braces around a single statement.
+RemoveBracesLLVM: true
+SortIncludes: Never
+SpaceAfterCStyleCast: false
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+SpacesBeforeTrailingComments: 1

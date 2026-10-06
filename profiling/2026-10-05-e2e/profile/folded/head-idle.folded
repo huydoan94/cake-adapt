@@ -1,0 +1,12 @@
+head;[libc.so] 3
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k] 4
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_epoll_pwait_[k];do_epoll_pwait.part.0_[k];do_epoll_wait.part.0_[k];schedule_hrtimeout_range_[k];schedule_hrtimeout_range_clock_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k] 70
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_read_[k];ksys_read_[k];vfs_read_[k] 1
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_read_[k];ksys_read_[k];vfs_read_[k];pipe_read_[k];copy_page_to_iter_[k];__kmap_local_page_prot_[k];__kmap_local_pfn_prot_[k] 1
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_sendmsg_[k];__sys_sendmsg_[k];___sys_sendmsg_[k];____sys_sendmsg_[k];netlink_sendmsg_[k];netlink_unicast_[k];rtnetlink_rcv_[k];netlink_rcv_skb_[k];rtnetlink_rcv_msg_[k];__netlink_dump_start_[k];netlink_dump_[k];rtnl_dumpit_[k];tc_dump_qdisc_[k];tc_dump_qdisc_root_[k];tc_fill_qdisc_[k];gnet_stats_start_copy_compat_[k] 1
+head;[unknown];[libc.so] 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213] 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;[libubox.so.20260213] 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;fping_parse;parse_fping_line;parse_fping_reply;skip_prefix 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;latency_next_line 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];monitor_tick;links_observe;observe_cake;cake_read;netlink_dump_qdiscs 1

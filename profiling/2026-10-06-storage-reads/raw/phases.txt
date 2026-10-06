@@ -1,0 +1,6 @@
+control-before begin 34096.44 66455.30
+after-before-control-before end 34111.45 66485.32
+running begin 34116.48 66494.93
+after-before-running end 34146.50 66554.77
+control-after begin 34148.52 66558.63
+after-before-control-after end 34163.53 66588.63

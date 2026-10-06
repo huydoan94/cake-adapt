@@ -1,0 +1,8 @@
+OpenWrt 25.12, package 0.2.11-r1
+x86 i386_pentium4: clean/compile passed
+Filogic aarch64_cortex-a53: clean/compile passed
+One x86 prepared-stamp mismatch while source metadata changed; source frozen and clean/compile retry passed.
+Focused CAKE parser, accounting, controller and monitor/filter tests passed.
+Controller replay: 4703 decisions, zero mismatches.
+ASan/UBSan passed with LeakSanitizer disabled for ptrace.
+Formatting stable; source/tool/docs diff checks passed. Raw command output keeps its original trailing whitespace.

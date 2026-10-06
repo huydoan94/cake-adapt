@@ -1,0 +1,4 @@
+PASS deadline /usr/bin/python3 status=7 elapsed=0.03s
+PASS deadline sh status=124 elapsed=1.02s
+PASS deadline /usr/bin/python3 status=124 elapsed=11.00s
+PASS external TERM forwarded as HUP, child reaped, status124

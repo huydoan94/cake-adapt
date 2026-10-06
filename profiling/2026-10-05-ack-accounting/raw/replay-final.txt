@@ -1,0 +1,3 @@
+controller/fixtures/cake-autorate-ac75f49-ab.trace: replayed 2402 samples, 0 mismatching decisions
+controller/fixtures/cake-autorate-ac75f49-congestion.trace: replayed 2301 samples, 0 mismatching decisions
+cake-autorate replay tests passed

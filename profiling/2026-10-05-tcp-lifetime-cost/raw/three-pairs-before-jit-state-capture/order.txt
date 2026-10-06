@@ -1,0 +1,3 @@
+pair_1=baseline,candidate
+pair_2=baseline,candidate
+pair_3=baseline,candidate

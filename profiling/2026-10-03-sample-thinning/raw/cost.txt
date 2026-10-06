@@ -1,0 +1,6 @@
+Sat Oct  3 22:05:25 2026 K1-base: runs=196839 ns_per_run=2939 daemon_ticks=22
+Sat Oct  3 22:06:36 2026 K1-t4: runs=195997 ns_per_run=2656 daemon_ticks=21
+Sat Oct  3 22:07:48 2026 K1-t10: runs=201584 ns_per_run=2180 daemon_ticks=14
+Sat Oct  3 22:18:55 2026 K2-base: runs=193320 ns_per_run=2344 daemon_ticks=17
+Sat Oct  3 22:20:06 2026 K2-t4: runs=197749 ns_per_run=1556 daemon_ticks=14
+Sat Oct  3 22:21:17 2026 K2-t10: runs=200574 ns_per_run=1201 daemon_ticks=13
