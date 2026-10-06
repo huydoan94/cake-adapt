@@ -1,11 +1,13 @@
 # Portable TCP lifetime stream
 
-Status: implemented with unit tests and bounded source review; focused host
-checks pass. Package builds, actual BPF instruction inspection, kernel
-verification, cross-architecture validation and runtime measurements are pending.
-This records the implementation selected for the [work orders](TUPLE_LIFETIME_WORK_ORDERS.md).
-The one-time instruction to defer execution overrides their normal incremental
-validation gates for this pass. It does not establish support or readiness.
+Status: ✓ The selected protocol, implementation, focused host checks, replay,
+sanitizers, packaged-object instruction inspection and existing x86/Filogic
+package builds pass. Kernel verification, remaining architecture coverage and
+runtime/cost acceptance are pending. This records the implementation selected
+for the [work orders](TUPLE_LIFETIME_WORK_ORDERS.md). The one-time implementation
+pass has ended; it does not establish support or readiness. The detailed
+[capability inventory](TUPLE_LIFETIME_CAPABILITIES.md) records available and
+missing target resources.
 
 ## Ownership and observation contract
 
@@ -213,20 +215,19 @@ separate, including the unresolved ACK-control regression.
 
 ## Architecture inventory and present limits
 
-Only repository-local metadata was read for this implementation pass:
+✓ The existing x86/generic and mediatek/filogic package builds and native ABI
+assertions pass. The [detailed capability inventory](TUPLE_LIFETIME_CAPABILITIES.md)
+records exact local compiler/kernel/library metadata, packaged artifact hashes,
+emitted helper instructions and missing resources for every other required row.
+No VM was accessed for those inventory/build checks.
 
-| Selected target | Local metadata established | Unverified / missing |
-| --- | --- | --- |
-| x86/generic | `i386_pentium4`, GCC 14.3.0, musl, libbpf headers 1.6; 32-bit little-endian design row. | No new package build, verifier run, runtime or cost result. Kernel 6.12.108 is historical test evidence, not a live refresh. |
-| mediatek/filogic | `aarch64_cortex-a53`, GCC 14.3.0, musl, `CONFIG_ARCH_64BIT`; 64-bit little-endian design row. | No new package build or runtime result. Existing arm64 emulation cannot establish performance. |
-| Other work-order rows | Required portability scope retained, including ARM, both MIPS byte orders, PowerPC, RISC-V and LoongArch. | Exact SDK/kernel/capability rows and runtime resources have not been supplied or checked for this change. |
-
-The current SDK headers expose the bounded consume and ring-position APIs used by
-the implementation. Availability on every selected SDK is still a matrix task. The
-common algorithm uses ordinary hash/LRU/per-CPU-array/ring helpers and no CPU-family
-branches; this alone is not evidence that every target kernel enables them or JITs
-the resulting instructions. Both BPF byte orders, native ABIs and actual kernel
-paths remain to be checked at the deferred validation stage.
+The available SDK headers expose the bounded consume and ring-position APIs.
+Availability on every selected SDK is still a matrix task. The common algorithm
+uses ordinary hash/LRU/per-CPU-array/ring helpers and no CPU-family branches;
+this alone is not evidence that every target kernel enables them or JITs the
+resulting instructions. Big-endian transfer, remaining native ABIs, actual kernel
+paths and cost remain open. Historical x86 kernel 6.12.108 is not a live refresh,
+and the available arm64 emulator supplies functional coverage only.
 
 ## Host verification at the end of implementation
 
