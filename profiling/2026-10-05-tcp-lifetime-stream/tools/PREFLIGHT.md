@@ -4,7 +4,7 @@
 links, shell/format checks and local mocked cleanup cases. Primary accepted the
 ownership/missing-log corrections. ✓ The corrected i386 preflight passed
 10 assertions with JIT and preserved operational state/log inode;
-[evidence](../../profiling/2026-10-05-tcp-lifetime-stream/README.md) records the
+[evidence](../README.md) records the
 initial missing-utility failure and its affected rerun. This checks the smallest
 useful kernel path before expanding the remaining TL-05 harness cases.
 

@@ -23,7 +23,7 @@ not imply its kernel, architecture or performance validation has passed.
 - ✓ Existing x86 and Filogic package builds and target ABI assertions. Other
   required target builds remain open (TL-06.2).
 - ✓ Minimal harness/local review and i386 JIT preflight: 10 assertions pass
-  ([evidence](profiling/2026-10-05-tcp-lifetime-stream/README.md)).
+  ([evidence](../README.md)).
 - In progress: remaining kernel harness cases and acceptance plan (TL-05).
 - Pending: remaining target builds/ABI/kernel coverage and cost/lifecycle
   acceptance (TL-06/TL-07).
@@ -73,15 +73,15 @@ rate-control defaults, own SQM setup, or implement a full TCP stack.
 
 ## Established evidence and rejected shortcuts
 
-- [Finding 2](EBPF_REVIEW.md#3-finding-a-reused-tuple-inherits-an-old-timestamp-clock)
+- [Finding 2](../../../EBPF_REVIEW.md#3-finding-a-reused-tuple-inherits-an-old-timestamp-clock)
   records the original reproduction and acceptance requirements.
-- The [deferred patch](profiling/2026-10-05-tcp-lifetime-deferred/README.md)
+- The [deferred patch](../../2026-10-05-tcp-lifetime-deferred/README.md)
   introduced handshake pairing and generation-qualified measurement. Its
   historical functional results do not describe current production source.
 - Its atomic instructions prevented JIT compilation on the tested i386 kernel.
-  The [cost comparison](profiling/2026-10-05-tcp-lifetime-cost/README.md)
+  The [cost comparison](../../2026-10-05-tcp-lifetime-cost/README.md)
   compared different execution modes; it does not establish portable runtime cost.
-- The [resumption analysis](profiling/2026-10-05-tcp-lifetime-resume/README.md)
+- The [resumption analysis](../../2026-10-05-tcp-lifetime-resume/README.md)
   rejects replacing those atomics with a lossy try-lock alone. A replacement SYN
   can lose acquisition; its SYN/ACK then fails against the old pending ISN;
   ordinary replacement data can still pass the old generation's identity check.
@@ -168,7 +168,7 @@ validation. Each target run still requires the locally reviewed bounded plan.
 | TL-06 | Cross-architecture build and functional evidence; verifies the common design beyond two VMs. | TL-01, TL-03, TL-04, TL-05 | Designated implementer; primary accepts results |
 | TL-07 | Cost, lifecycle and final acceptance; checks that correctness remains usable under load. | TL-06 | Primary, implementer and bounded reviewer |
 
-Use the roles and model choices in [COLLABORATION.md](COLLABORATION.md). Delegate
+Use the roles and model choices in [COLLABORATION.md](../../../COLLABORATION.md). Delegate
 through short task files with `fork_turns="none"`; never send conversation history.
 Use one implementer and one bounded reviewer. No parallel writers on the shared
 ABI or overlapping subsystem files. Each task return states changed files, checks,
@@ -408,7 +408,7 @@ No version bump, remote operation, router installation or release is included.
 implementation pass, including replay and native sanitizer checks. Reuse those
 results while their inputs remain unchanged. Harness checks use strict warnings,
 clang-format stability and shell syntax. Existing SDK commands remain in
-[.vscode/tasks.json](.vscode/tasks.json). No source-only review implies execution.
+[.vscode/tasks.json](../../../.vscode/tasks.json). No source-only review implies execution.
 
 Before any VM mutation, the run plan must require fresh service/process/package/
 configuration/link/route/qdisc snapshots and exact restoration on x86. Prefer
@@ -418,7 +418,7 @@ the inode after cleanup. Leave the user's `tail -f` alone. Bound transfers and
 commands; remove only test-owned files/processes. The arm64 installation exception
 and all Windows, branch, remote and deployment limits remain those in `AGENTS.md`.
 
-The separate [ACK-control regression](profiling/2026-10-05-ack-control/README.md)
+The separate [ACK-control regression](../../2026-10-05-ack-control/README.md)
 remains open. Its presence neither expands these work orders nor permits a new
 claim of production readiness from lifetime tests alone.
 
