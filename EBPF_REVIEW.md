@@ -1,6 +1,19 @@
 # eBPF TCP-delay review
 
-**2026-10-05: full tuple-lifetime implementation deferred and reverted.**
+**2026-10-05: portable tuple-lifetime implementation host-tested; target acceptance pending.**
+The user authorized one implementation pass with unit-test authoring and
+execution deferred until the end. The
+[selected lifetime-stream design](TUPLE_LIFETIME_DESIGN.md) moves authoritative
+lifetime and departure ownership to one userspace writer. BPF publishes raw
+lifecycle/timing records and persistent loss evidence; it uses no lifetime
+atomics or CPU-family-specific synchronization. Capture uncertainty withdraws
+timing confidence while ACK accounting continues. Source implementation, bounded
+review, focused host units and native sanitizer checks pass; the unchanged replay
+matches all 4,703 decisions. No new package build, actual BPF instruction check,
+kernel verification, VM or performance result is established. Finding 2 remains
+open pending the work-order acceptance gates.
+
+**Earlier 2026-10-05 attempt: full tuple-lifetime implementation deferred and reverted.**
 The uncommitted generation-handling implementation and its tests were restored
 to the current committed baseline at the user's request. Phase 1's committed
 accepted-sample freshness fix remains. The candidate's atomic instructions are
@@ -21,7 +34,8 @@ scope stop condition was honored. No production changes or VM runs followed.
 The [tuple-lifetime work orders](TUPLE_LIFETIME_WORK_ORDERS.md) now define the
 problem, portable design requirements, dependent tasks and acceptance gates.
 They require common behavior across OpenWrt architectures, including 32/64-bit
-and both byte orders. They are planning work; no redesign is selected or started.
+and both byte orders. The selected design and current source work supersede the
+earlier planning-only status; architecture and runtime acceptance remain pending.
 
 **2026-10-05: standing-floor and conflicting ACK-delay mitigations implemented.**
 Fresh clear fping permits rolling floor adaptation; congestion or unavailable
