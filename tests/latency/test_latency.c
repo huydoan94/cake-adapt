@@ -388,6 +388,61 @@ static void test_failed_spawn_closes_pipe(void)
 	assert(open_descriptor_count() == descriptors);
 }
 
+/* SigIgn from /proc/<pid>/status text: the mask of ignored signals. */
+static unsigned long long ignored_signals(const char *status)
+{
+	const char *line = strstr(status, "SigIgn:");
+
+	assert(line != NULL);
+	return strtoull(line + strlen("SigIgn:"), NULL, 16);
+}
+
+/* uloop ignores SIGPIPE; a pinger must get the default back to exit when orphaned. */
+static void test_pinger_restores_sigpipe(void)
+{
+	const unsigned long long sigpipe = 1ULL << (SIGPIPE - 1);
+	struct latency latency;
+	struct latency_settings settings = fping_settings;
+	const char *targets[] = { "127.0.0.1" };
+	char error[256] = "";
+	char output[4096];
+	char own[4096];
+	size_t length = 0U;
+	struct pollfd descriptor;
+	pid_t process_identifier;
+	FILE *status;
+
+	assert(signal(SIGPIPE, SIG_IGN) != SIG_ERR);
+	status = fopen("/proc/self/status", "r");
+	assert(status != NULL);
+	own[fread(own, 1U, sizeof(own) - 1U, status)] = '\0';
+	assert(fclose(status) == 0);
+	assert((ignored_signals(own) & sigpipe) != 0U);
+
+	settings.prefix = "/bin/sh -c 'exec cat /proc/self/status'";
+	latency_init(&latency, &settings);
+	assert(latency_open(&latency, targets, 1U, 0U, error, sizeof(error)) == 0);
+	descriptor =
+		(struct pollfd){ .fd = latency_child_descriptor(&latency, 0U), .events = POLLIN };
+	for (;;) {
+		ssize_t bytes;
+
+		assert(poll(&descriptor, 1U, 1000) > 0);
+		assert(length < sizeof(output) - 1U);
+		bytes = read(descriptor.fd, output + length, sizeof(output) - 1U - length);
+		assert(bytes >= 0);
+		if (bytes == 0)
+			break;
+		length += (size_t)bytes;
+	}
+	output[length] = '\0';
+	assert((ignored_signals(output) & sigpipe) == 0U);
+	process_identifier = latency_child_process(&latency, 0U);
+	latency_close(&latency);
+	reap_stopped_child(&latency, 0U, process_identifier);
+	assert(signal(SIGPIPE, SIG_DFL) != SIG_ERR);
+}
+
 /* The printf prefix echoes the fping command line, one argument per line. */
 static void check_fping_arguments(const char *pinger_method, const char *expected)
 {
@@ -565,6 +620,7 @@ int main(void)
 	test_stop_now_reaps_before_returning();
 	test_pinger_arguments_reject_command_substitution();
 	test_failed_spawn_closes_pipe();
+	test_pinger_restores_sigpipe();
 	test_prefix_and_extra_args_reach_owned_process();
 	test_irtt_children_start_in_separate_slots();
 	test_backend_executable_must_be_available();
