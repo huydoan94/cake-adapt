@@ -147,8 +147,10 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 {
 	const struct config *config = monitor->config;
 	const struct controller *controller = &monitor->control.controller;
-	const struct controller_input *input = &step->input;
-	const struct controller_output *output = &step->output;
+	const struct controller_direction_input *download_input = &step->input.download;
+	const struct controller_direction_input *upload_input = &step->input.upload;
+	const struct controller_direction_output *download_output = &step->output.download;
+	const struct controller_direction_output *upload_output = &step->output.upload;
 	const struct latency_observation *latency = step->latency;
 	const struct latency_sample *sample = step->sample;
 	/* Records report the serialization-compensated thresholds in effect. */
@@ -156,22 +158,22 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
 	char download_condition[LOAD_CONDITION_SIZE];
 	char upload_condition[LOAD_CONDITION_SIZE];
-	uint64_t download_rate = output->download.rate_bits_per_second / KILOBIT;
-	uint64_t upload_rate = output->upload.rate_bits_per_second / KILOBIT;
-	uint64_t download_achieved = input->download.traffic_rate_bits_per_second / KILOBIT;
-	uint64_t upload_achieved = input->upload.traffic_rate_bits_per_second / KILOBIT;
+	uint64_t download_rate = download_output->rate_bits_per_second / KILOBIT;
+	uint64_t upload_rate = upload_output->rate_bits_per_second / KILOBIT;
+	uint64_t download_achieved = download_input->traffic_rate_bits_per_second / KILOBIT;
+	uint64_t upload_achieved = upload_input->traffic_rate_bits_per_second / KILOBIT;
 	unsigned int download_load;
 	unsigned int upload_load;
 
 	if (!config->output_processing_stats && !config->output_summary_stats)
 		return;
 	download_load = load_percent(
-		input->download.traffic_rate_bits_per_second,
-		input->download.cake_rate_bits_per_second
+		download_input->traffic_rate_bits_per_second,
+		download_input->cake_rate_bits_per_second
 	);
 	upload_load = load_percent(
-		input->upload.traffic_rate_bits_per_second,
-		input->upload.cake_rate_bits_per_second
+		upload_input->traffic_rate_bits_per_second,
+		upload_input->cake_rate_bits_per_second
 	);
 
 	load_condition(
@@ -179,20 +181,20 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 		DIRECTION_DOWNLOAD_SHORT,
 		controller_load(
 			controller,
-			&input->download,
+			download_input,
 			config->connection_active_threshold_bits_per_second
 		),
-		output->download.congestion
+		download_output->congestion
 	);
 	load_condition(
 		upload_condition,
 		DIRECTION_UPLOAD_SHORT,
 		controller_load(
 			controller,
-			&input->upload,
+			upload_input,
 			config->connection_active_threshold_bits_per_second
 		),
-		output->upload.congestion
+		upload_output->congestion
 	);
 
 	if (config->output_processing_stats) {
@@ -225,16 +227,16 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 			.upload_owd_delta_microseconds = latency->upload_owd_delta_microseconds,
 			.upload_adjust_delay_threshold_microseconds =
 				upload_effective->delay_threshold_microseconds,
-			.download_sum_delays = output->download.delayed_sample_count,
+			.download_sum_delays = download_output->delayed_sample_count,
 			.download_average_owd_delta_microseconds =
-				output->download.average_delay_microseconds,
+				download_output->average_delay_microseconds,
 			.download_maximum_adjust_up_threshold_microseconds =
 				download_effective->average_delay_maximum_adjust_up_microseconds,
 			.download_maximum_adjust_down_threshold_microseconds =
 				download_effective->average_delay_maximum_adjust_down_microseconds,
-			.upload_sum_delays = output->upload.delayed_sample_count,
+			.upload_sum_delays = upload_output->delayed_sample_count,
 			.upload_average_owd_delta_microseconds =
-				output->upload.average_delay_microseconds,
+				upload_output->average_delay_microseconds,
 			.upload_maximum_adjust_up_threshold_microseconds =
 				upload_effective->average_delay_maximum_adjust_up_microseconds,
 			.upload_maximum_adjust_down_threshold_microseconds =
@@ -252,12 +254,12 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 		const struct log_summary_record record = {
 			.download_achieved_rate_kbps = download_achieved,
 			.upload_achieved_rate_kbps = upload_achieved,
-			.download_sum_delays = output->download.delayed_sample_count,
-			.upload_sum_delays = output->upload.delayed_sample_count,
+			.download_sum_delays = download_output->delayed_sample_count,
+			.upload_sum_delays = upload_output->delayed_sample_count,
 			.download_average_owd_delta_microseconds =
-				output->download.average_delay_microseconds,
+				download_output->average_delay_microseconds,
 			.upload_average_owd_delta_microseconds =
-				output->upload.average_delay_microseconds,
+				upload_output->average_delay_microseconds,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
 			.cake_download_rate_kbps = download_rate,
@@ -324,14 +326,14 @@ static void apply_bandwidth(
 
 static struct controller_direction_input direction_input(const struct monitor_direction *direction)
 {
+	const struct cake_observation *cake = &direction->cake;
 	const struct controller_direction_input input = {
 		.traffic_sample_id = direction->traffic_sample_id,
-		.valid = direction->traffic_valid && direction->cake_valid &&
-			 direction->cake.has_bandwidth &&
-			 direction->cake.bandwidth_bits_per_second > 0U,
+		.valid = direction->traffic_valid && direction->cake_valid && cake->has_bandwidth &&
+			 cake->bandwidth_bits_per_second > 0U,
 		.traffic_rate_bits_per_second = direction->traffic_rate_bits_per_second,
 		.cake_rate_bits_per_second =
-			direction->cake_valid ? direction->cake.bandwidth_bits_per_second : 0U,
+			direction->cake_valid ? cake->bandwidth_bits_per_second : 0U,
 	};
 
 	return input;
@@ -445,7 +447,7 @@ void control_update(
 
 void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	const struct controller *controller = &monitor->control.controller;
+	struct controller *controller = &monitor->control.controller;
 	const struct {
 		struct monitor_direction *link;
 		const struct controller_direction *controller;
@@ -454,7 +456,7 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microse
 		{ &monitor->links.upload, &controller->upload },
 	};
 
-	controller_set_minimum_rates(&monitor->control.controller, timestamp_microseconds);
+	controller_set_minimum_rates(controller, timestamp_microseconds);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
 		const struct controller_direction_config *config =
 			&directions[index].controller->config;

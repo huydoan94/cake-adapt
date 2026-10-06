@@ -19,9 +19,11 @@ static bool schedule_irtt_child_start(struct monitor *monitor);
 
 static void report_latency_degraded(struct monitor *monitor, const char *error)
 {
-	if (!monitor->pingers.observation_failed)
+	struct monitor_pingers *pingers = &monitor->pingers;
+
+	if (!pingers->observation_failed)
 		log_message(LOG_LEVEL_WARNING, "latency observation degraded: %s", error);
-	monitor->pingers.observation_failed = true;
+	pingers->observation_failed = true;
 }
 
 static void report_latency_failure(struct monitor *monitor, const char *format, ...)
@@ -47,6 +49,8 @@ static void schedule_retry(struct monitor *monitor, uint64_t timestamp_microseco
 
 static bool ensure_latency_open(struct monitor *monitor)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
 	const struct config *config = monitor->config;
 	bool irtt = strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0;
 	const char *targets[CONFIG_MAX_REFLECTORS];
@@ -58,19 +62,19 @@ static bool ensure_latency_open(struct monitor *monitor)
 
 	if (!links_ready(monitor))
 		return false;
-	if (latency_is_open(&monitor->pingers.latency))
+	if (latency_is_open(latency))
 		return true;
 	/* A new session waits for the previous pingers to be reaped. */
-	if (latency_stopping(&monitor->pingers.latency))
+	if (latency_stopping(latency))
 		return false;
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds) ||
-	    timestamp_microseconds < monitor->pingers.next_attempt_microseconds) {
+	    timestamp_microseconds < pingers->next_attempt_microseconds) {
 		return false;
 	}
 	schedule_retry(monitor, timestamp_microseconds);
 	reflectors_active(monitor, targets);
 	if (latency_open(
-		    &monitor->pingers.latency,
+		    latency,
 		    targets,
 		    target_count,
 		    timestamp_microseconds,
@@ -81,8 +85,8 @@ static bool ensure_latency_open(struct monitor *monitor)
 		return false;
 	}
 
-	level = monitor->pingers.observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
-	outcome = monitor->pingers.observation_failed ? STATE_RECOVERED : STATE_INITIALIZED;
+	level = pingers->observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
+	outcome = pingers->observation_failed ? STATE_RECOVERED : STATE_INITIALIZED;
 	if (irtt) {
 		log_message(
 			level,
@@ -99,15 +103,16 @@ static bool ensure_latency_open(struct monitor *monitor)
 			config->interface
 		);
 	}
-	monitor->pingers.observation_failed = false;
-	monitor->pingers.next_attempt_microseconds = 0U;
-	monitor->pingers.last_restart_microseconds = timestamp_microseconds;
+	pingers->observation_failed = false;
+	pingers->next_attempt_microseconds = 0U;
+	pingers->last_restart_microseconds = timestamp_microseconds;
 	return true;
 }
 
 /* Returns false when latency observation must be restarted. */
 static bool process_latency_line(struct monitor *monitor, size_t child_index, const char *line)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
 	struct latency_observation observation;
 	struct latency_sample sample;
 	char error[ERROR_SIZE] = { 0 };
@@ -115,7 +120,7 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 	uint64_t processing_monotonic_microseconds;
 	uint64_t response_microseconds;
 	enum latency_probe_result result = latency_handle_line(
-		&monitor->pingers.latency,
+		&pingers->latency,
 		child_index,
 		line,
 		&sample,
@@ -139,19 +144,19 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 
 	if (!read_clock_microseconds(CLOCK_REALTIME, &processing_realtime_microseconds) ||
 	    !read_clock_microseconds(CLOCK_MONOTONIC, &processing_monotonic_microseconds)) {
-		if (!monitor->pingers.response_clock_failed) {
+		if (!pingers->response_clock_failed) {
 			log_message(
 				LOG_LEVEL_WARNING,
 				"latency observation degraded: response clock failed: %s",
 				strerror(errno)
 			);
 		}
-		monitor->pingers.response_clock_failed = true;
+		pingers->response_clock_failed = true;
 		return true;
 	}
-	if (monitor->pingers.response_clock_failed) {
+	if (pingers->response_clock_failed) {
 		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
-		monitor->pingers.response_clock_failed = false;
+		pingers->response_clock_failed = false;
 	}
 	response_microseconds = response_monotonic_microseconds(
 		processing_realtime_microseconds,
@@ -159,7 +164,7 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 		sample.timestamp_microseconds
 	);
 	reflectors_record(monitor, slot, &sample, response_microseconds, &observation);
-	monitor->pingers.last_response_microseconds = response_microseconds;
+	pingers->last_response_microseconds = response_microseconds;
 	if (response_stale(processing_realtime_microseconds, sample.timestamp_microseconds)) {
 		log_message(
 			LOG_LEVEL_DEBUG,
@@ -176,11 +181,12 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 /* Every spawned child must be known to uloop before anything can stop it. */
 static void register_pinger_processes(struct monitor *monitor)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
 	size_t index;
 
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
-		struct pinger_watch *watch = &monitor->pingers.watches[index];
-		pid_t process_identifier = latency_child_process(&monitor->pingers.latency, index);
+		struct pinger_watch *watch = &pingers->watches[index];
+		pid_t process_identifier = latency_child_process(&pingers->latency, index);
 
 		if (process_identifier > 0 && !watch->process.pending) {
 			watch->process.pid = process_identifier;
@@ -215,16 +221,19 @@ void pingers_close(struct monitor *monitor)
 /* The event loop has stopped, so pingers are stopped and reaped synchronously. */
 void pingers_stop_now(struct monitor *monitor)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
 	size_t index;
 
-	(void)uloop_timeout_cancel(&monitor->pingers.start_timer);
-	(void)uloop_timeout_cancel(&monitor->pingers.stop_timer);
-	(void)uloop_timeout_cancel(&monitor->pingers.failure_timer);
+	(void)uloop_timeout_cancel(&pingers->start_timer);
+	(void)uloop_timeout_cancel(&pingers->stop_timer);
+	(void)uloop_timeout_cancel(&pingers->failure_timer);
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
-		release_pinger_output(&monitor->pingers.watches[index]);
-		(void)uloop_process_delete(&monitor->pingers.watches[index].process);
+		struct pinger_watch *watch = &pingers->watches[index];
+
+		release_pinger_output(watch);
+		(void)uloop_process_delete(&watch->process);
 	}
-	latency_stop_now(&monitor->pingers.latency);
+	latency_stop_now(&pingers->latency);
 }
 
 static void handle_pinger_stop_timeout(struct uloop_timeout *timer)
@@ -308,7 +317,8 @@ static void handle_pinger_exit(struct uloop_process *process, int status)
 	struct pinger_watch *watch =
 		__extension__ container_of(process, struct pinger_watch, process);
 	struct monitor *monitor = watch->monitor;
-	struct latency *latency = &monitor->pingers.latency;
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
 	char error[ERROR_SIZE] = { 0 };
 
 	/* Deliver output written just before the exit, then stop reading. */
@@ -319,7 +329,7 @@ static void handle_pinger_exit(struct uloop_process *process, int status)
 	switch (latency_child_exited(latency, watch->child_index, status, error, sizeof(error))) {
 	case LATENCY_PROBE_STOPPED:
 		if (!latency_stopping(latency)) {
-			(void)uloop_timeout_cancel(&monitor->pingers.stop_timer);
+			(void)uloop_timeout_cancel(&pingers->stop_timer);
 			/* Like cake-autorate, a restart starts once the old pingers are gone. */
 			if (monitor->activity.state != CONTROLLER_IDLE)
 				(void)pingers_watch(monitor);
@@ -343,12 +353,13 @@ static void handle_pinger_exit(struct uloop_process *process, int status)
 
 static bool watch_started_latency_children(struct monitor *monitor)
 {
-	const struct latency *latency = &monitor->pingers.latency;
+	struct monitor_pingers *pingers = &monitor->pingers;
+	const struct latency *latency = &pingers->latency;
 	size_t index;
 
 	register_pinger_processes(monitor);
 	for (index = 0U; index < latency_child_count(latency); index++) {
-		struct pinger_watch *watch = &monitor->pingers.watches[index];
+		struct pinger_watch *watch = &pingers->watches[index];
 		int descriptor = latency_child_descriptor(latency, index);
 
 		if (watch->reading || descriptor < 0)
@@ -375,13 +386,15 @@ static bool watch_started_latency_children(struct monitor *monitor)
 
 static bool schedule_irtt_child_start(struct monitor *monitor)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
 	char error[ERROR_SIZE] = { 0 };
 	uint64_t timestamp_microseconds;
 	uint64_t next_start_microseconds;
 	uint64_t delay_milliseconds;
 
-	if (!latency_irtt_start_pending(&monitor->pingers.latency)) {
-		(void)uloop_timeout_cancel(&monitor->pingers.start_timer);
+	if (!latency_irtt_start_pending(latency)) {
+		(void)uloop_timeout_cancel(&pingers->start_timer);
 		return true;
 	}
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
@@ -389,29 +402,25 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 		defer_latency_retry(monitor);
 		return false;
 	}
-	if (latency_start_irtt_children(
-		    &monitor->pingers.latency,
-		    timestamp_microseconds,
-		    error,
-		    sizeof(error)
-	    ) != 0) {
+	if (latency_start_irtt_children(latency, timestamp_microseconds, error, sizeof(error)) !=
+	    0) {
 		report_latency_degraded(monitor, error);
 		defer_latency_retry(monitor);
 		return false;
 	}
 	if (!watch_started_latency_children(monitor))
 		return false;
-	if (!latency_irtt_start_pending(&monitor->pingers.latency))
+	if (!latency_irtt_start_pending(latency))
 		return true;
 
-	next_start_microseconds = latency_irtt_next_start_microseconds(&monitor->pingers.latency);
+	next_start_microseconds = latency_irtt_next_start_microseconds(latency);
 	/* uloop timeouts take a signed int of milliseconds. */
 	delay_milliseconds =
 		min_u64(milliseconds_rounded_up(
 				saturating_sub(next_start_microseconds, timestamp_microseconds)
 			),
 			INT_MAX);
-	if (uloop_timeout_set(&monitor->pingers.start_timer, (int)delay_milliseconds) != 0) {
+	if (uloop_timeout_set(&pingers->start_timer, (int)delay_milliseconds) != 0) {
 		report_latency_failure(
 			monitor,
 			"could not schedule IRTT start: %s",
@@ -443,12 +452,13 @@ bool pingers_watch(struct monitor *monitor)
 /* Match cake-autorate's two-period setup grace after (re)starting pingers. */
 static void grant_grace(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
 	const struct config *config = monitor->config;
 
-	monitor->pingers.last_response_microseconds = timestamp_microseconds;
-	monitor->pingers.grace_until_microseconds =
+	pingers->last_response_microseconds = timestamp_microseconds;
+	pingers->grace_until_microseconds =
 		timestamp_microseconds + 2U * config->reflector_ping_interval_microseconds;
-	reflectors_reset_health(monitor, monitor->pingers.grace_until_microseconds);
+	reflectors_reset_health(monitor, pingers->grace_until_microseconds);
 }
 
 void pingers_suspend(struct monitor *monitor)
@@ -460,10 +470,12 @@ void pingers_suspend(struct monitor *monitor)
 /* Pingers stopped while CAKE was missing restart like after IDLE. */
 void pingers_unsuspend(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
-	if (!monitor->pingers.suspended)
+	struct monitor_pingers *pingers = &monitor->pingers;
+
+	if (!pingers->suspended)
 		return;
 	grant_grace(monitor, timestamp_microseconds);
-	monitor->pingers.suspended = false;
+	pingers->suspended = false;
 }
 
 void pingers_resume(struct monitor *monitor, uint64_t timestamp_microseconds)
@@ -490,6 +502,7 @@ void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds)
 /* Each slot and timer is bound to its handler before uloop starts. */
 void pingers_prepare(struct monitor *monitor, uint64_t start_microseconds)
 {
+	struct monitor_pingers *pingers = &monitor->pingers;
 	const struct config *config = monitor->config;
 	const struct latency_settings settings = {
 		.pinger_method = config->pinger_method,
@@ -503,15 +516,17 @@ void pingers_prepare(struct monitor *monitor, uint64_t start_microseconds)
 	};
 	size_t index;
 
-	monitor->pingers.last_response_microseconds = start_microseconds;
-	monitor->pingers.last_restart_microseconds = start_microseconds;
-	monitor->pingers.start_timer.cb = handle_latency_start;
-	monitor->pingers.stop_timer.cb = handle_pinger_stop_timeout;
-	monitor->pingers.failure_timer.cb = handle_latency_failure;
+	pingers->last_response_microseconds = start_microseconds;
+	pingers->last_restart_microseconds = start_microseconds;
+	pingers->start_timer.cb = handle_latency_start;
+	pingers->stop_timer.cb = handle_pinger_stop_timeout;
+	pingers->failure_timer.cb = handle_latency_failure;
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
-		monitor->pingers.watches[index].process.cb = handle_pinger_exit;
-		monitor->pingers.watches[index].monitor = monitor;
-		monitor->pingers.watches[index].child_index = index;
+		struct pinger_watch *watch = &pingers->watches[index];
+
+		watch->process.cb = handle_pinger_exit;
+		watch->monitor = monitor;
+		watch->child_index = index;
 	}
-	latency_init(&monitor->pingers.latency, &settings);
+	latency_init(&pingers->latency, &settings);
 }
