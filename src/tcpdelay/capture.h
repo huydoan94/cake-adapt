@@ -12,6 +12,7 @@ struct ring_buffer;
 struct tcpdelay_capture {
 	struct bpf_object *object;
 	struct ring_buffer *ring;
+	int program_descriptor;
 	int socket_descriptor;
 	int counters_descriptor;
 	int accounting_descriptor;
@@ -26,10 +27,21 @@ struct tcpdelay_capture {
 	struct tcpdelay_estimator estimator;
 };
 
+/* The unloaded state, before tcpdelay_capture_load() or after unloading. */
+void tcpdelay_capture_init(struct tcpdelay_capture *capture);
+
 /*
- * Loads the installed socket filter and attaches it to a packet socket on
- * interface. Records are only collected by tcpdelay_capture_drain().
- * NULL accounting keeps raw counters; a model enables verified CAKE charges.
+ * Loads the installed socket filter, its maps and ring buffer. The kernel's
+ * verifier takes seconds on slow CPUs, so this runs once, before the event
+ * loop handles latency; later calls do nothing.
+ */
+int tcpdelay_capture_load(struct tcpdelay_capture *capture, char *error, size_t error_size);
+
+/*
+ * Attaches the loaded filter (loading it first if needed) to a new packet
+ * socket on interface, with zeroed counters and an empty estimator. Records
+ * are only collected by tcpdelay_capture_drain(). NULL accounting keeps raw
+ * counters; a model enables verified CAKE charges.
  */
 int tcpdelay_capture_open(
 	struct tcpdelay_capture *capture,
@@ -48,7 +60,10 @@ int tcpdelay_capture_counters(
 	struct tcpdelay_counters *counters
 );
 
-/* Safe after any tcpdelay_capture_open(), successful or not, and repeatable. */
+/* Detaches the filter by closing the socket; the program stays loaded. Repeatable. */
 void tcpdelay_capture_close(struct tcpdelay_capture *capture);
+
+/* Closes and frees everything; safe in any state and repeatable. */
+void tcpdelay_capture_unload(struct tcpdelay_capture *capture);
 
 #endif
