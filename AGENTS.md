@@ -499,7 +499,8 @@ measured (evidence directories under `profiling/`, indexed in its README):
   (`2026-10-02-tcp-queue-split`);
 - `ul_congest_ack_share` (named `upload_ack_share_min` until 2026-10-04):
   download is held so its ACKs leave other upload traffic room, down to the
-  configured share (`2026-10-03-ack-share-dynamic`);
+  configured share (`2026-10-03-ack-share-dynamic`); since 2026-10-05 its byte
+  counters use the upload CAKE's packet charge (`2026-10-05-ack-accounting`);
 - the filter samples at most every 4 ms per flow
   (`2026-10-03-sample-thinning`, with its cost in `2026-10-03-ebpf-filter-cost`);
 - `fping-ts` was verified on the testbed (`2026-10-03-fping-ts-testbed`), and
@@ -510,19 +511,32 @@ chosen.
 
 On 2026-10-03 the C sources moved to the kernel `.clang-format` (`aecacfa`) and
 a cleanup pass removed duplication, dead code and hand-written arithmetic
-(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass; on a
-target it has run only in the bounded x86 VM run of
-`profiling/2026-10-04-flow-pair/`, not through the lifecycle or a controlled
-run.
+(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass, and
+the current code has run in controlled x86 VM comparisons
+(`2026-10-05-gpt-work-check`), but not through a lifecycle run.
 
 The TCP-delay estimator is under review in `EBPF_REVIEW.md`, whose section 9 is
-the working order. Fix 1 (`20cc841`, evidence in
-`profiling/2026-10-04-flow-pair/`) keeps both directions of the estimate from
-one flow. The findings on tuple reuse, a standing queue becoming the baseline,
-sustained delayed ACKs, and ACK-byte accounting remain open, and none of the
-findings is live-validated. The attempted VM run in
+the working order. Findings and their state:
+
+- new flow hiding a queue: fixed, both directions come from one flow (`20cc841`,
+  `2026-10-04-flow-pair`);
+- standing queue becoming the baseline: mitigated, the floor is held while
+  fping sees congestion (`0321661`, `2026-10-05-tcp-confidence`);
+- ACK-byte accounting: fixed, counters use CAKE's packet charge (`bbca799`,
+  `2026-10-05-ack-accounting`);
+- tuple reuse: open and accepted as rare; a reused tuple only removes that
+  flow's estimate. Rejected samples no longer keep a stale slot fresh
+  (`7665e7e`); both full tuple-lifetime designs were reverted (see below);
+- sustained change in remote reply timing read as upload queue: open and
+  uncommon.
+
+On 2026-10-05 a guard that used TCP queue shares only when they agreed with the
+delivery heuristic caused a measured control regression and was reverted
+(`d6564a6`); the controller matches `518df81` again. Controlled VM comparisons
+with raw evidence are in `profiling/2026-10-05-gpt-work-check/` and
+`profiling/2026-10-05-ack-control/`. The earlier attempted VM run in
 `profiling/2026-10-04-ebpf-vm/` produced no `TCP_QUEUE` records and validates
-nothing; its earlier conclusions are withdrawn.
+nothing; its conclusions are withdrawn.
 
 Recommend plain CAKE `ack-filter` only; never use or recommend
 `ack-filter-aggressive`.
@@ -539,17 +553,17 @@ independent parser, lifecycle, fixture, and runtime verification.
 
 ### Current status (2026-10-05)
 
-- Full tuple-lifetime generation handling was deferred and reverted at the
-  user's request. Its atomic instructions prevent JIT compilation on the
-  tested 32-bit x86 kernel; a synchronization redesign is outside this task.
-  The committed accepted-sample freshness fix remains. The recoverable patch,
-  functional results, cost measurements and rollback details are preserved in
-  [`profiling/2026-10-05-tcp-lifetime-deferred/README.md`](profiling/2026-10-05-tcp-lifetime-deferred/README.md).
-  Issue 2 remains open; do not restart the deferred work automatically.
-  Previously built candidate packages do not represent the restored source.
-- The Filogic build has not run on the arm64 VM since `58fb835`, and the
-  current code has had no lifecycle or controlled run. Before the user deploys,
-  run both with the Filogic build on the arm64 VM.
+- Tuple-lifetime handling was tried twice and reverted both times: first an
+  atomics-based design that the 32-bit x86 JIT cannot compile
+  (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
+  measured neutral at about 50-64% more filter time per packet for a rare case
+  (`5458100`, design, tools and unfinished work archived in
+  `2026-10-05-tcp-lifetime-stream`). Do not restart it without a user decision
+  and a concrete deployment need.
+- The x86 test VM runs the `d6564a6` package. The Filogic build has not run
+  on the arm64 VM since `58fb835`, and the current code has had no lifecycle
+  run. Before the user deploys, run the lifecycle and a controlled run with
+  the Filogic build on the arm64 VM.
 - The user keeps the version bump (packages are still 0.2.11-r1), pushing,
   the router install, fping-ts on internet reflectors, and the profiling and
   flowchart indexes.
