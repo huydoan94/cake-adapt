@@ -2,29 +2,45 @@
 
 Status: selected protocol implemented with unit tests and bounded source review;
 focused host checks pass. These are persistent project work orders, not a session
-handoff. Package builds, architecture validation, kernel checks, VM, profiling and
+handoff. ✓ The existing x86 and Filogic package builds and producer instruction
+inspection pass. Architecture coverage, kernel checks, VM, profiling and
 end-to-end acceptance remain pending. The saved patch has not been restored.
 Implementation checkpoint: `885f7d9` (`tcpdelay: isolate tuple lifetimes in an
 ordered capture stream`). This identifies the host-tested source; it does not
 mark target acceptance complete.
 
+## Completion tracking
+
+A leading `✓` marks a completed task, using the evidence and acceptance scope
+stated below. An unchecked task remains incomplete; a completed source task does
+not imply its kernel, architecture or performance validation has passed.
+
+- ✓ Selected protocol and transition/record contract (TL-02).
+- ✓ Production implementation and focused host unit/replay/sanitizer checks.
+- ✓ Acceptance limits frozen before target runs (TL-01.4).
+- Partial: [architecture capability inventory](TUPLE_LIFETIME_CAPABILITIES.md) (TL-01.3).
+- ✓ Producer branch tests and packaged-object instruction inspection (TL-03.5).
+- ✓ Existing x86 and Filogic package builds and target ABI assertions. Other
+  required target builds remain open (TL-06.2).
+- In progress: bounded kernel harness and local review (TL-05).
+- Pending: remaining target builds/ABI/kernel coverage and cost/lifecycle
+  acceptance (TL-06/TL-07).
+
 ## One-time implementation mode (2026-10-05)
 
-The user explicitly authorized progressing through the feature and unit-test
-implementation tasks in this pass, with execution deferred until the end. This
-overrides the normal incremental validation gates below for this pass only.
-Write unit tests alongside the feature; do not run builds, tests, VM, profiling
-or end-to-end work during implementation. Preserve a reviewable draft at the
-usage limit rather than marking unverified tasks complete or reverting solely
-because validation was deferred. Other branch, deployment and policy restrictions
-remain unchanged. This is not a standing rule for future work.
+✓ The one-time feature/unit-test implementation pass is finished. Execution was
+deferred until its end, then focused host checks, upstream replay and sanitizers
+passed. That exception does not apply to this continuation: the normal bounded
+validation gates below apply. Other branch, deployment and policy restrictions
+remain unchanged. No kernel or runtime acceptance follows from host checks.
 
 The [selected lifetime-stream design](TUPLE_LIFETIME_DESIGN.md) records ownership,
 ordering, loss/recovery, ABI and numerical bounds. TL-01/TL-02 design work is
 recorded there; the architecture capability inventory remains partial. TL-03 and
-TL-04 source implementation and host unit checks are complete; their kernel,
-instruction and package gates remain pending. TL-05 harness work, TL-06 target
-validation and TL-07 measurement remain deferred. Host checks and source review
+TL-04 source implementation and host unit checks are complete. ✓ Instruction
+inspection and both existing SDK package builds pass; kernel and remaining
+architecture gates stay open. TL-05 harness work is in progress; TL-06 target
+validation and TL-07 measurement remain pending. Host checks and source review
 do not satisfy those acceptance gates.
 
 ## Problem and intended result
@@ -137,8 +153,8 @@ the tested kernel/configuration; untested configurations remain listed as such.
 ## Delivery order and ownership
 
 Order progress is recorded above. Dependencies normally require completion gates;
-the one-time implementation mode permits source work to proceed while executable
-validation is deferred. It does not authorize a VM campaign.
+the completed one-time implementation mode allowed source work before executable
+validation. Each target run still requires the locally reviewed bounded plan.
 
 | Order | Deliverable / problem it solves | Depends on | Accountable role |
 | --- | --- | --- | --- |
@@ -164,10 +180,10 @@ must not be hidden behind a claim of perfect connection identity.
 
 **Tasks:**
 
-- **TL-01.1:** Write invariants for a trusted lifetime, handshake confirmation,
+- ✓ **TL-01.1:** Write invariants for a trusted lifetime, handshake confirmation,
   timestamp/sequence wrap, reordered data and departure matching. State how
   bootstrap works when capture begins during an established connection.
-- **TL-01.2:** Distinguish ordinary sample loss from loss of lifecycle evidence.
+- ✓ **TL-01.2:** Distinguish ordinary sample loss from loss of lifecycle evidence.
   List detected capture loss, undetected loss before the observation point,
   exact tuple/ISN reuse, closure ambiguity and capture restart limits.
   No passive observer can promise recovery from evidence it never observes.
@@ -175,7 +191,7 @@ must not be hidden behind a claim of perfect connection identity.
   package ABI, endian/width, kernel version/configuration, map/helper support,
   available JIT instructions, libbpf/toolchain versions and test resources.
   Reuse existing SDKs first; unavailable rows get an explicit blocker.
-- **TL-01.4:** Define numerical limits for maps, ring storage, retries, invalidation
+- ✓ **TL-01.4:** Define numerical limits for maps, ring storage, retries, invalidation
   latency, recovery, retained state and acceptable measurement coverage/cost.
   Separate recovery after sufficient new evidence from a promise to recover
   when no qualifying packets arrive. Freeze these limits before acceptance runs.
@@ -188,7 +204,7 @@ only. Do not restore the patch or access VMs for this order.
 The primary identifies feasible common APIs and resources needed for missing
 rows. No architecture may be silently removed to make the design pass.
 
-### TL-02 — Select and review the lifetime/loss protocol
+### ✓ TL-02 — Select and review the lifetime/loss protocol
 
 **Problem:** making updates exclusive does not make lost handshake evidence safe.
 Old state, in-flight records and later packets can disagree about which lifetime
@@ -196,22 +212,22 @@ is current. Independent LRU maps add eviction and publication hazards.
 
 **Tasks:**
 
-- **TL-02.1:** Compare a small number of concrete alternatives, including an
+- ✓ **TL-02.1:** Compare a small number of concrete alternatives, including an
   ordered lifecycle event path and a bounded uncertainty/invalidation protocol.
   A capture-wide failure latch is only a candidate: specify its measurement
   outage, counter impact, recovery and behavior during sustained contention.
-- **TL-02.2:** For each viable alternative, name the writer/owner of every state
+- ✓ **TL-02.2:** For each viable alternative, name the writer/owner of every state
   item, synchronization/publication point, loss indicator and ordering rule.
   Explain why losing a new SYN cannot leave the predecessor trusted. Include
   a record already reserved or submitted when loss is detected.
-- **TL-02.3:** Define handshake retransmission, simultaneous-open, mismatched
+- ✓ **TL-02.3:** Define handshake retransmission, simultaneous-open, mismatched
   SYN/ACK, delayed predecessor events, ID exhaustion, map update failure,
   eviction and restart transitions. Specify FIN/RST handling or its explicit
   limits; a delayed termination packet must not erase a newer lifetime.
-- **TL-02.4:** Audit map-value pointer lifetime across helper calls and unrelated
+- ✓ **TL-02.4:** Audit map-value pointer lifetime across helper calls and unrelated
   flow eviction. Define safe ownership/snapshot/revalidation rules without
   assuming that lookup pointers provide a transaction across several maps.
-- **TL-02.5:** Write deterministic event traces for loss, publication and recovery
+- ✓ **TL-02.5:** Write deterministic event traces for loss, publication and recovery
   races. Have the designated reviewer challenge the invariants against those
   traces and the TL-01 capability baseline. Record rejected designs and why.
 
@@ -225,29 +241,29 @@ It must resolve the missed-SYN counterexample and use one portable algorithm.
 If none satisfies those conditions, stop with the concrete blocker. Do not
 silently choose a weaker algorithm or expand into a kernel/attachment redesign.
 
-### TL-03 — Implement the kernel producer and shared record contract
+### ✓ TL-03 — Implement the kernel producer and shared record contract
 
 **Problem:** stale departures and sampling state can survive tuple reuse; a
 producer can emit a plausible record without a trustworthy lifetime.
 
 **Tasks:**
 
-- **TL-03.1:** Implement only the selected lifecycle protocol. Capture credible
+- ✓ **TL-03.1:** Implement only the selected lifecycle protocol. Capture credible
   evidence at the intended packet observation point and classify loss before
   declaring subsequent measurement trustworthy. Define behavior when a SYN
   lacks a usable timestamp or a packet cannot be parsed.
-- **TL-03.2:** Scope departure and thinning state to the selected lifetime.
+- ✓ **TL-03.2:** Scope departure and thinning state to the selected lifetime.
   Preserve first-departure semantics, supported timestamp parsing, existing
   sampling cadence and ring-buffer wakeup behavior. Old entries may remain in
   bounded storage but must never match a replacement lifetime.
-- **TL-03.3:** Define explicit record fields, initialization, event discrimination
+- ✓ **TL-03.3:** Define explicit record fields, initialization, event discrimination
   if needed, and fixed offsets within 64 bytes. Check map layouts and capacities.
   Use the same source for both BPF byte orders; do not add a CPU-specific branch.
-- **TL-03.4:** Keep upload/pure-ACK accounting independent of timing confidence
+- ✓ **TL-03.4:** Keep upload/pure-ACK accounting independent of timing confidence
   wherever the selected protocol allows. If recovery recreates the capture,
   specify and test how counter baselines restart and ACK intervals become
   unavailable rather than yielding a false rate.
-- **TL-03.5:** Add focused tests for helper/map/ring failure and lifecycle branches
+- ✓ **TL-03.5:** Add focused tests for helper/map/ring failure and lifecycle branches
   using the production code or a justified seam. Audit cleanup on every path.
   Inspect compiled BPF instructions against TL-01's common baseline.
 
@@ -260,27 +276,27 @@ Current CAKE accounting behavior must retain its existing regression checks.
 Keep producer/consumer ABI changes together in a coherent program commit;
 intermediate incompatible artifacts are never deployment candidates.
 
-### TL-04 — Integrate userspace calibration and degraded operation
+### ✓ TL-04 — Integrate userspace calibration and degraded operation
 
 **Problem:** recognizing lifetimes in BPF does not help if the consumer accepts an
 old record, retains old clock floors, or tells the controller stale data is valid.
 
 **Tasks:**
 
-- **TL-04.1:** Validate object/map/record compatibility before attach and before
+- ✓ **TL-04.1:** Validate object/map/record compatibility before attach and before
   record consumption. Reject stale objects and malformed/unknown records even
   when their byte length matches; do not infer compatibility from size alone.
-- **TL-04.2:** Reset one tuple's calibration only on the selected credible lifetime
+- ✓ **TL-04.2:** Reset one tuple's calibration only on the selected credible lifetime
   transition. Reject predecessor records without refreshing accepted-sample
   freshness or LRU order. Preserve legitimate timestamp wrap and reordered-data
   rejection within a lifetime.
-- **TL-04.3:** Apply uncertainty/invalidation before publishing controller queue
+- ✓ **TL-04.3:** Apply uncertainty/invalidation before publishing controller queue
   validity, including records already buffered when loss becomes visible.
   Implement the reviewed recovery procedure and expiry/resource bounds.
-- **TL-04.4:** Keep fping operational and report degradation/recovery through
+- ✓ **TL-04.4:** Keep fping operational and report degradation/recovery through
   existing logging. Do not flood syslog or terminate the daemon for optional
   capture failure. Preserve qdisc/interface/model-change reset behavior.
-- **TL-04.5:** Add estimator and monitor tests covering lower and higher replacement
+- ✓ **TL-04.5:** Add estimator and monitor tests covering lower and higher replacement
   timestamp offsets, old queued records, unavailable evidence, counter restart,
   capture reopen and recovery. Reuse existing baseline/confidence tests unchanged.
 
@@ -386,13 +402,11 @@ No version bump, remote operation, router installation or release is included.
 
 ## Checks and operational boundaries
 
-Behavioral tests accompany TL-03/TL-04 rather than being deferred to the VM order.
-When deferred execution begins, use existing focused targets first: estimator and replay binaries plus
-`check-tcpdelay` with the SDK headers from the host task. Add a narrowly named
-lifetime target if the selected design needs it. The existing Make targets and
-SDK commands are in [.vscode/tasks.json](.vscode/tasks.json); retain strict warnings
-and clang-format stability. The one-time implementation mode above controls when
-these checks run; none is implied by a source-only review.
+✓ Focused behavioral tests accompany TL-03/TL-04 and passed at the end of the
+implementation pass, including replay and native sanitizer checks. Reuse those
+results while their inputs remain unchanged. Harness checks use strict warnings,
+clang-format stability and shell syntax. Existing SDK commands remain in
+[.vscode/tasks.json](.vscode/tasks.json). No source-only review implies execution.
 
 Before any VM mutation, the run plan must require fresh service/process/package/
 configuration/link/route/qdisc snapshots and exact restoration on x86. Prefer
@@ -410,6 +424,6 @@ If a work order needs a larger design or new authority, stop at that gate,
 describe the concrete change and retain evidence. Preserve policy and existing
 accepted fixes. Outside the one-time implementation pass, revert an unsuccessful
 tuple-lifetime implementation attempt under the user's scope stop condition.
-During this pass, preserve the reviewable draft if validation or usage limits
-leave work pending; do not present it as complete. No standing authorization to
-continue across these gates is implied.
+The completed implementation remains a reviewable checkpoint while acceptance
+gates or usage limits leave validation pending; do not present it as complete.
+No standing authorization to continue across these gates is implied.
