@@ -5,9 +5,16 @@
 #include <stdint.h>
 
 #include "tcpdelay/estimator.h"
+#include "tcpdelay/lifetime.h"
 
 struct bpf_object;
 struct ring_buffer;
+
+enum tcpdelay_capture_state {
+	TCPDELAY_CAPTURE_READY,
+	TCPDELAY_CAPTURE_RECOVERING,
+	TCPDELAY_CAPTURE_DISABLED,
+};
 
 struct tcpdelay_capture {
 	struct bpf_object *object;
@@ -15,6 +22,9 @@ struct tcpdelay_capture {
 	int socket_descriptor;
 	int counters_descriptor;
 	int accounting_descriptor;
+	int epoch_descriptor;
+	int loss_descriptor;
+	int fault_descriptor;
 	/* Immutable after bind; changing the model needs a new capture. */
 	struct tcpdelay_accounting accounting;
 	/* The interface the socket is bound to; a recreated one needs a new socket. */
@@ -22,6 +32,13 @@ struct tcpdelay_capture {
 	/* One copy per possible CPU, for reading the per-CPU counters. */
 	struct tcpdelay_counters *counter_values;
 	size_t cpu_count;
+	uint8_t *fault_values;
+	struct tcpdelay_lifetime *lifetime;
+	uint32_t epoch;
+	enum tcpdelay_capture_state state;
+	uint64_t retry_after_microseconds;
+	bool uncertain_pending;
+	bool ring_busy;
 	/* Borrowed; every drained record is added to it. */
 	struct tcpdelay_estimator *estimator;
 };
@@ -43,6 +60,8 @@ int tcpdelay_capture_open(
 
 /* Adds every pending record to the estimator; returns the count or -1. */
 int tcpdelay_capture_drain(struct tcpdelay_capture *capture);
+
+bool tcpdelay_capture_timing_available(const struct tcpdelay_capture *capture);
 
 /* The filter's counters summed over all CPUs, in one map lookup. */
 int tcpdelay_capture_counters(
