@@ -310,6 +310,11 @@ int monitor_run(const struct config *config)
 	tcp_init(&monitor);
 	if (control_start(&monitor) != 0)
 		goto done;
+	/*
+	 * Loading the TCP filter can take seconds on slow CPUs; it runs before the
+	 * start time and timers, so reflector health and pinger grace start after it.
+	 */
+	tcp_start(&monitor);
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &start_microseconds)) {
 		log_message(
 			LOG_LEVEL_ERROR,
@@ -347,7 +352,6 @@ int monitor_run(const struct config *config)
 		}
 	}
 
-	tcp_start(&monitor);
 	links_observe(&monitor);
 	links_apply_cadence(&monitor);
 	watch_cpu(&monitor);
