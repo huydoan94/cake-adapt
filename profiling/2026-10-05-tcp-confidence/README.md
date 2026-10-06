@@ -1,5 +1,11 @@
 # TCP baseline and directional confidence mitigations
 
+**Update 2026-10-05:** the directional agreement rule described here was
+reverted in `d6564a6` after it caused the control regression in
+[`2026-10-05-ack-control`](../2026-10-05-ack-control/README.md); see
+[`2026-10-05-gpt-work-check`](../2026-10-05-gpt-work-check/README.md). The
+HOLD/FOLLOW baseline policy remains in production.
+
 Before: current-branch commit `518df81`. After: program commit `0321661`.
 Tuple-lifetime finding 2 remains deferred; BPF source, layouts, maps and sampling
 are unchanged. These changes affect the opt-in TCP attribution extension, whose

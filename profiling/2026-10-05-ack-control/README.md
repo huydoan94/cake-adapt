@@ -1,5 +1,11 @@
 # Bounded ACK/control comparison, 2026-10-05
 
+**Update 2026-10-05:** the regression reported below was traced to the
+directional agreement guard of `0321661`, not to the ACK accounting. With only
+that guard reverted, three repetitions restored mixed download to about 20
+Mbit/s and mixed p95 to about 63 ms; the guard was then reverted (`d6564a6`).
+See [`2026-10-05-gpt-work-check`](../2026-10-05-gpt-work-check/README.md).
+
 This compares the opt-in TCP attribution and upload ACK ceiling together,
 using the controller derived from [cake-autorate](https://github.com/lynxthecat/cake-autorate).
 Tuple-lifetime finding 2 remains deferred. Production code, defaults and versions
