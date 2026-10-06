@@ -11,8 +11,7 @@ static struct traffic_sample
 sample_with_qdisc(uint64_t bytes, uint32_t handle, uint32_t parent, time_t seconds, long nanoseconds)
 {
 	return (struct traffic_sample){ .bytes = bytes,
-					.qdisc_handle = handle,
-					.qdisc_parent = parent,
+					.qdisc = { .handle = handle, .parent = parent },
 					.timestamp = {
 						.tv_sec = seconds,
 						.tv_nsec = nanoseconds,
@@ -128,21 +127,10 @@ static void test_large_64_bit_counter_is_supported(void)
 
 static void test_compensated_interval_uses_startup_snapshot_formula(void)
 {
-	assert(traffic_compensated_interval_microseconds(
-		       100000U,
-		       12000U,
-		       1000000U,
-		       12000U,
-		       1000000U
-	       ) == 240000U);
-	assert(traffic_compensated_interval_microseconds(
-		       300000U,
-		       12000U,
-		       1000000U,
-		       12000U,
-		       1000000U
-	       ) == 300000U);
-	assert(traffic_compensated_interval_microseconds(0U, UINT64_MAX, 1U, 1U, 1U) == UINT64_MAX);
+	/* 1500-byte wire packets at 1 Mbit/s each way: 24 ms per round trip. */
+	assert(traffic_compensated_interval_microseconds(100000U, 24000U) == 240000U);
+	assert(traffic_compensated_interval_microseconds(300000U, 24000U) == 300000U);
+	assert(traffic_compensated_interval_microseconds(0U, UINT64_MAX) == UINT64_MAX);
 }
 
 int main(void)

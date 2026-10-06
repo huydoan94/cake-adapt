@@ -13,7 +13,8 @@ struct reflector_health_config {
 };
 
 struct reflector_health {
-	struct reflector_health_config config;
+	/* Shared by every slot; the threshold is validated between 1 and the window. */
+	const struct reflector_health_config *config;
 	unsigned char *offences;
 	uint64_t last_response_microseconds;
 	size_t offence_index;
@@ -38,6 +39,7 @@ struct reflector_comparison {
 	int64_t upload_delta_ewma_delta_microseconds;
 };
 
+/* config is borrowed for the health record's lifetime. */
 int health_init(
 	struct reflector_health *health,
 	const struct reflector_health_config *config,

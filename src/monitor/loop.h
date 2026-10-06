@@ -13,7 +13,6 @@
 #include "platform/netlink.h"
 #include "platform/traffic.h"
 #include "tcpdelay/capture.h"
-#include "tcpdelay/estimator.h"
 
 #include <libubox/uloop.h>
 #include <libubox/ustream.h>
@@ -93,14 +92,15 @@ struct monitor_pingers {
 	bool suspended;
 	uint64_t last_response_microseconds;
 	uint64_t last_restart_microseconds;
-	/* IRTT sessions start aligned to ping slots counted from here. */
-	uint64_t slot_origin_microseconds;
 	uint64_t next_attempt_microseconds;
 	uint64_t grace_until_microseconds;
 };
 
 /* reflectors.c: per-reflector latency trackers, active order and health. */
 struct monitor_reflectors {
+	/* Shared by every tracker and health record below. */
+	struct latency_tracker_config tracker_config;
+	struct reflector_health_config health_config;
 	struct latency_tracker trackers[CONFIG_MAX_REFLECTORS];
 	/* Indexed by pinger slot; order maps a slot to its reflector. */
 	struct reflector_health health[CONFIG_MAX_REFLECTORS];
@@ -114,12 +114,11 @@ struct monitor_reflectors {
 /* tcpdelay.c: the TCP queue estimate and the upload ACK rate. */
 struct monitor_tcp {
 	struct tcpdelay_capture capture;
-	struct tcpdelay_estimator estimator;
 	bool open;
+	/* The upload CAKE the capture was opened for; another one needs a new capture. */
+	struct qdisc_id qdisc;
 	/* Upload interface whose capture failed; retried once it is recreated. */
 	unsigned int failed_index;
-	uint32_t capture_handle;
-	uint32_t capture_parent;
 	uint64_t dropped_records;
 	uint64_t next_counter_check_microseconds;
 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
@@ -239,7 +238,6 @@ void reflectors_record(
 	struct monitor *monitor,
 	size_t slot,
 	const struct latency_sample *sample,
-	bool low_load,
 	uint64_t response_microseconds,
 	struct latency_observation *observation
 );

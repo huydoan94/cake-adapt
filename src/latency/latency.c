@@ -71,15 +71,8 @@ static void stop_child(pid_t process_identifier)
 	}
 }
 
-static int spawn_child(
-	pid_t *process_identifier,
-	const int output_pipe[2],
-	const char *executable,
-	char *const arguments[],
-	const char *name,
-	char *error,
-	size_t error_size
-)
+/* Returns 0 or the error number, like posix_spawn(). */
+static int spawn_child(char *const arguments[], const int output_pipe[2], pid_t *process_identifier)
 {
 	posix_spawn_file_actions_t actions;
 	posix_spawnattr_t attributes;
@@ -88,7 +81,7 @@ static int spawn_child(
 
 	result = posix_spawn_file_actions_init(&actions);
 	if (result != 0)
-		goto failed;
+		return result;
 	if ((result = posix_spawn_file_actions_addclose(&actions, output_pipe[0])) != 0 ||
 	    (result = posix_spawn_file_actions_adddup2(&actions, output_pipe[1], STDOUT_FILENO)) !=
 		    0 ||
@@ -120,7 +113,7 @@ static int spawn_child(
 	if (result == 0) {
 		result = posix_spawnp(
 			process_identifier,
-			executable,
+			arguments[0],
 			&actions,
 			&attributes,
 			arguments,
@@ -131,11 +124,7 @@ static int spawn_child(
 	(void)posix_spawnattr_destroy(&attributes);
 destroy_actions:
 	(void)posix_spawn_file_actions_destroy(&actions);
-failed:
-	if (result != 0) {
-		return error_set(error, error_size, "could not start %s: %s", name, strerror(result));
-	}
-	return 0;
+	return result;
 }
 
 /* Frees and clears words on failure; an empty value expands to no words. */
@@ -158,19 +147,24 @@ expand_words(const char *value, const char *option, wordexp_t *words, char *erro
 
 int pinger_command_init(
 	struct pinger_command *command,
-	const char *prefix,
-	const char *extra,
+	const struct latency *latency,
 	size_t fixed,
-	const char *name,
 	char *error,
 	size_t error_size
 )
 {
+	const char *prefix = latency->settings.prefix;
 	size_t count;
 	size_t index;
 
 	*command = (struct pinger_command){ 0 };
-	if (expand_words(extra, OPTION_PING_EXTRA_ARGS, &command->extra, error, error_size) != 0 ||
+	if (expand_words(
+		    latency->settings.extra_arguments,
+		    OPTION_PING_EXTRA_ARGS,
+		    &command->extra,
+		    error,
+		    error_size
+	    ) != 0 ||
 	    expand_words(prefix, OPTION_PING_PREFIX_STRING, &command->prefix, error, error_size) !=
 		    0)
 		goto fail;
@@ -187,7 +181,7 @@ int pinger_command_init(
 			error,
 			error_size,
 			"could not allocate %s arguments: %s",
-			name,
+			latency->ops->name,
 			strerror(errno)
 		);
 		goto fail;
@@ -209,33 +203,19 @@ void pinger_command_free(struct pinger_command *command)
 	*command = (struct pinger_command){ 0 };
 }
 
-int validate_targets(const char *const *targets, size_t target_count, char *error, size_t error_size)
-{
-	size_t index;
-
-	for (index = 0U; index < target_count; index++) {
-		if (!target_is_valid(targets[index])) {
-			return error_set(
-				error,
-				error_size,
-				"latency target '%s' is not a valid IP address or hostname",
-				targets[index]
-			);
-		}
-	}
-	return 0;
-}
-
 int start_child(
-	struct latency_child *child,
+	struct latency *latency,
+	size_t child_index,
 	char *const arguments[],
-	const char *name,
 	char *error,
 	size_t error_size
 )
 {
+	struct latency_child *child = &latency->children[child_index];
+	const char *name = latency->ops->name;
 	int output_pipe[2];
 	pid_t process_identifier;
+	int result;
 
 	if (pipe2(output_pipe, O_CLOEXEC) != 0) {
 		return error_set(
@@ -246,18 +226,11 @@ int start_child(
 			strerror(errno)
 		);
 	}
-	if (spawn_child(
-		    &process_identifier,
-		    output_pipe,
-		    arguments[0],
-		    arguments,
-		    name,
-		    error,
-		    error_size
-	    ) != 0) {
+	result = spawn_child(arguments, output_pipe, &process_identifier);
+	if (result != 0) {
 		(void)close(output_pipe[0]);
 		(void)close(output_pipe[1]);
-		return -1;
+		return error_set(error, error_size, "could not start %s: %s", name, strerror(result));
 	}
 	(void)close(output_pipe[1]);
 	if (set_nonblocking(output_pipe[0], name, error, error_size) != 0) {
@@ -270,35 +243,46 @@ int start_child(
 	return 0;
 }
 
-void latency_init(struct latency *latency)
+/* Every pinger backend and the executable it launches. */
+static const struct {
+	const char *method;
+	const char *executable;
+	const struct pinger_ops *ops;
+} backends[] = {
+	{ PINGER_METHOD_FPING, FPING_PATH, &fping_ops },
+	{ PINGER_METHOD_FPING_TS, FPING_PATH, &fping_ts_ops },
+	{ PINGER_METHOD_IRTT, IRTT_PATH, &irtt_ops },
+};
+
+static size_t backend_index(const char *pinger_method)
 {
 	size_t index;
 
-	*latency = (struct latency){ .ops = &fping_ops };
+	for (index = 0U; index < ARRAY_SIZE(backends); index++)
+		if (strcmp(backends[index].method, pinger_method) == 0)
+			return index;
+	return SIZE_MAX;
+}
+
+void latency_init(struct latency *latency, const struct latency_settings *settings)
+{
+	size_t index;
+
+	*latency = (struct latency){
+		.ops = backends[backend_index(settings->pinger_method)].ops,
+		.settings = *settings,
+	};
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
 		latency->children[index].output_descriptor = -1;
 		latency->children[index].process_identifier = -1;
 	}
 }
 
-/* Every pinger backend and the executable it launches. */
-static const struct {
-	const char *method;
-	const char *executable;
-} backends[] = {
-	{ PINGER_METHOD_FPING, FPING_PATH },
-	{ PINGER_METHOD_FPING_TS, FPING_PATH },
-	{ PINGER_METHOD_IRTT, IRTT_PATH },
-};
-
 const char *latency_backend_executable(const char *pinger_method)
 {
-	size_t index;
+	size_t index = backend_index(pinger_method);
 
-	for (index = 0U; index < ARRAY_SIZE(backends); index++)
-		if (strcmp(backends[index].method, pinger_method) == 0)
-			return backends[index].executable;
-	return NULL;
+	return index == SIZE_MAX ? NULL : backends[index].executable;
 }
 
 int latency_check_backend(const char *pinger_method, char *error, size_t error_size)
@@ -380,8 +364,6 @@ void latency_close(struct latency *latency)
 		}
 	}
 	latency->active = false;
-	latency->ping_extra_args = NULL;
-	latency->ping_prefix_string = NULL;
 	latency->child_count = 0U;
 }
 
@@ -409,6 +391,19 @@ void latency_stop_now(struct latency *latency)
 		child->process_identifier = -1;
 		child->stopping = false;
 	}
+}
+
+int latency_open(
+	struct latency *latency,
+	const char *const *targets,
+	size_t target_count,
+	uint64_t timestamp_microseconds,
+	char *error,
+	size_t error_size
+)
+{
+	return latency->ops
+		->open(latency, targets, target_count, timestamp_microseconds, error, error_size);
 }
 
 enum latency_line_result

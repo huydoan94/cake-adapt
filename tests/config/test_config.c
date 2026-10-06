@@ -21,6 +21,18 @@ int uci_lookup_next(
 	return UCI_OK;
 }
 
+/* Parses value as an option named "test" stored multiplied by scale. */
+static int
+parse_decimal(const char *value, uint64_t scale, uint64_t *result, char *error, size_t error_size)
+{
+	const struct loader loader = { .error = error, .error_size = error_size };
+	const struct option_binding option = { .name = "test",
+					       .type = TYPE_SCALED,
+					       .scale = scale };
+
+	return parse_scaled_decimal(&loader, &option, value, result);
+}
+
 static void test_scalar_option_types(void)
 {
 	struct uci_section section = { 0 };
@@ -30,22 +42,28 @@ static void test_scalar_option_types(void)
 	};
 	struct config config = { .no_pingers = 7U, .interface = "default" };
 	char error[128];
+	const struct loader loader = {
+		.section = &section,
+		.config = &config,
+		.error = error,
+		.error_size = sizeof(error),
+	};
 
 	lookup_option = &option;
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == -1);
+	assert(load_options(&loader) == -1);
 	assert(strstr(error, "not a list") != NULL);
 	assert(!config.enabled);
 	option.e.name = "no_pingers";
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == -1);
+	assert(load_options(&loader) == -1);
 	assert(config.no_pingers == 7U);
 	option.e.name = "interface";
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == -1);
+	assert(load_options(&loader) == -1);
 	assert(strcmp(config.interface, "default") == 0);
 
 	lookup_option = NULL;
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(&loader) == 0);
+	assert(load_options(&loader) == 0);
+	assert(load_options(&loader) == 0);
 	assert(!config.enabled);
 	assert(config.no_pingers == 7U);
 	assert(strcmp(config.interface, "default") == 0);
@@ -54,13 +72,13 @@ static void test_scalar_option_types(void)
 	option.type = UCI_TYPE_STRING;
 	option.v.string = "1";
 	option.e.name = "enabled";
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(&loader) == 0);
 	assert(config.enabled);
 	option.e.name = "no_pingers";
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(&loader) == 0);
 	assert(config.no_pingers == 1U);
 	option.e.name = "interface";
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(&loader) == 0);
 	assert(strcmp(config.interface, "1") == 0);
 	lookup_option = NULL;
 }
@@ -146,12 +164,12 @@ static struct config valid_config(void)
 				.stall_detection_threshold = 5U,
 				.global_ping_response_timeout_microseconds = 10000000U,
 				.interface_up_check_interval_microseconds = 10000000U,
-				.minimum_download_rate_bits_per_second = 5000000U,
-				.base_download_rate_bits_per_second = 20000000U,
-				.maximum_download_rate_bits_per_second = 80000000U,
-				.minimum_upload_rate_bits_per_second = 5000000U,
-				.base_upload_rate_bits_per_second = 20000000U,
-				.maximum_upload_rate_bits_per_second = 35000000U,
+				.download.minimum_rate_bits_per_second = 5000000U,
+				.download.base_rate_bits_per_second = 20000000U,
+				.download.maximum_rate_bits_per_second = 80000000U,
+				.upload.minimum_rate_bits_per_second = 5000000U,
+				.upload.base_rate_bits_per_second = 20000000U,
+				.upload.maximum_rate_bits_per_second = 35000000U,
 				.connection_active_threshold_bits_per_second = 2000000U };
 }
 
@@ -203,10 +221,16 @@ static void test_ul_congest_ack_share(void)
 	};
 	struct config config = valid_config();
 	char error[256] = "";
+	const struct loader loader = {
+		.section = &section,
+		.config = &config,
+		.error = error,
+		.error_size = sizeof(error),
+	};
 
 	(void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
 	lookup_option = &option;
-	assert(load_options(NULL, &section, &config, error, sizeof(error)) == 0);
+	assert(load_options(&loader) == 0);
 	lookup_option = NULL;
 	assert(config.ul_congest_ack_share_per_million == 450000U);
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
@@ -228,6 +252,12 @@ static void test_reflector_list_validation(void)
 	(void)snprintf(config.reflectors[1], sizeof(config.reflectors[1]), "1.1.1.1");
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
 	assert(validate_reflectors(&config, error, sizeof(error)) == 0);
+	/* Each active reflector needs at least a millisecond of the ping interval. */
+	config.reflector_ping_interval_microseconds = 1999U;
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strstr(error, "at least 1 ms per active reflector") != NULL);
+	config.reflector_ping_interval_microseconds = 2000U;
+	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
 	(void)snprintf(config.reflectors[1], sizeof(config.reflectors[1]), "::1");
 	assert(validate_reflectors(&config, error, sizeof(error)) != 0);
 	assert(strstr(error, "duplicate") != NULL);
@@ -240,6 +270,19 @@ static void test_new_timer_and_limit_validation(void)
 {
 	struct config config = valid_config();
 	char error[256] = "";
+
+	/* Trackers and reflector health rely on these bounds. */
+	config.alpha_delta_ewma_per_million = 1000001U;
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strstr(error, "alpha options") != NULL);
+	config = valid_config();
+	config.reflector_misbehaving_detection_window = 2U;
+	config.reflector_misbehaving_detection_threshold = 3U;
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strstr(error, "offence threshold") != NULL);
+	config.reflector_misbehaving_detection_threshold = 0U;
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	config = valid_config();
 
 	config.stall_detection_threshold = UINT64_MAX;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
@@ -268,74 +311,46 @@ static void test_option_copy_boundaries(void)
 {
 	char value[4] = "old";
 	char error[128];
+	const struct loader loader = { .error = error, .error_size = sizeof(error) };
 
-	assert(copy_option(value, sizeof(value), "abc", "test", error, sizeof(error)) == 0);
+	assert(copy_option(&loader, "test", value, sizeof(value), "abc") == 0);
 	assert(strcmp(value, "abc") == 0);
-	assert(copy_option(value, sizeof(value), "abcd", "test", error, sizeof(error)) == -1);
+	assert(copy_option(&loader, "test", value, sizeof(value), "abcd") == -1);
 	assert(strcmp(value, "abc") == 0);
 	assert(strstr(error, "too long") != NULL);
-	assert(copy_option(value, sizeof(value), "", "test", error, sizeof(error)) == 0);
+	assert(copy_option(&loader, "test", value, sizeof(value), "") == 0);
 	assert(value[0] == '\0');
 }
 
 int main(void)
 {
+	struct config_direction rates;
 	uint64_t value = 0U;
 	char error[256] = "";
 
-	assert(parse_scaled_decimal(
-		       "18446744073709551615",
-		       1U,
-		       &value,
-		       "test",
-		       error,
-		       sizeof(error)
-	       ) == 0);
+	assert(parse_decimal("18446744073709551615", 1U, &value, error, sizeof(error)) == 0);
 	assert(value == UINT64_MAX);
-	assert(parse_scaled_decimal(
-		       "18446744073709551616",
-		       1U,
-		       &value,
-		       "test",
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	assert(parse_decimal("18446744073709551616", 1U, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "too large") != NULL);
 	/* Representable, but not once scaled. */
-	assert(parse_scaled_decimal(
-		       "18446744073709552",
-		       1000U,
-		       &value,
-		       "test",
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	assert(parse_decimal("18446744073709552", 1000U, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "too large") != NULL);
-	assert(parse_scaled_decimal("1.025", 1000U, &value, "test", error, sizeof(error)) == 0);
+	assert(parse_decimal("1.025", 1000U, &value, error, sizeof(error)) == 0);
 	assert(value == 1025U);
-	assert(parse_scaled_decimal("1.0251", 1000U, &value, "test", error, sizeof(error)) != 0);
+	assert(parse_decimal("1.0251", 1000U, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "more precision") != NULL);
-	assert(parse_scaled_decimal("+1", 1U, &value, "test", error, sizeof(error)) != 0);
+	assert(parse_decimal("+1", 1U, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "non-negative decimal") != NULL);
 
-	assert(validate_rate_range(
-		       true,
-		       5000000U,
-		       20000000U,
-		       80000000U,
-		       "download",
-		       error,
-		       sizeof(error)
-	       ) == 0);
-	assert(validate_rate_range(
-		       true,
-		       5000001U,
-		       20000000U,
-		       80000000U,
-		       "download",
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	rates = (struct config_direction){
+		.adjust = true,
+		.minimum_rate_bits_per_second = 5000000U,
+		.base_rate_bits_per_second = 20000000U,
+		.maximum_rate_bits_per_second = 80000000U,
+	};
+	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
+	rates.minimum_rate_bits_per_second = 5000001U;
+	assert(validate_rate_range(&rates, "download", error, sizeof(error)) != 0);
 	assert(strstr(error, "whole kbit/s") != NULL);
 
 	test_supported_pinger_methods();

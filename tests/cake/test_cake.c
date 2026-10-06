@@ -80,7 +80,7 @@ static void test_dump_routes_each_interface(void)
 		{ .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x10000U },
 		{ .tcm_ifindex = 7, .tcm_parent = TC_H_ROOT, .tcm_handle = 0x30000U },
 	};
-	struct cake_observation observations[2] = { { 0 } };
+	struct cake_observation observations[2] = { 0 };
 	struct cake_read reads[2] = {
 		{ .observation = &observations[0], .interface_index = 7U },
 		{ .observation = &observations[1], .interface_index = 8U },
@@ -101,10 +101,10 @@ static void test_dump_routes_each_interface(void)
 		nlmsg_free(messages[index]);
 	}
 	/* The first matching root wins; a later message cannot overwrite it. */
-	assert(reads[0].found && observations[0].handle == 0x10000U);
-	assert(observations[0].interface_index == 7U);
-	assert(reads[1].found && observations[1].handle == 0x20000U);
-	assert(observations[1].interface_index == 8U);
+	assert(reads[0].found && observations[0].qdisc.handle == 0x10000U);
+	assert(observations[0].qdisc.interface_index == 7U);
+	assert(reads[1].found && observations[1].qdisc.handle == 0x20000U);
+	assert(observations[1].qdisc.interface_index == 8U);
 }
 
 static void test_invalid_optional_attributes(void)
@@ -160,15 +160,14 @@ static void test_missing_interface(void)
 {
 	struct netlink netlink = { 0 };
 	struct cake_observation observation = { 0 };
-	char error[128];
 	/* Longer than IFNAMSIZ, so it cannot accidentally name a host interface. */
-	const char *interface = "missing-interface";
+	struct cake_read read = { .interface = "missing-interface", .observation = &observation };
 
-	assert(cake_read(&netlink, interface, &observation, error, sizeof(error)) ==
-	       CAKE_READ_ERROR);
-	assert(strstr(error, "could not find interface") != NULL);
+	cake_read(&netlink, &read, 1U);
+	assert(read.result == CAKE_READ_ERROR);
+	assert(strstr(read.error, "could not find interface") != NULL);
 	assert(netlink.socket == NULL);
-	assert(observation.interface_index == 0U);
+	assert(observation.qdisc.interface_index == 0U);
 }
 
 /* Unprivileged qdisc dump against the host kernel's loopback, which has no CAKE. */
@@ -176,19 +175,19 @@ static void test_missing_cake_clears_cached_interface(void)
 {
 	struct netlink netlink = { 0 };
 	struct cake_observation observation = {
-		.interface_index = (unsigned int)INT_MAX,
+		.qdisc = { .interface_index = (unsigned int)INT_MAX },
 		.has_mtu = true,
 	};
-	char error[128] = "";
+	struct cake_read read = { .interface = "lo", .observation = &observation };
 
 	/* A stale index cannot match any qdisc, so the next read resolves the name. */
-	assert(cake_read(&netlink, "lo", &observation, error, sizeof(error)) ==
-	       CAKE_READ_NOT_FOUND);
-	assert(observation.interface_index == 0U);
+	cake_read(&netlink, &read, 1U);
+	assert(read.result == CAKE_READ_NOT_FOUND);
+	assert(observation.qdisc.interface_index == 0U);
 	assert(!observation.has_mtu);
-	assert(cake_read(&netlink, "lo", &observation, error, sizeof(error)) ==
-	       CAKE_READ_NOT_FOUND);
-	assert(observation.interface_index == 0U);
+	cake_read(&netlink, &read, 1U);
+	assert(read.result == CAKE_READ_NOT_FOUND);
+	assert(observation.qdisc.interface_index == 0U);
 	netlink_close(&netlink);
 }
 
@@ -196,13 +195,13 @@ static void test_missing_cake_clears_cached_interface(void)
 static void test_read_all_reports_each_interface(void)
 {
 	struct netlink netlink = { 0 };
-	struct cake_observation observations[2] = { { 0 } };
+	struct cake_observation observations[2] = { 0 };
 	struct cake_read reads[2] = {
 		{ .interface = "missing-interface", .observation = &observations[0] },
 		{ .interface = "lo", .observation = &observations[1] },
 	};
 
-	cake_read_all(&netlink, reads, 2U);
+	cake_read(&netlink, reads, 2U);
 	assert(reads[0].result == CAKE_READ_ERROR);
 	assert(strstr(reads[0].error, "could not find interface") != NULL);
 	assert(reads[1].result == CAKE_READ_NOT_FOUND);

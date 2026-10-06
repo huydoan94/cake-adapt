@@ -22,21 +22,19 @@ struct tcpdelay_capture {
 	/* One copy per possible CPU, for reading the per-CPU counters. */
 	struct tcpdelay_counters *counter_values;
 	size_t cpu_count;
-	/* Borrowed; every drained record is added to it. */
-	struct tcpdelay_estimator *estimator;
+	/* Every drained record is added to it; it starts empty with each capture. */
+	struct tcpdelay_estimator estimator;
 };
 
 /*
- * Loads the socket filter from object_path and attaches it to a packet socket
- * on interface. Records are only collected by tcpdelay_capture_drain().
+ * Loads the installed socket filter and attaches it to a packet socket on
+ * interface. Records are only collected by tcpdelay_capture_drain().
  * NULL accounting keeps raw counters; a model enables verified CAKE charges.
  */
 int tcpdelay_capture_open(
 	struct tcpdelay_capture *capture,
-	const char *object_path,
 	const char *interface,
 	const struct cake_accounting *accounting,
-	struct tcpdelay_estimator *estimator,
 	char *error,
 	size_t error_size
 );

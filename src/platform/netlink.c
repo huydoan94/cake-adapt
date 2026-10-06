@@ -85,13 +85,7 @@ void netlink_close(struct netlink *netlink)
 	*netlink = (struct netlink){ 0 };
 }
 
-int netlink_subscribe_qdiscs(
-	struct netlink *netlink,
-	qdisc_event_handler handler,
-	void *handler_context,
-	char *error,
-	size_t error_size
-)
+int netlink_subscribe_qdiscs(struct netlink *netlink, char *error, size_t error_size)
 {
 	struct nl_sock *events;
 	int result;
@@ -122,8 +116,6 @@ int netlink_subscribe_qdiscs(
 		return -1;
 	}
 	netlink->events = events;
-	netlink->event_handler = handler;
-	netlink->event_handler_context = handler_context;
 	return 0;
 }
 
@@ -146,12 +138,11 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 		return NL_OK;
 	}
 	traffic_control = NLMSG_DATA(header);
-	event = (struct qdisc_event){ .type = header->nlmsg_type == RTM_NEWQDISC ? QDISC_CREATED :
-										   QDISC_REMOVED,
-				      .interface_index = (unsigned int)traffic_control->tcm_ifindex,
-				      .handle = traffic_control->tcm_handle,
-				      .parent = traffic_control->tcm_parent };
-	netlink->event_handler(&event, netlink->event_handler_context);
+	event.type = header->nlmsg_type == RTM_NEWQDISC ? QDISC_CREATED : QDISC_REMOVED;
+	event.qdisc.interface_index = (unsigned int)traffic_control->tcm_ifindex;
+	event.qdisc.handle = traffic_control->tcm_handle;
+	event.qdisc.parent = traffic_control->tcm_parent;
+	netlink->qdisc_event(netlink, &event);
 	return NL_OK;
 }
 
@@ -424,24 +415,19 @@ int netlink_dump_qdiscs(
 	return send_request(netlink, message, &response, error, error_size);
 }
 
-int netlink_change_qdisc_option(
+int netlink_change_qdisc(
 	struct netlink *netlink,
-	unsigned int interface_index,
-	uint32_t handle,
-	uint32_t parent,
-	const char *kind,
-	unsigned short option_type,
-	const void *option_data,
-	size_t option_size,
+	const struct qdisc_id *qdisc,
+	const struct qdisc_option *option,
 	char *error,
 	size_t error_size
 )
 {
 	struct tcmsg traffic_control = {
 		.tcm_family = AF_UNSPEC,
-		.tcm_ifindex = (int)interface_index,
-		.tcm_handle = handle,
-		.tcm_parent = parent,
+		.tcm_ifindex = (int)qdisc->interface_index,
+		.tcm_handle = qdisc->handle,
+		.tcm_parent = qdisc->parent,
 	};
 	/* A change is only acknowledged, so it needs no message handler. */
 	struct response_context response = { .request = NETLINK_REQUEST_QDISC_CHANGE };
@@ -449,14 +435,14 @@ int netlink_change_qdisc_option(
 	struct nl_msg *message;
 	int result;
 
-	if (option_size > INT_MAX)
+	if (option->size > INT_MAX)
 		return error_set(error, error_size, "qdisc option is too large");
 
 	message = nlmsg_alloc_simple(RTM_NEWQDISC, NLM_F_ACK);
 	if (message == NULL)
 		return error_set(error, error_size, "could not allocate qdisc change request");
 	result = nlmsg_append(message, &traffic_control, sizeof(traffic_control), NLMSG_ALIGNTO);
-	if (result < 0 || nla_put_string(message, TCA_KIND, kind) < 0) {
+	if (result < 0 || nla_put_string(message, TCA_KIND, option->kind) < 0) {
 		error_set(error, error_size, "could not construct qdisc change request");
 		nlmsg_free(message);
 		return -1;
@@ -464,7 +450,7 @@ int netlink_change_qdisc_option(
 
 	options = nla_nest_start(message, TCA_OPTIONS);
 	if (options == NULL ||
-	    nla_put(message, (int)option_type, (int)option_size, option_data) < 0) {
+	    nla_put(message, (int)option->type, (int)option->size, option->data) < 0) {
 		error_set(error, error_size, "qdisc option is too large");
 		nlmsg_free(message);
 		return -1;

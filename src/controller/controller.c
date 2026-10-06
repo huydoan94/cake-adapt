@@ -175,8 +175,7 @@ static enum controller_line_state update_line_state(
 static enum controller_congestion_state update_congestion(
 	struct controller_direction *direction,
 	const struct controller_config *config,
-	const struct controller_latency_input *latency,
-	int64_t *average_delay_microseconds
+	const struct controller_latency_input *latency
 )
 {
 	int64_t *sample;
@@ -185,7 +184,7 @@ static enum controller_congestion_state update_congestion(
 
 	if (!latency->valid) {
 		direction->congestion = CONTROLLER_CONGESTION_UNKNOWN;
-		*average_delay_microseconds = 0;
+		direction->average_delay_microseconds = 0;
 		return direction->congestion;
 	}
 
@@ -213,7 +212,7 @@ static enum controller_congestion_state update_congestion(
 	direction->delay_next_sample = index + 1U;
 	if (direction->delay_next_sample == config->bufferbloat_detection_window)
 		direction->delay_next_sample = 0U;
-	*average_delay_microseconds =
+	direction->average_delay_microseconds =
 		direction->delay_sum_microseconds / (int64_t)config->bufferbloat_detection_window;
 	direction->congestion = direction->delayed_sample_count >=
 						config->bufferbloat_detection_threshold ?
@@ -244,29 +243,29 @@ static uint64_t interpolate_factor(
 	return base + adjustment * difference;
 }
 
-static uint64_t downward_factor(
-	const struct controller_direction_config *config,
-	const struct controller_config *controller_config,
-	int64_t average_delay_microseconds
-)
+static uint64_t
+downward_factor(const struct controller_direction *direction, const struct controller_config *config)
 {
+	const struct controller_direction_config *thresholds = &direction->config;
+	int64_t average_delay_microseconds = direction->average_delay_microseconds;
 	uint64_t adjustment;
 	uint64_t delay_above_threshold;
 	uint64_t adjustment_range;
 
-	if (config->average_delay_maximum_adjust_down_microseconds <=
-	    config->delay_threshold_microseconds) {
+	if (thresholds->average_delay_maximum_adjust_down_microseconds <=
+	    thresholds->delay_threshold_microseconds) {
 		adjustment = THOUSAND;
 	} else if (average_delay_microseconds > 0 &&
-		   (uint64_t)average_delay_microseconds > config->delay_threshold_microseconds) {
-		adjustment_range = config->average_delay_maximum_adjust_down_microseconds -
-				   config->delay_threshold_microseconds;
+		   (uint64_t)average_delay_microseconds >
+			   thresholds->delay_threshold_microseconds) {
+		adjustment_range = thresholds->average_delay_maximum_adjust_down_microseconds -
+				   thresholds->delay_threshold_microseconds;
 		if ((uint64_t)average_delay_microseconds >=
-		    config->average_delay_maximum_adjust_down_microseconds) {
+		    thresholds->average_delay_maximum_adjust_down_microseconds) {
 			adjustment = THOUSAND;
 		} else {
 			delay_above_threshold = (uint64_t)average_delay_microseconds -
-						config->delay_threshold_microseconds;
+						thresholds->delay_threshold_microseconds;
 			adjustment = THOUSAND * delay_above_threshold / adjustment_range;
 		}
 	} else {
@@ -274,56 +273,64 @@ static uint64_t downward_factor(
 	}
 
 	return interpolate_factor(
-		controller_config->rate_minimum_adjust_down_bufferbloat_per_thousand,
-		controller_config->rate_maximum_adjust_down_bufferbloat_per_thousand,
+		config->rate_minimum_adjust_down_bufferbloat_per_thousand,
+		config->rate_maximum_adjust_down_bufferbloat_per_thousand,
 		adjustment
 	);
 }
 
-static uint64_t upward_factor(
-	const struct controller_direction_config *config,
-	const struct controller_config *controller_config,
-	int64_t average_delay_microseconds
-)
+static uint64_t
+upward_factor(const struct controller_direction *direction, const struct controller_config *config)
 {
+	const struct controller_direction_config *thresholds = &direction->config;
+	int64_t average_delay_microseconds = direction->average_delay_microseconds;
 	uint64_t adjustment;
 	uint64_t delay_below_threshold;
 	uint64_t adjustment_range;
 
-	if (config->delay_threshold_microseconds <=
-		    config->average_delay_maximum_adjust_up_microseconds ||
+	if (thresholds->delay_threshold_microseconds <=
+		    thresholds->average_delay_maximum_adjust_up_microseconds ||
 	    average_delay_microseconds <= 0 ||
 	    (uint64_t)average_delay_microseconds <=
-		    config->average_delay_maximum_adjust_up_microseconds) {
+		    thresholds->average_delay_maximum_adjust_up_microseconds) {
 		adjustment = THOUSAND;
-	} else if ((uint64_t)average_delay_microseconds < config->delay_threshold_microseconds) {
-		delay_below_threshold =
-			config->delay_threshold_microseconds - (uint64_t)average_delay_microseconds;
-		adjustment_range = config->delay_threshold_microseconds -
-				   config->average_delay_maximum_adjust_up_microseconds;
+	} else if ((uint64_t)average_delay_microseconds <
+		   thresholds->delay_threshold_microseconds) {
+		delay_below_threshold = thresholds->delay_threshold_microseconds -
+					(uint64_t)average_delay_microseconds;
+		adjustment_range = thresholds->delay_threshold_microseconds -
+				   thresholds->average_delay_maximum_adjust_up_microseconds;
 		adjustment = THOUSAND * delay_below_threshold / adjustment_range;
 	} else {
 		adjustment = 0U;
 	}
 
 	return interpolate_factor(
-		controller_config->rate_minimum_adjust_up_high_load_per_thousand,
-		controller_config->rate_maximum_adjust_up_high_load_per_thousand,
+		config->rate_minimum_adjust_up_high_load_per_thousand,
+		config->rate_maximum_adjust_up_high_load_per_thousand,
 		adjustment
 	);
 }
 
+/* One direction's share of a controller_update(), after attribution. */
+struct direction_update {
+	const struct controller_direction_input *input;
+	struct controller_latency_input latency;
+	/* Bufferbloat is blamed on this direction, so a detected bufferbloat may cut its rate. */
+	bool bufferbloat_attributed;
+	/* The ACK share ceiling for download; UINT64_MAX when none applies. */
+	uint64_t ceiling_bits_per_second;
+	uint64_t timestamp_microseconds;
+};
+
 static enum controller_rate_reason adjust_rate(
 	struct controller_direction *direction,
 	const struct controller_config *config,
-	const struct controller_direction_input *input,
-	bool latency_valid,
-	bool bufferbloat_attributed,
-	uint64_t ceiling_bits_per_second,
-	int64_t average_delay_microseconds,
-	uint64_t timestamp_microseconds
+	const struct direction_update *update
 )
 {
+	const struct controller_direction_input *input = update->input;
+	uint64_t timestamp_microseconds = update->timestamp_microseconds;
 	uint64_t previous_rate = direction->shaper_rate_bits_per_second;
 	bool congested = direction->congestion == CONTROLLER_CONGESTION_DETECTED;
 	bool refractory_elapsed;
@@ -338,7 +345,7 @@ static enum controller_rate_reason adjust_rate(
 		direction->last_decay_adjustment_microseconds = timestamp_microseconds;
 		return CONTROLLER_RATE_INITIAL;
 	}
-	if (!latency_valid)
+	if (!update->latency.valid)
 		return CONTROLLER_RATE_UNCHANGED;
 
 	high_load = load_percent(input->traffic_rate_bits_per_second, previous_rate) >
@@ -349,12 +356,9 @@ static enum controller_rate_reason adjust_rate(
 		direction->last_congestion_adjustment_microseconds,
 		config->bufferbloat_refractory_period_microseconds
 	);
-	if (congested && bufferbloat_attributed && refractory_elapsed) {
-		direction->shaper_rate_bits_per_second = scale_rate(
-			previous_rate,
-			downward_factor(&direction->config, config, average_delay_microseconds),
-			MILLION
-		);
+	if (congested && update->bufferbloat_attributed && refractory_elapsed) {
+		direction->shaper_rate_bits_per_second =
+			scale_rate(previous_rate, downward_factor(direction, config), MILLION);
 		direction->last_congestion_adjustment_microseconds = timestamp_microseconds;
 		/* Do not let low-load decay immediately undo a congestion cut. */
 		direction->last_decay_adjustment_microseconds = timestamp_microseconds;
@@ -364,11 +368,8 @@ static enum controller_rate_reason adjust_rate(
 		/* Like upstream achieved_rate_updated: one increase per load sample,
 		 * even when the factor is one or the maximum rate clips the result. */
 		direction->last_increase_sample_id = input->traffic_sample_id;
-		direction->shaper_rate_bits_per_second = scale_rate(
-			previous_rate,
-			upward_factor(&direction->config, config, average_delay_microseconds),
-			MILLION
-		);
+		direction->shaper_rate_bits_per_second =
+			scale_rate(previous_rate, upward_factor(direction, config), MILLION);
 		/* Give the increased rate a full decay interval to be observed. */
 		direction->last_decay_adjustment_microseconds = timestamp_microseconds;
 	} else if (!congested && !high_load &&
@@ -387,8 +388,8 @@ static enum controller_rate_reason adjust_rate(
 		direction->last_decay_adjustment_microseconds = timestamp_microseconds;
 	}
 
-	if (direction->shaper_rate_bits_per_second > ceiling_bits_per_second) {
-		direction->shaper_rate_bits_per_second = ceiling_bits_per_second;
+	if (direction->shaper_rate_bits_per_second > update->ceiling_bits_per_second) {
+		direction->shaper_rate_bits_per_second = update->ceiling_bits_per_second;
 		capped = true;
 	}
 	/* The minimum rate still wins over the ceiling. */
@@ -433,40 +434,25 @@ static void set_rate_output(
 static void update_direction(
 	struct controller_direction *direction,
 	const struct controller_config *config,
-	const struct controller_direction_input *input,
-	const struct controller_latency_input *latency,
-	bool bufferbloat_attributed,
-	uint64_t ceiling_bits_per_second,
-	uint64_t timestamp_microseconds,
+	const struct direction_update *update,
 	struct controller_direction_output *output
 )
 {
 	enum controller_line_state previous_state = direction->state;
 	enum controller_congestion_state previous_congestion = direction->congestion;
-	enum controller_rate_reason reason;
+	bool attributed = update->bufferbloat_attributed;
 
-	output->state = update_line_state(direction, input);
-	output->congestion =
-		update_congestion(direction, config, latency, &output->average_delay_microseconds);
-	reason = adjust_rate(
-		direction,
-		config,
-		input,
-		latency->valid,
-		bufferbloat_attributed,
-		ceiling_bits_per_second,
-		output->average_delay_microseconds,
-		timestamp_microseconds
-	);
-	set_rate_output(direction, input, reason, output);
+	output->state = update_line_state(direction, update->input);
+	output->congestion = update_congestion(direction, config, &update->latency);
+	output->average_delay_microseconds = direction->average_delay_microseconds;
+	set_rate_output(direction, update->input, adjust_rate(direction, config, update), output);
 
 	output->delayed_sample_count = direction->delayed_sample_count;
 	output->state_changed = output->state != previous_state;
 	output->congestion_changed = output->congestion != previous_congestion;
-	output->bufferbloat_attributed = bufferbloat_attributed;
-	output->bufferbloat_attribution_changed = bufferbloat_attributed !=
-						  direction->bufferbloat_attributed;
-	direction->bufferbloat_attributed = bufferbloat_attributed;
+	output->bufferbloat_attributed = attributed;
+	output->bufferbloat_attribution_changed = attributed != direction->bufferbloat_attributed;
+	direction->bufferbloat_attributed = attributed;
 }
 
 /*
@@ -516,19 +502,30 @@ void controller_update(
 					) :
 					0U;
 	const struct controller_queue_input *queue = &input->queue;
-	struct controller_latency_input download_latency = input->download_latency;
-	struct controller_latency_input upload_latency = input->upload_latency;
-	/*
-	 * With one shared delay, download delivering its full shaper rate has no
-	 * standing queue, so the delay is upload's; download loaded but delivering
-	 * less than its shaper rate is the bottleneck, so the delay is its own.
-	 */
-	bool download_attributed = !controller->config.shared_delay ||
-				   download_delivery < FULL_DELIVERY_PERCENT;
-	bool upload_attributed = !controller->config.shared_delay ||
-				 download_delivery <=
-					 controller->config.high_load_threshold_percent ||
-				 download_delivery >= FULL_DELIVERY_PERCENT;
+	struct direction_update download = {
+		.input = &input->download,
+		.latency = input->download_latency,
+		/*
+		 * With one shared delay, download delivering its full shaper rate has
+		 * no standing queue, so the delay is upload's; download loaded but
+		 * delivering less than its shaper rate is the bottleneck, so the delay
+		 * is its own.
+		 */
+		.bufferbloat_attributed = !controller->config.shared_delay ||
+					  download_delivery < FULL_DELIVERY_PERCENT,
+		.ceiling_bits_per_second = download_ceiling(controller, input),
+		.timestamp_microseconds = input->timestamp_microseconds,
+	};
+	struct direction_update upload = {
+		.input = &input->upload,
+		.latency = input->upload_latency,
+		.bufferbloat_attributed = !controller->config.shared_delay ||
+					  download_delivery <=
+						  controller->config.high_load_threshold_percent ||
+					  download_delivery >= FULL_DELIVERY_PERCENT,
+		.ceiling_bits_per_second = UINT64_MAX,
+		.timestamp_microseconds = input->timestamp_microseconds,
+	};
 
 	/*
 	 * Measured per-direction queues replace the heuristic, unless they are too
@@ -540,53 +537,37 @@ void controller_update(
 		    QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS) {
 		int64_t total = queue->download_microseconds + queue->upload_microseconds;
 
-		download_attributed = queue->download_microseconds * QUEUE_SHARE_DIVISOR >= total;
-		upload_attributed = queue->upload_microseconds * QUEUE_SHARE_DIVISOR >= total;
+		download.bufferbloat_attributed =
+			queue->download_microseconds * QUEUE_SHARE_DIVISOR >= total;
+		upload.bufferbloat_attributed = queue->upload_microseconds * QUEUE_SHARE_DIVISOR >=
+						total;
 		/*
 		 * Split the round-trip delta by the measured shares instead of RTT/2
 		 * each way, so a one-sided queue counts at its full size.
 		 */
-		if (download_latency.valid && upload_latency.valid) {
-			int64_t round_trip = download_latency.owd_delta_microseconds +
-					     upload_latency.owd_delta_microseconds;
+		if (download.latency.valid && upload.latency.valid) {
+			int64_t round_trip = download.latency.owd_delta_microseconds +
+					     upload.latency.owd_delta_microseconds;
 
-			download_latency.owd_delta_microseconds =
+			download.latency.owd_delta_microseconds =
 				round_trip * queue->download_microseconds / total;
-			upload_latency.owd_delta_microseconds =
-				round_trip - download_latency.owd_delta_microseconds;
+			upload.latency.owd_delta_microseconds =
+				round_trip - download.latency.owd_delta_microseconds;
 		}
 	}
 
-	update_direction(
-		&controller->download,
-		&controller->config,
-		&input->download,
-		&download_latency,
-		download_attributed,
-		download_ceiling(controller, input),
-		input->timestamp_microseconds,
-		&output->download
-	);
-	update_direction(
-		&controller->upload,
-		&controller->config,
-		&input->upload,
-		&upload_latency,
-		upload_attributed,
-		UINT64_MAX,
-		input->timestamp_microseconds,
-		&output->upload
-	);
+	update_direction(&controller->download, &controller->config, &download, &output->download);
+	update_direction(&controller->upload, &controller->config, &upload, &output->upload);
 }
 
 static void compensate_direction(
 	struct controller_direction *direction,
-	struct controller_direction_config *configured,
-	uint64_t wire_packet_bits,
-	uint64_t rate_bits_per_second
+	const struct controller_direction_config *configured,
+	uint64_t wire_packet_bits
 )
 {
-	uint64_t compensation = serialization_microseconds(wire_packet_bits, rate_bits_per_second);
+	uint64_t compensation =
+		serialization_microseconds(wire_packet_bits, direction->shaper_rate_bits_per_second);
 
 	direction->config.average_delay_maximum_adjust_up_microseconds = saturating_add(
 		configured->average_delay_maximum_adjust_up_microseconds,
@@ -603,22 +584,18 @@ static void compensate_direction(
 void controller_set_serialization_compensation(
 	struct controller *controller,
 	uint64_t download_wire_packet_bits,
-	uint64_t upload_wire_packet_bits,
-	uint64_t download_rate_bits_per_second,
-	uint64_t upload_rate_bits_per_second
+	uint64_t upload_wire_packet_bits
 )
 {
 	compensate_direction(
 		&controller->download,
 		&controller->config.download,
-		download_wire_packet_bits,
-		download_rate_bits_per_second
+		download_wire_packet_bits
 	);
 	compensate_direction(
 		&controller->upload,
 		&controller->config.upload,
-		upload_wire_packet_bits,
-		upload_rate_bits_per_second
+		upload_wire_packet_bits
 	);
 }
 
@@ -675,13 +652,24 @@ static bool rate_above(const struct controller_direction_input *input, uint64_t 
 	return input->valid && input->traffic_rate_bits_per_second / KILOBIT > threshold / KILOBIT;
 }
 
+void activity_init(
+	struct controller_activity *activity,
+	const struct controller_activity_config *config
+)
+{
+	*activity = (struct controller_activity){
+		.config = *config,
+		.state = CONTROLLER_RUNNING,
+	};
+}
+
 void activity_update(
 	struct controller_activity *activity,
-	const struct controller_activity_config *config,
 	const struct controller_activity_input *input,
 	struct controller_activity_output *output
 )
 {
+	const struct controller_activity_config *config = &activity->config;
 	enum controller_activity_state previous = activity->state;
 	uint64_t response_age =
 		saturating_sub(input->timestamp_microseconds, input->last_response_microseconds);

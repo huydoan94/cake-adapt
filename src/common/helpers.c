@@ -89,28 +89,31 @@ uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bit
 	return saturating_add(whole, fractional);
 }
 
-void response_timestamp(
+uint64_t response_monotonic_microseconds(
 	uint64_t processing_realtime_microseconds,
 	uint64_t processing_monotonic_microseconds,
-	uint64_t response_realtime_microseconds,
-	uint64_t *response_monotonic_microseconds,
-	bool *stale
+	uint64_t response_realtime_microseconds
 )
 {
-	uint64_t age_microseconds;
-
 	if (response_realtime_microseconds > processing_realtime_microseconds) {
-		*stale = false;
-		*response_monotonic_microseconds = saturating_add(
+		return saturating_add(
 			processing_monotonic_microseconds,
 			response_realtime_microseconds - processing_realtime_microseconds
 		);
-		return;
 	}
-	age_microseconds = processing_realtime_microseconds - response_realtime_microseconds;
-	*stale = age_microseconds > LATENCY_STALE_RESPONSE_MICROSECONDS;
-	*response_monotonic_microseconds =
-		saturating_sub(processing_monotonic_microseconds, age_microseconds);
+	return saturating_sub(
+		processing_monotonic_microseconds,
+		processing_realtime_microseconds - response_realtime_microseconds
+	);
+}
+
+bool response_stale(
+	uint64_t processing_realtime_microseconds,
+	uint64_t response_realtime_microseconds
+)
+{
+	return saturating_sub(processing_realtime_microseconds, response_realtime_microseconds) >
+	       LATENCY_STALE_RESPONSE_MICROSECONDS;
 }
 
 bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp)

@@ -20,7 +20,8 @@
 static int
 spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_t error_size)
 {
-	struct latency_child *child = &latency->children[child_index];
+	const struct latency_settings *settings = &latency->settings;
+	const struct latency_child *child = &latency->children[child_index];
 	struct pinger_command command;
 	char endpoint[LATENCY_TARGET_SIZE + 3U];
 	char interval[PINGER_ARGUMENT_SIZE];
@@ -28,29 +29,21 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 	size_t index;
 	int ret;
 
-	if (pinger_command_init(
-		    &command,
-		    latency->ping_prefix_string,
-		    latency->ping_extra_args,
-		    7U,
-		    PINGER_METHOD_IRTT,
-		    error,
-		    error_size
-	    ) != 0)
+	if (pinger_command_init(&command, latency, 7U, error, error_size) != 0)
 		return -1;
 
 	(void)snprintf(
 		interval,
 		sizeof(interval),
 		"%" PRIu64 ".%06" PRIu64 "s",
-		latency->reflector_ping_interval_microseconds / SECOND,
-		latency->reflector_ping_interval_microseconds % SECOND
+		settings->reflector_ping_interval_microseconds / SECOND,
+		settings->reflector_ping_interval_microseconds % SECOND
 	);
 	(void)snprintf(
 		duration,
 		sizeof(duration),
 		"%" PRIu64 "m",
-		latency->irtt_session_duration_minutes
+		settings->irtt_session_duration_minutes
 	);
 	if (strchr(child->target, ':') == NULL)
 		(void)strcpy(endpoint, child->target);
@@ -67,61 +60,40 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 	pinger_command_add(&command, duration);
 	pinger_command_add(&command, endpoint);
 
-	ret = start_child(child, command.argv, PINGER_METHOD_IRTT, error, error_size);
+	ret = start_child(latency, child_index, command.argv, error, error_size);
 	pinger_command_free(&command);
 	return ret;
 }
 
-int latency_open_irtt(
+/* Sessions start one per target, spread over the ping slot after timestamp_microseconds. */
+static int irtt_open(
 	struct latency *latency,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t reflector_ping_interval_microseconds,
-	uint64_t session_duration_minutes,
-	const char *extra_arguments,
-	const char *prefix,
-	uint64_t first_start_microseconds,
+	uint64_t timestamp_microseconds,
 	char *error,
 	size_t error_size
 )
 {
+	const struct latency_settings *settings = &latency->settings;
+	uint64_t interval = settings->reflector_ping_interval_microseconds;
+	uint64_t elapsed = timestamp_microseconds - settings->slot_origin_microseconds;
+	uint64_t first_start_microseconds = timestamp_microseconds + interval - elapsed % interval;
+	uint64_t spacing = interval / target_count;
 	struct pinger_command command;
-	uint64_t child_start_spacing_microseconds;
 	size_t index;
 
-	if (target_count == 0U || target_count > CONFIG_MAX_REFLECTORS ||
-	    reflector_ping_interval_microseconds / target_count < MILLISECOND ||
-	    session_duration_minutes == 0U) {
-		return error_set(error, error_size, "invalid irtt session configuration");
-	}
 	/* Each child expands the options again when it starts; check them now. */
-	if (pinger_command_init(
-		    &command,
-		    prefix,
-		    extra_arguments,
-		    0U,
-		    PINGER_METHOD_IRTT,
-		    error,
-		    error_size
-	    ) != 0) {
+	if (pinger_command_init(&command, latency, 0U, error, error_size) != 0)
 		return -1;
-	}
 	pinger_command_free(&command);
-	if (validate_targets(targets, target_count, error, error_size) != 0)
-		return -1;
 
-	child_start_spacing_microseconds = reflector_ping_interval_microseconds / target_count;
 	for (index = 0U; index < target_count; index++) {
 		latency->children[index].target = targets[index];
 		latency->children[index].next_start_microseconds =
-			first_start_microseconds + index * child_start_spacing_microseconds;
+			first_start_microseconds + index * spacing;
 	}
-	latency->ops = &irtt_ops;
 	latency->active = true;
-	latency->irtt_session_duration_minutes = session_duration_minutes;
-	latency->reflector_ping_interval_microseconds = reflector_ping_interval_microseconds;
-	latency->ping_extra_args = extra_arguments;
-	latency->ping_prefix_string = prefix;
 	latency->child_count = target_count;
 	return 0;
 }
@@ -135,8 +107,6 @@ int latency_start_irtt_children(
 {
 	size_t index;
 
-	if (!latency->active || latency->ops != &irtt_ops)
-		return error_set(error, error_size, "irtt session is not active");
 	for (index = 0U; index < latency->child_count; index++) {
 		struct latency_child *child = &latency->children[index];
 
@@ -225,6 +195,7 @@ irtt_exited(struct latency_child *child, char *error, size_t error_size)
 
 const struct pinger_ops irtt_ops = {
 	.name = PINGER_METHOD_IRTT,
+	.open = irtt_open,
 	.parse = irtt_parse,
 	.exited = irtt_exited,
 };

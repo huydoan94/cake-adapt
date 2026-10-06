@@ -8,19 +8,13 @@
 
 uint64_t traffic_compensated_interval_microseconds(
 	uint64_t configured_interval_microseconds,
-	uint64_t download_wire_packet_bits,
-	uint64_t download_rate_bits_per_second,
-	uint64_t upload_wire_packet_bits,
-	uint64_t upload_rate_bits_per_second
+	uint64_t round_trip_serialization_microseconds
 )
 {
-	uint64_t round_trip =
-		serialization_microseconds(download_wire_packet_bits, download_rate_bits_per_second);
-	uint64_t upload =
-		serialization_microseconds(upload_wire_packet_bits, upload_rate_bits_per_second);
-
-	round_trip = saturating_mul(saturating_add(round_trip, upload), 10U);
-	return max_u64(configured_interval_microseconds, round_trip);
+	return max_u64(
+		configured_interval_microseconds,
+		saturating_mul(round_trip_serialization_microseconds, 10U)
+	);
 }
 
 void traffic_init(struct traffic_monitor *monitor)
@@ -44,10 +38,8 @@ enum traffic_update_result traffic_update(
 	if (!has_previous)
 		return TRAFFIC_UPDATE_BASELINE;
 
-	if (sample->qdisc_handle != previous.qdisc_handle ||
-	    sample->qdisc_parent != previous.qdisc_parent) {
+	if (!qdisc_same(&sample->qdisc, &previous.qdisc))
 		return TRAFFIC_UPDATE_QDISC_REPLACED;
-	}
 
 	if (sample->bytes < previous.bytes)
 		return TRAFFIC_UPDATE_COUNTER_RESET;

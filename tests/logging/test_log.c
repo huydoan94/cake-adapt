@@ -17,6 +17,26 @@
 #include <unistd.h>
 #include <zlib.h>
 
+/* A log file without rotation, buffering or compression. */
+static const struct log_file_settings unlimited = { 0 };
+static const struct log_file_settings size_limited = { .maximum_size_kilobytes = 1U };
+static const struct log_file_settings size_limited_compressed = {
+	.maximum_size_kilobytes = 1U,
+	.compress_exports = true,
+};
+static const struct log_file_settings buffered = { .buffer_timeout_microseconds = 500000U };
+static const struct log_file_settings aged_and_buffered = {
+	.maximum_time_minutes = 1U,
+	.buffer_timeout_microseconds = 500000U,
+};
+static const struct log_records every_record = {
+	.data = true,
+	.load = true,
+	.reflector = true,
+	.summary = true,
+};
+static const struct log_records load_records = { .load = true };
+static const struct log_records tcp_queue_records = { .tcp_queue = true };
 static bool use_mock_time;
 static struct timespec mock_time;
 static time_t mock_realtime_offset;
@@ -181,7 +201,7 @@ static void test_debug_logging_to_file(void)
 
 	log_init("sqm-mon-test", false);
 	log_set_level(LOG_LEVEL_DEBUG);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	log_message(LOG_LEVEL_DEBUG, "sample value=%d", 42);
 	log_close();
 
@@ -203,7 +223,7 @@ static void test_file_logging_respects_level(void)
 
 	log_init("sqm-mon-test", false);
 	log_set_level(LOG_LEVEL_NOTICE);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	log_message(LOG_LEVEL_DEBUG, "hidden debug message");
 	log_message(LOG_LEVEL_NOTICE, "visible notice");
 	log_close();
@@ -217,7 +237,7 @@ static void test_file_logging_respects_level(void)
 
 static void test_empty_file_path_is_rejected(void)
 {
-	assert(log_set_file("", 0U, 0U, 0U, false) != 0);
+	assert(log_set_file("", &unlimited) != 0);
 }
 
 static void test_failed_file_switch_preserves_rotation_path(void)
@@ -232,9 +252,9 @@ static void test_failed_file_switch_preserves_rotation_path(void)
 	assert(close(descriptor) == 0);
 	log_init("cake-adapt-test", false);
 	log_set_level(LOG_LEVEL_INFO);
-	assert(log_set_file(path, 0U, 1U, 0U, false) == 0);
+	assert(log_set_file(path, &size_limited) == 0);
 	(void)snprintf(invalid_path, sizeof(invalid_path), "%s/not-a-directory", path);
-	assert(log_set_file(invalid_path, 0U, 1U, 0U, false) == -1);
+	assert(log_set_file(invalid_path, &size_limited) == -1);
 	log_message(LOG_LEVEL_INFO, "%01100d", 42);
 	log_close();
 	(void)snprintf(previous_path, sizeof(previous_path), "%s.old", path);
@@ -257,7 +277,7 @@ static void test_log_descriptor_is_close_on_exec(void)
 	assert(fstat(descriptor, &expected) == 0);
 	assert(close(descriptor) == 0);
 	log_init("sqm-mon-test", false);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	descriptors = opendir("/proc/self/fd");
 	assert(descriptors != NULL);
 	while ((entry = readdir(descriptors)) != NULL) {
@@ -394,8 +414,8 @@ static void test_cake_autorate_headers_and_record_format(void)
 	assert(close(descriptor) == 0);
 
 	log_init("sqm-mon-test", false);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
-	log_print_headers(true, true, true, true);
+	assert(log_set_file(path, &unlimited) == 0);
+	log_print_headers(&every_record);
 	log_load(&load_record);
 	log_data(&data_record);
 	log_summary(&summary_record);
@@ -477,7 +497,7 @@ static void test_cpu_schema_matches_cake_autorate(void)
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 	log_init("sqm-mon-test", false);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	log_print_cpu_headers(&sample, true, true);
 	log_cpu(&sample, usage);
 	log_cpu_raw(&sample);
@@ -513,8 +533,8 @@ static void test_tcp_queue_record(void)
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 	log_init("cake-adapt-test", false);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
-	log_print_tcp_queue_header();
+	assert(log_set_file(path, &unlimited) == 0);
+	log_print_headers(&tcp_queue_records);
 	log_tcp_queue(&record);
 	log_close();
 	read_log(path, contents, sizeof(contents));
@@ -527,8 +547,10 @@ static void test_tcp_queue_record(void)
 	assert(unlink(path) == 0);
 }
 
-static void test_rotation_export_and_reset_preserve_live_inode(bool compress)
+static void
+test_rotation_export_and_reset_preserve_live_inode(const struct log_file_settings *settings)
 {
+	bool compress = settings->compress_exports;
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char previous_path[128];
 	char export_path[256];
@@ -548,8 +570,8 @@ static void test_rotation_export_and_reset_preserve_live_inode(bool compress)
 	memcpy(large_message, "before rotation ", 16U);
 	log_init("sqm-mon-test", false);
 	log_set_level(LOG_LEVEL_INFO);
-	assert(log_set_file(path, 0U, 1U, 0U, compress) == 0);
-	log_print_headers(false, true, false, false);
+	assert(log_set_file(path, settings) == 0);
+	log_print_headers(&load_records);
 	log_message(LOG_LEVEL_INFO, "%s", large_message);
 	assert(stat(path, &after) == 0);
 	assert(before.st_ino == after.st_ino);
@@ -591,7 +613,7 @@ static void test_cpu_log_allocation_failures(void)
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 	log_init("cake-adapt-test", false);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	syslog_count = 0U;
 	fail_memstream_open = true;
 	log_print_cpu_headers(&sample, true, true);
@@ -631,8 +653,8 @@ static void test_buffer_timeout_and_time_rotation(void)
 	use_mock_time = true;
 	mock_time = (struct timespec){ .tv_sec = 1000 };
 	log_init("sqm-mon-test", false);
-	assert(log_set_file(path, 1U, 0U, 500000U, false) == 0);
-	log_print_headers(false, true, false, false);
+	assert(log_set_file(path, &aged_and_buffered) == 0);
+	log_print_headers(&load_records);
 	log_message(LOG_LEVEL_INFO, "buffered until timeout");
 	read_log(path, contents, sizeof(contents));
 	assert(contents[0] == '\0');
@@ -684,7 +706,7 @@ static void test_local_time_is_converted_once_per_second(void)
 	mock_time = (struct timespec){ .tv_sec = seconds };
 	log_init("cake-adapt-test", false);
 	log_set_level(LOG_LEVEL_INFO);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	local_time_conversions = 0U;
 	log_message(LOG_LEVEL_INFO, "first");
 	mock_time.tv_nsec = 999999000L;
@@ -733,7 +755,7 @@ static void test_records_wait_for_buffer_timeout(void)
 	mock_time = (struct timespec){ .tv_sec = 4000 };
 	log_init("cake-adapt-test", false);
 	log_set_level(LOG_LEVEL_INFO);
-	assert(log_set_file(path, 0U, 0U, 500000U, false) == 0);
+	assert(log_set_file(path, &buffered) == 0);
 	memset(record, 'x', sizeof(record) - 1U);
 	record[sizeof(record) - 1U] = '\0';
 	/* More than libc's default stream buffer, but one timer period of records. */
@@ -761,9 +783,9 @@ static void test_immediate_output_avoids_maintenance_clock(void)
 	use_mock_time = true;
 	mock_time = (struct timespec){ .tv_sec = 2000 };
 	log_init("cake-adapt-test", false);
-	assert(log_set_file(path, 0U, 0U, 0U, false) == 0);
+	assert(log_set_file(path, &unlimited) == 0);
 	clock_reads = 0U;
-	log_print_headers(false, true, false, false);
+	log_print_headers(&load_records);
 	assert(clock_reads == 0U);
 	read_log(path, contents, sizeof(contents));
 	assert(strncmp(contents, "LOAD_HEADER; ", 13U) == 0);
@@ -791,7 +813,7 @@ static void test_existing_file_size_uses_strict_rotation_limit(void)
 
 	log_init("cake-adapt-test", false);
 	log_set_level(LOG_LEVEL_INFO);
-	assert(log_set_file(path, 0U, 1U, 0U, false) == 0);
+	assert(log_set_file(path, &size_limited) == 0);
 	log_tick();
 	(void)snprintf(previous_path, sizeof(previous_path), "%s.old", path);
 	assert(access(previous_path, F_OK) != 0 && errno == ENOENT);
@@ -838,8 +860,8 @@ int main(void)
 	test_cpu_schema_matches_cake_autorate();
 	test_cpu_log_allocation_failures();
 	test_tcp_queue_record();
-	test_rotation_export_and_reset_preserve_live_inode(false);
-	test_rotation_export_and_reset_preserve_live_inode(true);
+	test_rotation_export_and_reset_preserve_live_inode(&size_limited);
+	test_rotation_export_and_reset_preserve_live_inode(&size_limited_compressed);
 	test_buffer_timeout_and_time_rotation();
 	test_local_time_is_converted_once_per_second();
 	test_records_wait_for_buffer_timeout();

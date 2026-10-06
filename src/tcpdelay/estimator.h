@@ -77,8 +77,6 @@ struct tcpdelay_estimate {
 	int64_t upload_queue_microseconds;
 };
 
-void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator);
-
 void tcpdelay_estimator_set_policy(
 	struct tcpdelay_estimator *estimator,
 	enum tcpdelay_baseline_policy policy

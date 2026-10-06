@@ -212,24 +212,22 @@ static void test_response_timestamp_boundaries(void)
 {
 	const uint64_t realtime = UINT64_C(10) * 1000000U;
 	const uint64_t monotonic = UINT64_C(3) * 1000000U;
-	uint64_t response_monotonic;
-	bool stale;
 
-	response_timestamp(realtime, monotonic, realtime - 499999U, &response_monotonic, &stale);
-	assert(!stale);
-	assert(response_monotonic == monotonic - 499999U);
-	response_timestamp(realtime, monotonic, realtime - 500000U, &response_monotonic, &stale);
-	assert(!stale);
-	assert(response_monotonic == monotonic - 500000U);
-	response_timestamp(realtime, monotonic, realtime - 500001U, &response_monotonic, &stale);
-	assert(stale);
-	assert(response_monotonic == monotonic - 500001U);
-	response_timestamp(realtime, monotonic, realtime + 123U, &response_monotonic, &stale);
-	assert(!stale);
-	assert(response_monotonic == monotonic + 123U);
-	response_timestamp(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX, &response_monotonic, &stale);
-	assert(!stale);
-	assert(response_monotonic == UINT64_MAX);
+	assert(!response_stale(realtime, realtime - 499999U));
+	assert(response_monotonic_microseconds(realtime, monotonic, realtime - 499999U) ==
+	       monotonic - 499999U);
+	assert(!response_stale(realtime, realtime - 500000U));
+	assert(response_monotonic_microseconds(realtime, monotonic, realtime - 500000U) ==
+	       monotonic - 500000U);
+	assert(response_stale(realtime, realtime - 500001U));
+	assert(response_monotonic_microseconds(realtime, monotonic, realtime - 500001U) ==
+	       monotonic - 500001U);
+	assert(!response_stale(realtime, realtime + 123U));
+	assert(response_monotonic_microseconds(realtime, monotonic, realtime + 123U) ==
+	       monotonic + 123U);
+	assert(!response_stale(UINT64_MAX - 1U, UINT64_MAX));
+	assert(response_monotonic_microseconds(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX) ==
+	       UINT64_MAX);
 }
 
 int main(void)
