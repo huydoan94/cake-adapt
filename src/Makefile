@@ -53,8 +53,7 @@ SOURCES := \
 	platform/netlink.c \
 	platform/traffic.c \
 	tcpdelay/capture.c \
-	tcpdelay/estimator.c \
-	tcpdelay/lifetime.c
+	tcpdelay/estimator.c
 OBJECT_DIR ?= ../build
 OBJECTS := $(SOURCES:%.c=$(OBJECT_DIR)/%.o)
 BPF_OBJECT := $(OBJECT_DIR)/tcpdelay.bpf.o

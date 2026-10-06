@@ -1,5 +1,15 @@
 # Lifetime-stream kernel validation
 
+**Reverted 2026-10-05.** The lifetime stream (`885f7d9`) was reverted at the
+user's request: it handles a rare case (a reused TCP tuple only removes that
+flow's estimate until the slot is replaced) at 49-64% more filter time per
+packet, and measured neutral otherwise in the
+[VM check](../2026-10-05-gpt-work-check/README.md). It can be restored by
+reverting the revert. Its design documents are in [`design/`](design/), the VM
+preflight tool in [`tools/`](tools/) (paths inside describe its old
+`tools/tcp-lifetime/` location), and the uncommitted work in progress at the
+time in [`uncommitted-work-2026-10-05.patch`](uncommitted-work-2026-10-05.patch).
+
 ✓ The corrected bounded i386 preflight passed all 10 assertions with zero
 failures on OpenWrt 25.12-SNAPSHOT, kernel 6.12.108. The exact current filter
 loaded with JIT (`jited_prog_len=13455`, `xlated_prog_len=7456`), current map

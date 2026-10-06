@@ -55,7 +55,7 @@ Filogic userspace ABI and common filter behavior, not platform-specific runtime
 coverage or CPU cost. Historical x86 VM kernel 6.12.108 must not be confused with
 the local SDK's 6.12.94. ✓ The x86 preflight refreshed kernel 6.12.108 and
 actual JIT execution;
-[raw evidence](profiling/2026-10-05-tcp-lifetime-stream/README.md) records that
+[raw evidence](../README.md) records that
 limited result. Arm64 configuration/execution mode still needs a live refresh.
 
 Kernel configuration identities:
