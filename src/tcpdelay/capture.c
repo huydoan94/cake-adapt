@@ -43,11 +43,12 @@ forward_libbpf_message(enum libbpf_print_level level, const char *format, va_lis
 	return 0;
 }
 
-/* The closed state: nothing allocated, no socket and an empty estimator. */
+/* The unloaded state: nothing allocated and no socket. */
 static void capture_clear(struct tcpdelay_capture *capture)
 {
 	memset(capture, 0, sizeof(*capture));
 	capture->socket_descriptor = -1;
+	capture->program_descriptor = -1;
 }
 
 static int add_record(void *context, void *data, size_t size)
@@ -66,7 +67,6 @@ static int add_record(void *context, void *data, size_t size)
 	return 0;
 }
 
-/* Returns the filter's program descriptor, or -1. */
 static int load_program(struct tcpdelay_capture *capture, char *error, size_t error_size)
 {
 	struct bpf_program *program;
@@ -121,7 +121,8 @@ static int load_program(struct tcpdelay_capture *capture, char *error, size_t er
 			"TCP delay program %s lacks its program or maps",
 			TCPDELAY_OBJECT_PATH
 		);
-	return bpf_program__fd(program);
+	capture->program_descriptor = bpf_program__fd(program);
+	return 0;
 }
 
 /*
@@ -131,7 +132,6 @@ static int load_program(struct tcpdelay_capture *capture, char *error, size_t er
  */
 static int attach_socket(
 	struct tcpdelay_capture *capture,
-	int program,
 	const char *interface,
 	char *error,
 	size_t error_size
@@ -161,8 +161,8 @@ static int attach_socket(
 		    capture->socket_descriptor,
 		    SOL_SOCKET,
 		    SO_ATTACH_BPF,
-		    &program,
-		    sizeof(program)
+		    &capture->program_descriptor,
+		    sizeof(capture->program_descriptor)
 	    ) != 0 ||
 	    bind(capture->socket_descriptor, (struct sockaddr *)&address, sizeof(address)) != 0)
 		goto fail;
@@ -178,33 +178,18 @@ fail:
 	);
 }
 
-int tcpdelay_capture_open(
-	struct tcpdelay_capture *capture,
-	const char *interface,
-	const struct cake_accounting *accounting,
-	char *error,
-	size_t error_size
-)
+void tcpdelay_capture_init(struct tcpdelay_capture *capture)
 {
-	int program;
+	capture_clear(capture);
+}
+
+int tcpdelay_capture_load(struct tcpdelay_capture *capture, char *error, size_t error_size)
+{
 	int cpus;
 
-	capture_clear(capture);
-	if (accounting != NULL) {
-		capture->accounting.cake = *accounting;
-		capture->accounting.enabled = 1U;
-	}
+	if (capture->object != NULL)
+		return 0;
 	libbpf_set_print(forward_libbpf_message);
-
-	capture->interface_index = if_nametoindex(interface);
-	if (capture->interface_index == 0U)
-		return error_set(
-			error,
-			error_size,
-			"TCP delay interface %s: %s",
-			interface,
-			strerror(errno)
-		);
 	cpus = libbpf_num_possible_cpus();
 	if (cpus <= 0)
 		return error_set(
@@ -224,14 +209,70 @@ int tcpdelay_capture_open(
 		);
 		goto fail;
 	}
-	program = load_program(capture, error, error_size);
-	if (program < 0 || attach_socket(capture, program, interface, error, error_size) != 0)
+	if (load_program(capture, error, error_size) != 0)
 		goto fail;
 	return 0;
 
 fail:
-	tcpdelay_capture_close(capture);
+	tcpdelay_capture_unload(capture);
 	return -1;
+}
+
+/* Zeroes every CPU's counters, so a new capture starts from zero. */
+static int reset_counters(struct tcpdelay_capture *capture)
+{
+	uint32_t key = 0U;
+
+	memset(capture->counter_values, 0, capture->cpu_count * sizeof(*capture->counter_values));
+	return bpf_map_update_elem(
+		capture->counters_descriptor,
+		&key,
+		capture->counter_values,
+		BPF_ANY
+	);
+}
+
+int tcpdelay_capture_open(
+	struct tcpdelay_capture *capture,
+	const char *interface,
+	const struct cake_accounting *accounting,
+	char *error,
+	size_t error_size
+)
+{
+	if (tcpdelay_capture_load(capture, error, error_size) != 0)
+		return -1;
+	tcpdelay_capture_close(capture);
+	memset(&capture->accounting, 0, sizeof(capture->accounting));
+	if (accounting != NULL) {
+		capture->accounting.cake = *accounting;
+		capture->accounting.enabled = 1U;
+	}
+	capture->interface_index = if_nametoindex(interface);
+	if (capture->interface_index == 0U)
+		return error_set(
+			error,
+			error_size,
+			"TCP delay interface %s: %s",
+			interface,
+			strerror(errno)
+		);
+	/* Records left from the previous socket are dropped with the estimator's state. */
+	(void)ring_buffer__consume(capture->ring);
+	memset(&capture->estimator, 0, sizeof(capture->estimator));
+	if (reset_counters(capture) != 0) {
+		return error_set(
+			error,
+			error_size,
+			"could not reset TCP delay counters: %s",
+			strerror(errno)
+		);
+	}
+	if (attach_socket(capture, interface, error, error_size) != 0) {
+		tcpdelay_capture_close(capture);
+		return -1;
+	}
+	return 0;
 }
 
 int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
@@ -264,7 +305,14 @@ int tcpdelay_capture_counters(
 void tcpdelay_capture_close(struct tcpdelay_capture *capture)
 {
 	if (capture->socket_descriptor >= 0)
-		close(capture->socket_descriptor);
+		(void)close(capture->socket_descriptor);
+	capture->socket_descriptor = -1;
+	capture->interface_index = 0U;
+}
+
+void tcpdelay_capture_unload(struct tcpdelay_capture *capture)
+{
+	tcpdelay_capture_close(capture);
 	ring_buffer__free(capture->ring);
 	bpf_object__close(capture->object);
 	free(capture->counter_values);

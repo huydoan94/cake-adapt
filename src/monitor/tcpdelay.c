@@ -22,6 +22,26 @@ static struct cake_accounting accounting_model(const struct cake_observation *ca
 	};
 }
 
+/* Either TCP feature needs the capture. */
+static bool tcp_enabled(const struct config *config)
+{
+	return config->tcp_delay_attribution || config->ul_congest_ack_share_per_million != 0U;
+}
+
+void tcp_init(struct monitor *monitor)
+{
+	tcpdelay_capture_init(&monitor->tcp.capture);
+}
+
+void tcp_start(struct monitor *monitor)
+{
+	char error[ERROR_SIZE] = { 0 };
+
+	if (tcp_enabled(monitor->config) &&
+	    tcpdelay_capture_load(&monitor->tcp.capture, error, sizeof(error)) != 0)
+		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: %s", error);
+}
+
 static bool open_capture(struct monitor *monitor, const struct monitor_direction *upload)
 {
 	const struct cake_observation *cake = &upload->cake;
@@ -108,8 +128,7 @@ static bool capture_ready(struct monitor *monitor)
 	const struct cake_observation *cake = &upload->cake;
 	const struct cake_accounting model = accounting_model(cake);
 
-	if ((!config->tcp_delay_attribution && config->ul_congest_ack_share_per_million == 0U) ||
-	    upload->cake_state != CAKE_OBSERVATION_AVAILABLE) {
+	if (!tcp_enabled(config) || upload->cake_state != CAKE_OBSERVATION_AVAILABLE) {
 		tcp_close(monitor);
 		return false;
 	}
@@ -289,4 +308,10 @@ void tcp_close(struct monitor *monitor)
 	tcp->open = false;
 	tcp->ack_sampled = false;
 	tcp->ack_rate_valid = false;
+}
+
+void tcp_stop(struct monitor *monitor)
+{
+	tcp_close(monitor);
+	tcpdelay_capture_unload(&monitor->tcp.capture);
 }

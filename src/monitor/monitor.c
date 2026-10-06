@@ -307,6 +307,7 @@ int monitor_run(const struct config *config)
 	size_t index;
 
 	/* The aggregate initializer has zeroed the remaining monitor state. */
+	tcp_init(&monitor);
 	if (control_start(&monitor) != 0)
 		goto done;
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &start_microseconds)) {
@@ -346,6 +347,7 @@ int monitor_run(const struct config *config)
 		}
 	}
 
+	tcp_start(&monitor);
 	links_observe(&monitor);
 	links_apply_cadence(&monitor);
 	watch_cpu(&monitor);
@@ -370,7 +372,7 @@ uloop_done:
 	uloop_done();
 
 done:
-	tcp_close(&monitor);
+	tcp_stop(&monitor);
 	reflectors_stop(&monitor);
 	netlink_close(&monitor.netlink);
 	controller_close(&monitor.control.controller);

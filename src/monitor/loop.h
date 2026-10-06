@@ -188,12 +188,24 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microse
 
 /* tcpdelay.c */
 
+/* The capture's unloaded state; first, so shutdown is safe from any point. */
+void tcp_init(struct monitor *monitor);
+
+/*
+ * Loads the TCP filter when a TCP feature is enabled, before pingers start:
+ * the kernel's verifier can take seconds on slow CPUs.
+ */
+void tcp_start(struct monitor *monitor);
+
 void tcp_observe(struct monitor *monitor, struct controller_input *input);
 
 /* Empties the ring buffer between ping replies; see tcpdelay.c. */
 void tcp_drain(struct monitor *monitor);
 
 void tcp_close(struct monitor *monitor);
+
+/* Closes and unloads the capture. */
+void tcp_stop(struct monitor *monitor);
 
 /* pingers.c */
 
