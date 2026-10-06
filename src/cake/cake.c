@@ -101,6 +101,7 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 	const struct tcmsg *traffic_control;
 	struct nlattr *attributes[TCA_MAX + 1];
 	struct cake_read *read = NULL;
+	struct cake_observation *observation;
 	size_t index;
 
 	if (!nlmsg_valid_hdr(message, sizeof(struct tcmsg)) || message->nlmsg_len > INT_MAX)
@@ -111,9 +112,11 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 	if (traffic_control->tcm_parent != TC_H_ROOT)
 		return 0;
 	for (index = 0U; index < context->count; index++) {
-		if (!context->reads[index].found && context->reads[index].interface_index != 0U &&
-		    traffic_control->tcm_ifindex == (int)context->reads[index].interface_index) {
-			read = &context->reads[index];
+		struct cake_read *candidate = &context->reads[index];
+
+		if (!candidate->found && candidate->interface_index != 0U &&
+		    traffic_control->tcm_ifindex == (int)candidate->interface_index) {
+			read = candidate;
 			break;
 		}
 	}
@@ -131,12 +134,16 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 		return 0;
 	}
 
-	memset(read->observation, 0, sizeof(*read->observation));
-	read->observation->qdisc.interface_index = read->interface_index;
-	read->observation->qdisc.handle = traffic_control->tcm_handle;
-	read->observation->qdisc.parent = traffic_control->tcm_parent;
-	parse_options(attributes[TCA_OPTIONS], read->observation);
-	parse_stats(attributes[TCA_STATS2], read->observation);
+	observation = read->observation;
+	*observation = (struct cake_observation){
+		.qdisc = {
+			.interface_index = read->interface_index,
+			.handle = traffic_control->tcm_handle,
+			.parent = traffic_control->tcm_parent,
+		},
+	};
+	parse_options(attributes[TCA_OPTIONS], observation);
+	parse_stats(attributes[TCA_STATS2], observation);
 	read->found = true;
 	return 0;
 }
@@ -180,6 +187,7 @@ read_interface_mtu(const char *interface, uint32_t *mtu_bytes, char *error, size
 
 static void finish_read(struct cake_read *read)
 {
+	const struct cake_observation *previous = &read->previous;
 	struct cake_observation *observation = read->observation;
 
 	/* The dump cannot reject a stale index, so keep it only while CAKE is found. */
@@ -190,10 +198,8 @@ static void finish_read(struct cake_read *read)
 		return;
 	}
 	/* The MTU is read when CAKE is discovered or replaced, not every sample. */
-	if (read->previous.has_mtu &&
-	    read->previous.qdisc.interface_index == observation->qdisc.interface_index &&
-	    read->previous.qdisc.handle == observation->qdisc.handle) {
-		observation->mtu_bytes = read->previous.mtu_bytes;
+	if (previous->has_mtu && qdisc_same(&previous->qdisc, &observation->qdisc)) {
+		observation->mtu_bytes = previous->mtu_bytes;
 	} else if (read_interface_mtu(
 			   read->interface,
 			   &observation->mtu_bytes,
