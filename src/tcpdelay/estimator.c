@@ -5,7 +5,6 @@
 
 /* Samples carry kernel nanoseconds; the defaults are in microseconds. */
 #define WINDOW_NS (TCPDELAY_WINDOW_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
-#define FLOOR_BUCKET_NS (TCPDELAY_FLOOR_BUCKET_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
 #define TICK_SPAN_NS (TCPDELAY_TICK_FIT_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
 #define IMPLAUSIBLE_QUEUE_NS \
 	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_MICROSECONDS * NANOSECONDS_PER_MICROSECOND))
@@ -18,46 +17,19 @@ static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = {
 	UINT64_C(100000000),
 };
 
-static int64_t floor_update(
-	struct tcpdelay_floor *floor,
-	int64_t value,
-	uint64_t now_ns,
-	enum tcpdelay_baseline_policy policy
-)
+/*
+ * A new minimum lowers the floor; a value more than the bound above it raises
+ * the floor to keep the queue at the bound. Returns the floor.
+ */
+static int64_t
+floor_update(const struct tcpdelay_estimator *estimator, struct tcpdelay_floor *floor, int64_t value)
 {
-	uint64_t bucket = now_ns / FLOOR_BUCKET_NS;
-
-	if (policy == TCPDELAY_BASELINE_HOLD) {
-		if (!floor->valid) {
-			floor->current = value;
-			floor->previous = value;
-			floor->bucket = bucket;
-			floor->valid = true;
-		} else {
-			int64_t held = floor->current < floor->previous ? floor->current :
-									  floor->previous;
-
-			if (value < held)
-				held = value;
-			floor->current = held;
-			floor->previous = held;
-			floor->bucket = bucket;
-		}
-		return floor->current;
-	}
-	if (!floor->valid) {
-		floor->current = value;
-		floor->previous = value;
-		floor->bucket = bucket;
-		floor->valid = true;
-	} else if (bucket != floor->bucket) {
-		floor->previous = bucket == floor->bucket + 1U ? floor->current : value;
-		floor->current = value;
-		floor->bucket = bucket;
-	} else if (value < floor->current) {
-		floor->current = value;
-	}
-	return floor->current < floor->previous ? floor->current : floor->previous;
+	if (!floor->valid || value < floor->value)
+		floor->value = value;
+	else if (estimator->bounded && value - floor->value > estimator->queue_bound_ns)
+		floor->value = value - estimator->queue_bound_ns;
+	floor->valid = true;
+	return floor->value;
 }
 
 static void window_add(struct tcpdelay_window *window, int64_t queue_ns, uint64_t time_ns)
@@ -164,10 +136,10 @@ struct flow_queues {
 
 /* Updates the floors for one candidate clock period and returns the sample's queues. */
 static struct flow_queues flow_measure(
+	const struct tcpdelay_estimator *estimator,
 	struct tcpdelay_flow *flow,
 	size_t tick_index,
-	const struct tcpdelay_sample *sample,
-	enum tcpdelay_baseline_policy policy
+	const struct tcpdelay_sample *sample
 )
 {
 	int64_t elapsed_ns = (int64_t)(sample->arrival_ns - flow->first_arrival_ns);
@@ -176,12 +148,8 @@ static struct flow_queues flow_measure(
 
 	/* Arrival minus remote send time: only the downstream delay varies. */
 	queues.download_ns = elapsed_ns - remote_ns;
-	queues.download_ns -= floor_update(
-		&flow->download_floor[tick_index],
-		queues.download_ns,
-		sample->arrival_ns,
-		policy
-	);
+	queues.download_ns -=
+		floor_update(estimator, &flow->download_floor[tick_index], queues.download_ns);
 
 	/*
 	 * Remote send timestamp minus our departure of the echoed TSval includes both
@@ -193,22 +161,16 @@ static struct flow_queues flow_measure(
 			(int64_t)sample->departure_ns - (int64_t)flow->first_arrival_ns;
 
 		queues.upload_ns = remote_ns - departed_ns;
-		queues.upload_ns -= floor_update(
-			&flow->upload_floor[tick_index],
-			queues.upload_ns,
-			sample->arrival_ns,
-			policy
-		);
+		queues.upload_ns -=
+			floor_update(estimator, &flow->upload_floor[tick_index], queues.upload_ns);
 	}
 	return queues;
 }
 
-void tcpdelay_estimator_set_policy(
-	struct tcpdelay_estimator *estimator,
-	enum tcpdelay_baseline_policy policy
-)
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns)
 {
-	estimator->baseline_policy = policy;
+	estimator->bounded = true;
+	estimator->queue_bound_ns = queue_bound_ns;
 }
 
 void tcpdelay_estimator_add(
@@ -232,11 +194,11 @@ void tcpdelay_estimator_add(
 	flow->last_tsval = sample->tsval;
 	if (flow->tick_ns == 0U) {
 		for (index = 0U; index < TCPDELAY_TICKS; index++)
-			(void)flow_measure(flow, index, sample, estimator->baseline_policy);
+			(void)flow_measure(estimator, flow, index, sample);
 		fit_tick(flow, sample->arrival_ns - flow->first_arrival_ns);
 		return;
 	}
-	queues = flow_measure(flow, flow->tick_index, sample, estimator->baseline_policy);
+	queues = flow_measure(estimator, flow, flow->tick_index, sample);
 	if (queues.download_ns > IMPLAUSIBLE_QUEUE_NS || queues.upload_ns > IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
 		return;

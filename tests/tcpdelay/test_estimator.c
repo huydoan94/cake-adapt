@@ -268,79 +268,86 @@ static void test_results_expire(void)
 	assert(!estimate.upload_valid);
 }
 
-/* A rolling floor loses a persistent queue when its two low-delay buckets expire. */
-static void test_standing_queue_floor_tracks_two_absolute_phases(uint64_t phase_ns)
+/* The download and upload queue at the result after the last packet sent before now. */
+static void assert_queues(
+	const struct tcpdelay_estimator *estimator,
+	uint64_t now,
+	uint64_t download_queue_ns,
+	int64_t download_ms,
+	int64_t upload_ms
+)
+{
+	struct tcpdelay_estimate estimate;
+
+	tcpdelay_estimator_result(
+		estimator,
+		ORIGIN_NS + now - MILLISECOND + PATH_NS + download_queue_ns,
+		&estimate
+	);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, download_ms);
+	assert_close(estimate.upload_queue_microseconds, upload_ms);
+}
+
+/*
+ * Without a bound a standing queue stays visible however long it lasts; a bound
+ * caps it, and a zero bound re-zeroes the floors while later congestion still shows.
+ */
+static void test_standing_queue_and_the_queue_bound(void)
 {
 	struct tcpdelay_estimator estimator;
-	struct tcpdelay_estimate estimate;
 	struct remote remote = remote_flow(50014U, MILLISECOND, 77U);
-	const uint64_t path_origin_ns = ORIGIN_NS + PATH_NS;
-	const uint64_t expiry_ns = UINT64_C(60000) * MILLISECOND;
+	const uint64_t download_queue = 80U * MILLISECOND;
+	const uint64_t upload_queue = 20U * MILLISECOND;
 	uint64_t now;
-	uint64_t end_ns;
 
 	memset(&estimator, 0, sizeof(estimator));
-	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
-	now = send_span(&estimator, &remote, phase_ns, phase_ns + 3000U * MILLISECOND, 0U, 0U);
+	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
+	now = send_span(
+		&estimator,
+		&remote,
+		now,
+		120000U * MILLISECOND,
+		download_queue,
+		upload_queue
+	);
+	assert_queues(&estimator, now, download_queue, 80, 20);
+
+	/* fping sees 50 ms added: neither direction may show more. */
+	tcpdelay_estimator_set_bound(&estimator, 50 * (int64_t)MILLISECOND);
 	now = send_span(
 		&estimator,
 		&remote,
 		now,
 		now + 1000U * MILLISECOND,
-		80U * MILLISECOND,
-		20U * MILLISECOND
+		download_queue,
+		upload_queue
 	);
-	tcpdelay_estimator_result(
-		&estimator,
-		ORIGIN_NS + now - MILLISECOND + PATH_NS + 80U * MILLISECOND,
-		&estimate
-	);
-	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 80);
-	assert_close(estimate.upload_queue_microseconds, 20);
+	assert_queues(&estimator, now, download_queue, 50, 20);
 
-	/* Both calibration phases are in bucket 0; its second absolute boundary is 60 s. */
-	end_ns = expiry_ns - path_origin_ns - 80U * MILLISECOND;
-	now = send_span(&estimator, &remote, now, end_ns, 80U * MILLISECOND, 20U * MILLISECOND);
-	tcpdelay_estimator_result(
-		&estimator,
-		ORIGIN_NS + now - MILLISECOND + PATH_NS + 80U * MILLISECOND,
-		&estimate
-	);
-	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 80);
-	assert_close(estimate.upload_queue_microseconds, 20);
-
-	/* FOLLOW keeps the existing rolling behavior after the second bucket. */
-	end_ns = expiry_ns + 100U * MILLISECOND - path_origin_ns - 80U * MILLISECOND;
-	now = send_span(&estimator, &remote, now, end_ns, 80U * MILLISECOND, 20U * MILLISECOND);
-	tcpdelay_estimator_result(
-		&estimator,
-		ORIGIN_NS + now - MILLISECOND + PATH_NS + 80U * MILLISECOND,
-		&estimate
-	);
-	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
-
-	/* An empty path lets the rolling floor recover; later congestion is visible again. */
-	now = send_span(&estimator, &remote, now, now + 65000U * MILLISECOND, 0U, 0U);
+	/* A clear path re-zeroes the floors at the current delay. */
+	tcpdelay_estimator_set_bound(&estimator, 0);
 	now = send_span(
 		&estimator,
 		&remote,
 		now,
 		now + 1000U * MILLISECOND,
-		80U * MILLISECOND,
-		20U * MILLISECOND
+		download_queue,
+		upload_queue
 	);
-	tcpdelay_estimator_result(
+	assert_queues(&estimator, now, download_queue, 0, 0);
+
+	/* Congestion on top of the new floors shows up to the bound fping reports. */
+	tcpdelay_estimator_set_bound(&estimator, 100 * (int64_t)MILLISECOND);
+	now = send_span(
 		&estimator,
-		ORIGIN_NS + now - MILLISECOND + PATH_NS + 80U * MILLISECOND,
-		&estimate
+		&remote,
+		now,
+		now + 1000U * MILLISECOND,
+		download_queue + 40U * MILLISECOND,
+		upload_queue + 15U * MILLISECOND
 	);
-	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 80);
-	assert_close(estimate.upload_queue_microseconds, 20);
+	assert_queues(&estimator, now, download_queue + 40U * MILLISECOND, 40, 15);
 }
 
 static void test_hold_preserves_standing_queue(uint64_t phase_ns)
@@ -380,7 +387,7 @@ static void test_hold_preserves_standing_queue(uint64_t phase_ns)
 	assert_close(estimate.upload_queue_microseconds, 20);
 }
 
-static void test_hold_accepts_lower_raw_minimum(void)
+static void test_floor_accepts_lower_raw_minimum(void)
 {
 	struct tcpdelay_estimator estimator;
 	struct tcpdelay_estimate estimate;
@@ -400,8 +407,8 @@ static void test_hold_accepts_lower_raw_minimum(void)
 		80U * MILLISECOND,
 		20U * MILLISECOND
 	);
-	initial_download_floor = estimator.flows[0].download_floor[0].current;
-	initial_upload_floor = estimator.flows[0].upload_floor[0].current;
+	initial_download_floor = estimator.flows[0].download_floor[0].value;
+	initial_upload_floor = estimator.flows[0].upload_floor[0].value;
 	now = send_span(
 		&estimator,
 		&remote,
@@ -421,10 +428,8 @@ static void test_hold_accepts_lower_raw_minimum(void)
 
 	download_floor = &estimator.flows[0].download_floor[0];
 	upload_floor = &estimator.flows[0].upload_floor[0];
-	assert(download_floor->current < initial_download_floor);
-	assert(download_floor->previous == download_floor->current);
-	assert(upload_floor->current < initial_upload_floor);
-	assert(upload_floor->previous == upload_floor->current);
+	assert(download_floor->value < initial_download_floor);
+	assert(upload_floor->value < initial_upload_floor);
 
 	/* Returning to the initial 80/20-ms path shows delay relative to the lower floor. */
 	now = send_span(
@@ -441,60 +446,30 @@ static void test_hold_accepts_lower_raw_minimum(void)
 	assert_close(estimate.upload_queue_microseconds, 15);
 }
 
-static void test_follow_hold_follow_transition(void)
+/* The floor follows new minimums down and rises only by what exceeds the bound. */
+static void test_floor_follows_the_bound(void)
 {
 	struct tcpdelay_estimator estimator;
 	struct remote remote = remote_flow(50018U, MILLISECOND, 127U);
+	const struct tcpdelay_floor *floor = &estimator.flows[0].download_floor[0];
 	uint64_t now;
 
 	memset(&estimator, 0, sizeof(estimator));
-	now = send_span(
-		&estimator,
-		&remote,
-		0U,
-		3000U * MILLISECOND,
-		80U * MILLISECOND,
-		20U * MILLISECOND
-	);
-	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
-	now = send_span(
-		&estimator,
-		&remote,
-		now,
-		31000U * MILLISECOND,
-		100U * MILLISECOND,
-		40U * MILLISECOND
-	);
-	assert(estimator.flows[0].download_floor[0].previous == 0);
-	assert(estimator.flows[0].download_floor[0].current == (int64_t)(20U * MILLISECOND));
+	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 80U * MILLISECOND, 0U);
+	assert(floor->valid && floor->value == 0);
 
-	/* HOLD retains FOLLOW's older low bucket when its current bucket has risen. */
-	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_HOLD);
-	now = send_span(
-		&estimator,
-		&remote,
-		now,
-		61000U * MILLISECOND,
-		140U * MILLISECOND,
-		60U * MILLISECOND
-	);
-	assert(estimator.flows[0].download_floor[0].current == 0);
-	assert(estimator.flows[0].download_floor[0].current ==
-	       estimator.flows[0].download_floor[0].previous);
+	/* Unbounded, a higher delay leaves the floor where it is. */
+	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 140U * MILLISECOND, 0U);
+	assert(floor->value == 0);
 
-	/* With clear evidence, FOLLOW can move the floor up after its rolling window. */
-	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
-	now = send_span(
-		&estimator,
-		&remote,
-		now,
-		121000U * MILLISECOND,
-		140U * MILLISECOND,
-		60U * MILLISECOND
-	);
-	assert(estimator.flows[0].download_floor[0].current == (int64_t)(60U * MILLISECOND));
-	assert(estimator.flows[0].download_floor[0].previous ==
-	       estimator.flows[0].download_floor[0].current);
+	/* A 20 ms bound lifts it to 20 ms below the delay. */
+	tcpdelay_estimator_set_bound(&estimator, 20 * (int64_t)MILLISECOND);
+	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 140U * MILLISECOND, 0U);
+	assert(floor->value == (int64_t)(40U * MILLISECOND));
+
+	/* A lower delay is a new minimum, whatever the bound. */
+	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 100U * MILLISECOND, 0U);
+	assert(floor->value == (int64_t)(20U * MILLISECOND));
 }
 
 static void test_samples_without_departure(void)
@@ -764,8 +739,32 @@ static void test_rejected_sample_does_not_refresh_lru(void)
 	assert(second_oldest);
 }
 
+/*
+ * A remote clock 2% fast still snaps to the 1 ms period, so the snapped clock
+ * drifts from real time by 2% of the flow's age: 12 s in 10 minutes. On an
+ * empty path neither direction may report a queue, after a clear fping reply
+ * and through a long stretch without one, as in IDLE.
+ */
+static void test_remote_clock_drift_on_a_clear_path(void)
+{
+	struct tcpdelay_estimator estimator;
+	struct tcpdelay_estimate estimate;
+	struct remote remote = remote_flow(50004U, 980U * MILLISECOND / 1000U, 777U);
+	uint64_t sent_ns;
+
+	memset(&estimator, 0, sizeof(estimator));
+	tcpdelay_estimator_set_bound(&estimator, 0);
+	for (sent_ns = 0U; sent_ns < 600000U * MILLISECOND; sent_ns += 10U * MILLISECOND)
+		send_sample(&estimator, &remote, sent_ns, 0U, 0U, 0U);
+	result_after(&estimator, sent_ns, &estimate);
+	assert(estimate.download_valid && estimate.upload_valid);
+	assert_close(estimate.download_queue_microseconds, 0);
+	assert_close(estimate.upload_queue_microseconds, 0);
+}
+
 int main(void)
 {
+	test_remote_clock_drift_on_a_clear_path();
 	test_no_estimate_before_the_tick_is_known();
 	test_queue_attributed_to_its_direction(MILLISECOND, 1000U);
 	test_queue_attributed_to_its_direction(4U * MILLISECOND, 1000U);
@@ -777,12 +776,11 @@ int main(void)
 	test_sustained_ack_wait_change_and_recovery();
 	test_constant_ack_wait_is_baseline();
 	test_results_expire();
-	test_standing_queue_floor_tracks_two_absolute_phases(2000U * MILLISECOND);
-	test_standing_queue_floor_tracks_two_absolute_phases(22000U * MILLISECOND);
+	test_standing_queue_and_the_queue_bound();
 	test_hold_preserves_standing_queue(2000U * MILLISECOND);
 	test_hold_preserves_standing_queue(22000U * MILLISECOND);
-	test_hold_accepts_lower_raw_minimum();
-	test_follow_hold_follow_transition();
+	test_floor_accepts_lower_raw_minimum();
+	test_floor_follows_the_bound();
 	test_samples_without_departure();
 	test_new_flow_keeps_established_queues(false);
 	test_new_flow_keeps_established_queues(true);
