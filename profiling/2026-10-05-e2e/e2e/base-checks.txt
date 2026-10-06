@@ -1,0 +1,63 @@
+| Phase | s | UL shaper kbit/s | DL shaper kbit/s | probe added p50/p95 ms | CPU ticks | RSS kB | fds |
+|---|---:|---|---|---|---:|---:|---:|
+| start | 12 | 2250-2250 | 27000-27000 | 0.9 / 8.5 | 29 | 1360-2128 | 15-24 |
+| download | 25 | 2250-2250 | 26154-33000 | 21.9 / 42.2 | 8 | 2120-2132 | 24-24 |
+| recover | 8 | 2250-2250 | 31067-33000 | 1.3 / 16.9 | 1 | 2124-2132 | 24-24 |
+| upload | 21 | 1888-3000 | 27000-30756 | 9.2 / 61.4 | 6 | 2132-2136 | 24-24 |
+| recover | 8 | 2765-2940 | 27000-27000 | 1.0 / 9.3 | 1 | 2124-2136 | 24-24 |
+| bidirectional | 25 | 1716-3000 | 25751-33000 | 36.3 / 62.8 | 10 | 2124-2136 | 24-24 |
+| recover | 8 | 2314-2486 | 27000-27682 | 1.1 / 26.0 | 3 | 2124-2136 | 24-24 |
+| capacity-drop | 10 | 1921-2978 | 27000-27000 | 9.0 / 61.0 | 2 | 2124-2136 | 24-24 |
+| capacity-1500 | 10 | 1000-1861 | 27000-27000 | 10.9 / 124.7 | 2 | 2132-2136 | 24-24 |
+| capacity-2500 | 10 | 1310-2962 | 27000-27000 | 7.5 / 75.2 | 2 | 2124-2136 | 24-24 |
+| recover | 8 | 1805-1989 | 27000-27000 | 1.4 / 9.6 | 3 | 2136-2136 | 24-24 |
+| log-export | 2 | 2008-2257 | 27000-27000 | 1.3 / 6.3 | 4 | 2136-2140 | 24-24 |
+| log-reset | 2 | 2415-2440 | 27000-27000 | 1.1 / 7.4 | 0 | 2136-2136 | 24-24 |
+| upload-cake-removed | 4 | - | 27000-27000 | 1.0 / 70.5 | 0 | 1560-1572 | 14-14 |
+| upload-cake-recreated | 6 | 2611-3000 | 27000-27000 | 1.1 / 12.6 | 0 | 2136-2136 | 24-24 |
+| download-cake-removed | 4 | 2970-3000 | 27000-27000 | 1.8 / 25.3 | 1 | 2136-2136 | 23-24 |
+| download-cake-recreated | 6 | 2970-3000 | 27000-27000 | 2.8 / 18.8 | 1 | 2136-2136 | 23-24 |
+| upload-bandwidth-external | 4 | 3000-3000 | 27000-27000 | 5.4 / 20.2 | 0 | 2136-2136 | 24-24 |
+| ifb-removed | 4 | 2970-3000 | 27000-27000 | 5.5 / 9.8 | 1 | 2136-2136 | 23-24 |
+| ifb-recreated | 6 | 1709-3000 | 27000-27000 | 5.4 / 77.1 | 1 | 2136-2136 | 23-24 |
+| ifb-download | 10 | 2334-3000 | 23184-33000 | 21.9 / 52.3 | 2 | 2136-2136 | 24-24 |
+| one-reflector-down | 15 | 2970-3000 | 26473-28219 | 5.6 / 25.3 | 3 | 2124-2136 | 24-24 |
+| one-reflector-up | 5 | 2970-3000 | 27000-27000 | 6.3 / 16.9 | 1 | 2136-2136 | 24-24 |
+| all-reflectors-down | 20 | 1000-3000 | 5000-27000 | 1.0 / 8.0 | 3 | 2136-2136 | 24-24 |
+| all-reflectors-up | 11 | 1000-1090 | 5000-5466 | 1.7 / 9.2 | 1 | 2124-2136 | 24-24 |
+| idle-wait | 35 | 1000-1199 | 5000-6032 | 1.5 / 9.5 | 4 | 2136-2136 | 23-24 |
+| wake-download | 12 | 1000-1111 | 5000-29738 | 6.2 / 14.8 | 5 | 2136-2136 | 23-24 |
+| awake | 3 | 1122-1144 | 32343-33000 | 1.9 / 13.3 | 1 | 2124-2136 | 24-24 |
+bidirectional-download: 22.65 Mbit/s
+bidirectional-upload: 1.55 Mbit/s
+capacity-upload: 1.82 Mbit/s
+download-download: 26.29 Mbit/s
+ifb-download: 25.58 Mbit/s
+upload-upload: 2.19 Mbit/s
+wake-download: 11.18 Mbit/s
+PASS CAKE discovered on both
+PASS TCP measurement started
+PASS TCP_QUEUE records
+PASS upload shaper raised under load
+PASS upload cut on congestion
+PASS ACK counters stayed valid
+PASS log export
+PASS log reset in place
+PASS upload CAKE removed and recovered
+PASS download CAKE removed and recovered
+PASS external bandwidth reconciled within 5 s
+PASS IFB recreated and rediscovered
+PASS dead reflector replaced
+PASS stall entered
+PASS global timeout
+PASS pingers restarted
+PASS idle entered
+PASS minimum enforced on idle
+PASS woken by load
+PASS clean shutdown
+PASS no errors
+WARNING kinds:
+  WARNING; CAKE observation degraded: no CAKE qdisc found on interface=ifb4cwan
+  WARNING; line load unavailable: direction=download
+  WARNING; traffic observation unavailable: direction=download interface=ifb4cwan
+  WARNING; traffic observation unavailable: direction=upload interface=cwan

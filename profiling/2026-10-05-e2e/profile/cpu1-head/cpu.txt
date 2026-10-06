@@ -1,0 +1,5 @@
+idle ticks=5 seconds=40 rss_kb=2108 hwm_kb=2108 fds=23 bpf_runs=1051 bpf_ns=1493320
+download ticks=9 seconds=40 rss_kb=2108 hwm_kb=2108 fds=23 bpf_runs=98489 bpf_ns=188802054
+upload ticks=9 seconds=40 rss_kb=2112 hwm_kb=2112 fds=23 bpf_runs=12562 bpf_ns=49398087
+bidirectional ticks=16 seconds=40 rss_kb=2116 hwm_kb=2116 fds=23 bpf_runs=91287 bpf_ns=180995818
+congested ticks=15 seconds=40 rss_kb=2116 hwm_kb=2116 fds=23 bpf_runs=80061 bpf_ns=150190918
