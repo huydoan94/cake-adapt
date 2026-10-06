@@ -156,7 +156,7 @@ static void log_configuration(const struct config *config, const char *log_path)
 	if (config->config_file[0] != '\0')
 		log_message(
 			LOG_LEVEL_NOTICE,
-			"loaded configuration overrides from '%s'",
+			"config_file '%s': its settings are imported into UCI by the service at start",
 			config->config_file
 		);
 
