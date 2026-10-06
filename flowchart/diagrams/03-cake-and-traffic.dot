@@ -6,7 +6,7 @@ digraph G {
   clock [label="CLOCK_MONOTONIC ok?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   clockfail [label="invalidate both directions;\nreport degraded once",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   due [label="directions due for observation\n(not parked as NOT_FOUND)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  dump [label="cake_read_all\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  dump [label="cake_read\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   result [label="read result",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   found [label="FOUND: state AVAILABLE\nlog discovered / recovered once\nMTU only if new handle or index",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   notfound [label="NOT_FOUND: log once;\npark until RTM_NEWQDISC",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];

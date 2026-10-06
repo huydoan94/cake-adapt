@@ -6,8 +6,8 @@ digraph G {
   ready [label="CAKE ready, no old children\nstopping, retry time reached?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   wait [label="return; retried on the\nnext tick or child exit",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   method [label="pinger_method",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  fping [label="latency_open\none fping for all active targets",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  irtt [label="latency_open_irtt\none irtt per target,\nstarts aligned to ping slots",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  fping [label="fping_open\none fping for all active targets",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  irtt [label="irtt_open\none irtt per target,\nstarts aligned to ping slots",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   spawnok [label="spawned?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   degraded [label="latency observation degraded\n(logged once); retry after\ninterface_up_check_interval",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   register [label="uloop_process_add (reaping)\nustream_fd on stdout pipe",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];

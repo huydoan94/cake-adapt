@@ -60,7 +60,7 @@
 <g id="node5" class="node">
 <title>dump</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M398,-908.84C398,-908.84 228.81,-908.84 228.81,-908.84 222.81,-908.84 216.81,-902.84 216.81,-896.84 216.81,-896.84 216.81,-868.28 216.81,-868.28 216.81,-862.28 222.81,-856.28 228.81,-856.28 228.81,-856.28 398,-856.28 398,-856.28 404,-856.28 410,-862.28 410,-868.28 410,-868.28 410,-896.84 410,-896.84 410,-902.84 404,-908.84 398,-908.84"/>
-<text xml:space="preserve" text-anchor="middle" x="313.41" y="-892.46" font-family="Arial" font-size="11.00">cake_read_all</text>
+<text xml:space="preserve" text-anchor="middle" x="313.41" y="-892.46" font-family="Arial" font-size="11.00">cake_read</text>
 <text xml:space="preserve" text-anchor="middle" x="313.41" y="-879.26" font-family="Arial" font-size="11.00">one RTM_GETQDISC dump</text>
 <text xml:space="preserve" text-anchor="middle" x="313.41" y="-866.06" font-family="Arial" font-size="11.00">match root CAKE by cached ifindex</text>
 </g>
