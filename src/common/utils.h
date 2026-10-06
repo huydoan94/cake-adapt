@@ -38,6 +38,11 @@ static inline uint64_t max_u64(uint64_t first, uint64_t second)
 	return first > second ? first : second;
 }
 
+static inline int64_t max_i64(int64_t first, int64_t second)
+{
+	return first > second ? first : second;
+}
+
 /* value - subtrahend, or zero when subtrahend is larger. */
 static inline uint64_t saturating_sub(uint64_t value, uint64_t subtrahend)
 {

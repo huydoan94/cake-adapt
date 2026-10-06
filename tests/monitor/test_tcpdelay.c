@@ -63,13 +63,10 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 	return 0;
 }
 
-void tcpdelay_estimator_set_policy(
-	struct tcpdelay_estimator *estimator,
-	enum tcpdelay_baseline_policy policy
-)
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns)
 {
 	(void)estimator;
-	(void)policy;
+	(void)queue_bound_ns;
 }
 
 void traffic_init(struct traffic_monitor *monitor)

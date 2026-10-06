@@ -97,15 +97,11 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_m
 	}
 }
 
-/*
- * Adds pending records to the estimator under policy; false when the capture
- * failed and was closed.
- */
-static bool drain(struct monitor *monitor, enum tcpdelay_baseline_policy policy)
+/* Adds pending records to the estimator; false when the capture failed and was closed. */
+static bool drain(struct monitor *monitor)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
 
-	tcpdelay_estimator_set_policy(&tcp->capture.estimator, policy);
 	if (tcpdelay_capture_drain(&tcp->capture) >= 0)
 		return true;
 	log_message(
@@ -264,14 +260,23 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	const struct controller_latency_input *upload = &input->upload_latency;
 	const struct config *config = monitor->config;
 	int64_t round_trip = download->owd_delta_microseconds + upload->owd_delta_microseconds;
-	enum tcpdelay_baseline_policy policy = TCPDELAY_BASELINE_HOLD;
 
 	input->queue.valid = false;
 	input->acks.valid = false;
-	if (download->valid && upload->valid && round_trip < QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS)
-		policy = TCPDELAY_BASELINE_FOLLOW;
+	if (!capture_ready(monitor))
+		return;
+	/*
+	 * A queue on the access link delays fping's round trip as well, so no TCP
+	 * queue may exceed fping's added delay. The bound stays until the next
+	 * reply, also for records the traffic tick drains.
+	 */
+	if (download->valid && upload->valid)
+		tcpdelay_estimator_set_bound(
+			&monitor->tcp.capture.estimator,
+			max_i64(round_trip, 0) * (int64_t)NANOSECONDS_PER_MICROSECOND
+		);
 	/* Records wait in the ring buffer until drained, even without attribution. */
-	if (!capture_ready(monitor) || !drain(monitor, policy))
+	if (!drain(monitor))
 		return;
 	report_dropped_records(monitor, input->timestamp_microseconds);
 	if (config->tcp_delay_attribution)
@@ -295,7 +300,7 @@ void tcp_drain(struct monitor *monitor)
 		return;
 	}
 	if (tcp->open)
-		(void)drain(monitor, TCPDELAY_BASELINE_HOLD);
+		(void)drain(monitor);
 }
 
 void tcp_close(struct monitor *monitor)
