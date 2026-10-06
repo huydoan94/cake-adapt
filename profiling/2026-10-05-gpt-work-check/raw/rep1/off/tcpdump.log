@@ -1,0 +1,4 @@
+tcpdump: listening on cwan, link-type EN10MB (Ethernet), snapshot length 128 bytes
+38467 packets captured
+80546 packets received by filter
+0 packets dropped by kernel
