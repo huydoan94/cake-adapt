@@ -30,11 +30,6 @@ void log_message(enum log_level level, const char *format, ...)
 		notices++;
 }
 
-void log_tcp_queue(const struct log_tcp_queue_record *record)
-{
-	(void)record;
-}
-
 static unsigned int opened;
 static unsigned int closed;
 
@@ -55,7 +50,6 @@ int tcpdelay_capture_open(
 	(void)error_size;
 	opened++;
 	capture->interface_index = 10U;
-	capture->state = TCPDELAY_CAPTURE_READY;
 	capture->accounting.cake = *accounting;
 	capture->accounting.enabled = 1U;
 	return 0;
@@ -73,11 +67,6 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 	return 0;
 }
 
-bool tcpdelay_capture_timing_available(const struct tcpdelay_capture *capture)
-{
-	return capture->state == TCPDELAY_CAPTURE_READY && !capture->ring_busy;
-}
-
 void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator)
 {
 	(void)estimator;
@@ -90,20 +79,6 @@ void tcpdelay_estimator_set_policy(
 {
 	(void)estimator;
 	(void)policy;
-}
-
-static unsigned int estimator_results;
-
-void tcpdelay_estimator_result(
-	const struct tcpdelay_estimator *estimator,
-	uint64_t now_ns,
-	struct tcpdelay_estimate *estimate
-)
-{
-	(void)estimator;
-	(void)now_ns;
-	estimator_results++;
-	*estimate = (struct tcpdelay_estimate){ .download_valid = true, .upload_valid = true };
 }
 
 void traffic_init(struct traffic_monitor *monitor)
@@ -162,70 +137,6 @@ static void capture_lifecycle(struct monitor *monitor)
 	monitor->config = NULL;
 }
 
-static void test_queue_confidence_follows_capture_state(struct monitor *monitor)
-{
-	struct config config = {
-		.tcp_delay_attribution = true,
-		.ul_congest_ack_share_per_million = 450000U,
-	};
-	struct controller_input input = { 0 };
-	struct monitor_direction *upload = &monitor->links.upload;
-	const struct cake_observation cake = {
-		.interface_index = 10U,
-		.handle = 0x10000U,
-		.parent = TC_H_ROOT,
-		.atm_mode = CAKE_ATM_NONE,
-	};
-
-	monitor->config = &config;
-	upload->cake = cake;
-	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
-	supplied = (struct tcpdelay_counters){
-		.ack_bytes = 10000U,
-		.upload_bytes = 20000U,
-	};
-	input.timestamp_microseconds = 10U * SECOND;
-	tcp_observe(monitor, &input);
-	assert(estimator_results == 1U);
-	assert(!input.acks.valid);
-	{
-		unsigned int warning_count = warnings;
-
-		monitor->tcp.capture.ring_busy = true;
-		tcp_observe(monitor, &input);
-		assert(estimator_results == 1U && warnings == warning_count);
-		assert(monitor->tcp.queue_timing_available);
-		monitor->tcp.capture.ring_busy = false;
-	}
-	monitor->tcp.capture.state = TCPDELAY_CAPTURE_RECOVERING;
-	supplied.ack_bytes += 500U;
-	supplied.upload_bytes += 1000U;
-	input.timestamp_microseconds = 10500U * MILLISECOND;
-	tcp_observe(monitor, &input);
-	assert(estimator_results == 1U);
-	assert(!input.queue.valid);
-	assert(input.acks.valid);
-	{
-		unsigned int notice_count = notices;
-
-		monitor->tcp.capture.state = TCPDELAY_CAPTURE_READY;
-		monitor->tcp.capture.ring_busy = true;
-		tcp_observe(monitor, &input);
-		assert(estimator_results == 1U && notices == notice_count);
-		monitor->tcp.capture.ring_busy = false;
-		tcp_observe(monitor, &input);
-		assert(estimator_results == 2U && notices == notice_count + 1U);
-	}
-	monitor->tcp.capture.state = TCPDELAY_CAPTURE_DISABLED;
-	supplied.ack_bytes += 500U;
-	supplied.upload_bytes += 1000U;
-	input.timestamp_microseconds = 11U * SECOND;
-	tcp_observe(monitor, &input);
-	assert(estimator_results == 2U);
-	assert(input.acks.valid);
-	monitor->config = NULL;
-}
-
 int main(void)
 {
 	struct monitor *monitor = calloc(1U, sizeof(*monitor));
@@ -280,7 +191,6 @@ int main(void)
 	assert(acks.valid && notices == 3U);
 	assert(rate_since(1U, 0U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
-	test_queue_confidence_follows_capture_state(monitor);
 	free(monitor);
 	puts("monitor ACK accounting tests passed");
 	return 0;

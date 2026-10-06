@@ -122,8 +122,6 @@ struct monitor_tcp {
 	uint32_t capture_parent;
 	uint64_t dropped_records;
 	uint64_t next_counter_check_microseconds;
-	bool queue_timing_state_known;
-	bool queue_timing_available;
 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
 	bool ack_sampled;
 	bool ack_rate_valid;

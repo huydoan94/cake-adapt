@@ -19,7 +19,6 @@ struct tcpdelay_sample {
 	/* When the packet whose TSval this one echoes left; zero when unknown. */
 	uint64_t departure_ns;
 	uint32_t tsval;
-	uint64_t generation;
 };
 
 /* Minimum of a value over two alternating time buckets. */
@@ -40,7 +39,6 @@ struct tcpdelay_window {
 struct tcpdelay_flow {
 	struct tcpdelay_record_flow key;
 	bool used;
-	uint64_t generation;
 	/* Arrival of the last accepted sample; rejected records do not affect LRU. */
 	uint64_t last_accepted_ns;
 	uint64_t first_arrival_ns;
@@ -89,11 +87,6 @@ void tcpdelay_estimator_set_policy(
 void tcpdelay_estimator_add(
 	struct tcpdelay_estimator *estimator,
 	const struct tcpdelay_sample *sample
-);
-
-void tcpdelay_estimator_forget(
-	struct tcpdelay_estimator *estimator,
-	const struct tcpdelay_record_flow *flow
 );
 
 /* Fresh queues from one flow, preferring a complete pair and the longest history. */
