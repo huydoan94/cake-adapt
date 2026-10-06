@@ -1,0 +1,10 @@
+wrapper-pid	5220
+namespace	planned caketl5220
+log-directory	planned /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5220
+runner-pid-file	/tmp/cake-adapt-tcp-lifetime-runner.5220.pid
+soft-deadline-path	/tmp/cake-adapt-tcp-lifetime-deadline.5220
+soft-watchdog-pid	5222
+hard-watchdog-pid	5223
+runner	planned /tmp/cake-adapt-tuple-stream.JlCoic/tools/tcp-lifetime/../../build/tcp-lifetime/runner
+test-log	create-intent /tmp/sqm-mon-test.log
+test-log	created /tmp/sqm-mon-test.log

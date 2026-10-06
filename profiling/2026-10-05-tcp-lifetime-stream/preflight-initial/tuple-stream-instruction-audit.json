@@ -1,0 +1,62 @@
+[
+  {
+    "target": "x86",
+    "path": "../openwrt-sdk-x86/build_dir/target-i386_pentium4_musl/cake-adapt-0.2.11/.pkgdir/cake-adapt/lib/bpf/cake-adapt-tcpdelay.o",
+    "sha256": "1c8b9082581e838ea898f4c02fca2e3e23a0d0bcaeb8e6b3b7daf68fda78de22",
+    "endian": "little",
+    "sections": [
+      {
+        "name": ".text",
+        "instruction_slots": 0,
+        "atomic_instruction_offsets": [],
+        "helper_ids": [],
+        "pseudo_calls": []
+      },
+      {
+        "name": "socket",
+        "instruction_slots": 868,
+        "atomic_instruction_offsets": [],
+        "helper_ids": [
+          1,
+          2,
+          5,
+          26,
+          68,
+          131,
+          132
+        ],
+        "pseudo_calls": []
+      }
+    ]
+  },
+  {
+    "target": "filogic",
+    "path": "../openwrt-sdk-filogic/build_dir/target-aarch64_cortex-a53_musl/cake-adapt-0.2.11/.pkgdir/cake-adapt/lib/bpf/cake-adapt-tcpdelay.o",
+    "sha256": "485b2af48ca5527998e1f26ef3c9d160b46357f9220dc14a1c0d7e210f30431f",
+    "endian": "little",
+    "sections": [
+      {
+        "name": ".text",
+        "instruction_slots": 0,
+        "atomic_instruction_offsets": [],
+        "helper_ids": [],
+        "pseudo_calls": []
+      },
+      {
+        "name": "socket",
+        "instruction_slots": 868,
+        "atomic_instruction_offsets": [],
+        "helper_ids": [
+          1,
+          2,
+          5,
+          26,
+          68,
+          131,
+          132
+        ],
+        "pseudo_calls": []
+      }
+    ]
+  }
+]

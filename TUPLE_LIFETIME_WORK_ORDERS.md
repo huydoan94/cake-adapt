@@ -22,7 +22,9 @@ not imply its kernel, architecture or performance validation has passed.
 - ✓ Producer branch tests and packaged-object instruction inspection (TL-03.5).
 - ✓ Existing x86 and Filogic package builds and target ABI assertions. Other
   required target builds remain open (TL-06.2).
-- In progress: bounded kernel harness and local review (TL-05).
+- ✓ Minimal harness/local review and i386 JIT preflight: 10 assertions pass
+  ([evidence](profiling/2026-10-05-tcp-lifetime-stream/README.md)).
+- In progress: remaining kernel harness cases and acceptance plan (TL-05).
 - Pending: remaining target builds/ABI/kernel coverage and cost/lifecycle
   acceptance (TL-06/TL-07).
 
@@ -316,7 +318,7 @@ repeated VM attempts must not be repeated.
 
 **Tasks:**
 
-- **TL-05.1:** Adapt useful historical runner code to the new ABI without importing
+- ✓ **TL-05.1:** Adapt useful historical runner code to the new ABI without importing
   the old implementation's conclusions. Exercise the exact built object and
   the real consumer path; include source/object checksums.
 - **TL-05.2:** Cover active/passive opens, retransmissions, simultaneous open,

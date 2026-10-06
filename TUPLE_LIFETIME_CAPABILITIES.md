@@ -47,14 +47,16 @@ staged library files and kernel `.config`, without accessing a VM.
 | Staged libbpf / libelf / zlib | 1.6.2 / 0.192 / 1.3.1 | 1.6.2 / 0.192 / 1.3.1 |
 | Bounded ring APIs in headers | Present | Present |
 | New package build / target ABI assertions | ✓ Pass | ✓ Pass |
-| New verifier / actual JIT / kernel cases | Pending | Pending |
-| Available runtime | Authorized x86 VM; no live refresh in this inventory | Authorized emulated arm64 VM; functional only |
+| New verifier / actual JIT / kernel cases | ✓ Minimal preflight: JIT and 10 assertions; full cases pending | Pending |
+| Available runtime | Authorized x86 VM, kernel 6.12.108 | Authorized emulated arm64 VM; functional only |
 
 The arm64 runtime is `armsr/armv8`, not mediatek/filogic hardware. It can check the
 Filogic userspace ABI and common filter behavior, not platform-specific runtime
 coverage or CPU cost. Historical x86 VM kernel 6.12.108 must not be confused with
-the local SDK's 6.12.94. Live target configuration and execution mode must be
-recorded during the planned preflight before interpreting results.
+the local SDK's 6.12.94. ✓ The x86 preflight refreshed kernel 6.12.108 and
+actual JIT execution;
+[raw evidence](profiling/2026-10-05-tcp-lifetime-stream/README.md) records that
+limited result. Arm64 configuration/execution mode still needs a live refresh.
 
 Kernel configuration identities:
 
@@ -87,7 +89,9 @@ contains a BPF atomic store, spin-lock/unlock helper or BPF-to-BPF call. Calls
 use only helper IDs 1, 2, 5, 26, 68, 131 and 132: map lookup/update, monotonic
 time, skb byte loading, network-relative skb loading and ring reserve/submit.
 The inspected SDK UAPI maps these IDs to the required helpers. This establishes
-the emitted instruction inventory, not verifier acceptance or actual JIT mode.
+the emitted instruction inventory. ✓ The later x86 preflight separately
+established verifier acceptance and actual JIT mode for its exact object; no
+other target runtime result follows.
 
 The Filogic first build failed before compilation when its prepared-stamp hash
 changed. The SDK derives that hash from the whole package checkout; writing

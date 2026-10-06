@@ -1,0 +1,53 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+DISTRIB_ID='OpenWrt'
+DISTRIB_RELEASE='25.12-SNAPSHOT'
+DISTRIB_REVISION='r33241-44b73b738d'
+DISTRIB_TARGET='x86/generic'
+DISTRIB_ARCH='i386_pentium4'
+DISTRIB_DESCRIPTION='OpenWrt 25.12-SNAPSHOT r33241-44b73b738d'
+DISTRIB_TAINTS='no-all'
+cake-adapt-0.2.11-r1 description:
+An OpenWrt-native daemon for observing and, after verification, dynamically controlling CAKE bandwidth.
+
+cake-adapt-0.2.11-r1 webpage:
+
+
+cake-adapt-0.2.11-r1 installed size:
+135 KiB
+
+cake-adapt-0.2.11-r1 depends on:
+bash
+fping
+libbpf1
+libc
+libnl-tiny1
+libubox20260213
+libuci20250120
+zlib
+
+cake-adapt-0.2.11-r1 provides:
+cake-adapt-any
+
+cake-adapt-0.2.11-r1 is required by:
+
+cake-adapt-0.2.11-r1 contains:
+etc/config/cake-adapt
+etc/init.d/cake-adapt
+lib/apk/packages/cake-adapt.conffiles
+lib/apk/packages/cake-adapt.conffiles_static
+lib/apk/packages/cake-adapt.list
+lib/bpf/cake-adapt-tcpdelay.o
+usr/libexec/cake-adapt/import
+usr/sbin/cake-adapt
+
+cake-adapt-0.2.11-r1 triggers:
+
+cake-adapt-0.2.11-r1 has auto-install rule:
+
+cake-adapt-0.2.11-r1 affects auto-installation of:
+
+cake-adapt-0.2.11-r1 replaces:
+
+cake-adapt-0.2.11-r1 license:
+GPL-2.0-only
+

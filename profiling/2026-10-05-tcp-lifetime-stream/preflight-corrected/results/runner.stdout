@@ -1,0 +1,20 @@
+OBJECT	/tmp/cake-adapt-tuple-stream.aoOnNi/candidate.o
+ABI	stream_version=1	record_bytes=64	epoch_slots=64	loss_slots=64
+ASSERT	PASS	map_schema_counters
+MAP	counters	type=6	key=4	value=32	capacity=1
+ASSERT	PASS	map_schema_accounting
+MAP	accounting	type=2	key=4	value=24	capacity=1
+ASSERT	PASS	map_schema_stream_epoch_v1
+MAP	stream_epoch_v1	type=1	key=4	value=4	capacity=1
+ASSERT	PASS	map_schema_stream_losses
+MAP	stream_losses	type=1	key=4	value=4	capacity=64
+ASSERT	PASS	map_schema_stream_fault
+MAP	stream_fault	type=6	key=4	value=4	capacity=1
+ASSERT	PASS	map_schema_samples
+MAP	samples	type=27	key=0	value=0	capacity=262144
+ASSERT	PASS	program_tcpdelay_present
+PROGRAM	id=4	jited_prog_len=13455	xlated_prog_len=7456
+ASSERT	PASS	program_jit_enabled
+ASSERT	PASS	non_timestamp_syn_consumed
+ASSERT	PASS	lifecycle_syn_without_timestamps_tracks_native_identity
+RESULT	assertions=10	failures=0	mode=preflight
