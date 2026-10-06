@@ -61,18 +61,6 @@ fping_exited(struct latency_child *child, char *error, size_t error_size)
 	return LATENCY_PROBE_ERROR;
 }
 
-const struct pinger_ops fping_ops = {
-	.name = PINGER_METHOD_FPING,
-	.parse = fping_parse,
-	.exited = fping_exited,
-};
-
-const struct pinger_ops fping_ts_ops = {
-	.name = PINGER_METHOD_FPING,
-	.parse = fping_ts_parse,
-	.exited = fping_exited,
-};
-
 /* -I, --iface or --iface=NAME: the user chose the interface. */
 static bool selects_interface(const char *word)
 {
@@ -81,69 +69,41 @@ static bool selects_interface(const char *word)
 	       strncmp(word, FPING_INTERFACE_LONG_PREFIX, strlen(FPING_INTERFACE_LONG_PREFIX)) == 0;
 }
 
-int latency_open(
+/* One fping for all targets; fping-ts adds ICMP timestamp requests (type 13). */
+static int fping_open(
 	struct latency *latency,
-	const char *interface,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t reflector_ping_interval_microseconds,
-	const char *extra_arguments,
-	const char *prefix,
-	bool icmp_timestamps,
+	uint64_t timestamp_microseconds,
 	char *error,
 	size_t error_size
 )
 {
+	const struct latency_settings *settings = &latency->settings;
+	uint64_t interval = settings->reflector_ping_interval_microseconds;
 	struct pinger_command command;
 	char period[PINGER_ARGUMENT_SIZE];
 	char response_interval[PINGER_ARGUMENT_SIZE];
 	bool interface_selected = false;
 	size_t index;
-	int ret = -1;
+	int ret;
 
-	if (interface[0] == '\0')
-		return error_set(error, error_size, "fping interface is empty");
-	if (target_count == 0U)
-		return error_set(error, error_size, "fping requires at least one target");
-	if (target_count > CONFIG_MAX_REFLECTORS)
-		return error_set(
-			error,
-			error_size,
-			"fping supports at most %u targets",
-			CONFIG_MAX_REFLECTORS
-		);
-	if (reflector_ping_interval_microseconds / target_count < MICROSECONDS_PER_MILLISECOND)
-		return error_set(
-			error,
-			error_size,
-			"reflector ping interval must provide at least 1 ms per target"
-		);
-	if (validate_targets(targets, target_count, error, error_size) != 0)
-		return -1;
-
+	(void)timestamp_microseconds;
 	(void)snprintf(
 		period,
 		sizeof(period),
 		"%" PRIu64,
-		rounded_divide(reflector_ping_interval_microseconds, MICROSECONDS_PER_MILLISECOND)
+		rounded_divide(interval, MICROSECONDS_PER_MILLISECOND)
 	);
 	(void)snprintf(
 		response_interval,
 		sizeof(response_interval),
 		"%" PRIu64,
-		reflector_ping_interval_microseconds / target_count / MICROSECONDS_PER_MILLISECOND
+		interval / target_count / MICROSECONDS_PER_MILLISECOND
 	);
 
 	/* Up to 13 fixed arguments besides the targets. */
-	if (pinger_command_init(
-		    &command,
-		    prefix,
-		    extra_arguments,
-		    13U + target_count,
-		    PINGER_METHOD_FPING,
-		    error,
-		    error_size
-	    ) != 0)
+	if (pinger_command_init(&command, latency, 13U + target_count, error, error_size) != 0)
 		return -1;
 	pinger_command_add(&command, FPING_PATH);
 	for (index = 0U; index < command.extra.we_wordc; index++) {
@@ -154,7 +114,7 @@ int latency_open(
 	/* Keep the SQM interface default, but honor an explicit routing override. */
 	if (!interface_selected) {
 		pinger_command_add(&command, FPING_INTERFACE_SHORT);
-		pinger_command_add(&command, interface);
+		pinger_command_add(&command, settings->interface);
 	}
 	pinger_command_add(&command, FPING_TIMESTAMP);
 	pinger_command_add(&command, FPING_LOOP);
@@ -164,18 +124,30 @@ int latency_open(
 	pinger_command_add(&command, response_interval);
 	pinger_command_add(&command, FPING_TIMEOUT);
 	pinger_command_add(&command, DEFAULT_FPING_TIMEOUT_MILLISECONDS);
-	if (icmp_timestamps)
+	if (latency->ops == &fping_ts_ops)
 		pinger_command_add(&command, FPING_ICMP_TIMESTAMP);
 	for (index = 0U; index < target_count; index++)
 		pinger_command_add(&command, targets[index]);
 
-	if (start_child(&latency->children[0], command.argv, PINGER_METHOD_FPING, error, error_size) ==
-	    0) {
-		latency->ops = icmp_timestamps ? &fping_ts_ops : &fping_ops;
+	ret = start_child(latency, 0U, command.argv, error, error_size);
+	if (ret == 0) {
 		latency->active = true;
 		latency->child_count = 1U;
-		ret = 0;
 	}
 	pinger_command_free(&command);
 	return ret;
 }
+
+const struct pinger_ops fping_ops = {
+	.name = PINGER_METHOD_FPING,
+	.open = fping_open,
+	.parse = fping_parse,
+	.exited = fping_exited,
+};
+
+const struct pinger_ops fping_ts_ops = {
+	.name = PINGER_METHOD_FPING,
+	.open = fping_open,
+	.parse = fping_ts_parse,
+	.exited = fping_exited,
+};

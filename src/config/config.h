@@ -11,10 +11,19 @@
 #define CONFIG_STRING_SIZE 512U
 #define CONFIG_REFLECTOR_SIZE 256U
 
+/* One direction's shaper rates and the delay thresholds that adjust them. */
+struct config_direction {
+	bool adjust;
+	uint64_t minimum_rate_bits_per_second;
+	uint64_t base_rate_bits_per_second;
+	uint64_t maximum_rate_bits_per_second;
+	uint64_t average_owd_delta_maximum_adjust_up_microseconds;
+	uint64_t owd_delta_delay_threshold_microseconds;
+	uint64_t average_owd_delta_maximum_adjust_down_microseconds;
+};
+
 struct config {
 	bool enabled;
-	bool adjust_download;
-	bool adjust_upload;
 	bool output_processing_stats;
 	bool output_load_stats;
 	bool output_reflector_stats;
@@ -48,18 +57,8 @@ struct config {
 	uint64_t log_file_max_size_kilobytes;
 	uint64_t no_pingers;
 	uint64_t reflector_ping_interval_microseconds;
-	uint64_t download_average_owd_delta_maximum_adjust_up_microseconds;
-	uint64_t upload_average_owd_delta_maximum_adjust_up_microseconds;
-	uint64_t download_owd_delta_delay_threshold_microseconds;
-	uint64_t upload_owd_delta_delay_threshold_microseconds;
-	uint64_t download_average_owd_delta_maximum_adjust_down_microseconds;
-	uint64_t upload_average_owd_delta_maximum_adjust_down_microseconds;
-	uint64_t minimum_download_rate_bits_per_second;
-	uint64_t base_download_rate_bits_per_second;
-	uint64_t maximum_download_rate_bits_per_second;
-	uint64_t minimum_upload_rate_bits_per_second;
-	uint64_t base_upload_rate_bits_per_second;
-	uint64_t maximum_upload_rate_bits_per_second;
+	struct config_direction download;
+	struct config_direction upload;
 	uint64_t connection_active_threshold_bits_per_second;
 	uint64_t sustained_idle_sleep_threshold_microseconds;
 	uint64_t log_file_buffer_timeout_microseconds;

@@ -97,6 +97,12 @@ static int open_log_file(
 					DEFAULT_LOG_DIRECTORY;
 	/* cake-adapt.log for the main section, cake-adapt.<section>.log otherwise. */
 	bool named = strcmp(section_name, DEFAULT_SECTION) != 0;
+	const struct log_file_settings settings = {
+		.maximum_time_minutes = config->log_file_max_time_minutes,
+		.maximum_size_kilobytes = config->log_file_max_size_kilobytes,
+		.buffer_timeout_microseconds = config->log_file_buffer_timeout_microseconds,
+		.compress_exports = config->log_file_export_compress,
+	};
 	int length = snprintf(
 		log_path,
 		log_path_size,
@@ -110,13 +116,7 @@ static int open_log_file(
 		log_message(LOG_LEVEL_ERROR, "log file path is too long");
 		return -1;
 	}
-	if (config->log_to_file && log_set_file(
-					   log_path,
-					   config->log_file_max_time_minutes,
-					   config->log_file_max_size_kilobytes,
-					   config->log_file_buffer_timeout_microseconds,
-					   config->log_file_export_compress
-				   ) != 0) {
+	if (config->log_to_file && log_set_file(log_path, &settings) != 0) {
 		log_message(
 			LOG_LEVEL_ERROR,
 			"could not open log file '%s': %s",
@@ -128,24 +128,31 @@ static int open_log_file(
 	return 0;
 }
 
-static void
-log_adjustment(const char *direction, bool adjust, uint64_t minimum, uint64_t base, uint64_t maximum)
+static void log_adjustment(const char *name, const struct config_direction *direction)
 {
-	if (!adjust)
+	if (!direction->adjust)
 		return;
 	log_message(
 		LOG_LEVEL_INFO,
 		"%s adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
 		" bit/s maximum=%" PRIu64 " bit/s",
-		direction,
-		minimum,
-		base,
-		maximum
+		name,
+		direction->minimum_rate_bits_per_second,
+		direction->base_rate_bits_per_second,
+		direction->maximum_rate_bits_per_second
 	);
 }
 
 static void log_configuration(const struct config *config, const char *log_path)
 {
+	const struct log_records records = {
+		.data = config->output_processing_stats,
+		.load = config->output_load_stats,
+		.reflector = config->output_reflector_stats,
+		.summary = config->output_summary_stats,
+		.tcp_queue = config->output_processing_stats && config->tcp_delay_attribution,
+	};
+
 	if (config->config_file[0] != '\0')
 		log_message(
 			LOG_LEVEL_NOTICE,
@@ -153,14 +160,7 @@ static void log_configuration(const struct config *config, const char *log_path)
 			config->config_file
 		);
 
-	log_print_headers(
-		config->output_processing_stats,
-		config->output_load_stats,
-		config->output_reflector_stats,
-		config->output_summary_stats
-	);
-	if (config->output_processing_stats && config->tcp_delay_attribution)
-		log_print_tcp_queue_header();
+	log_print_headers(&records);
 	log_message(
 		LOG_LEVEL_DEBUG,
 		"Local list of reflectors contains %" PRIu64 " entries.",
@@ -182,30 +182,18 @@ static void log_configuration(const struct config *config, const char *log_path)
 		config->debug ? 1U : 0U,
 		config->log_to_file ? log_path : STATUS_DISABLED
 	);
-	log_adjustment(
-		DIRECTION_DOWNLOAD,
-		config->adjust_download,
-		config->minimum_download_rate_bits_per_second,
-		config->base_download_rate_bits_per_second,
-		config->maximum_download_rate_bits_per_second
-	);
-	log_adjustment(
-		DIRECTION_UPLOAD,
-		config->adjust_upload,
-		config->minimum_upload_rate_bits_per_second,
-		config->base_upload_rate_bits_per_second,
-		config->maximum_upload_rate_bits_per_second
-	);
+	log_adjustment(DIRECTION_DOWNLOAD, &config->download);
+	log_adjustment(DIRECTION_UPLOAD, &config->upload);
 }
 
 static void log_control_mode(const struct config *config)
 {
-	if (config->adjust_download || config->adjust_upload)
+	if (config->download.adjust || config->upload.adjust)
 		log_message(
 			LOG_LEVEL_NOTICE,
 			"started with CAKE bandwidth control: download=%s upload=%s",
-			config->adjust_download ? STATUS_ENABLED : STATUS_DISABLED,
-			config->adjust_upload ? STATUS_ENABLED : STATUS_DISABLED
+			config->download.adjust ? STATUS_ENABLED : STATUS_DISABLED,
+			config->upload.adjust ? STATUS_ENABLED : STATUS_DISABLED
 		);
 	else
 		log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");

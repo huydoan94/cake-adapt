@@ -108,13 +108,7 @@ static unsigned int replay(const char *path)
 	assert(trace != NULL);
 	assert(controller_init(&controller, &config) == 0);
 	/* The monitor compensates before the first sample, once CAKE is discovered. */
-	controller_set_serialization_compensation(
-		&controller,
-		WIRE_PACKET_BITS,
-		WIRE_PACKET_BITS,
-		cake_kbps[0] * KILOBIT,
-		cake_kbps[1] * KILOBIT
-	);
+	controller_set_serialization_compensation(&controller, WIRE_PACKET_BITS, WIRE_PACKET_BITS);
 	while (fgets(line, sizeof(line), trace) != NULL) {
 		struct trace_sample sample;
 		struct controller_input input;
@@ -154,9 +148,7 @@ static unsigned int replay(const char *path)
 		controller_set_serialization_compensation(
 			&controller,
 			WIRE_PACKET_BITS,
-			WIRE_PACKET_BITS,
-			controller.download.shaper_rate_bits_per_second,
-			controller.upload.shaper_rate_bits_per_second
+			WIRE_PACKET_BITS
 		);
 		outputs[0] = &output.download;
 		outputs[1] = &output.upload;

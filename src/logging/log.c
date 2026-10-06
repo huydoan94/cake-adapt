@@ -38,11 +38,7 @@ static uint64_t log_maximum_size_bytes;
 static uint64_t log_size_bytes;
 static uint64_t log_buffer_timeout_microseconds;
 static bool log_compress_exports;
-static bool header_data;
-static bool header_load;
-static bool header_reflector;
-static bool header_summary;
-static bool header_tcp_queue;
+static struct log_records headers;
 static char *cpu_header;
 static bool header_cpu_raw;
 static bool log_maintenance_active;
@@ -154,15 +150,15 @@ static uint64_t log_realtime_microseconds(void)
 
 static void write_headers_to_file(void)
 {
-	if (header_data)
+	if (headers.data)
 		write_file_line(data_header);
-	if (header_load)
+	if (headers.load)
 		write_file_line(load_header);
-	if (header_reflector)
+	if (headers.reflector)
 		write_file_line(reflector_header);
-	if (header_summary)
+	if (headers.summary)
 		write_file_line(summary_header);
-	if (header_tcp_queue)
+	if (headers.tcp_queue)
 		write_file_line(tcp_queue_header);
 	if (cpu_header != NULL)
 		write_file_line(cpu_header);
@@ -408,7 +404,7 @@ void log_close(void)
 	free(cpu_header);
 	cpu_header = NULL;
 	header_cpu_raw = false;
-	header_tcp_queue = false;
+	headers = (struct log_records){ 0 };
 
 	if (log_to_syslog) {
 		closelog();
@@ -416,13 +412,7 @@ void log_close(void)
 	}
 }
 
-int log_set_file(
-	const char *path,
-	uint64_t maximum_time_minutes,
-	uint64_t maximum_size_kilobytes,
-	uint64_t buffer_timeout_microseconds,
-	bool compress_exports
-)
+int log_set_file(const char *path, const struct log_file_settings *settings)
 {
 	FILE *file;
 	struct stat file_status;
@@ -462,11 +452,11 @@ int log_set_file(
 	log_file = file;
 	log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
 	log_last_flush_microseconds = log_opened_microseconds;
-	log_maximum_age_microseconds = maximum_time_minutes * MICROSECONDS_PER_MINUTE;
-	log_maximum_size_bytes = maximum_size_kilobytes * KIBIBYTE;
+	log_maximum_age_microseconds = settings->maximum_time_minutes * MICROSECONDS_PER_MINUTE;
+	log_maximum_size_bytes = settings->maximum_size_kilobytes * KIBIBYTE;
 	log_size_bytes = (uint64_t)file_status.st_size;
-	log_buffer_timeout_microseconds = buffer_timeout_microseconds;
-	log_compress_exports = compress_exports;
+	log_buffer_timeout_microseconds = settings->buffer_timeout_microseconds;
+	log_compress_exports = settings->compress_exports;
 
 	return 0;
 }
@@ -481,25 +471,19 @@ void log_set_debug_syslog(bool enabled)
 	debug_to_syslog = enabled;
 }
 
-void log_print_headers(
-	bool output_processing_stats,
-	bool output_load_stats,
-	bool output_reflector_stats,
-	bool output_summary_stats
-)
+void log_print_headers(const struct log_records *records)
 {
-	header_data = output_processing_stats;
-	header_load = output_load_stats;
-	header_reflector = output_reflector_stats;
-	header_summary = output_summary_stats;
-	if (output_processing_stats)
+	headers = *records;
+	if (records->data)
 		write_line(data_header);
-	if (output_load_stats)
+	if (records->load)
 		write_line(load_header);
-	if (output_reflector_stats)
+	if (records->reflector)
 		write_line(reflector_header);
-	if (output_summary_stats)
+	if (records->summary)
 		write_line(summary_header);
+	if (records->tcp_queue)
+		write_line(tcp_queue_header);
 }
 
 void log_print_cpu_headers(
@@ -593,12 +577,6 @@ static void write_timed_record(const char *type, const char *format, ...)
 		arguments
 	);
 	va_end(arguments);
-}
-
-void log_print_tcp_queue_header(void)
-{
-	header_tcp_queue = true;
-	write_line(tcp_queue_header);
 }
 
 void log_tcp_queue(const struct log_tcp_queue_record *record)

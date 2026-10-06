@@ -1275,88 +1275,88 @@ static struct controller_activity_input activity_input(uint64_t timestamp)
 
 static void test_sustained_idle_sleep_and_wakeup(void)
 {
-	struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+	struct controller_activity activity = { .config = activity_config };
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.idle_started_microseconds == 1U);
 	input = activity_input(60000001U);
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	input = activity_input(60000002U);
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_IDLE);
 	assert(output.state_changed);
 	input.timestamp_microseconds += 20000000U;
 	input.last_response_microseconds = 1U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_IDLE);
 	assert(!output.restart_pingers);
 	assert(!output.global_timeout_started);
 	input.upload.traffic_rate_bits_per_second = 2000000U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_IDLE);
 	input.upload.traffic_rate_bits_per_second += 1000U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(output.state_changed);
 }
 
 static void test_interrupted_or_invalid_idle_does_not_sleep(void)
 {
-	struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+	struct controller_activity activity;
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
-	struct controller_activity_config config = activity_config;
 
-	activity_update(&activity, &config, &input, &output);
+	activity_init(&activity, &activity_config);
+	activity_update(&activity, &input, &output);
 	input = activity_input(20000000U);
 	input.download.traffic_rate_bits_per_second = 2001000U;
-	activity_update(&activity, &config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.idle_started_microseconds == 0U);
 	input = activity_input(60000002U);
-	activity_update(&activity, &config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(activity.idle_started_microseconds == input.timestamp_microseconds);
 	input = activity_input(120000004U);
 	input.download.valid = false;
-	activity_update(&activity, &config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(activity.idle_started_microseconds == 0U);
-	config.enable_sleep = false;
+	activity.config.enable_sleep = false;
 	input = activity_input(200000000U);
-	activity_update(&activity, &config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(activity.idle_started_microseconds == 0U);
 }
 
 static void test_stall_timeout_restart_and_response_recovery(void)
 {
-	struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+	struct controller_activity activity = { .config = activity_config };
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
 	input.timestamp_microseconds = 250001U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	input.timestamp_microseconds++;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_STALL);
 	assert(output.check_stall_loads);
 	assert(output.state_changed);
 	assert(!output.global_timeout_started);
 	input.timestamp_microseconds = 10000001U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(output.global_timeout_started);
 	assert(output.restart_pingers);
 	input.last_pinger_start_microseconds = input.timestamp_microseconds;
 	input.timestamp_microseconds++;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(!output.global_timeout_started);
 	assert(!output.restart_pingers);
 	input.last_response_microseconds = input.timestamp_microseconds;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(output.state_changed);
 	assert(!activity.global_timeout_reported);
@@ -1364,39 +1364,39 @@ static void test_stall_timeout_restart_and_response_recovery(void)
 
 static void test_both_loads_bypass_stall_but_not_global_timeout(void)
 {
-	struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+	struct controller_activity activity = { .config = activity_config };
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
 	input.timestamp_microseconds = 10000001U;
 	input.download.traffic_rate_bits_per_second = 11000U;
 	input.upload.traffic_rate_bits_per_second = 11000U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(output.global_timeout_started);
 	assert(output.restart_pingers);
 	input.upload.traffic_rate_bits_per_second = 10000U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_STALL);
 	input.upload.traffic_rate_bits_per_second += 1000U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(output.state_changed);
 }
 
 static void test_wakeup_grace_prevents_false_stall(void)
 {
-	struct controller_activity activity = { .state = CONTROLLER_RUNNING };
+	struct controller_activity activity = { .config = activity_config };
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
 	input.timestamp_microseconds = 600000U;
 	input.grace_until_microseconds = 600001U;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(!output.check_stall_loads);
 	input.timestamp_microseconds++;
-	activity_update(&activity, &activity_config, &input, &output);
+	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_STALL);
 }
 
@@ -1527,7 +1527,8 @@ static void test_compensation_saturates_thresholds(void)
 
 	config.download.delay_threshold_microseconds = UINT64_MAX - 1U;
 	init_controller(&controller, &config);
-	controller_set_serialization_compensation(&controller, 12000U, 0U, 1U, 1U);
+	controller.download.shaper_rate_bits_per_second = 1U;
+	controller_set_serialization_compensation(&controller, 12000U, 0U);
 	assert(controller.download.config.delay_threshold_microseconds == UINT64_MAX);
 	controller_close(&controller);
 }
@@ -1549,7 +1550,9 @@ static void test_compensation_is_directional_and_preserves_history(void)
 	assert(controller.download.delayed_sample_count == 1U);
 	assert(controller.upload.delayed_sample_count == 1U);
 
-	controller_set_serialization_compensation(&controller, 12000U, 24000U, 1000000U, 2000000U);
+	controller.download.shaper_rate_bits_per_second = 1000000U;
+	controller.upload.shaper_rate_bits_per_second = 2000000U;
+	controller_set_serialization_compensation(&controller, 12000U, 24000U);
 	assert(controller.config.download.delay_threshold_microseconds == 30000U);
 	assert(controller.config.upload.delay_threshold_microseconds == 31000U);
 	assert(controller.download.config.average_delay_maximum_adjust_up_microseconds == 22000U);
@@ -1561,7 +1564,8 @@ static void test_compensation_is_directional_and_preserves_history(void)
 	assert(controller.download.delayed_sample_count == 1U);
 	assert(controller.upload.delayed_sample_count == 1U);
 
-	controller_set_serialization_compensation(&controller, 6000U, 6000U, 1000000U, 3000000U);
+	controller.upload.shaper_rate_bits_per_second = 3000000U;
+	controller_set_serialization_compensation(&controller, 6000U, 6000U);
 	assert(controller.download.config.average_delay_maximum_adjust_up_microseconds == 16000U);
 	assert(controller.download.config.delay_threshold_microseconds == 36000U);
 	assert(controller.download.config.average_delay_maximum_adjust_down_microseconds == 66000U);

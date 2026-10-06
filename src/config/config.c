@@ -52,8 +52,8 @@ struct option_binding {
 /* Booleans, then strings, then scaled decimals: the order -L lists and loading applies. */
 static const struct option_binding options[] = {
 	BOOLEAN_OPTION(OPTION_ENABLED, enabled),
-	BOOLEAN_OPTION(OPTION_ADJUST_DOWNLOAD, adjust_download),
-	BOOLEAN_OPTION(OPTION_ADJUST_UPLOAD, adjust_upload),
+	BOOLEAN_OPTION(OPTION_ADJUST_DOWNLOAD, download.adjust),
+	BOOLEAN_OPTION(OPTION_ADJUST_UPLOAD, upload.adjust),
 	BOOLEAN_OPTION(OPTION_OUTPUT_PROCESSING_STATS, output_processing_stats),
 	BOOLEAN_OPTION(OPTION_OUTPUT_LOAD_STATS, output_load_stats),
 	BOOLEAN_OPTION(OPTION_OUTPUT_REFLECTOR_STATS, output_reflector_stats),
@@ -82,12 +82,12 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_kilobytes, 1U),
 	SCALED_OPTION(OPTION_NO_PINGERS, no_pingers, 1U),
 	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_microseconds, SECOND),
-	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, minimum_download_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, base_download_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, maximum_download_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, minimum_upload_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, base_upload_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, maximum_upload_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, download.minimum_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, download.base_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, download.maximum_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, upload.minimum_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, upload.base_rate_bits_per_second, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, upload.maximum_rate_bits_per_second, KILOBIT),
 	SCALED_OPTION(
 		OPTION_CONNECTION_ACTIVE_THRESHOLD,
 		connection_active_threshold_bits_per_second,
@@ -100,32 +100,32 @@ static const struct option_binding options[] = {
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_UP,
-		download_average_owd_delta_maximum_adjust_up_microseconds,
+		download.average_owd_delta_maximum_adjust_up_microseconds,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_AVG_ADJUST_UP,
-		upload_average_owd_delta_maximum_adjust_up_microseconds,
+		upload.average_owd_delta_maximum_adjust_up_microseconds,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_DELAY_THRESHOLD,
-		download_owd_delta_delay_threshold_microseconds,
+		download.owd_delta_delay_threshold_microseconds,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_DELAY_THRESHOLD,
-		upload_owd_delta_delay_threshold_microseconds,
+		upload.owd_delta_delay_threshold_microseconds,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_DOWN,
-		download_average_owd_delta_maximum_adjust_down_microseconds,
+		download.average_owd_delta_maximum_adjust_down_microseconds,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_AVG_ADJUST_DOWN,
-		upload_average_owd_delta_maximum_adjust_down_microseconds,
+		upload.average_owd_delta_maximum_adjust_down_microseconds,
 		MILLISECOND
 	),
 	SCALED_OPTION(
@@ -243,22 +243,27 @@ const char *config_option_name(size_t index)
 	return index < ARRAY_SIZE(options) ? options[index].name : NULL;
 }
 
-static int
-copy_reflector(struct config *config, const char *reflector, char *error, size_t error_size);
+/* The section being loaded, the configuration it fills and where a failure is described. */
+struct loader {
+	struct uci_context *context;
+	struct uci_section *section;
+	struct config *config;
+	char *error;
+	size_t error_size;
+};
 
 static int copy_option(
+	const struct loader *loader,
+	const char *name,
 	char *destination,
 	size_t destination_size,
-	const char *value,
-	const char *option_name,
-	char *error,
-	size_t error_size
+	const char *value
 )
 {
 	size_t length = strlen(value);
 
 	if (length >= destination_size)
-		return error_set(error, error_size, "option '%s' is too long", option_name);
+		return error_set(loader->error, loader->error_size, "option '%s' is too long", name);
 
 	memcpy(destination, value, length + 1U);
 	return 0;
@@ -317,24 +322,18 @@ static int parse_boolean(const char *value, bool *result)
 	return -1;
 }
 
-static int lookup_string_option(
-	struct uci_context *context,
-	struct uci_section *section,
-	const char *name,
-	const char **value,
-	char *error,
-	size_t error_size
-)
+/* A scalar option's value, or NULL when the section does not set it. */
+static int lookup_string_option(const struct loader *loader, const char *name, const char **value)
 {
-	struct uci_option *option = uci_lookup_option(context, section, name);
+	struct uci_option *option = uci_lookup_option(loader->context, loader->section, name);
 
 	*value = NULL;
 	if (option == NULL)
 		return 0;
 	if (option->type != UCI_TYPE_STRING) {
 		return error_set(
-			error,
-			error_size,
+			loader->error,
+			loader->error_size,
 			"option '%s' must be a scalar UCI option, not a list",
 			name
 		);
@@ -344,25 +343,29 @@ static int lookup_string_option(
 }
 
 static int parse_scaled_decimal(
+	const struct loader *loader,
+	const struct option_binding *option,
 	const char *value,
-	uint64_t scale,
-	uint64_t *result,
-	const char *option_name,
-	char *error,
-	size_t error_size
+	uint64_t *result
 )
 {
 	const char *character = value + strspn(value, DECIMAL_DIGITS);
 	uint64_t scaled_value;
-	uint64_t fractional_place = scale;
+	uint64_t fractional_place = option->scale;
 
 	if (value[0] == '\0')
-		return error_set(error, error_size, "option '%s' is empty", option_name);
+		return error_set(
+			loader->error,
+			loader->error_size,
+			"option '%s' is empty",
+			option->name
+		);
 	if (character == value)
 		goto invalid;
-	if (!parse_unsigned(value, character, &scaled_value) || scaled_value > UINT64_MAX / scale)
+	if (!parse_unsigned(value, character, &scaled_value) ||
+	    scaled_value > UINT64_MAX / option->scale)
 		goto too_large;
-	scaled_value *= scale;
+	scaled_value *= option->scale;
 
 	if (*character != '\0') {
 		/* A point followed by one or more digits. */
@@ -376,10 +379,10 @@ static int parse_scaled_decimal(
 			if (fractional_place == 1U) {
 				if (digit != 0U) {
 					return error_set(
-						error,
-						error_size,
+						loader->error,
+						loader->error_size,
 						"option '%s' has more precision than cake-adapt stores",
-						option_name
+						option->name
 					);
 				}
 				continue;
@@ -395,99 +398,77 @@ static int parse_scaled_decimal(
 
 invalid:
 	return error_set(
-		error,
-		error_size,
+		loader->error,
+		loader->error_size,
 		"option '%s' is not a non-negative decimal",
-		option_name
+		option->name
 	);
 too_large:
-	return error_set(error, error_size, "option '%s' is too large", option_name);
+	return error_set(
+		loader->error,
+		loader->error_size,
+		"option '%s' is too large",
+		option->name
+	);
 }
 
-static int load_option(
-	const struct option_binding *option,
-	const char *value,
-	struct config *config,
-	char *error,
-	size_t error_size
-)
+static int
+load_option(const struct loader *loader, const struct option_binding *option, const char *value)
 {
-	char *destination = (char *)config + option->offset;
+	char *destination = (char *)loader->config + option->offset;
 
 	switch (option->type) {
 	case TYPE_BOOLEAN:
 		if (parse_boolean(value, (bool *)destination) != 0)
 			return error_set(
-				error,
-				error_size,
+				loader->error,
+				loader->error_size,
 				"option '%s' is not a boolean",
 				option->name
 			);
 		return 0;
 	case TYPE_STRING:
-		return copy_option(destination, option->size, value, option->name, error, error_size);
+		return copy_option(loader, option->name, destination, option->size, value);
 	case TYPE_SCALED:
-		return parse_scaled_decimal(
-			value,
-			option->scale,
-			(uint64_t *)destination,
-			option->name,
-			error,
-			error_size
-		);
+		return parse_scaled_decimal(loader, option, value, (uint64_t *)destination);
 	}
 	return 0;
 }
 
-static int load_options(
-	struct uci_context *context,
-	struct uci_section *section,
-	struct config *config,
-	char *error,
-	size_t error_size
-)
+static int load_options(const struct loader *loader)
 {
 	size_t index;
 
 	for (index = 0U; index < ARRAY_SIZE(options); index++) {
 		const char *value;
 
-		if (lookup_string_option(
-			    context,
-			    section,
-			    options[index].name,
-			    &value,
-			    error,
-			    error_size
-		    ) != 0)
+		if (lookup_string_option(loader, options[index].name, &value) != 0)
 			return -1;
-		if (value != NULL &&
-		    load_option(&options[index], value, config, error, error_size) != 0)
+		if (value != NULL && load_option(loader, &options[index], value) != 0)
 			return -1;
 	}
 	return 0;
 }
 
-static int
-copy_reflector(struct config *config, const char *reflector, char *error, size_t error_size)
+static int copy_reflector(const struct loader *loader, const char *reflector)
 {
+	struct config *config = loader->config;
 	uint64_t index = config->reflector_count;
 
 	if (index >= CONFIG_MAX_REFLECTORS) {
 		return error_set(
-			error,
-			error_size,
+			loader->error,
+			loader->error_size,
 			"option 'reflectors' contains more than %u entries",
 			CONFIG_MAX_REFLECTORS
 		);
 	}
 	if (copy_option(
+		    loader,
+		    OPTION_REFLECTORS,
 		    config->reflectors[index],
 		    sizeof(config->reflectors[index]),
-		    reflector,
-		    OPTION_REFLECTORS,
-		    error,
-		    error_size
+		    reflector
 	    ) != 0) {
 		return -1;
 	}
@@ -495,80 +476,64 @@ copy_reflector(struct config *config, const char *reflector, char *error, size_t
 	return 0;
 }
 
-static int load_reflectors(
-	struct uci_context *context,
-	struct uci_section *section,
-	struct config *config,
-	char *error,
-	size_t error_size
-)
+static int load_reflectors(const struct loader *loader)
 {
-	struct uci_option *option = uci_lookup_option(context, section, OPTION_REFLECTORS);
+	struct uci_option *option =
+		uci_lookup_option(loader->context, loader->section, OPTION_REFLECTORS);
 	struct uci_element *element;
 
 	if (option == NULL)
 		return 0;
 	if (option->type != UCI_TYPE_LIST)
-		return error_set(error, error_size, "option 'reflectors' must be a UCI list");
+		return error_set(
+			loader->error,
+			loader->error_size,
+			"option 'reflectors' must be a UCI list"
+		);
 
-	config->reflector_count = 0U;
+	loader->config->reflector_count = 0U;
 	uci_foreach_element(&option->v.list, element) {
-		if (copy_reflector(config, element->name, error, error_size) != 0)
+		if (copy_reflector(loader, element->name) != 0)
 			return -1;
 	}
 	return 0;
 }
 
-static int load_section(
-	struct uci_context *context,
-	struct uci_section *section,
-	struct config *config,
-	char *error,
-	size_t error_size
-)
+static int load_section(const struct loader *loader)
 {
-	bool reflectors_configured = uci_lookup_option(context, section, OPTION_REFLECTORS) != NULL;
-	bool no_pingers_configured = uci_lookup_option(context, section, OPTION_NO_PINGERS) != NULL;
+	struct config *config = loader->config;
+	bool reflectors_configured =
+		uci_lookup_option(loader->context, loader->section, OPTION_REFLECTORS) != NULL;
+	bool no_pingers_configured =
+		uci_lookup_option(loader->context, loader->section, OPTION_NO_PINGERS) != NULL;
 	/* Legacy single-target input is needed only while loading configuration. */
 	char latency_target[CONFIG_REFLECTOR_SIZE] = { 0 };
 	const char *latency_target_value;
 
-	if (lookup_string_option(
-		    context,
-		    section,
-		    OPTION_LATENCY_TARGET,
-		    &latency_target_value,
-		    error,
-		    error_size
-	    ) != 0 ||
+	if (lookup_string_option(loader, OPTION_LATENCY_TARGET, &latency_target_value) != 0 ||
 	    (latency_target_value != NULL && copy_option(
+						     loader,
+						     OPTION_LATENCY_TARGET,
 						     latency_target,
 						     sizeof(latency_target),
-						     latency_target_value,
-						     OPTION_LATENCY_TARGET,
-						     error,
-						     error_size
+						     latency_target_value
 					     ) != 0)) {
 		return -1;
 	}
 
-	if (load_options(context, section, config, error, error_size) != 0 ||
-	    load_reflectors(context, section, config, error, error_size) != 0) {
-		return -1;
-	}
-
-	if (resolve_interfaces(config, error, error_size) != 0)
+	if (load_options(loader) != 0 || load_reflectors(loader) != 0 ||
+	    resolve_interfaces(config, loader->error, loader->error_size) != 0)
 		return -1;
 
 	if (!reflectors_configured && latency_target[0] != '\0') {
 		config->reflector_count = 0U;
-		if (copy_reflector(config, latency_target, error, error_size) != 0)
+		if (copy_reflector(loader, latency_target) != 0)
 			return -1;
 		if (!no_pingers_configured)
 			config->no_pingers = 1U;
 	}
 
-	return config_validate(config, error, error_size);
+	return config_validate(config, loader->error, loader->error_size);
 }
 
 int config_load(
@@ -579,9 +544,13 @@ int config_load(
 	size_t error_size
 )
 {
+	struct loader loader = {
+		.config = config,
+		.error = error,
+		.error_size = error_size,
+	};
 	struct uci_context *context;
 	struct uci_package *package = NULL;
-	struct uci_section *section;
 	int result = -1;
 
 	if (section_name == NULL || section_name[0] == '\0')
@@ -619,13 +588,14 @@ int config_load(
 		goto done;
 	}
 
-	section = uci_lookup_section(context, package, section_name);
-	if (section == NULL || strcmp(section->type, UCI_SECTION_TYPE) != 0) {
+	loader.context = context;
+	loader.section = uci_lookup_section(context, package, section_name);
+	if (loader.section == NULL || strcmp(loader.section->type, UCI_SECTION_TYPE) != 0) {
 		error_set(error, error_size, "missing config cake_adapt '%s' section", section_name);
 		goto done;
 	}
 
-	result = load_section(context, section, config, error, error_size);
+	result = load_section(&loader);
 
 done:
 	/* libuci owns and releases every package loaded into this context. */

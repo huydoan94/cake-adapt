@@ -15,8 +15,6 @@ struct latency_observation {
 	int64_t upload_owd_baseline_microseconds;
 	int64_t upload_owd_delta_microseconds;
 	int64_t upload_owd_delta_ewma_microseconds;
-	uint64_t timestamp_microseconds;
-	uint64_t sequence;
 };
 
 struct latency_tracker_config {
@@ -31,12 +29,14 @@ struct latency_direction_tracker {
 };
 
 struct latency_tracker {
-	struct latency_tracker_config config;
+	/* Shared by every tracker; alphas are validated per million, at most one. */
+	const struct latency_tracker_config *config;
 	struct latency_direction_tracker download;
 	struct latency_direction_tracker upload;
 };
 
-int tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config);
+/* config is borrowed for the tracker's lifetime. */
+void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config);
 
 void tracker_reset(struct latency_tracker *tracker);
 

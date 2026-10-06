@@ -12,8 +12,8 @@ int main(void)
 	defaults_apply(&config);
 
 	assert(!config.enabled);
-	assert(!config.adjust_download);
-	assert(!config.adjust_upload);
+	assert(!config.download.adjust);
+	assert(!config.upload.adjust);
 	assert(config.debug);
 	assert(config.log_to_file);
 	assert(config.randomize_reflectors);
@@ -25,12 +25,12 @@ int main(void)
 	assert(config.log_file_max_size_kilobytes == 2000U);
 	assert(config.no_pingers == 6U);
 	assert(config.reflector_ping_interval_microseconds == 300000U);
-	assert(config.minimum_download_rate_bits_per_second == 5000000U);
-	assert(config.base_download_rate_bits_per_second == 20000000U);
-	assert(config.maximum_download_rate_bits_per_second == 80000000U);
-	assert(config.minimum_upload_rate_bits_per_second == 5000000U);
-	assert(config.base_upload_rate_bits_per_second == 20000000U);
-	assert(config.maximum_upload_rate_bits_per_second == 35000000U);
+	assert(config.download.minimum_rate_bits_per_second == 5000000U);
+	assert(config.download.base_rate_bits_per_second == 20000000U);
+	assert(config.download.maximum_rate_bits_per_second == 80000000U);
+	assert(config.upload.minimum_rate_bits_per_second == 5000000U);
+	assert(config.upload.base_rate_bits_per_second == 20000000U);
+	assert(config.upload.maximum_rate_bits_per_second == 35000000U);
 	assert(config.connection_active_threshold_bits_per_second == 2000000U);
 	assert(config.monitor_achieved_rates_interval_microseconds == 200000U);
 	assert(!config.tcp_delay_attribution);

@@ -31,20 +31,17 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 
 	if (tcpdelay_capture_open(
 		    &monitor->tcp.capture,
-		    TCPDELAY_OBJECT_PATH,
 		    upload->interface,
 		    accounting,
-		    &monitor->tcp.estimator,
 		    error,
 		    sizeof(error)
 	    ) != 0) {
 		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: %s", error);
-		monitor->tcp.failed_index = upload->cake.interface_index;
+		monitor->tcp.failed_index = upload->cake.qdisc.interface_index;
 		return false;
 	}
-	/* Flows and windows from an earlier interface no longer apply. */
-	tcpdelay_estimator_init(&monitor->tcp.estimator);
 	monitor->tcp.open = true;
+	monitor->tcp.qdisc = upload->cake.qdisc;
 	monitor->tcp.failed_index = 0U;
 	monitor->tcp.dropped_records = 0U;
 	monitor->tcp.next_counter_check_microseconds = 0U;
@@ -53,8 +50,6 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	monitor->tcp.ack_rate_valid = false;
 	monitor->tcp.ack_degraded = false;
 	monitor->tcp.unaccounted_packets = 0U;
-	monitor->tcp.capture_handle = upload->cake.handle;
-	monitor->tcp.capture_parent = upload->cake.parent;
 	log_message(LOG_LEVEL_NOTICE, "TCP measurement started: interface=%s", upload->interface);
 	return true;
 }
@@ -79,9 +74,13 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_m
 	}
 }
 
-/* Adds pending records to the estimator; false when the capture failed and was closed. */
-static bool drain(struct monitor *monitor)
+/*
+ * Adds pending records to the estimator under policy; false when the capture
+ * failed and was closed.
+ */
+static bool drain(struct monitor *monitor, enum tcpdelay_baseline_policy policy)
 {
+	tcpdelay_estimator_set_policy(&monitor->tcp.capture.estimator, policy);
 	if (tcpdelay_capture_drain(&monitor->tcp.capture) >= 0)
 		return true;
 	log_message(
@@ -90,16 +89,12 @@ static bool drain(struct monitor *monitor)
 		strerror(errno)
 	);
 	tcp_close(monitor);
-	monitor->tcp.failed_index = monitor->links.upload.cake.interface_index;
+	monitor->tcp.failed_index = monitor->links.upload.cake.qdisc.interface_index;
 	return false;
 }
 
-/* Opens, follows and drains the capture; false when it is not usable. */
-static bool capture_ready(
-	struct monitor *monitor,
-	uint64_t timestamp_microseconds,
-	enum tcpdelay_baseline_policy policy
-)
+/* Opens the capture, or reopens it for a changed qdisc; false when it is not usable. */
+static bool capture_ready(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
 	const struct monitor_direction *upload = &monitor->links.upload;
@@ -111,9 +106,7 @@ static bool capture_ready(
 		return false;
 	}
 	if (monitor->tcp.open &&
-	    (monitor->tcp.capture.interface_index != upload->cake.interface_index ||
-	     monitor->tcp.capture_handle != upload->cake.handle ||
-	     monitor->tcp.capture_parent != upload->cake.parent ||
+	    (!qdisc_same(&monitor->tcp.qdisc, &upload->cake.qdisc) ||
 	     (monitor->tcp.capture.accounting.enabled &&
 	      memcmp(&monitor->tcp.capture.accounting.cake, &model, sizeof(model)) != 0))) {
 		log_message(
@@ -123,16 +116,10 @@ static bool capture_ready(
 		);
 		tcp_close(monitor);
 	}
-	if (!monitor->tcp.open && (monitor->tcp.failed_index == upload->cake.interface_index ||
-				   !open_capture(monitor, upload))) {
-		return false;
-	}
-	tcpdelay_estimator_set_policy(&monitor->tcp.estimator, policy);
-	/* Records wait in the ring buffer until drained, even without attribution. */
-	if (!drain(monitor))
-		return false;
-	report_dropped_records(monitor, timestamp_microseconds);
-	return true;
+	if (monitor->tcp.open)
+		return true;
+	return monitor->tcp.failed_index != upload->cake.qdisc.interface_index &&
+	       open_capture(monitor, upload);
 }
 
 static void measure_queues(
@@ -145,7 +132,7 @@ static void measure_queues(
 
 	/* The filter timestamps with CLOCK_MONOTONIC, like the monitor. */
 	tcpdelay_estimator_result(
-		&monitor->tcp.estimator,
+		&monitor->tcp.capture.estimator,
 		timestamp_microseconds * NANOSECONDS_PER_MICROSECOND,
 		&estimate
 	);
@@ -258,8 +245,10 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	if (input->download_latency.valid && input->upload_latency.valid &&
 	    round_trip < QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS)
 		policy = TCPDELAY_BASELINE_FOLLOW;
-	if (!capture_ready(monitor, input->timestamp_microseconds, policy))
+	/* Records wait in the ring buffer until drained, even without attribution. */
+	if (!capture_ready(monitor) || !drain(monitor, policy))
 		return;
+	report_dropped_records(monitor, input->timestamp_microseconds);
 	if (config->tcp_delay_attribution)
 		measure_queues(monitor, input->timestamp_microseconds, &input->queue);
 	if (config->ul_congest_ack_share_per_million != 0U)
@@ -277,10 +266,8 @@ void tcp_drain(struct monitor *monitor)
 		tcp_close(monitor);
 		return;
 	}
-	if (monitor->tcp.open) {
-		tcpdelay_estimator_set_policy(&monitor->tcp.estimator, TCPDELAY_BASELINE_HOLD);
-		(void)drain(monitor);
-	}
+	if (monitor->tcp.open)
+		(void)drain(monitor, TCPDELAY_BASELINE_HOLD);
 }
 
 void tcp_close(struct monitor *monitor)

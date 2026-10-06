@@ -3,6 +3,7 @@
 #include "monitor/loop.h"
 
 #include "common/error.h"
+#include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
 
@@ -46,8 +47,7 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 	direction->traffic_state = TRAFFIC_OBSERVATION_AVAILABLE;
 
 	sample = (struct traffic_sample){ .bytes = direction->cake.bytes,
-					  .qdisc_handle = direction->cake.handle,
-					  .qdisc_parent = direction->cake.parent,
+					  .qdisc = direction->cake.qdisc,
 					  .timestamp = *timestamp };
 	update_result = traffic_update(
 		&direction->traffic_monitor,
@@ -83,7 +83,7 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 			" direction=%s interface=%s handle=0x%08" PRIx32,
 			direction->name,
 			direction->interface,
-			sample.qdisc_handle
+			sample.qdisc.handle
 		);
 		break;
 	case TRAFFIC_UPDATE_INVALID_INTERVAL:
@@ -121,7 +121,7 @@ log_cake_discovery(const char *interface, const struct cake_observation *observa
 			"CAKE observation recovered: interface=%s handle=0x%08" PRIx32
 			" bandwidth=%s",
 			interface,
-			observation->handle,
+			observation->qdisc.handle,
 			bandwidth
 		);
 	} else {
@@ -129,7 +129,7 @@ log_cake_discovery(const char *interface, const struct cake_observation *observa
 			LOG_LEVEL_INFO,
 			"CAKE discovered: interface=%s handle=0x%08" PRIx32 " bandwidth=%s",
 			interface,
-			observation->handle,
+			observation->qdisc.handle,
 			bandwidth
 		);
 	}
@@ -209,7 +209,7 @@ static void observe_cake(struct monitor *monitor, uint64_t timestamp_microsecond
 						   .observation = &direction->cake };
 		due[count++] = direction;
 	}
-	cake_read_all(&monitor->netlink, reads, count);
+	cake_read(&monitor->netlink, reads, count);
 	for (index = 0U; index < count; index++) {
 		record_cake_read(
 			due[index],
@@ -307,10 +307,16 @@ void links_observe(struct monitor *monitor)
 	if (!links->cadence_initialized && links_wire_ready(monitor)) {
 		links->cadence_microseconds = traffic_compensated_interval_microseconds(
 			config->monitor_achieved_rates_interval_microseconds,
-			cake_max_wire_packet_bits(&links->download.cake),
-			config->base_download_rate_bits_per_second,
-			cake_max_wire_packet_bits(&links->upload.cake),
-			config->base_upload_rate_bits_per_second
+			saturating_add(
+				serialization_microseconds(
+					cake_max_wire_packet_bits(&links->download.cake),
+					config->download.base_rate_bits_per_second
+				),
+				serialization_microseconds(
+					cake_max_wire_packet_bits(&links->upload.cake),
+					config->upload.base_rate_bits_per_second
+				)
+			)
 		);
 		links->cadence_initialized = true;
 	}
@@ -334,15 +340,16 @@ event_direction(struct monitor *monitor, const struct qdisc_event *event)
 	};
 	size_t index;
 
-	if (event->parent != TC_H_ROOT)
+	if (event->qdisc.parent != TC_H_ROOT)
 		return NULL;
 	for (index = 0U; index < ARRAY_SIZE(directions); index++)
-		if (directions[index]->cake.interface_index == event->interface_index)
+		if (directions[index]->cake.qdisc.interface_index == event->qdisc.interface_index)
 			return directions[index];
 	/* An unknown index may belong to a monitored interface that was recreated. */
 	for (index = 0U; index < ARRAY_SIZE(directions); index++) {
-		if (if_nametoindex(directions[index]->interface) == event->interface_index) {
-			directions[index]->cake.interface_index = event->interface_index;
+		if (if_nametoindex(directions[index]->interface) == event->qdisc.interface_index) {
+			directions[index]->cake.qdisc.interface_index =
+				event->qdisc.interface_index;
 			directions[index]->cake.has_mtu = false;
 			return directions[index];
 		}
@@ -359,16 +366,16 @@ static void reset_traffic_observation(struct monitor_direction *direction)
 	traffic_init(&direction->traffic_monitor);
 }
 
-static void process_qdisc_event(const struct qdisc_event *event, void *context)
+static void process_qdisc_event(struct netlink *netlink, const struct qdisc_event *event)
 {
-	struct monitor *monitor = context;
+	struct monitor *monitor = __extension__ container_of(netlink, struct monitor, netlink);
 	struct monitor_direction *direction = event_direction(monitor, event);
 
 	if (direction == NULL)
 		return;
 	if (event->type == QDISC_REMOVED) {
 		if (direction->cake_state != CAKE_OBSERVATION_AVAILABLE ||
-		    direction->cake.handle != event->handle) {
+		    direction->cake.qdisc.handle != event->qdisc.handle) {
 			return;
 		}
 		log_message(
@@ -377,7 +384,7 @@ static void process_qdisc_event(const struct qdisc_event *event, void *context)
 			"; monitoring suspended",
 			direction->name,
 			direction->interface,
-			event->handle
+			event->qdisc.handle
 		);
 		memset(&direction->cake, 0, sizeof(direction->cake));
 		direction->cake_valid = false;
@@ -392,7 +399,7 @@ static void process_qdisc_event(const struct qdisc_event *event, void *context)
 
 	/* Bandwidth changes notify RTM_NEWQDISC with the existing handle. */
 	if (direction->cake_state == CAKE_OBSERVATION_AVAILABLE &&
-	    direction->cake.handle == event->handle) {
+	    direction->cake.qdisc.handle == event->qdisc.handle) {
 		return;
 	}
 	if (direction->cake_state == CAKE_OBSERVATION_AVAILABLE)
@@ -428,13 +435,8 @@ int links_watch_events(struct monitor *monitor)
 	char error[ERROR_SIZE] = { 0 };
 
 	events->cb = handle_qdisc_events;
-	if (netlink_subscribe_qdiscs(
-		    &monitor->netlink,
-		    process_qdisc_event,
-		    monitor,
-		    error,
-		    sizeof(error)
-	    ) != 0) {
+	monitor->netlink.qdisc_event = process_qdisc_event;
+	if (netlink_subscribe_qdiscs(&monitor->netlink, error, sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "%s", error);
 		return -1;
 	}

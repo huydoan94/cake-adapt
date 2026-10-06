@@ -32,17 +32,26 @@ struct latency_child {
 	const char *target;
 };
 
+/* What every session runs; the strings are borrowed from the validated configuration. */
+struct latency_settings {
+	const char *pinger_method;
+	/* fping's default -I; ping_extra_args may override it. */
+	const char *interface;
+	const char *extra_arguments;
+	const char *prefix;
+	uint64_t reflector_ping_interval_microseconds;
+	uint64_t irtt_session_duration_minutes;
+	/* IRTT sessions start aligned to ping slots counted from here. */
+	uint64_t slot_origin_microseconds;
+};
+
 struct pinger_ops;
 
 struct latency {
-	/* The running backend: fping_ops, fping_ts_ops or irtt_ops. */
+	/* The backend of settings.pinger_method: fping_ops, fping_ts_ops or irtt_ops. */
 	const struct pinger_ops *ops;
+	struct latency_settings settings;
 	bool active;
-	uint64_t irtt_session_duration_minutes;
-	uint64_t reflector_ping_interval_microseconds;
-	/* Borrowed from the validated configuration for the session lifetime. */
-	const char *ping_extra_args;
-	const char *ping_prefix_string;
 	struct latency_child children[CONFIG_MAX_REFLECTORS];
 	size_t child_count;
 };
@@ -64,7 +73,8 @@ enum latency_line_result {
 	LATENCY_LINE_TOO_LONG
 };
 
-void latency_init(struct latency *latency);
+/* settings.pinger_method must have passed latency_check_backend(). */
+void latency_init(struct latency *latency, const struct latency_settings *settings);
 
 bool latency_is_open(const struct latency *latency);
 
@@ -78,16 +88,17 @@ pid_t latency_child_process(const struct latency *latency, size_t child_index);
 /* True until every child stopped by latency_close() has been reaped. */
 bool latency_stopping(const struct latency *latency);
 
-/* One fping for all targets; icmp_timestamps selects fping-ts (ICMP type 13). */
+/*
+ * The validated configuration bounds targets and their spacing. fping and
+ * fping-ts start one process for all targets now; IRTT schedules a session per
+ * target from the next ping slot after timestamp_microseconds, started by
+ * latency_start_irtt_children().
+ */
 int latency_open(
 	struct latency *latency,
-	const char *interface,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t reflector_ping_interval_microseconds,
-	const char *extra_arguments,
-	const char *prefix,
-	bool icmp_timestamps,
+	uint64_t timestamp_microseconds,
 	char *error,
 	size_t error_size
 );
@@ -105,19 +116,7 @@ void latency_kill_stopping(struct latency *latency);
 /* Close, then stop and reap every child synchronously; for shutdown only. */
 void latency_stop_now(struct latency *latency);
 
-int latency_open_irtt(
-	struct latency *latency,
-	const char *const *targets,
-	size_t target_count,
-	uint64_t reflector_ping_interval_microseconds,
-	uint64_t session_duration_minutes,
-	const char *extra_arguments,
-	const char *prefix,
-	uint64_t first_start_microseconds,
-	char *error,
-	size_t error_size
-);
-
+/* Starts the IRTT sessions that are due; only while latency_irtt_start_pending(). */
 int latency_start_irtt_children(
 	struct latency *latency,
 	uint64_t timestamp_microseconds,

@@ -108,7 +108,7 @@ static void test_no_estimate_before_the_tick_is_known(void)
 	struct remote remote = remote_flow(50000U, MILLISECOND, 12345U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 1900U * MILLISECOND, 0U, 0U);
 	result_after(&estimator, now, &estimate);
 	assert(!estimate.download_valid);
@@ -128,7 +128,7 @@ static void test_queue_attributed_to_its_direction(uint64_t tick_ns, uint32_t ts
 	struct remote remote = remote_flow(50001U, tick_ns, tsval_base);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	assert(estimator.flows[0].tick_ns == tick_ns);
 	result_after(&estimator, now, &estimate);
@@ -167,7 +167,7 @@ static void test_queue_built_before_the_tick_is_known(void)
 	struct remote remote = remote_flow(50007U, MILLISECOND, 500U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 100U * MILLISECOND, 0U, 0U);
 	now = send_span(
 		&estimator,
@@ -192,7 +192,7 @@ static void test_delayed_acks_are_ignored(void)
 	uint64_t sent_ns;
 	unsigned int packet = 0U;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	for (sent_ns = 0U; sent_ns < 4000U * MILLISECOND; sent_ns += MILLISECOND) {
 		uint64_t ack_delay_ns = packet++ % 5U == 0U ? 0U : 40U * MILLISECOND;
 
@@ -218,7 +218,7 @@ static void test_sustained_ack_wait_change_and_recovery(void)
 	struct remote remote = remote_flow(50015U, MILLISECOND, 91U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	for (; now < 4000U * MILLISECOND; now += MILLISECOND)
 		send_sample(&estimator, &remote, now, 0U, 0U, 40U * MILLISECOND);
@@ -243,7 +243,7 @@ static void test_constant_ack_wait_is_baseline(void)
 	struct remote remote = remote_flow(50016U, MILLISECOND, 101U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	for (now = 0U; now < 4000U * MILLISECOND; now += MILLISECOND)
 		send_sample(&estimator, &remote, now, 0U, 0U, 40U * MILLISECOND);
 	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
@@ -259,7 +259,7 @@ static void test_results_expire(void)
 	struct remote remote = remote_flow(50003U, MILLISECOND, 0U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	result_after(&estimator, now + 150U * MILLISECOND, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
@@ -279,7 +279,7 @@ static void test_standing_queue_floor_tracks_two_absolute_phases(uint64_t phase_
 	uint64_t now;
 	uint64_t end_ns;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	tcpdelay_estimator_set_policy(&estimator, TCPDELAY_BASELINE_FOLLOW);
 	now = send_span(&estimator, &remote, phase_ns, phase_ns + 3000U * MILLISECOND, 0U, 0U);
 	now = send_span(
@@ -350,7 +350,7 @@ static void test_hold_preserves_standing_queue(uint64_t phase_ns)
 	struct remote remote = remote_flow(50017U, MILLISECOND, 113U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, phase_ns, phase_ns + 3000U * MILLISECOND, 0U, 0U);
 	now = send_span(
 		&estimator,
@@ -391,7 +391,7 @@ static void test_hold_accepts_lower_raw_minimum(void)
 	int64_t initial_upload_floor;
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(
 		&estimator,
 		&remote,
@@ -447,7 +447,7 @@ static void test_follow_hold_follow_transition(void)
 	struct remote remote = remote_flow(50018U, MILLISECOND, 127U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(
 		&estimator,
 		&remote,
@@ -505,7 +505,7 @@ static void test_samples_without_departure(void)
 	uint64_t now;
 
 	remote.departures = false;
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	now = send_span(&estimator, &remote, now, now + 500U * MILLISECOND, 25U * MILLISECOND, 0U);
 	result_after(&estimator, now, &estimate);
@@ -523,7 +523,7 @@ static void test_new_flow_keeps_established_queues(bool departures)
 	struct remote newcomer = remote_flow(50009U, MILLISECOND, 2000U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &established, 0U, 3000U * MILLISECOND, 0U, 0U);
 	now = send_span(
 		&estimator,
@@ -569,7 +569,7 @@ static void test_directional_pair_comes_from_one_flow(void)
 	uint64_t now;
 
 	download_only.departures = false;
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &download_only, 0U, 1000U * MILLISECOND, 0U, 0U);
 	for (; now < 4000U * MILLISECOND; now += MILLISECOND) {
 		send_sample(&estimator, &download_only, now, 0U, 0U, 0U);
@@ -601,7 +601,7 @@ static void test_reordered_packet_is_skipped(void)
 	uint64_t now;
 	uint64_t ticks;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	ticks = estimator.flows[0].ticks;
 	/* Sent 20 ms ago, so its TSval is older than the last one seen. */
@@ -620,7 +620,7 @@ static void test_later_arrival_with_older_timestamp_is_ignored(void)
 	struct remote remote = remote_flow(50012U, MILLISECOND, 1000U);
 	struct tcpdelay_flow before;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	memcpy(&before, &estimator.flows[0], sizeof(before));
 	sample.flow = before.key;
@@ -640,7 +640,7 @@ static void test_earlier_arrival_with_newer_timestamp_is_ignored(void)
 	struct remote remote = remote_flow(50013U, MILLISECOND, 1000U);
 	struct tcpdelay_flow before;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	memcpy(&before, &estimator.flows[0], sizeof(before));
 	sample.flow = before.key;
@@ -662,7 +662,7 @@ static void test_equal_timestamp_with_later_arrival_refreshes_lru(void)
 	bool second_oldest = false;
 	bool newest = false;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		sample.flow.local_port = (uint16_t)(41000U + index);
 		sample.arrival_ns = ORIGIN_NS + index * MILLISECOND;
@@ -700,7 +700,7 @@ static void test_newer_timestamp_with_equal_arrival_is_accepted(void)
 		.tsval = 100U,
 	};
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	tcpdelay_estimator_add(&estimator, &sample);
 	sample.tsval++;
 	tcpdelay_estimator_add(&estimator, &sample);
@@ -717,7 +717,7 @@ static void test_nonstandard_tick_is_rejected(void)
 	struct remote remote = remote_flow(50006U, 2U * MILLISECOND, 0U);
 	uint64_t now;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	now = send_span(&estimator, &remote, 0U, 5000U * MILLISECOND, 0U, 0U);
 	result_after(&estimator, now, &estimate);
 	assert(estimator.flows[0].tick_ns == 0U);
@@ -734,7 +734,7 @@ static void test_rejected_sample_does_not_refresh_lru(void)
 	bool oldest = false;
 	bool second_oldest = false;
 
-	tcpdelay_estimator_init(&estimator);
+	memset(&estimator, 0, sizeof(estimator));
 	memset(&sample, 0, sizeof(sample));
 	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		sample.flow.local_port = (uint16_t)(40000U + index);

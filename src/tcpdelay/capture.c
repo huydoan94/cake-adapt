@@ -17,6 +17,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include "common/constants.h"
 #include "common/error.h"
 #include "logging/log.h"
 
@@ -42,7 +43,7 @@ forward_libbpf_message(enum libbpf_print_level level, const char *format, va_lis
 	return 0;
 }
 
-/* The closed state: nothing allocated and no socket. */
+/* The closed state: nothing allocated, no socket and an empty estimator. */
 static void capture_clear(struct tcpdelay_capture *capture)
 {
 	memset(capture, 0, sizeof(*capture));
@@ -66,24 +67,19 @@ static int add_record(void *context, void *data, size_t size)
 }
 
 /* Returns the filter's program descriptor, or -1. */
-static int load_program(
-	struct tcpdelay_capture *capture,
-	const char *object_path,
-	char *error,
-	size_t error_size
-)
+static int load_program(struct tcpdelay_capture *capture, char *error, size_t error_size)
 {
 	struct bpf_program *program;
 	struct bpf_map *counters;
 	struct bpf_map *accounting;
 
-	capture->object = bpf_object__open_file(object_path, NULL);
+	capture->object = bpf_object__open_file(TCPDELAY_OBJECT_PATH, NULL);
 	if (capture->object == NULL)
 		return error_set(
 			error,
 			error_size,
 			"could not open TCP delay program %s: %s",
-			object_path,
+			TCPDELAY_OBJECT_PATH,
 			strerror(errno)
 		);
 	counters = bpf_object__find_map_by_name(capture->object, FILTER_COUNTERS);
@@ -106,7 +102,7 @@ static int load_program(
 			error,
 			error_size,
 			"could not load TCP delay program %s: %s",
-			object_path,
+			TCPDELAY_OBJECT_PATH,
 			strerror(errno)
 		);
 	program = bpf_object__find_program_by_name(capture->object, FILTER_PROGRAM);
@@ -115,7 +111,7 @@ static int load_program(
 	capture->ring = ring_buffer__new(
 		bpf_object__find_map_fd_by_name(capture->object, FILTER_SAMPLES),
 		add_record,
-		capture->estimator,
+		&capture->estimator,
 		NULL
 	);
 	if (program == NULL || capture->counters_descriptor < 0 || capture->ring == NULL)
@@ -123,7 +119,7 @@ static int load_program(
 			error,
 			error_size,
 			"TCP delay program %s lacks its program or maps",
-			object_path
+			TCPDELAY_OBJECT_PATH
 		);
 	return bpf_program__fd(program);
 }
@@ -184,10 +180,8 @@ fail:
 
 int tcpdelay_capture_open(
 	struct tcpdelay_capture *capture,
-	const char *object_path,
 	const char *interface,
 	const struct cake_accounting *accounting,
-	struct tcpdelay_estimator *estimator,
 	char *error,
 	size_t error_size
 )
@@ -196,7 +190,6 @@ int tcpdelay_capture_open(
 	int cpus;
 
 	capture_clear(capture);
-	capture->estimator = estimator;
 	if (accounting != NULL) {
 		capture->accounting.cake = *accounting;
 		capture->accounting.enabled = 1U;
@@ -231,7 +224,7 @@ int tcpdelay_capture_open(
 		);
 		goto fail;
 	}
-	program = load_program(capture, object_path, error, error_size);
+	program = load_program(capture, error, error_size);
 	if (program < 0 || attach_socket(capture, program, interface, error, error_size) != 0)
 		goto fail;
 	return 0;

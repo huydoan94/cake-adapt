@@ -53,10 +53,8 @@ static bool ensure_latency_open(struct monitor *monitor)
 	char error[ERROR_SIZE] = { 0 };
 	size_t target_count = (size_t)config->no_pingers;
 	uint64_t timestamp_microseconds;
-	uint64_t first_start_microseconds;
 	enum log_level level;
 	const char *outcome;
-	int result;
 
 	if (!links_ready(monitor))
 		return false;
@@ -71,40 +69,14 @@ static bool ensure_latency_open(struct monitor *monitor)
 	}
 	schedule_retry(monitor, timestamp_microseconds);
 	reflectors_active(monitor, targets);
-	if (irtt) {
-		uint64_t elapsed =
-			timestamp_microseconds - monitor->pingers.slot_origin_microseconds;
-		uint64_t remainder = elapsed % config->reflector_ping_interval_microseconds;
-
-		first_start_microseconds = timestamp_microseconds +
-					   config->reflector_ping_interval_microseconds - remainder;
-		result = latency_open_irtt(
-			&monitor->pingers.latency,
-			targets,
-			target_count,
-			config->reflector_ping_interval_microseconds,
-			config->irtt_session_duration_minutes,
-			config->ping_extra_args,
-			config->ping_prefix_string,
-			first_start_microseconds,
-			error,
-			sizeof(error)
-		);
-	} else {
-		result = latency_open(
-			&monitor->pingers.latency,
-			config->interface,
-			targets,
-			target_count,
-			config->reflector_ping_interval_microseconds,
-			config->ping_extra_args,
-			config->ping_prefix_string,
-			strcmp(config->pinger_method, PINGER_METHOD_FPING_TS) == 0,
-			error,
-			sizeof(error)
-		);
-	}
-	if (result != 0) {
+	if (latency_open(
+		    &monitor->pingers.latency,
+		    targets,
+		    target_count,
+		    timestamp_microseconds,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
 		report_latency_degraded(monitor, error);
 		return false;
 	}
@@ -139,10 +111,9 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 	struct latency_observation observation;
 	struct latency_sample sample;
 	char error[ERROR_SIZE] = { 0 };
-	bool stale;
 	uint64_t processing_realtime_microseconds;
 	uint64_t processing_monotonic_microseconds;
-	uint64_t response_monotonic_microseconds;
+	uint64_t response_microseconds;
 	enum latency_probe_result result = latency_handle_line(
 		&monitor->pingers.latency,
 		child_index,
@@ -182,23 +153,14 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
 		monitor->pingers.response_clock_failed = false;
 	}
-	response_timestamp(
+	response_microseconds = response_monotonic_microseconds(
 		processing_realtime_microseconds,
 		processing_monotonic_microseconds,
-		sample.timestamp_microseconds,
-		&response_monotonic_microseconds,
-		&stale
+		sample.timestamp_microseconds
 	);
-	reflectors_record(
-		monitor,
-		slot,
-		&sample,
-		control_low_load(monitor),
-		response_monotonic_microseconds,
-		&observation
-	);
-	monitor->pingers.last_response_microseconds = response_monotonic_microseconds;
-	if (stale) {
+	reflectors_record(monitor, slot, &sample, response_microseconds, &observation);
+	monitor->pingers.last_response_microseconds = response_microseconds;
+	if (response_stale(processing_realtime_microseconds, sample.timestamp_microseconds)) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"processed response from [%s] that is > 500ms old. Skipping.",
@@ -528,11 +490,21 @@ void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds)
 /* Each slot and timer is bound to its handler before uloop starts. */
 void pingers_prepare(struct monitor *monitor, uint64_t start_microseconds)
 {
+	const struct config *config = monitor->config;
+	const struct latency_settings settings = {
+		.pinger_method = config->pinger_method,
+		.interface = config->interface,
+		.extra_arguments = config->ping_extra_args,
+		.prefix = config->ping_prefix_string,
+		.reflector_ping_interval_microseconds =
+			config->reflector_ping_interval_microseconds,
+		.irtt_session_duration_minutes = config->irtt_session_duration_minutes,
+		.slot_origin_microseconds = start_microseconds,
+	};
 	size_t index;
 
 	monitor->pingers.last_response_microseconds = start_microseconds;
 	monitor->pingers.last_restart_microseconds = start_microseconds;
-	monitor->pingers.slot_origin_microseconds = start_microseconds;
 	monitor->pingers.start_timer.cb = handle_latency_start;
 	monitor->pingers.stop_timer.cb = handle_pinger_stop_timeout;
 	monitor->pingers.failure_timer.cb = handle_latency_failure;
@@ -541,5 +513,5 @@ void pingers_prepare(struct monitor *monitor, uint64_t start_microseconds)
 		monitor->pingers.watches[index].monitor = monitor;
 		monitor->pingers.watches[index].child_index = index;
 	}
-	latency_init(&monitor->pingers.latency);
+	latency_init(&monitor->pingers.latency, &settings);
 }

@@ -24,18 +24,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 	};
 	const struct monitor_links *links = &monitor->links;
 	const struct config *config = monitor->config;
-	const struct controller_activity_config activity_config = {
-		.enable_sleep = config->enable_sleep_function,
-		.active_threshold_bits_per_second =
-			config->connection_active_threshold_bits_per_second,
-		.stall_threshold_bits_per_second =
-			config->connection_stall_threshold_bits_per_second,
-		.sustained_idle_microseconds = config->sustained_idle_sleep_threshold_microseconds,
-		.stall_timeout_microseconds =
-			config->stall_detection_threshold *
-			(config->reflector_ping_interval_microseconds / config->no_pingers),
-		.global_timeout_microseconds = config->global_ping_response_timeout_microseconds,
-	};
+	const struct controller_activity_config *activity_config = &monitor->activity.config;
 	const struct controller_activity_input input = {
 		.download = { .valid = links->download.traffic_valid,
 			      .traffic_rate_bits_per_second =
@@ -51,12 +40,12 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 	enum controller_activity_state previous = monitor->activity.state;
 	struct controller_activity_output output;
 
-	activity_update(&monitor->activity, &activity_config, &input, &output);
+	activity_update(&monitor->activity, &input, &output);
 	if (output.check_stall_loads) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"Warning: no reflector response within: %.2f seconds. Checking loads.",
-			seconds_from_microseconds(activity_config.stall_timeout_microseconds)
+			seconds_from_microseconds(activity_config->stall_timeout_microseconds)
 		);
 		log_message(
 			LOG_LEVEL_DEBUG,
@@ -79,7 +68,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 			control_enforce_minimum(monitor, timestamp_microseconds);
 		log_system_message(
 			"Warning: Configured global ping response timeout: %.3f seconds exceeded.",
-			seconds_from_microseconds(activity_config.global_timeout_microseconds)
+			seconds_from_microseconds(activity_config->global_timeout_microseconds)
 		);
 	}
 	if (output.state_changed) {
@@ -259,6 +248,25 @@ static void watch_log_maintenance(struct monitor *monitor)
 		log_message(LOG_LEVEL_WARNING, "log reset signal degraded: %s", strerror(errno));
 }
 
+static void start_activity(struct monitor *monitor)
+{
+	const struct config *config = monitor->config;
+	const struct controller_activity_config activity_config = {
+		.enable_sleep = config->enable_sleep_function,
+		.active_threshold_bits_per_second =
+			config->connection_active_threshold_bits_per_second,
+		.stall_threshold_bits_per_second =
+			config->connection_stall_threshold_bits_per_second,
+		.sustained_idle_microseconds = config->sustained_idle_sleep_threshold_microseconds,
+		.stall_timeout_microseconds =
+			config->stall_detection_threshold *
+			(config->reflector_ping_interval_microseconds / config->no_pingers),
+		.global_timeout_microseconds = config->global_ping_response_timeout_microseconds,
+	};
+
+	activity_init(&monitor->activity, &activity_config);
+}
+
 int monitor_run(const struct config *config)
 {
 	struct monitor monitor = {
@@ -309,7 +317,7 @@ int monitor_run(const struct config *config)
 	if (reflectors_start(&monitor, start_microseconds) != 0)
 		goto done;
 	pingers_prepare(&monitor, start_microseconds);
-	monitor.activity.state = CONTROLLER_RUNNING;
+	start_activity(&monitor);
 
 	/* uloop reaps pinger children and reports each exit to pingers.c. */
 	if (uloop_init() != 0) {

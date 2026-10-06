@@ -132,9 +132,9 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 	}
 
 	memset(read->observation, 0, sizeof(*read->observation));
-	read->observation->interface_index = read->interface_index;
-	read->observation->handle = traffic_control->tcm_handle;
-	read->observation->parent = traffic_control->tcm_parent;
+	read->observation->qdisc.interface_index = read->interface_index;
+	read->observation->qdisc.handle = traffic_control->tcm_handle;
+	read->observation->qdisc.parent = traffic_control->tcm_parent;
 	parse_options(attributes[TCA_OPTIONS], read->observation);
 	parse_stats(attributes[TCA_STATS2], read->observation);
 	read->found = true;
@@ -184,15 +184,15 @@ static void finish_read(struct cake_read *read)
 
 	/* The dump cannot reject a stale index, so keep it only while CAKE is found. */
 	if (!read->found) {
-		observation->interface_index = 0U;
+		observation->qdisc.interface_index = 0U;
 		observation->has_mtu = false;
 		read->result = CAKE_READ_NOT_FOUND;
 		return;
 	}
 	/* The MTU is read when CAKE is discovered or replaced, not every sample. */
 	if (read->previous.has_mtu &&
-	    read->previous.interface_index == observation->interface_index &&
-	    read->previous.handle == observation->handle) {
+	    read->previous.qdisc.interface_index == observation->qdisc.interface_index &&
+	    read->previous.qdisc.handle == observation->qdisc.handle) {
 		observation->mtu_bytes = read->previous.mtu_bytes;
 	} else if (read_interface_mtu(
 			   read->interface,
@@ -207,7 +207,7 @@ static void finish_read(struct cake_read *read)
 	read->result = CAKE_READ_FOUND;
 }
 
-void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t count)
+void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 {
 	struct cake_read_context context = { .reads = reads, .count = count };
 	char error[ERROR_SIZE] = { 0 };
@@ -218,7 +218,7 @@ void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t coun
 		struct cake_read *read = &reads[index];
 
 		read->previous = *read->observation;
-		read->interface_index = read->previous.interface_index;
+		read->interface_index = read->previous.qdisc.interface_index;
 		read->found = false;
 		read->error[0] = '\0';
 		if (read->interface_index == 0U) {
@@ -247,7 +247,7 @@ void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t coun
 		netlink_close_requests(netlink);
 		for (index = 0U; index < count; index++) {
 			if (reads[index].interface_index != 0U) {
-				reads[index].observation->interface_index = 0U;
+				reads[index].observation->qdisc.interface_index = 0U;
 				reads[index].result = CAKE_READ_ERROR;
 				(void)snprintf(
 					reads[index].error,
@@ -264,22 +264,6 @@ void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t coun
 			finish_read(&reads[index]);
 }
 
-enum cake_read_result cake_read(
-	struct netlink *netlink,
-	const char *interface,
-	struct cake_observation *observation,
-	char *error,
-	size_t error_size
-)
-{
-	struct cake_read read = { .interface = interface, .observation = observation };
-
-	cake_read_all(netlink, &read, 1U);
-	if (read.result == CAKE_READ_ERROR)
-		error_set(error, error_size, "%s", read.error);
-	return read.result;
-}
-
 int cake_set_bandwidth(
 	struct netlink *netlink,
 	const struct cake_observation *observation,
@@ -288,7 +272,13 @@ int cake_set_bandwidth(
 	size_t error_size
 )
 {
-	uint64_t bandwidth_bytes_per_second;
+	uint64_t bandwidth_bytes_per_second = bandwidth_bits_per_second / BITS_PER_BYTE;
+	const struct qdisc_option option = {
+		.kind = QDISC_KIND,
+		.type = TCA_CAKE_BASE_RATE64,
+		.data = &bandwidth_bytes_per_second,
+		.size = sizeof(bandwidth_bytes_per_second),
+	};
 
 	if (bandwidth_bits_per_second < BITS_PER_BYTE ||
 	    bandwidth_bits_per_second % BITS_PER_BYTE != 0U) {
@@ -301,19 +291,7 @@ int cake_set_bandwidth(
 	if (netlink_open(netlink, error, error_size) != 0)
 		return -1;
 
-	bandwidth_bytes_per_second = bandwidth_bits_per_second / BITS_PER_BYTE;
-	if (netlink_change_qdisc_option(
-		    netlink,
-		    observation->interface_index,
-		    observation->handle,
-		    observation->parent,
-		    QDISC_KIND,
-		    TCA_CAKE_BASE_RATE64,
-		    &bandwidth_bytes_per_second,
-		    sizeof(bandwidth_bytes_per_second),
-		    error,
-		    error_size
-	    ) != 0) {
+	if (netlink_change_qdisc(netlink, &observation->qdisc, &option, error, error_size) != 0) {
 		netlink_close_requests(netlink);
 		return -1;
 	}

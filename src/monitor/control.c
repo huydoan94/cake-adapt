@@ -15,6 +15,14 @@
 
 #define LOAD_CONDITION_SIZE 16U
 
+/* One ping reply's pass through the controller. */
+struct control_step {
+	const struct latency_observation *latency;
+	const struct latency_sample *sample;
+	struct controller_input input;
+	struct controller_output output;
+};
+
 /* Indexed by the controller's own enum values. */
 static const char *const line_state_names[] = {
 	[CONTROLLER_LINE_UNKNOWN] = STATE_UNKNOWN,
@@ -40,16 +48,12 @@ static const char *const rate_reason_names[] = {
 
 void control_update_compensation(struct monitor *monitor)
 {
-	struct controller *controller = &monitor->control.controller;
-
 	if (!links_wire_ready(monitor))
 		return;
 	controller_set_serialization_compensation(
-		controller,
+		&monitor->control.controller,
 		cake_max_wire_packet_bits(&monitor->links.download.cake),
-		cake_max_wire_packet_bits(&monitor->links.upload.cake),
-		controller->download.shaper_rate_bits_per_second,
-		controller->upload.shaper_rate_bits_per_second
+		cake_max_wire_packet_bits(&monitor->links.upload.cake)
 	);
 }
 
@@ -123,8 +127,7 @@ static const char *const load_names[] = {
 
 /* The DATA and SUMMARY load column, such as "dl_high_bb". */
 static void load_condition(
-	char *condition,
-	size_t condition_size,
+	char condition[LOAD_CONDITION_SIZE],
 	const char *direction,
 	enum controller_load load,
 	enum controller_congestion_state congestion
@@ -132,7 +135,7 @@ static void load_condition(
 {
 	(void)snprintf(
 		condition,
-		condition_size,
+		LOAD_CONDITION_SIZE,
 		"%s_%s%s",
 		direction,
 		load_names[load],
@@ -140,15 +143,14 @@ static void load_condition(
 	);
 }
 
-static void log_controller_stats(
-	const struct config *config,
-	const struct controller *controller,
-	const struct controller_input *input,
-	const struct controller_output *output,
-	const struct latency_observation *latency,
-	const struct latency_sample *sample
-)
+static void log_controller_stats(const struct monitor *monitor, const struct control_step *step)
 {
+	const struct config *config = monitor->config;
+	const struct controller *controller = &monitor->control.controller;
+	const struct controller_input *input = &step->input;
+	const struct controller_output *output = &step->output;
+	const struct latency_observation *latency = step->latency;
+	const struct latency_sample *sample = step->sample;
 	/* Records report the serialization-compensated thresholds in effect. */
 	const struct controller_direction_config *download_effective = &controller->download.config;
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
@@ -174,7 +176,6 @@ static void log_controller_stats(
 
 	load_condition(
 		download_condition,
-		sizeof(download_condition),
 		DIRECTION_DOWNLOAD_SHORT,
 		controller_load(
 			controller,
@@ -185,7 +186,6 @@ static void log_controller_stats(
 	);
 	load_condition(
 		upload_condition,
-		sizeof(upload_condition),
 		DIRECTION_UPLOAD_SHORT,
 		controller_load(
 			controller,
@@ -208,7 +208,7 @@ static void log_controller_stats(
 			.upload_load_percent = upload_load,
 			.icmp_timestamp = sample->timestamp_text,
 			.reflector = sample->target,
-			.sequence = latency->sequence,
+			.sequence = sample->sequence,
 			.download_owd_baseline_microseconds =
 				latency->download_owd_baseline_microseconds,
 			.download_owd_microseconds = latency->download_owd_microseconds,
@@ -269,23 +269,27 @@ static void log_controller_stats(
 }
 
 static void apply_bandwidth(
-	struct netlink *netlink,
+	struct monitor *monitor,
 	struct monitor_direction *direction,
 	uint64_t desired_rate,
-	enum controller_rate_reason reason,
-	bool output_cake_changes
+	enum controller_rate_reason reason
 )
 {
 	/* Seed the readback with the known index and MTU so neither is re-queried. */
 	struct cake_observation verified = direction->cake;
+	struct cake_read readback = { .interface = direction->interface, .observation = &verified };
 	char error[ERROR_SIZE] = { 0 };
-	enum cake_read_result read_result;
 
-	if (output_cake_changes)
+	if (monitor->config->output_cake_changes)
 		log_shaper(direction->interface, desired_rate / KILOBIT);
 
-	if (cake_set_bandwidth(netlink, &direction->cake, desired_rate, error, sizeof(error)) !=
-	    0) {
+	if (cake_set_bandwidth(
+		    &monitor->netlink,
+		    &direction->cake,
+		    desired_rate,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"CAKE bandwidth change failed: direction=%s interface=%s"
@@ -300,8 +304,8 @@ static void apply_bandwidth(
 		return;
 	}
 
-	read_result = cake_read(netlink, direction->interface, &verified, error, sizeof(error));
-	if (read_result != CAKE_READ_FOUND || !verified.has_bandwidth ||
+	cake_read(&monitor->netlink, &readback, 1U);
+	if (readback.result != CAKE_READ_FOUND || !verified.has_bandwidth ||
 	    verified.bandwidth_bits_per_second != desired_rate) {
 		log_message(
 			LOG_LEVEL_WARNING,
@@ -310,7 +314,7 @@ static void apply_bandwidth(
 			direction->name,
 			direction->interface,
 			desired_rate,
-			read_result == CAKE_READ_ERROR ? error : READBACK_MISMATCH
+			readback.result == CAKE_READ_ERROR ? readback.error : READBACK_MISMATCH
 		);
 		return;
 	}
@@ -351,18 +355,21 @@ void control_update(
 	const struct config *config = monitor->config;
 	struct monitor_control *control = &monitor->control;
 	struct monitor_links *links = &monitor->links;
-	struct controller_input input = {
-		.download = direction_input(&links->download),
-		.upload = direction_input(&links->upload),
-		.download_latency = { .valid = true,
-				      .owd_delta_microseconds =
-					      latency->download_owd_delta_microseconds },
-		.upload_latency = { .valid = true,
-				    .owd_delta_microseconds =
-					    latency->upload_owd_delta_microseconds },
-		.timestamp_microseconds = 0U,
+	struct control_step step = {
+		.latency = latency,
+		.sample = sample,
+		.input = {
+			.download = direction_input(&links->download),
+			.upload = direction_input(&links->upload),
+			.download_latency = { .valid = true,
+					      .owd_delta_microseconds =
+						      latency->download_owd_delta_microseconds },
+			.upload_latency = { .valid = true,
+					    .owd_delta_microseconds =
+						    latency->upload_owd_delta_microseconds },
+		},
 	};
-	struct controller_output output;
+	const struct controller_queue_input *queue = &step.input.queue;
 	const struct {
 		struct monitor_direction *direction;
 		const struct controller_direction *controller;
@@ -372,20 +379,20 @@ void control_update(
 	} directions[] = {
 		{ &links->download,
 		  &control->controller.download,
-		  &input.download,
-		  &output.download,
+		  &step.input.download,
+		  &step.output.download,
 		  DIRECTION_DOWNLOAD_SHORT },
 		{ &links->upload,
 		  &control->controller.upload,
-		  &input.upload,
-		  &output.upload,
+		  &step.input.upload,
+		  &step.output.upload,
 		  DIRECTION_UPLOAD_SHORT },
 	};
 
-	(void)read_clock_microseconds(CLOCK_MONOTONIC, &input.timestamp_microseconds);
-	tcp_observe(monitor, &input);
+	(void)read_clock_microseconds(CLOCK_MONOTONIC, &step.input.timestamp_microseconds);
+	tcp_observe(monitor, &step.input);
 
-	controller_update(&control->controller, &input, &output);
+	controller_update(&control->controller, &step.input, &step.output);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
 		struct monitor_direction *direction = directions[index].direction;
 		const struct controller_direction_output *decision = directions[index].output;
@@ -401,10 +408,10 @@ void control_update(
 				" tcp_queues=%s download_queue=%" PRId64 " us upload_queue=%" PRId64
 				" us",
 				direction->name,
-				decision->bufferbloat_attributed ? "yes" : "no",
-				input.queue.valid ? "valid" : "unavailable",
-				input.queue.download_microseconds,
-				input.queue.upload_microseconds
+				decision->bufferbloat_attributed ? BOOLEAN_YES : BOOLEAN_NO,
+				queue->valid ? STATE_VALID : STATE_UNAVAILABLE,
+				queue->download_microseconds,
+				queue->upload_microseconds
 			);
 		}
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
@@ -424,17 +431,16 @@ void control_update(
 		/* The controller never requests changes for an observation-only link. */
 		if (decision->rate_changed) {
 			apply_bandwidth(
-				&monitor->netlink,
+				monitor,
 				direction,
 				decision->rate_bits_per_second,
-				decision->rate_reason,
-				config->output_cake_changes
+				decision->rate_reason
 			);
 		}
 	}
 	control->initial_shaper_reported = true;
 	control_update_compensation(monitor);
-	log_controller_stats(config, &control->controller, &input, &output, latency, sample);
+	log_controller_stats(monitor, &step);
 }
 
 void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds)
@@ -456,13 +462,27 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microse
 		if (!config->adjust || !directions[index].link->cake_valid)
 			continue;
 		apply_bandwidth(
-			&monitor->netlink,
+			monitor,
 			directions[index].link,
 			config->minimum_rate_bits_per_second,
-			CONTROLLER_RATE_RECONCILE,
-			monitor->config->output_cake_changes
+			CONTROLLER_RATE_RECONCILE
 		);
 	}
+}
+
+static struct controller_direction_config direction_config(const struct config_direction *direction)
+{
+	return (struct controller_direction_config){
+		.adjust = direction->adjust,
+		.minimum_rate_bits_per_second = direction->minimum_rate_bits_per_second,
+		.base_rate_bits_per_second = direction->base_rate_bits_per_second,
+		.maximum_rate_bits_per_second = direction->maximum_rate_bits_per_second,
+		.average_delay_maximum_adjust_up_microseconds =
+			direction->average_owd_delta_maximum_adjust_up_microseconds,
+		.delay_threshold_microseconds = direction->owd_delta_delay_threshold_microseconds,
+		.average_delay_maximum_adjust_down_microseconds =
+			direction->average_owd_delta_maximum_adjust_down_microseconds,
+	};
 }
 
 int control_start(struct monitor *monitor)
@@ -470,31 +490,8 @@ int control_start(struct monitor *monitor)
 	const struct config *config = monitor->config;
 	/* Match cake-autorate's startup rounding to per-thousand and percent. */
 	const struct controller_config controller_config = {
-		.download = { .adjust = config->adjust_download,
-			      .minimum_rate_bits_per_second =
-				      config->minimum_download_rate_bits_per_second,
-			      .base_rate_bits_per_second =
-				      config->base_download_rate_bits_per_second,
-			      .maximum_rate_bits_per_second =
-				      config->maximum_download_rate_bits_per_second,
-			      .average_delay_maximum_adjust_up_microseconds =
-				      config->download_average_owd_delta_maximum_adjust_up_microseconds,
-			      .delay_threshold_microseconds =
-				      config->download_owd_delta_delay_threshold_microseconds,
-			      .average_delay_maximum_adjust_down_microseconds =
-				      config->download_average_owd_delta_maximum_adjust_down_microseconds },
-		.upload = { .adjust = config->adjust_upload,
-			    .minimum_rate_bits_per_second =
-				    config->minimum_upload_rate_bits_per_second,
-			    .base_rate_bits_per_second = config->base_upload_rate_bits_per_second,
-			    .maximum_rate_bits_per_second =
-				    config->maximum_upload_rate_bits_per_second,
-			    .average_delay_maximum_adjust_up_microseconds =
-				    config->upload_average_owd_delta_maximum_adjust_up_microseconds,
-			    .delay_threshold_microseconds =
-				    config->upload_owd_delta_delay_threshold_microseconds,
-			    .average_delay_maximum_adjust_down_microseconds =
-				    config->upload_average_owd_delta_maximum_adjust_down_microseconds },
+		.download = direction_config(&config->download),
+		.upload = direction_config(&config->upload),
 		.bufferbloat_detection_window = (unsigned int)config->bufferbloat_detection_window,
 		.bufferbloat_detection_threshold =
 			(unsigned int)config->bufferbloat_detection_threshold,

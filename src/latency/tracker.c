@@ -4,22 +4,13 @@
 #include "common/utils.h"
 #include "config/defaults.h"
 
-#include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-int tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config)
+void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config)
 {
-	if (config->alpha_baseline_increase_per_million > MILLION ||
-	    config->alpha_baseline_decrease_per_million > MILLION ||
-	    config->alpha_delta_ewma_per_million > MILLION) {
-		errno = EINVAL;
-		return -1;
-	}
-
-	tracker->config = *config;
+	tracker->config = config;
 	tracker_reset(tracker);
-	return 0;
 }
 
 void tracker_reset(struct latency_tracker *tracker)
@@ -75,12 +66,11 @@ static bool weighted_average(
 	return true;
 }
 
-static void tracker_update_direction(
+/* Moves the baseline toward the sample and returns the sample's delta from it. */
+static int64_t tracker_update_direction(
 	const struct latency_tracker_config *config,
 	struct latency_direction_tracker *state,
-	int64_t value_microseconds,
-	int64_t *baseline_microseconds,
-	int64_t *delta_microseconds
+	int64_t value_microseconds
 )
 {
 	int64_t alpha = value_microseconds >= state->baseline_microseconds ?
@@ -97,8 +87,7 @@ static void tracker_update_direction(
 		state->baseline_microseconds = value_microseconds;
 	}
 
-	*baseline_microseconds = state->baseline_microseconds;
-	*delta_microseconds = signed_difference(value_microseconds, state->baseline_microseconds);
+	return signed_difference(value_microseconds, state->baseline_microseconds);
 }
 
 static void
@@ -126,24 +115,22 @@ void tracker_update(
 		observation->upload_owd_baseline_microseconds = sample->upload_owd_microseconds;
 		observation->upload_owd_delta_microseconds = 0;
 	} else {
-		tracker_update_direction(
-			&tracker->config,
+		observation->download_owd_delta_microseconds = tracker_update_direction(
+			tracker->config,
 			&tracker->download,
-			sample->download_owd_microseconds,
-			&observation->download_owd_baseline_microseconds,
-			&observation->download_owd_delta_microseconds
+			sample->download_owd_microseconds
 		);
-		tracker_update_direction(
-			&tracker->config,
+		observation->download_owd_baseline_microseconds =
+			tracker->download.baseline_microseconds;
+		observation->upload_owd_delta_microseconds = tracker_update_direction(
+			tracker->config,
 			&tracker->upload,
-			sample->upload_owd_microseconds,
-			&observation->upload_owd_baseline_microseconds,
-			&observation->upload_owd_delta_microseconds
+			sample->upload_owd_microseconds
 		);
+		observation->upload_owd_baseline_microseconds =
+			tracker->upload.baseline_microseconds;
 	}
 	report_delta_ewma(tracker, observation);
-	observation->timestamp_microseconds = sample->timestamp_microseconds;
-	observation->sequence = sample->sequence;
 }
 
 static void update_delta_ewma(int64_t alpha, int64_t delta_microseconds, int64_t *ewma_microseconds)
@@ -159,7 +146,7 @@ void tracker_update_delta_ewma(
 	struct latency_observation *observation
 )
 {
-	int64_t alpha = (int64_t)tracker->config.alpha_delta_ewma_per_million;
+	int64_t alpha = (int64_t)tracker->config->alpha_delta_ewma_per_million;
 
 	/* cake-autorate freezes reflector delay EWMA while either link is busy. */
 	if (low_load) {

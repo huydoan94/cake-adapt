@@ -5,10 +5,12 @@
 #include <stdint.h>
 #include <time.h>
 
+#include "platform/netlink.h"
+
 struct traffic_sample {
 	uint64_t bytes;
-	uint32_t qdisc_handle;
-	uint32_t qdisc_parent;
+	/* Another qdisc's counter starts over, so a change re-baselines. */
+	struct qdisc_id qdisc;
 	struct timespec timestamp;
 };
 
@@ -27,13 +29,13 @@ enum traffic_update_result {
 
 void traffic_init(struct traffic_monitor *monitor);
 
-/* Pinned upstream cadence; sampling itself still uses actual elapsed time. */
+/*
+ * Pinned upstream cadence: at least ten round trips of one wire packet each
+ * way. Sampling itself still uses actual elapsed time.
+ */
 uint64_t traffic_compensated_interval_microseconds(
 	uint64_t configured_interval_microseconds,
-	uint64_t download_wire_packet_bits,
-	uint64_t download_rate_bits_per_second,
-	uint64_t upload_wire_packet_bits,
-	uint64_t upload_rate_bits_per_second
+	uint64_t round_trip_serialization_microseconds
 );
 
 enum traffic_update_result traffic_update(

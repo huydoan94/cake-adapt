@@ -164,6 +164,7 @@ struct controller_activity_input {
 };
 
 struct controller_activity {
+	struct controller_activity_config config;
 	enum controller_activity_state state;
 	uint64_t idle_started_microseconds;
 	bool global_timeout_reported;
@@ -183,6 +184,8 @@ struct controller_direction {
 	int64_t *delay_samples;
 	unsigned char *delayed_samples;
 	int64_t delay_sum_microseconds;
+	/* Over the detection window; zero while latency is unknown. */
+	int64_t average_delay_microseconds;
 	uint64_t shaper_rate_bits_per_second;
 	unsigned int delay_next_sample;
 	unsigned int delayed_sample_count;
@@ -212,12 +215,11 @@ void controller_update(
 	struct controller_output *output
 );
 
+/* Raises each direction's delay thresholds by a wire packet's time at its shaper rate. */
 void controller_set_serialization_compensation(
 	struct controller *controller,
 	uint64_t download_wire_packet_bits,
-	uint64_t upload_wire_packet_bits,
-	uint64_t download_rate_bits_per_second,
-	uint64_t upload_rate_bits_per_second
+	uint64_t upload_wire_packet_bits
 );
 
 void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_microseconds);
@@ -243,9 +245,14 @@ bool controller_low_load(
 	const struct controller_direction_input *upload
 );
 
+/* Starts RUNNING under config. */
+void activity_init(
+	struct controller_activity *activity,
+	const struct controller_activity_config *config
+);
+
 void activity_update(
 	struct controller_activity *activity,
-	const struct controller_activity_config *config,
 	const struct controller_activity_input *input,
 	struct controller_activity_output *output
 );

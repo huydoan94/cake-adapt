@@ -35,17 +35,13 @@ static unsigned int closed;
 
 int tcpdelay_capture_open(
 	struct tcpdelay_capture *capture,
-	const char *object_path,
 	const char *interface,
 	const struct cake_accounting *accounting,
-	struct tcpdelay_estimator *estimator,
 	char *error,
 	size_t error_size
 )
 {
-	(void)object_path;
 	(void)interface;
-	(void)estimator;
 	(void)error;
 	(void)error_size;
 	opened++;
@@ -65,11 +61,6 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 {
 	(void)capture;
 	return 0;
-}
-
-void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator)
-{
-	(void)estimator;
 }
 
 void tcpdelay_estimator_set_policy(
@@ -96,38 +87,34 @@ static void capture_lifecycle(struct monitor *monitor)
 	struct config config = { .ul_congest_ack_share_per_million = 450000U };
 	struct monitor_direction *upload = &monitor->links.upload;
 	const struct cake_observation cake = {
-		.interface_index = 10U,
-		.handle = 0x10000U,
-		.parent = TC_H_ROOT,
+		.qdisc = { .interface_index = 10U, .handle = 0x10000U, .parent = TC_H_ROOT },
 		.atm_mode = CAKE_ATM_NONE,
 	};
 	const struct qdisc_event removed = {
 		.type = QDISC_REMOVED,
-		.interface_index = 10U,
-		.handle = 0x10000U,
-		.parent = TC_H_ROOT,
+		.qdisc = cake.qdisc,
 	};
 	monitor->config = &config;
 	upload->cake = cake;
 	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
-	assert(capture_ready(monitor, 6U * SECOND, TCPDELAY_BASELINE_HOLD));
+	assert(capture_ready(monitor));
 	assert(opened == 1U && closed == 0U);
 	monitor->tcp.ack_sampled = true;
 	monitor->tcp.ack_rate_valid = true;
 	/* Removal is observed immediately, even if recreation keeps every key. */
-	process_qdisc_event(&removed, monitor);
+	process_qdisc_event(&monitor->netlink, &removed);
 	assert(closed == 1U && !monitor->tcp.open);
 	assert(!monitor->tcp.ack_sampled && !monitor->tcp.ack_rate_valid);
 	upload->cake = cake;
 	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
-	assert(capture_ready(monitor, 7U * SECOND, TCPDELAY_BASELINE_HOLD));
+	assert(capture_ready(monitor));
 	assert(opened == 2U && !monitor->tcp.ack_sampled);
 	upload->cake.overhead_bytes = 44;
-	assert(capture_ready(monitor, 8U * SECOND, TCPDELAY_BASELINE_HOLD));
+	assert(capture_ready(monitor));
 	assert(opened == 3U && closed == 2U);
 	assert(monitor->tcp.capture.accounting.cake.overhead_bytes == 44);
 	upload->cake.mpu_bytes = 84U;
-	assert(capture_ready(monitor, 9U * SECOND, TCPDELAY_BASELINE_HOLD));
+	assert(capture_ready(monitor));
 	assert(opened == 4U && closed == 3U);
 	assert(monitor->tcp.capture.accounting.cake.mpu_bytes == 84U);
 	/* Discovery failure also closes the capture from the traffic tick. */

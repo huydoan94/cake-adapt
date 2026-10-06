@@ -14,16 +14,17 @@ static bool timer_interval_valid(uint64_t microseconds)
 }
 
 static int validate_rate_range(
-	bool adjust,
-	uint64_t minimum,
-	uint64_t base,
-	uint64_t maximum,
+	const struct config_direction *rates,
 	const char *direction,
 	char *error,
 	size_t error_size
 )
 {
-	if (!adjust && minimum == 0U && base == 0U && maximum == 0U)
+	uint64_t minimum = rates->minimum_rate_bits_per_second;
+	uint64_t base = rates->base_rate_bits_per_second;
+	uint64_t maximum = rates->maximum_rate_bits_per_second;
+
+	if (!rates->adjust && minimum == 0U && base == 0U && maximum == 0U)
 		return 0;
 	if (minimum == 0U || base == 0U || maximum == 0U) {
 		return error_set(
@@ -262,9 +263,9 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 	}
 	if (config->enable_sleep_function &&
 	    (config->connection_active_threshold_bits_per_second >
-		     config->minimum_download_rate_bits_per_second ||
+		     config->download.minimum_rate_bits_per_second ||
 	     config->connection_active_threshold_bits_per_second >
-		     config->minimum_upload_rate_bits_per_second)) {
+		     config->upload.minimum_rate_bits_per_second)) {
 		return error_set(
 			error,
 			error_size,
@@ -276,7 +277,7 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 
 static int validate_latency_config(const struct config *config, char *error, size_t error_size)
 {
-	if (!config->enabled && !config->adjust_download && !config->adjust_upload)
+	if (!config->enabled && !config->download.adjust && !config->upload.adjust)
 		return 0;
 	if (validate_pinger(config, error, error_size) != 0 ||
 	    validate_detection(config, error, error_size) != 0 ||
@@ -287,7 +288,7 @@ static int validate_latency_config(const struct config *config, char *error, siz
 
 int config_validate(const struct config *config, char *error, size_t error_size)
 {
-	if ((config->enabled || config->adjust_download || config->adjust_upload) &&
+	if ((config->enabled || config->download.adjust || config->upload.adjust) &&
 	    config->interface[0] == '\0') {
 		return error_set(
 			error,
@@ -297,25 +298,8 @@ int config_validate(const struct config *config, char *error, size_t error_size)
 			" configured"
 		);
 	}
-	if (validate_rate_range(
-		    config->adjust_download,
-		    config->minimum_download_rate_bits_per_second,
-		    config->base_download_rate_bits_per_second,
-		    config->maximum_download_rate_bits_per_second,
-		    DIRECTION_DOWNLOAD,
-		    error,
-		    error_size
-	    ) != 0 ||
-	    validate_rate_range(
-		    config->adjust_upload,
-		    config->minimum_upload_rate_bits_per_second,
-		    config->base_upload_rate_bits_per_second,
-		    config->maximum_upload_rate_bits_per_second,
-		    DIRECTION_UPLOAD,
-		    error,
-		    error_size
-	    ) != 0) {
+	if (validate_rate_range(&config->download, DIRECTION_DOWNLOAD, error, error_size) != 0 ||
+	    validate_rate_range(&config->upload, DIRECTION_UPLOAD, error, error_size) != 0)
 		return -1;
-	}
 	return validate_latency_config(config, error, error_size);
 }

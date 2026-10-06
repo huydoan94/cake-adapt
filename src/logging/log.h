@@ -92,13 +92,15 @@ void log_init(const char *identifier, bool foreground);
 
 void log_close(void);
 
-int log_set_file(
-	const char *path,
-	uint64_t maximum_time_minutes,
-	uint64_t maximum_size_kilobytes,
-	uint64_t buffer_timeout_microseconds,
-	bool compress_exports
-);
+/* Rotation, buffering and export of the detailed log file; zero disables a limit. */
+struct log_file_settings {
+	uint64_t maximum_time_minutes;
+	uint64_t maximum_size_kilobytes;
+	uint64_t buffer_timeout_microseconds;
+	bool compress_exports;
+};
+
+int log_set_file(const char *path, const struct log_file_settings *settings);
 
 void log_set_level(enum log_level level);
 
@@ -110,12 +112,17 @@ int log_reset_file(void);
 
 void log_set_debug_syslog(bool enabled);
 
-void log_print_headers(
-	bool output_processing_stats,
-	bool output_load_stats,
-	bool output_reflector_stats,
-	bool output_summary_stats
-);
+/* The record types written to the log file; their headers start every rotated file. */
+struct log_records {
+	bool data;
+	bool load;
+	bool reflector;
+	bool summary;
+	/* cake-adapt only: per-direction queues measured from TCP timestamps. */
+	bool tcp_queue;
+};
+
+void log_print_headers(const struct log_records *records);
 
 /* cake-adapt only: per-direction queues measured from TCP timestamps. */
 struct log_tcp_queue_record {
@@ -124,8 +131,6 @@ struct log_tcp_queue_record {
 	int64_t download_queue_microseconds;
 	int64_t upload_queue_microseconds;
 };
-
-void log_print_tcp_queue_header(void);
 
 void log_tcp_queue(const struct log_tcp_queue_record *record);
 

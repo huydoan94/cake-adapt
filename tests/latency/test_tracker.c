@@ -17,7 +17,7 @@ static const struct latency_tracker_config default_tracker_config = {
 
 static void init_tracker(struct latency_tracker *tracker)
 {
-	assert(tracker_init(tracker, &default_tracker_config) == 0);
+	tracker_init(tracker, &default_tracker_config);
 }
 
 static struct latency_observation
@@ -60,7 +60,7 @@ static void test_configured_alpha_values_are_used(void)
 	struct latency_tracker tracker;
 	struct latency_observation observation;
 
-	assert(tracker_init(&tracker, &config) == 0);
+	tracker_init(&tracker, &config);
 	observation = track(&tracker, 300000U);
 	assert(observation.download_owd_baseline_microseconds == 110000U);
 	assert(observation.download_owd_delta_microseconds == 40000);
@@ -144,15 +144,6 @@ static void test_signed_asymmetric_tracker_handles_one_day_values(void)
 	assert(observation.upload_owd_baseline_microseconds == INT64_C(86499900));
 	assert(observation.upload_owd_delta_microseconds == INT64_C(86313500100));
 	assert(observation.upload_owd_delta_ewma_microseconds == INT64_C(8199782509));
-}
-
-static void test_invalid_alpha_is_rejected(void)
-{
-	struct latency_tracker_config config = default_tracker_config;
-	struct latency_tracker tracker;
-
-	config.alpha_delta_ewma_per_million = 1000001U;
-	assert(tracker_init(&tracker, &config) != 0);
 }
 
 static void test_lower_sample_reduces_baseline(void)
@@ -322,7 +313,6 @@ int main(void)
 	test_configured_alpha_values_are_used();
 	test_delta_ewma_freezes_during_load();
 	test_unrepresentable_delta_ewma_restarts();
-	test_invalid_alpha_is_rejected();
 	test_asymmetric_tracker_state_evolves_independently();
 	test_lower_sample_reduces_baseline();
 	test_higher_sample_reports_delta();

@@ -156,28 +156,29 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 	}
 }
 
-/*
- * Updates the floors for one candidate clock period and returns the queueing
- * delay in each direction; upload_ns is negative when the sample has no
- * departure.
- */
-static void flow_measure(
+/* One sample's queueing delay in each direction; upload_ns is negative without a departure. */
+struct flow_queues {
+	int64_t download_ns;
+	int64_t upload_ns;
+};
+
+/* Updates the floors for one candidate clock period and returns the sample's queues. */
+static struct flow_queues flow_measure(
 	struct tcpdelay_flow *flow,
 	size_t tick_index,
 	const struct tcpdelay_sample *sample,
-	int64_t *download_ns,
-	int64_t *upload_ns,
 	enum tcpdelay_baseline_policy policy
 )
 {
 	int64_t elapsed_ns = (int64_t)(sample->arrival_ns - flow->first_arrival_ns);
 	int64_t remote_ns = (int64_t)(flow->ticks * standard_ticks_ns[tick_index]);
+	struct flow_queues queues = { .upload_ns = -1 };
 
 	/* Arrival minus remote send time: only the downstream delay varies. */
-	*download_ns = elapsed_ns - remote_ns;
-	*download_ns -= floor_update(
+	queues.download_ns = elapsed_ns - remote_ns;
+	queues.download_ns -= floor_update(
 		&flow->download_floor[tick_index],
-		*download_ns,
+		queues.download_ns,
 		sample->arrival_ns,
 		policy
 	);
@@ -187,24 +188,19 @@ static void flow_measure(
 	 * upload path delay and receiver response wait. A window minimum can suppress
 	 * intermittent waits only while prompt echoes remain in its result windows.
 	 */
-	*upload_ns = -1;
 	if (sample->departure_ns != 0U) {
 		int64_t departed_ns =
 			(int64_t)sample->departure_ns - (int64_t)flow->first_arrival_ns;
 
-		*upload_ns = remote_ns - departed_ns;
-		*upload_ns -= floor_update(
+		queues.upload_ns = remote_ns - departed_ns;
+		queues.upload_ns -= floor_update(
 			&flow->upload_floor[tick_index],
-			*upload_ns,
+			queues.upload_ns,
 			sample->arrival_ns,
 			policy
 		);
 	}
-}
-
-void tcpdelay_estimator_init(struct tcpdelay_estimator *estimator)
-{
-	memset(estimator, 0, sizeof(*estimator));
+	return queues;
 }
 
 void tcpdelay_estimator_set_policy(
@@ -226,8 +222,7 @@ void tcpdelay_estimator_add(
 	 * (RFC 7323). A reordered packet carries an older TSval and is skipped.
 	 */
 	int32_t step = (int32_t)(sample->tsval - flow->last_tsval);
-	int64_t download_ns;
-	int64_t upload_ns;
+	struct flow_queues queues;
 	size_t index;
 
 	if (step < 0 || sample->arrival_ns < flow->last_accepted_ns)
@@ -237,32 +232,18 @@ void tcpdelay_estimator_add(
 	flow->last_tsval = sample->tsval;
 	if (flow->tick_ns == 0U) {
 		for (index = 0U; index < TCPDELAY_TICKS; index++)
-			flow_measure(
-				flow,
-				index,
-				sample,
-				&download_ns,
-				&upload_ns,
-				estimator->baseline_policy
-			);
+			(void)flow_measure(flow, index, sample, estimator->baseline_policy);
 		fit_tick(flow, sample->arrival_ns - flow->first_arrival_ns);
 		return;
 	}
-	flow_measure(
-		flow,
-		flow->tick_index,
-		sample,
-		&download_ns,
-		&upload_ns,
-		estimator->baseline_policy
-	);
-	if (download_ns > IMPLAUSIBLE_QUEUE_NS || upload_ns > IMPLAUSIBLE_QUEUE_NS) {
+	queues = flow_measure(flow, flow->tick_index, sample, estimator->baseline_policy);
+	if (queues.download_ns > IMPLAUSIBLE_QUEUE_NS || queues.upload_ns > IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
 		return;
 	}
-	window_add(&flow->download, download_ns, sample->arrival_ns);
-	if (upload_ns >= 0)
-		window_add(&flow->upload, upload_ns, sample->arrival_ns);
+	window_add(&flow->download, queues.download_ns, sample->arrival_ns);
+	if (queues.upload_ns >= 0)
+		window_add(&flow->upload, queues.upload_ns, sample->arrival_ns);
 }
 
 void tcpdelay_estimator_result(

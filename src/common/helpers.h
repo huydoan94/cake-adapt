@@ -22,16 +22,20 @@ bool shuffle(size_t *items, size_t count, random_u32_source source, void *contex
 uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bits_per_second);
 
 /*
- * Map an epoch response timestamp into the monotonic clock domain. Future
- * timestamps retain their offset; stale means strictly older than 500 ms.
- * This keeps health/activity timers monotonic without changing response age.
+ * Map an epoch response timestamp into the monotonic clock domain, keeping
+ * its age (or a future timestamp's offset). This keeps health/activity timers
+ * monotonic without changing response age.
  */
-void response_timestamp(
+uint64_t response_monotonic_microseconds(
 	uint64_t processing_realtime_microseconds,
 	uint64_t processing_monotonic_microseconds,
-	uint64_t response_realtime_microseconds,
-	uint64_t *response_monotonic_microseconds,
-	bool *stale
+	uint64_t response_realtime_microseconds
+);
+
+/* Strictly older than 500 ms when processed; a future timestamp is never stale. */
+bool response_stale(
+	uint64_t processing_realtime_microseconds,
+	uint64_t response_realtime_microseconds
 );
 
 bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp);
