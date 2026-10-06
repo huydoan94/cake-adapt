@@ -1,0 +1,4 @@
+166c166
+<         expected = sum(row[3] if variant == "before" else row[2] for row in selected if row[1])
+---
+>         expected = sum(row[3] if (path / "variant").read_text().split()[1] == "before" else row[2] for row in selected if row[1])

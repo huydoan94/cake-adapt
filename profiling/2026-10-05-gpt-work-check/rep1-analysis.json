@@ -1,0 +1,608 @@
+[
+  {
+    "variant": "after",
+    "idle_rtt_ms": 24.95,
+    "udp_idle_rtt_ms": 23.694000000000003,
+    "throughput": {
+      "download": {
+        "download": {
+          "mbps": 17.66807273221806,
+          "bytes": 44171264,
+          "seconds": 20.00049
+        }
+      },
+      "mixed": {
+        "download": {
+          "mbps": 11.365579126224505,
+          "bytes": 35520512,
+          "seconds": 25.002166
+        },
+        "upload": {
+          "mbps": 1.8395687298693384,
+          "bytes": 5767168,
+          "seconds": 25.080522
+        }
+      },
+      "upload": {
+        "upload": {
+          "mbps": 2.1630181350037785,
+          "bytes": 4063232,
+          "seconds": 15.028009
+        }
+      }
+    },
+    "udp_sent": 4142,
+    "udp_received": 4142,
+    "max_rss_kib": 1852.0,
+    "phases": {
+      "upload": {
+        "added_p50_ms": 45.64999999999999,
+        "added_p95_ms": 104.05,
+        "added_p99_ms": 141.05,
+        "above30ms_percent": 57.983193277310924,
+        "udp_added_p95_ms": 111.056,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2585.7666666666664,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2585.7666666666664,
+        "daemon_cpu_percent_one_core": 0.34600824987470175,
+        "bpf_runs": 5197,
+        "bpf_ns_per_run": 4613.362516836636,
+        "bpf_cpu_percent_one_core": 0.2073942741516786,
+        "host_busy_percent_all_cores": 4.293935369632581,
+        "window_start": 1791250427.0,
+        "window_end": 1791250439.0,
+        "icmp_samples": 119
+      },
+      "download": {
+        "added_p50_ms": 7.849999999999998,
+        "added_p95_ms": 40.05,
+        "added_p99_ms": 47.75,
+        "above30ms_percent": 15.882352941176471,
+        "udp_added_p95_ms": 45.864000000000004,
+        "ack_wire_kbps": 526.6258823529412,
+        "ul_shaper_mean_kbps": 2195.294117647059,
+        "ack_share_mean_percent": 23.988853161843515,
+        "ack_share_p95_percent": 30.310399999999998,
+        "headroom_kbps": 1668.6682352941175,
+        "daemon_cpu_percent_one_core": 0.301738678613909,
+        "bpf_runs": 29152,
+        "bpf_ns_per_run": 2584.1362170691546,
+        "bpf_cpu_percent_one_core": 0.4546160224445298,
+        "host_busy_percent_all_cores": 6.966839062975358,
+        "window_start": 1791250445.0,
+        "window_end": 1791250462.0,
+        "icmp_samples": 170
+      },
+      "mixed": {
+        "added_p50_ms": 50.25,
+        "added_p95_ms": 91.05,
+        "added_p99_ms": 95.05,
+        "above30ms_percent": 59.56521739130435,
+        "udp_added_p95_ms": 93.253,
+        "ack_wire_kbps": 356.5593043478261,
+        "ul_shaper_mean_kbps": 2644.8347826086956,
+        "ack_share_mean_percent": 13.481345099225397,
+        "ack_share_p95_percent": 27.108846688281613,
+        "headroom_kbps": 2288.2754782608695,
+        "daemon_cpu_percent_one_core": 0.3166949497877895,
+        "bpf_runs": 31369,
+        "bpf_ns_per_run": 2361.080015301731,
+        "bpf_cpu_percent_one_core": 0.33508460663931056,
+        "host_busy_percent_all_cores": 5.586080586080586,
+        "window_start": 1791250468.0,
+        "window_end": 1791250491.0,
+        "icmp_samples": 230
+      },
+      "recovery": {
+        "added_p50_ms": 0.75,
+        "added_p95_ms": 3.8500000000000014,
+        "added_p99_ms": 4.150000000000002,
+        "above30ms_percent": 0.0,
+        "udp_added_p95_ms": 4.627999999999997,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2885.32,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2885.32,
+        "daemon_cpu_percent_one_core": 0.2215677602955891,
+        "bpf_runs": 713,
+        "bpf_ns_per_run": 3274.194950911641,
+        "bpf_cpu_percent_one_core": 0.051725015797781305,
+        "host_busy_percent_all_cores": 2.9988465974625145,
+        "window_start": 1791250494.0,
+        "window_end": 1791250499.0,
+        "icmp_samples": 50
+      }
+    },
+    "ack_counter_crosscheck": {
+      "pcap_bytes": 2421088,
+      "map_bytes": 2421088
+    }
+  },
+  {
+    "variant": "before",
+    "idle_rtt_ms": 23.15,
+    "udp_idle_rtt_ms": 23.826,
+    "throughput": {
+      "download": {
+        "download": {
+          "mbps": 22.698550484235938,
+          "bytes": 56754176,
+          "seconds": 20.002749
+        }
+      },
+      "mixed": {
+        "download": {
+          "mbps": 21.17805764423106,
+          "bytes": 66191360,
+          "seconds": 25.003751
+        },
+        "upload": {
+          "mbps": 1.5497412531716475,
+          "bytes": 4849664,
+          "seconds": 25.034703
+        }
+      },
+      "upload": {
+        "upload": {
+          "mbps": 2.0924907675661695,
+          "bytes": 3932160,
+          "seconds": 15.033414
+        }
+      }
+    },
+    "udp_sent": 4146,
+    "udp_received": 4146,
+    "max_rss_kib": 1916.0,
+    "phases": {
+      "upload": {
+        "added_p50_ms": 10.050000000000004,
+        "added_p95_ms": 65.05000000000001,
+        "added_p99_ms": 77.85,
+        "above30ms_percent": 33.333333333333336,
+        "udp_added_p95_ms": 64.75800000000001,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2449.45,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2449.45,
+        "daemon_cpu_percent_one_core": 0.25935192794442674,
+        "bpf_runs": 5070,
+        "bpf_ns_per_run": 3774.2635108481263,
+        "bpf_cpu_percent_one_core": 0.16542776556038086,
+        "host_busy_percent_all_cores": 3.9770216526734425,
+        "window_start": 1791250338.0,
+        "window_end": 1791250350.0,
+        "icmp_samples": 120
+      },
+      "download": {
+        "added_p50_ms": 23.65,
+        "added_p95_ms": 52.050000000000004,
+        "added_p99_ms": 85.85,
+        "above30ms_percent": 34.44444444444444,
+        "udp_added_p95_ms": 61.089999999999996,
+        "ack_wire_kbps": 600.4,
+        "ul_shaper_mean_kbps": 2277.988888888889,
+        "ack_share_mean_percent": 26.35658158512138,
+        "ack_share_p95_percent": 31.24622222222222,
+        "headroom_kbps": 1677.588888888889,
+        "daemon_cpu_percent_one_core": 0.2843155183504059,
+        "bpf_runs": 35914,
+        "bpf_ns_per_run": 2448.385671325945,
+        "bpf_cpu_percent_one_core": 0.5000047935596394,
+        "host_busy_percent_all_cores": 8.053883634279163,
+        "window_start": 1791250356.0,
+        "window_end": 1791250374.0,
+        "icmp_samples": 180
+      },
+      "mixed": {
+        "added_p50_ms": 31.25,
+        "added_p95_ms": 78.85,
+        "added_p99_ms": 97.85,
+        "above30ms_percent": 53.39366515837104,
+        "udp_added_p95_ms": 82.76400000000001,
+        "ack_wire_kbps": 518.6123636363636,
+        "ul_shaper_mean_kbps": 2405.2,
+        "ack_share_mean_percent": 21.562130535355216,
+        "ack_share_p95_percent": 30.257988165680473,
+        "headroom_kbps": 1886.5876363636362,
+        "daemon_cpu_percent_one_core": 0.4265161285889259,
+        "bpf_runs": 43467,
+        "bpf_ns_per_run": 2292.445809464651,
+        "bpf_cpu_percent_one_core": 0.47222795675789925,
+        "host_busy_percent_all_cores": 8.884099616858238,
+        "window_start": 1791250380.0,
+        "window_end": 1791250402.0,
+        "icmp_samples": 221
+      },
+      "recovery": {
+        "added_p50_ms": 0.15000000000000213,
+        "added_p95_ms": 7.050000000000001,
+        "added_p99_ms": 8.150000000000002,
+        "above30ms_percent": 0.0,
+        "udp_added_p95_ms": 5.879999999999999,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2415.32,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2415.32,
+        "daemon_cpu_percent_one_core": 0.22125220339538057,
+        "bpf_runs": 715,
+        "bpf_ns_per_run": 1184.925874125874,
+        "bpf_cpu_percent_one_core": 0.01874497342650411,
+        "host_busy_percent_all_cores": 2.745995423340961,
+        "window_start": 1791250405.0,
+        "window_end": 1791250410.0,
+        "icmp_samples": 50
+      }
+    },
+    "ack_counter_crosscheck": {
+      "pcap_bytes": 2169590,
+      "map_bytes": 2169590
+    }
+  },
+  {
+    "variant": "head",
+    "idle_rtt_ms": 23.7,
+    "udp_idle_rtt_ms": 23.066,
+    "throughput": {
+      "download": {
+        "download": {
+          "mbps": 17.923256256794073,
+          "bytes": 44826624,
+          "seconds": 20.00825
+        }
+      },
+      "mixed": {
+        "download": {
+          "mbps": 10.736208913427992,
+          "bytes": 33554432,
+          "seconds": 25.002816
+        },
+        "upload": {
+          "mbps": 1.8816252874023405,
+          "bytes": 5898240,
+          "seconds": 25.077214
+        }
+      },
+      "upload": {
+        "upload": {
+          "mbps": 2.15584623507503,
+          "bytes": 4063232,
+          "seconds": 15.078003
+        }
+      }
+    },
+    "udp_sent": 4151,
+    "udp_received": 4151,
+    "max_rss_kib": 2516.0,
+    "phases": {
+      "upload": {
+        "added_p50_ms": 46.599999999999994,
+        "added_p95_ms": 106.3,
+        "added_p99_ms": 119.3,
+        "above30ms_percent": 58.333333333333336,
+        "udp_added_p95_ms": 110.596,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2559.0333333333333,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2559.0333333333333,
+        "daemon_cpu_percent_one_core": 0.34608084638916115,
+        "bpf_runs": 5140,
+        "bpf_ns_per_run": 5567.458365758755,
+        "bpf_cpu_percent_one_core": 0.24759260539437947,
+        "host_busy_percent_all_cores": 3.2430031097290093,
+        "window_start": 1791250515.0,
+        "window_end": 1791250527.0,
+        "icmp_samples": 120
+      },
+      "download": {
+        "added_p50_ms": 11.3,
+        "added_p95_ms": 37.2,
+        "added_p99_ms": 42.89999999999999,
+        "above30ms_percent": 17.22222222222222,
+        "udp_added_p95_ms": 41.11,
+        "ack_wire_kbps": 525.3777777777777,
+        "ul_shaper_mean_kbps": 2649.2,
+        "ack_share_mean_percent": 19.8315634069824,
+        "ack_share_p95_percent": 26.356292998785918,
+        "headroom_kbps": 2123.822222222222,
+        "daemon_cpu_percent_one_core": 0.3412624720769092,
+        "bpf_runs": 30860,
+        "bpf_ns_per_run": 3493.5600777705768,
+        "bpf_cpu_percent_one_core": 0.6131989745062714,
+        "host_busy_percent_all_cores": 7.095471589270263,
+        "window_start": 1791250533.0,
+        "window_end": 1791250551.0,
+        "icmp_samples": 180
+      },
+      "mixed": {
+        "added_p50_ms": 52.2,
+        "added_p95_ms": 92.3,
+        "added_p99_ms": 100.3,
+        "above30ms_percent": 61.36363636363637,
+        "udp_added_p95_ms": 94.814,
+        "ack_wire_kbps": 349.7687272727273,
+        "ul_shaper_mean_kbps": 2662.409090909091,
+        "ack_share_mean_percent": 13.137302169941782,
+        "ack_share_p95_percent": 22.859755102040815,
+        "headroom_kbps": 2312.6403636363634,
+        "daemon_cpu_percent_one_core": 0.3238258226020154,
+        "bpf_runs": 30028,
+        "bpf_ns_per_run": 3498.2387771413346,
+        "bpf_cpu_percent_one_core": 0.485947435019607,
+        "host_busy_percent_all_cores": 4.637476459510358,
+        "window_start": 1791250557.0,
+        "window_end": 1791250579.0,
+        "icmp_samples": 220
+      },
+      "recovery": {
+        "added_p50_ms": 0,
+        "added_p95_ms": 6.800000000000001,
+        "added_p99_ms": 7.100000000000001,
+        "above30ms_percent": 0.0,
+        "udp_added_p95_ms": 6.324999999999999,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2893.6,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2893.6,
+        "daemon_cpu_percent_one_core": 0.2489392697715036,
+        "bpf_runs": 636,
+        "bpf_ns_per_run": 2330.514150943396,
+        "bpf_cpu_percent_one_core": 0.0368979528230211,
+        "host_busy_percent_all_cores": 1.925545571245186,
+        "window_start": 1791250582.0,
+        "window_end": 1791250587.0,
+        "icmp_samples": 50
+      }
+    },
+    "ack_counter_crosscheck": {
+      "pcap_bytes": 2436680,
+      "map_bytes": 2436680
+    }
+  },
+  {
+    "variant": "noguard",
+    "idle_rtt_ms": 26.6,
+    "udp_idle_rtt_ms": 25.488500000000002,
+    "throughput": {
+      "download": {
+        "download": {
+          "mbps": 22.697474771788436,
+          "bytes": 56754176,
+          "seconds": 20.003697
+        }
+      },
+      "mixed": {
+        "download": {
+          "mbps": 20.675175537709656,
+          "bytes": 64618496,
+          "seconds": 25.003317
+        },
+        "upload": {
+          "mbps": 1.5501099775346334,
+          "bytes": 4849664,
+          "seconds": 25.028748
+        }
+      },
+      "upload": {
+        "upload": {
+          "mbps": 2.0924554140745957,
+          "bytes": 3932160,
+          "seconds": 15.033668
+        }
+      }
+    },
+    "udp_sent": 4142,
+    "udp_received": 4142,
+    "max_rss_kib": 2496.0,
+    "phases": {
+      "upload": {
+        "added_p50_ms": 6.299999999999997,
+        "added_p95_ms": 60.300000000000004,
+        "added_p99_ms": 74.4,
+        "above30ms_percent": 35.0,
+        "udp_added_p95_ms": 61.12049999999999,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2458.75,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2458.75,
+        "daemon_cpu_percent_one_core": 0.43294837584179235,
+        "bpf_runs": 5088,
+        "bpf_ns_per_run": 5338.9115566037735,
+        "bpf_cpu_percent_one_core": 0.23521550135292035,
+        "host_busy_percent_all_cores": 3.5508211273857078,
+        "window_start": 1791250604.0,
+        "window_end": 1791250616.0,
+        "icmp_samples": 120
+      },
+      "download": {
+        "added_p50_ms": 21.699999999999996,
+        "added_p95_ms": 42.699999999999996,
+        "added_p99_ms": 46.199999999999996,
+        "above30ms_percent": 31.764705882352942,
+        "udp_added_p95_ms": 47.7555,
+        "ack_wire_kbps": 616.8094117647059,
+        "ul_shaper_mean_kbps": 2396.835294117647,
+        "ack_share_mean_percent": 25.734326145751016,
+        "ack_share_p95_percent": 30.442416340721422,
+        "headroom_kbps": 1780.0258823529412,
+        "daemon_cpu_percent_one_core": 0.36158845809641754,
+        "bpf_runs": 34364,
+        "bpf_ns_per_run": 3412.5070131533,
+        "bpf_cpu_percent_one_core": 0.7067089182779952,
+        "host_busy_percent_all_cores": 8.239927294759164,
+        "window_start": 1791250622.0,
+        "window_end": 1791250639.0,
+        "icmp_samples": 170
+      },
+      "mixed": {
+        "added_p50_ms": 30.6,
+        "added_p95_ms": 59.6,
+        "added_p99_ms": 65.6,
+        "above30ms_percent": 51.13122171945702,
+        "udp_added_p95_ms": 63.671499999999995,
+        "ack_wire_kbps": 533.3672727272727,
+        "ul_shaper_mean_kbps": 2450.490909090909,
+        "ack_share_mean_percent": 21.7657315417319,
+        "ack_share_p95_percent": 33.75583885772565,
+        "headroom_kbps": 1917.1236363636365,
+        "daemon_cpu_percent_one_core": 0.416830388380325,
+        "bpf_runs": 44821,
+        "bpf_ns_per_run": 3300.729568728944,
+        "bpf_cpu_percent_one_core": 0.6851857924195781,
+        "host_busy_percent_all_cores": 7.318213701192424,
+        "window_start": 1791250645.0,
+        "window_end": 1791250667.0,
+        "icmp_samples": 221
+      },
+      "recovery": {
+        "added_p50_ms": 0,
+        "added_p95_ms": 3.099999999999998,
+        "added_p99_ms": 3.6999999999999993,
+        "above30ms_percent": 0.0,
+        "udp_added_p95_ms": 3.3734999999999964,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2730.76,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2730.76,
+        "daemon_cpu_percent_one_core": 0.4422823716419158,
+        "bpf_runs": 715,
+        "bpf_ns_per_run": 3259.841958041958,
+        "bpf_cpu_percent_one_core": 0.0515433001076073,
+        "host_busy_percent_all_cores": 3.2,
+        "window_start": 1791250670.0,
+        "window_end": 1791250675.0,
+        "icmp_samples": 50
+      }
+    },
+    "ack_counter_crosscheck": {
+      "pcap_bytes": 3215880,
+      "map_bytes": 3215880
+    }
+  },
+  {
+    "variant": "off",
+    "idle_rtt_ms": 23.2,
+    "udp_idle_rtt_ms": 24.0915,
+    "throughput": {
+      "download": {
+        "download": {
+          "mbps": 18.868189611311774,
+          "bytes": 47185920,
+          "seconds": 20.006549
+        }
+      },
+      "mixed": {
+        "download": {
+          "mbps": 9.352155834729462,
+          "bytes": 29229056,
+          "seconds": 25.003053
+        },
+        "upload": {
+          "mbps": 1.8825189076057707,
+          "bytes": 5898240,
+          "seconds": 25.06531
+        }
+      },
+      "upload": {
+        "upload": {
+          "mbps": 2.218503738528032,
+          "bytes": 4194304,
+          "seconds": 15.124803
+        }
+      }
+    },
+    "udp_sent": 4160,
+    "udp_received": 4160,
+    "max_rss_kib": 1228.0,
+    "phases": {
+      "upload": {
+        "added_p50_ms": 55.0,
+        "added_p95_ms": 90.8,
+        "added_p99_ms": 91.8,
+        "above30ms_percent": 64.61538461538461,
+        "udp_added_p95_ms": 90.0445,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2657.3230769230768,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2657.3230769230768,
+        "daemon_cpu_percent_one_core": 0.24871144672049503,
+        "bpf_runs": 0,
+        "bpf_ns_per_run": 0,
+        "bpf_cpu_percent_one_core": 0.0,
+        "host_busy_percent_all_cores": 4.566794707639778,
+        "window_start": 1791250249.0,
+        "window_end": 1791250262.0,
+        "icmp_samples": 130
+      },
+      "download": {
+        "added_p50_ms": 13.2,
+        "added_p95_ms": 67.1,
+        "added_p99_ms": 75.39999999999999,
+        "above30ms_percent": 33.13609467455621,
+        "udp_added_p95_ms": 70.01650000000001,
+        "ack_wire_kbps": 550.1496470588235,
+        "ul_shaper_mean_kbps": 2581.5529411764705,
+        "ack_share_mean_percent": 21.310802435378612,
+        "ack_share_p95_percent": 27.305245628642798,
+        "headroom_kbps": 2031.4032941176467,
+        "daemon_cpu_percent_one_core": 0.24116000858047312,
+        "bpf_runs": 0,
+        "bpf_ns_per_run": 0,
+        "bpf_cpu_percent_one_core": 0.0,
+        "host_busy_percent_all_cores": 6.316753127860848,
+        "window_start": 1791250268.0,
+        "window_end": 1791250285.0,
+        "icmp_samples": 169
+      },
+      "mixed": {
+        "added_p50_ms": 61.599999999999994,
+        "added_p95_ms": 97.8,
+        "added_p99_ms": 105.8,
+        "above30ms_percent": 82.09606986899563,
+        "udp_added_p95_ms": 98.6435,
+        "ack_wire_kbps": 325.57773913043474,
+        "ul_shaper_mean_kbps": 2675.965217391304,
+        "ack_share_mean_percent": 12.166740322874151,
+        "ack_share_p95_percent": 21.565776965265083,
+        "headroom_kbps": 2350.3874782608696,
+        "daemon_cpu_percent_one_core": 0.22107844097428916,
+        "bpf_runs": 0,
+        "bpf_ns_per_run": 0,
+        "bpf_cpu_percent_one_core": 0.0,
+        "host_busy_percent_all_cores": 3.957485300768883,
+        "window_start": 1791250291.0,
+        "window_end": 1791250314.0,
+        "icmp_samples": 229
+      },
+      "recovery": {
+        "added_p50_ms": 0,
+        "added_p95_ms": 3.400000000000002,
+        "added_p99_ms": 5.400000000000002,
+        "above30ms_percent": 0.0,
+        "udp_added_p95_ms": 5.439499999999999,
+        "ack_wire_kbps": 0.0,
+        "ul_shaper_mean_kbps": 2665.28,
+        "ack_share_mean_percent": 0.0,
+        "ack_share_p95_percent": 0.0,
+        "headroom_kbps": 2665.28,
+        "daemon_cpu_percent_one_core": 0.22138705186832963,
+        "bpf_runs": 0,
+        "bpf_ns_per_run": 0,
+        "bpf_cpu_percent_one_core": 0.0,
+        "host_busy_percent_all_cores": 2.6315789473684212,
+        "window_start": 1791250317.0,
+        "window_end": 1791250322.0,
+        "icmp_samples": 50
+      }
+    }
+  }
+]
