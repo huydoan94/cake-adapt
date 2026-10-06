@@ -12,6 +12,7 @@
 #include "platform/cpu.h"
 #include "platform/netlink.h"
 #include "platform/traffic.h"
+#include "tcpdelay/capture.h"
 
 #include <libubox/uloop.h>
 #include <libubox/ustream.h>
@@ -21,182 +22,246 @@
 #include <stdint.h>
 
 enum cake_observation_state {
-    CAKE_OBSERVATION_UNKNOWN,
-    CAKE_OBSERVATION_AVAILABLE,
-    CAKE_OBSERVATION_NOT_FOUND,
-    CAKE_OBSERVATION_FAILED
+	CAKE_OBSERVATION_UNKNOWN,
+	CAKE_OBSERVATION_AVAILABLE,
+	CAKE_OBSERVATION_NOT_FOUND,
+	CAKE_OBSERVATION_FAILED
 };
 
 enum traffic_observation_state {
-    TRAFFIC_OBSERVATION_UNKNOWN,
-    TRAFFIC_OBSERVATION_AVAILABLE,
-    TRAFFIC_OBSERVATION_UNAVAILABLE
+	TRAFFIC_OBSERVATION_UNKNOWN,
+	TRAFFIC_OBSERVATION_AVAILABLE,
+	TRAFFIC_OBSERVATION_UNAVAILABLE
 };
 
-struct monitored_direction {
-    const char *name;
-    const char *interface;
-    struct traffic_monitor traffic_monitor;
-    struct cake_observation cake;
-    enum cake_observation_state cake_state;
-    enum traffic_observation_state traffic_state;
-    uint64_t traffic_rate_bits_per_second;
-    uint64_t traffic_sample_id;
-    bool cake_valid;
-    bool traffic_valid;
-    uint64_t next_cake_observation_microseconds;
+/* One shaped link: its CAKE qdisc and the traffic rate read from it. */
+struct monitor_direction {
+	const char *name;
+	const char *interface;
+	struct traffic_monitor traffic_monitor;
+	struct cake_observation cake;
+	enum cake_observation_state cake_state;
+	enum traffic_observation_state traffic_state;
+	uint64_t traffic_rate_bits_per_second;
+	uint64_t traffic_sample_id;
+	bool cake_valid;
+	bool traffic_valid;
+	uint64_t next_cake_observation_microseconds;
 };
 
-struct observation_context {
-    struct controller controller;
-    struct latency latency;
-    struct latency_tracker latency_trackers[CONFIG_MAX_REFLECTORS];
-    struct reflector_health reflector_health[CONFIG_MAX_REFLECTORS];
-    size_t reflector_order[CONFIG_MAX_REFLECTORS];
-    struct netlink netlink;
-    struct monitored_direction download;
-    struct monitored_direction upload;
-    bool latency_observation_failed;
-    bool response_clock_failed;
-    bool traffic_clock_failed;
-    bool health_clock_failed;
-    bool traffic_cadence_initialized;
-    bool pingers_suspended;
-    bool initial_shaper_reported;
-    uint64_t traffic_cadence_microseconds;
-    uint64_t last_reflector_replacement_microseconds;
-    uint64_t last_reflector_comparison_microseconds;
-    uint64_t last_reflector_response_microseconds;
-    uint64_t last_pinger_restart_microseconds;
-    uint64_t pinger_slot_origin_microseconds;
-    uint64_t next_latency_attempt_microseconds;
-    uint64_t pinger_grace_until_microseconds;
-    struct controller_activity activity;
+/* links.c: both directions' CAKE and traffic, and qdisc lifecycle events. */
+struct monitor_links {
+	struct monitor_direction download;
+	struct monitor_direction upload;
+	struct uloop_fd qdisc_events;
+	/* A qdisc event asked for an immediate traffic cycle. */
+	bool qdisc_refresh;
+	bool clock_failed;
+	bool cadence_initialized;
+	bool cadence_applied;
+	uint64_t cadence_microseconds;
 };
 
-struct event_loop;
+/* control.c */
+struct monitor_control {
+	struct controller controller;
+	bool initial_shaper_reported;
+};
+
+struct monitor;
 
 /* One pinger child: uloop drives both its output stream and its exit. */
 struct pinger_watch {
-    struct ustream_fd output;
-    struct uloop_process process;
-    struct event_loop *loop;
-    size_t child_index;
-    bool reading;
+	struct ustream_fd output;
+	struct uloop_process process;
+	struct monitor *monitor;
+	size_t child_index;
+	bool reading;
 };
 
-struct event_loop {
-    struct observation_context observation;
-    const struct config *config;
-    struct uloop_interval traffic_timer;
-    struct uloop_interval reflector_health_timer;
-    struct uloop_interval cpu_timer;
-    struct uloop_interval log_timer;
-    struct uloop_signal log_export_signal;
-    struct uloop_signal log_reset_signal;
-    struct cpu_monitor cpu_monitor;
-    size_t cpu_count;
-    bool cpu_observation_failed;
-    bool qdisc_refresh;
-    bool traffic_cadence_applied;
-    struct uloop_fd qdisc_events;
-    struct pinger_watch pingers[CONFIG_MAX_REFLECTORS];
-    struct uloop_timeout pinger_stop_timer;
-    struct uloop_timeout latency_failure_timer;
-    struct uloop_timeout latency_start_timer;
-    int result;
+/* pingers.c: the pinger session, its children and its restart timing. */
+struct monitor_pingers {
+	struct latency latency;
+	struct pinger_watch watches[CONFIG_MAX_REFLECTORS];
+	struct uloop_timeout stop_timer;
+	struct uloop_timeout failure_timer;
+	struct uloop_timeout start_timer;
+	bool observation_failed;
+	bool response_clock_failed;
+	/* Stopped while CAKE was missing; restarted with setup grace. */
+	bool suspended;
+	uint64_t last_response_microseconds;
+	uint64_t last_restart_microseconds;
+	uint64_t next_attempt_microseconds;
+	uint64_t grace_until_microseconds;
 };
 
-/* observe.c: CAKE and traffic observation */
+/* reflectors.c: per-reflector latency trackers, active order and health. */
+struct monitor_reflectors {
+	/* Shared by every tracker and health record below. */
+	struct latency_tracker_config tracker_config;
+	struct reflector_health_config health_config;
+	struct latency_tracker trackers[CONFIG_MAX_REFLECTORS];
+	/* Indexed by pinger slot; order maps a slot to its reflector. */
+	struct reflector_health health[CONFIG_MAX_REFLECTORS];
+	size_t order[CONFIG_MAX_REFLECTORS];
+	struct uloop_interval health_timer;
+	bool clock_failed;
+	uint64_t last_replacement_microseconds;
+	uint64_t last_comparison_microseconds;
+};
 
-int watch_qdisc_events(struct event_loop *loop);
+/* tcpdelay.c: the TCP queue estimate and the upload ACK rate. */
+struct monitor_tcp {
+	struct tcpdelay_capture capture;
+	bool open;
+	/* The upload CAKE the capture was opened for; another one needs a new capture. */
+	struct qdisc_id qdisc;
+	/* Upload interface whose capture failed; retried once it is recreated. */
+	unsigned int failed_index;
+	/* fping's largest added round-trip delay in the current and previous second. */
+	uint64_t bound_second;
+	int64_t bound_current_ns;
+	int64_t bound_previous_ns;
+	uint64_t dropped_records;
+	uint64_t next_counter_check_microseconds;
+	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
+	bool ack_sampled;
+	bool ack_rate_valid;
+	bool ack_degraded;
+	uint64_t ack_bytes;
+	uint64_t upload_bytes;
+	uint64_t unaccounted_packets;
+	uint64_t ack_sampled_microseconds;
+	uint64_t ack_rate_bits_per_second;
+	uint64_t upload_rate_bits_per_second;
+};
 
-void apply_traffic_cadence(struct event_loop *loop);
+/* The whole daemon state; each part above belongs to the file named on it. */
+struct monitor {
+	const struct config *config;
+	/* Shared by links.c (discovery, events) and control.c (bandwidth changes). */
+	struct netlink netlink;
+	struct monitor_links links;
+	struct monitor_control control;
+	struct monitor_pingers pingers;
+	struct monitor_reflectors reflectors;
+	struct monitor_tcp tcp;
+	/* monitor.c: the traffic tick, activity state, CPU and log upkeep. */
+	struct controller_activity activity;
+	struct uloop_interval traffic_timer;
+	struct uloop_interval cpu_timer;
+	struct uloop_interval log_timer;
+	struct uloop_signal log_export_signal;
+	struct uloop_signal log_reset_signal;
+	struct cpu_monitor cpu_monitor;
+	size_t cpu_count;
+	bool cpu_observation_failed;
+	int result;
+};
 
-bool cake_ready(const struct observation_context *context);
+/* links.c */
 
-bool wire_metadata_ready(const struct observation_context *context);
+int links_watch_events(struct monitor *monitor);
 
-void observe_traffic_cycle(
-    struct observation_context *context,
-    const struct config *config
+void links_apply_cadence(struct monitor *monitor);
+
+/* Both directions have a CAKE qdisc. */
+bool links_ready(const struct monitor *monitor);
+
+/* Both directions have the MTU and bandwidth serialization needs. */
+bool links_wire_ready(const struct monitor *monitor);
+
+void links_observe(struct monitor *monitor);
+
+/* control.c */
+
+int control_start(struct monitor *monitor);
+
+void control_update_compensation(struct monitor *monitor);
+
+bool control_low_load(const struct monitor *monitor);
+
+void control_update(
+	struct monitor *monitor,
+	const struct latency_observation *latency,
+	const struct latency_sample *sample
 );
 
-/* control.c: controller decisions and CAKE updates */
+void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds);
 
-int start_controller(
-    struct controller *controller,
-    const struct config *config
+/* tcpdelay.c */
+
+/* The capture's unloaded state; first, so shutdown is safe from any point. */
+void tcp_init(struct monitor *monitor);
+
+/*
+ * Loads the TCP filter when a TCP feature is enabled, before pingers start:
+ * the kernel's verifier can take seconds on slow CPUs.
+ */
+void tcp_start(struct monitor *monitor);
+
+void tcp_observe(struct monitor *monitor, struct controller_input *input);
+
+/* Empties the ring buffer between ping replies; see tcpdelay.c. */
+void tcp_drain(struct monitor *monitor);
+
+void tcp_close(struct monitor *monitor);
+
+/* Closes and unloads the capture. */
+void tcp_stop(struct monitor *monitor);
+
+/* pingers.c */
+
+void pingers_prepare(struct monitor *monitor, uint64_t start_microseconds);
+
+void pingers_close(struct monitor *monitor);
+
+void pingers_stop_now(struct monitor *monitor);
+
+bool pingers_watch(struct monitor *monitor);
+
+/* CAKE is missing: stop the pingers until pingers_unsuspend(). */
+void pingers_suspend(struct monitor *monitor);
+
+void pingers_unsuspend(struct monitor *monitor, uint64_t timestamp_microseconds);
+
+/* Leaving IDLE: start again with setup grace. */
+void pingers_resume(struct monitor *monitor, uint64_t timestamp_microseconds);
+
+/* Restart now with the current reflectors, as after a rotation. */
+void pingers_reopen(struct monitor *monitor);
+
+void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds);
+
+/* reflectors.c */
+
+int reflectors_start(struct monitor *monitor, uint64_t start_microseconds);
+
+void reflectors_stop(struct monitor *monitor);
+
+/* Fills targets with the reflectors in the no_pingers active slots, in slot order. */
+void reflectors_active(const struct monitor *monitor, const char *targets[]);
+
+/* The active pinger slot polling target, or SIZE_MAX when none does. */
+size_t reflectors_find(const struct monitor *monitor, const char *target);
+
+/*
+ * Feeds one reply into its reflector's latency tracker, whose delay EWMA moves
+ * only under low load, and into the slot's health record.
+ */
+void reflectors_record(
+	struct monitor *monitor,
+	size_t slot,
+	const struct latency_sample *sample,
+	uint64_t response_microseconds,
+	struct latency_observation *observation
 );
 
-void update_serialization_compensation(
-    struct observation_context *context
-);
+void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds);
 
-bool direction_has_low_load(
-    const struct monitored_direction *direction,
-    uint64_t high_load_threshold_percent
-);
+/* monitor.c */
 
-void update_controller(
-    struct observation_context *context,
-    const struct config *config,
-    const struct latency_observation *latency,
-    const struct latency_sample *sample
-);
-
-void enforce_minimum_rates(
-    struct observation_context *context,
-    const struct config *config,
-    uint64_t timestamp_microseconds
-);
-
-/* pingers.c: pinger sessions and latency samples */
-
-void prepare_pingers(struct event_loop *loop);
-
-void close_latency(struct event_loop *loop);
-
-void stop_pingers_now(struct event_loop *loop);
-
-bool watch_latency(struct event_loop *loop);
-
-void grant_pinger_setup_grace(
-    struct observation_context *context,
-    const struct config *config,
-    uint64_t timestamp_microseconds
-);
-
-void restart_latency(
-    struct event_loop *loop,
-    uint64_t timestamp_microseconds
-);
-
-/* reflectors.c: reflector health and replacement */
-
-int start_reflectors(
-    struct observation_context *context,
-    const struct config *config,
-    uint64_t start_microseconds
-);
-
-void stop_reflectors(
-    struct observation_context *context,
-    const struct config *config
-);
-
-void reset_reflector_health(
-    struct observation_context *context,
-    const struct config *config,
-    uint64_t timestamp_microseconds
-);
-
-void handle_reflector_health_timer(struct uloop_interval *timer);
-
-/* monitor.c: activity state and the traffic tick */
-
-void handle_traffic_timer(
-    struct uloop_interval *timer
-);
+void monitor_tick(struct monitor *monitor);
 
 #endif

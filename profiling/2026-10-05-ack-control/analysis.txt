@@ -1,0 +1,13 @@
+Validated after, before, off
+after  upload   p95=116.90ms UL/DL=2.093/0.000Mb/s ACK=0.0% spare=2569kb/s daemon=0.35% BPF=4140ns/run
+after  download p95=38.00ms UL/DL=0.000/15.780Mb/s ACK=18.2% spare=2076kb/s daemon=0.40% BPF=3131ns/run
+after  mixed    p95=93.90ms UL/DL=1.843/10.988Mb/s ACK=13.1% spare=2309kb/s daemon=0.38% BPF=3191ns/run
+after  recovery p95=4.50ms UL/DL=0.000/0.000Mb/s ACK=0.0% spare=2432kb/s daemon=0.22% BPF=1926ns/run
+before upload   p95=90.50ms UL/DL=2.092/0.000Mb/s ACK=0.0% spare=2394kb/s daemon=0.35% BPF=3730ns/run
+before download p95=47.10ms UL/DL=0.000/22.805Mb/s ACK=25.9% spare=1710kb/s daemon=0.24% BPF=2770ns/run
+before mixed    p95=65.20ms UL/DL=1.633/20.171Mb/s ACK=20.8% spare=1996kb/s daemon=0.41% BPF=2769ns/run
+before recovery p95=5.70ms UL/DL=0.000/0.000Mb/s ACK=0.0% spare=2249kb/s daemon=0.22% BPF=1330ns/run
+off    upload   p95=94.40ms UL/DL=2.150/0.000Mb/s ACK=0.0% spare=2612kb/s daemon=0.26% BPF=0ns/run
+off    download p95=65.30ms UL/DL=0.000/18.245Mb/s ACK=23.0% spare=1817kb/s daemon=0.34% BPF=0ns/run
+off    mixed    p95=91.40ms UL/DL=1.718/15.476Mb/s ACK=15.9% spare=2244kb/s daemon=0.37% BPF=0ns/run
+off    recovery p95=4.60ms UL/DL=0.000/0.000Mb/s ACK=0.0% spare=2773kb/s daemon=0.22% BPF=0ns/run

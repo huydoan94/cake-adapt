@@ -11,7 +11,7 @@
         "src/main.c:main",
         "src/monitor/monitor.c:monitor_run",
         "src/monitor/pingers.c:process_latency_line",
-        "src/monitor/control.c:update_controller",
+        "src/monitor/control.c:control_update",
         "src/cake/cake.c:cake_set_bandwidth"
       ],
       "notes": [
@@ -406,17 +406,17 @@
       "title": "02 — Monitor initialization and uloop event topology",
       "refs": [
         "src/monitor/monitor.c:monitor_run",
-        "src/monitor/pingers.c:prepare_pingers",
-        "src/monitor/control.c:start_controller",
-        "src/monitor/reflectors.c:start_reflectors",
-        "src/monitor/observe.c:watch_qdisc_events",
+        "src/monitor/pingers.c:pingers_prepare",
+        "src/monitor/control.c:control_start",
+        "src/monitor/reflectors.c:reflectors_start",
+        "src/monitor/links.c:links_watch_events",
         "src/monitor/monitor.c:watch_cpu",
         "src/monitor/monitor.c:watch_log_maintenance"
       ],
       "notes": [
-        "All monitor state lives in one struct event_loop on monitor_run's stack. The aggregate initializer zeroes everything that is not set explicitly.",
-        "start_controller converts the per-million UCI factors to cake-autorate's per-thousand and percent rounding.",
-        "start_reflectors initializes one latency tracker per configured reflector. With randomize_reflectors it shuffles the order using getentropy.",
+        "All monitor state lives in one struct monitor on monitor_run's stack, split into parts owned by links.c, control.c, pingers.c, reflectors.c and tcpdelay.c. The aggregate initializer zeroes everything that is not set explicitly.",
+        "control_start converts the per-million UCI factors to cake-autorate's per-thousand and percent rounding.",
+        "reflectors_start initializes one latency tracker per configured reflector. With randomize_reflectors it shuffles the order using getentropy.",
         "The first traffic cycle runs before uloop_run, so CAKE discovery and the first counter baseline happen immediately.",
         "Pinger output, pinger exits, qdisc events, timers and SIGUSR1/SIGUSR2 are all uloop callbacks. No thread or polling loop sits outside uloop."
       ],
@@ -428,17 +428,17 @@
         },
         {
           "id": "pingers",
-          "label": "prepare_pingers\nbind pinger slots and timers",
+          "label": "pingers_prepare\nbind pinger slots and timers",
           "kind": "process"
         },
         {
           "id": "controller",
-          "label": "start_controller\ncontroller_init",
+          "label": "control_start\ncontroller_init",
           "kind": "process"
         },
         {
           "id": "reflectors",
-          "label": "start_reflectors\ntrackers, optional shuffle, health windows",
+          "label": "reflectors_start\ntrackers, optional shuffle, health windows",
           "kind": "process"
         },
         {
@@ -453,7 +453,7 @@
         },
         {
           "id": "events",
-          "label": "watch_qdisc_events\nsubscribe RTNLGRP_TC",
+          "label": "links_watch_events\nsubscribe RTNLGRP_TC",
           "kind": "process"
         },
         {
@@ -463,7 +463,7 @@
         },
         {
           "id": "first",
-          "label": "observe_traffic_cycle\napply_traffic_cadence",
+          "label": "links_observe\napply_traffic_cadence",
           "kind": "process"
         },
         {
@@ -473,7 +473,7 @@
         },
         {
           "id": "latency",
-          "label": "watch_latency\n(starts pingers once CAKE is ready)",
+          "label": "pingers_watch\n(starts pingers once CAKE is ready)",
           "kind": "process"
         },
         {
@@ -488,7 +488,7 @@
         },
         {
           "id": "cb",
-          "label": "callbacks:\nhandle_traffic_timer · handle_reflector_health_timer\nhandle_qdisc_events · handle_pinger_output/exit\nhandle_cpu_timer · handle_log_timer · SIGUSR1/2",
+          "label": "callbacks:\nhandle_traffic_timer · handle_health_timer\nhandle_qdisc_events · handle_pinger_output/exit\nhandle_cpu_timer · handle_log_timer · SIGUSR1/2",
           "kind": "note"
         }
       ],
@@ -589,11 +589,11 @@
       "id": "03-cake-and-traffic",
       "title": "03 — CAKE readiness, traffic counters, and fresh-sample IDs",
       "refs": [
-        "src/monitor/monitor.c:handle_traffic_timer",
-        "src/monitor/observe.c:observe_traffic_cycle",
-        "src/monitor/observe.c:observe_cake",
-        "src/cake/cake.c:cake_read_all",
-        "src/monitor/observe.c:observe_traffic",
+        "src/monitor/monitor.c:monitor_tick",
+        "src/monitor/links.c:links_observe",
+        "src/monitor/links.c:observe_cake",
+        "src/cake/cake.c:cake_read",
+        "src/monitor/links.c:observe_traffic",
         "src/platform/traffic.c:traffic_update",
         "src/platform/traffic.c:traffic_compensated_interval_microseconds"
       ],
@@ -628,7 +628,7 @@
         },
         {
           "id": "dump",
-          "label": "cake_read_all\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",
+          "label": "cake_read\none RTM_GETQDISC dump\nmatch root CAKE by cached ifindex",
           "kind": "process"
         },
         {
@@ -653,7 +653,7 @@
         },
         {
           "id": "comp",
-          "label": "update_serialization_compensation\n(first time: compensated cadence)",
+          "label": "control_update_compensation\n(first time: compensated cadence)",
           "kind": "process"
         },
         {
@@ -688,12 +688,12 @@
         },
         {
           "id": "suspend",
-          "label": "close_latency;\npingers_suspended",
+          "label": "pingers_close;\npingers_suspended",
           "kind": "error"
         },
         {
           "id": "activity",
-          "label": "update_monitor_state\n(chart 11), watch_latency",
+          "label": "update_activity\n(chart 11), pingers_watch",
           "kind": "process"
         }
       ],
@@ -824,9 +824,9 @@
       "id": "04-qdisc-lifecycle",
       "title": "04 — Kernel qdisc lifecycle events",
       "refs": [
-        "src/monitor/observe.c:handle_qdisc_events",
-        "src/monitor/observe.c:process_qdisc_event",
-        "src/monitor/observe.c:event_direction",
+        "src/monitor/links.c:handle_qdisc_events",
+        "src/monitor/links.c:process_qdisc_event",
+        "src/monitor/links.c:event_direction",
         "src/platform/netlink.c:netlink_receive_qdisc_events",
         "src/platform/netlink.c:handle_qdisc_event"
       ],
@@ -885,7 +885,7 @@
         },
         {
           "id": "removed",
-          "label": "log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; close_latency",
+          "label": "log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; close upload TCP capture;\nreset ACK sampling; pingers_close",
           "kind": "error"
         },
         {
@@ -900,7 +900,7 @@
         },
         {
           "id": "cycle",
-          "label": "after the batch:\nhandle_traffic_timer() immediately",
+          "label": "after the batch:\nmonitor_tick() immediately",
           "kind": "end"
         }
       ],
@@ -996,13 +996,14 @@
       "title": "05 — Pinger process ownership and reply parsing",
       "refs": [
         "src/monitor/pingers.c:ensure_latency_open",
-        "src/latency/fping.c:latency_open",
+        "src/latency/latency.c:latency_open",
+        "src/latency/fping.c:fping_open",
         "src/monitor/pingers.c:watch_started_latency_children",
         "src/monitor/pingers.c:handle_pinger_output",
         "src/latency/latency.c:latency_next_line",
         "src/latency/parser.c:parse_fping_line",
         "src/monitor/pingers.c:handle_pinger_exit",
-        "src/monitor/pingers.c:close_latency"
+        "src/monitor/pingers.c:pingers_close"
       ],
       "notes": [
         "Pingers start only while both CAKE qdiscs are available. A new session waits until uloop has reaped the previous children, as cake-autorate does before restarting.",
@@ -1014,7 +1015,7 @@
       "nodes": [
         {
           "id": "watch",
-          "label": "watch_latency",
+          "label": "pingers_watch",
           "kind": "start"
         },
         {
@@ -1034,12 +1035,12 @@
         },
         {
           "id": "fping",
-          "label": "latency_open\none fping for all active targets",
+          "label": "fping_open\none fping for all active targets",
           "kind": "process"
         },
         {
           "id": "irtt",
-          "label": "latency_open_irtt\none irtt per target,\nstarts aligned to ping slots",
+          "label": "irtt_open\none irtt per target,\nstarts aligned to ping slots",
           "kind": "process"
         },
         {
@@ -1230,11 +1231,13 @@
       "title": "06 — Per-reflector baseline and delay tracking",
       "refs": [
         "src/monitor/pingers.c:process_latency_line",
+        "src/monitor/reflectors.c:reflectors_record",
         "src/latency/tracker.c:tracker_update",
         "src/latency/tracker.c:tracker_update_direction",
         "src/latency/tracker.c:tracker_update_delta_ewma",
-        "src/monitor/control.c:direction_has_low_load",
-        "src/common/helpers.c:response_timestamp"
+        "src/controller/controller.c:controller_low_load",
+        "src/common/helpers.c:response_monotonic_microseconds",
+        "src/common/helpers.c:response_stale"
       ],
       "notes": [
         "The baseline starts at 100 ms. It moves by alpha_baseline_increase (0.001) when the sample is at or above it, and by alpha_baseline_decrease (0.9) when below. A rising delay therefore barely moves the baseline, and an improvement is adopted almost at once.",
@@ -1311,7 +1314,7 @@
         },
         {
           "id": "controller",
-          "label": "update_controller\n(chart 07)",
+          "label": "control_update\n(chart 07)",
           "kind": "end"
         }
       ],
@@ -1406,7 +1409,7 @@
       "id": "07-controller-window",
       "title": "07 — Delay window and congestion classification",
       "refs": [
-        "src/monitor/control.c:update_controller",
+        "src/monitor/control.c:control_update",
         "src/monitor/control.c:direction_input",
         "src/controller/controller.c:controller_update",
         "src/controller/controller.c:update_direction",
@@ -1423,7 +1426,7 @@
       "nodes": [
         {
           "id": "input",
-          "label": "update_controller(latency observation)",
+          "label": "control_update(latency observation)",
           "kind": "start"
         },
         {
@@ -1597,7 +1600,7 @@
       "refs": [
         "src/controller/controller.c:adjust_rate",
         "src/controller/controller.c:set_rate_output",
-        "src/common/helpers.c:interval_elapsed",
+        "src/common/utils.h:interval_elapsed",
         "src/common/helpers.c:load_percent"
       ],
       "notes": [
@@ -1846,7 +1849,7 @@
         "src/controller/controller.c:scale_rate",
         "src/controller/controller.c:rate_toward_base",
         "src/controller/controller.c:compensate_direction",
-        "src/monitor/control.c:start_controller"
+        "src/monitor/control.c:control_start"
       ],
       "notes": [
         "Rates are computed in whole kbit/s and truncated, like upstream's integer shell arithmetic. Factors are per-million: per-thousand endpoints plus three more decimal places from interpolation.",
@@ -1964,10 +1967,10 @@
       "id": "10-apply-and-verify",
       "title": "10 — CAKE update, bounded netlink, and readback verification",
       "refs": [
-        "src/monitor/control.c:update_controller",
+        "src/monitor/control.c:control_update",
         "src/monitor/control.c:apply_bandwidth",
         "src/cake/cake.c:cake_set_bandwidth",
-        "src/platform/netlink.c:netlink_change_qdisc_option",
+        "src/platform/netlink.c:netlink_change_qdisc",
         "src/platform/netlink.c:receive_response",
         "src/cake/cake.c:cake_read"
       ],
@@ -2031,7 +2034,7 @@
         },
         {
           "id": "comp",
-          "label": "update_serialization_compensation\nSUMMARY / DATA records",
+          "label": "control_update_compensation\nSUMMARY / DATA records",
           "kind": "process"
         }
       ],
@@ -2120,11 +2123,11 @@
       "id": "11-activity-state",
       "title": "11 — RUNNING, IDLE, STALL, and recovery state machine",
       "refs": [
-        "src/monitor/monitor.c:update_monitor_state",
+        "src/monitor/monitor.c:update_activity",
         "src/controller/controller.c:activity_update",
-        "src/monitor/pingers.c:grant_pinger_setup_grace",
-        "src/monitor/pingers.c:restart_latency",
-        "src/monitor/control.c:enforce_minimum_rates"
+        "src/monitor/pingers.c:pingers_resume",
+        "src/monitor/pingers.c:pingers_restart",
+        "src/monitor/control.c:control_enforce_minimum"
       ],
       "notes": [
         "The stall timeout = stall_detection_threshold × (reflector_ping_interval ÷ pingers), measured from the last reflector response.",
@@ -2182,7 +2185,7 @@
         },
         {
           "id": "resume",
-          "label": "RUNNING after IDLE:\ngrant pinger grace; watch_latency",
+          "label": "RUNNING after IDLE:\ngrant pinger grace; pingers_watch",
           "kind": "end"
         },
         {
@@ -2309,7 +2312,7 @@
       "id": "12-reflector-health",
       "title": "12 — Reflector health, comparison, and replacement",
       "refs": [
-        "src/monitor/reflectors.c:handle_reflector_health_timer",
+        "src/monitor/reflectors.c:handle_health_timer",
         "src/monitor/reflectors.c:run_scheduled_reflector_work",
         "src/monitor/reflectors.c:compare_active_reflectors",
         "src/monitor/reflectors.c:replace_active_reflector",
@@ -2517,7 +2520,7 @@
         "src/logging/log.c:rotate_log_file",
         "src/logging/log.c:log_export_file",
         "src/logging/log.c:log_reset_file",
-        "src/monitor/monitor.c:observe_cpu"
+        "src/monitor/monitor.c:handle_cpu_timer"
       ],
       "notes": [
         "Record names, field order, units and headers follow cake-autorate's DATA, LOAD, REFLECTOR, SUMMARY, SHAPER and CPU formats so its analysis tools work on cake-adapt logs.",
@@ -2662,10 +2665,10 @@
       "title": "14 — Shutdown, failure severity, and cleanup ownership",
       "refs": [
         "src/monitor/monitor.c:monitor_run",
-        "src/monitor/pingers.c:stop_pingers_now",
+        "src/monitor/pingers.c:pingers_stop_now",
         "src/latency/latency.c:latency_stop_now",
         "src/latency/latency.c:stop_child",
-        "src/monitor/reflectors.c:stop_reflectors",
+        "src/monitor/reflectors.c:reflectors_stop",
         "src/main.c:main"
       ],
       "notes": [
@@ -2693,7 +2696,7 @@
         },
         {
           "id": "pingers",
-          "label": "stop_pingers_now:\ncancel pinger timers; free streams;\nSIGTERM groups; ≤500 ms; SIGKILL; reap",
+          "label": "pingers_stop_now:\ncancel pinger timers; free streams;\nSIGTERM groups; ≤500 ms; SIGKILL; reap",
           "kind": "process"
         },
         {
@@ -2703,7 +2706,7 @@
         },
         {
           "id": "free",
-          "label": "stop_reflectors; netlink_close;\ncontroller_close",
+          "label": "reflectors_stop; netlink_close;\ncontroller_close",
           "kind": "process"
         },
         {

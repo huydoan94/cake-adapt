@@ -1,0 +1,4 @@
+146c146
+< 		require(seconds > 0U && seconds <= 320U, "bounded deadline");
+---
+> 		require(seconds > 0U && seconds <= 900U, "bounded deadline");

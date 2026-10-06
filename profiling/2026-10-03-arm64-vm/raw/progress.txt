@@ -1,0 +1,15 @@
+02:15:16 cli -h: Usage: /tmp/cake-adapt-test/final/cake-adapt [-f] [-V] [-C UCI_CONFIG_DIRECTORY] [-S UCI_SECTION]
+02:15:16 exit=0
+02:15:16 bad option exit=2
+02:15:16 options: 76
+02:15:21 testbed up
+A-cost: daemon exit 0
+A-cost: runs=192711 ns_per_run=17049 daemon_ticks=299
+A-cost: leftover in cpe=[]
+A-fping: daemon exit 0
+A-fping: leftover in cpe=[]
+A-fping-ts: daemon exit 0
+A-fping-ts: leftover in cpe=[]
+A-life: daemon exit 0
+A-life: leftover in cpe=[]
+02:27:59 done

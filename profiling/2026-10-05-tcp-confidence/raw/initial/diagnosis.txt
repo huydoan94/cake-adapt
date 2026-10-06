@@ -1,0 +1,51 @@
+/bin/tar
+/usr/bin/sha256sum
+/bin/ubus
+drwxr-xr-x    4 1000     1000           480 Oct  5 12:10 .
+drwxrwxrwt   19 root     root           520 Oct  5 12:10 ..
+-rwxr-xr-x    1 1000     1000        102405 Oct  5 12:08 after
+-rwxr-xr-x    1 1000     1000        153940 Oct  5 12:05 before
+-rw-r--r--    1 root     root             5 Oct  5 12:10 before.daemon-pids
+-rw-r--r--    1 root     root           265 Oct  5 12:10 before.files
+-rw-r--r--    1 root     root            70 Oct  5 12:10 before.kernel
+-rw-r--r--    1 root     root          4081 Oct  5 12:10 before.links
+-rw-r--r--    1 root     root             0 Oct  5 12:10 before.namespaces
+-rw-r--r--    1 root     root          4822 Oct  5 12:10 before.packages
+-rw-r--r--    1 root     root          4448 Oct  5 12:10 before.process
+-rw-r--r--    1 root     root          3249 Oct  5 12:10 before.qdisc-counters
+-rw-r--r--    1 root     root           575 Oct  5 12:10 before.qdiscs
+-rw-r--r--    1 root     root          2432 Oct  5 12:10 before.routes
+-rw-r--r--    1 root     root           329 Oct  5 12:10 before.service
+-rw-r--r--    1 1000     1000           801 Oct  5 12:05 cake-adapt.config
+-rw-r--r--    1 1000     1000         16136 Oct  5 12:08 filter.o
+-rw-r--r--    1 root     root             0 Oct  5 12:10 inode-before
+drwxr-xr-x    2 1000     1000            80 Oct  5 12:10 lib
+drwxr-xr-x    2 root     root            40 Oct  5 12:10 results
+-rw-r--r--    1 1000     1000          4777 Oct  5 12:06 run-vm.sh
+-rwxr-xr-x    1 1000     1000        306992 Oct  5 12:05 test_controller
+-rwxr-xr-x    1 1000     1000        190852 Oct  5 12:09 test_estimator
+-rw-r--r--    1 1000     1000          2708 Oct  5 12:05 testbed.sh
+{
+	"cake-adapt": {
+		"instances": {
+			"main": {
+				"running": true,
+				"pid": 2646,
+				"command": [
+					"/usr/sbin/cake-adapt",
+					"-C",
+					"/tmp/cake-adapt-config/main",
+					"-S",
+					"main"
+				],
+				"term_timeout": 5,
+				"respawn": {
+					"threshold": 3600,
+					"timeout": 5,
+					"retry": 5
+				}
+			}
+		}
+	}
+}
+    183 /tmp/sqm-mon-test.log

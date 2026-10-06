@@ -1,0 +1,5 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+valid-final    upload-steady        7349    7351     31.5    30000     168       0      57
+valid-final    upload-step          5925    5908     18.8    30000     142       0      58
+valid-final    download-steady      6054     548      0.0    44940   35450      87      15
+valid-final    bidirectional        7903    7491     47.1    45141   30549      69      66

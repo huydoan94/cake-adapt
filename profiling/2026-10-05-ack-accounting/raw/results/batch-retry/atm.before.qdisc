@@ -1,0 +1,32 @@
+qdisc cake 1: root refcnt 3 bandwidth unlimited besteffort triple-isolate nonat nowash ack-filter split-gso rtt 100ms atm overhead 0 
+ Sent 1580 bytes 2 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 2304b of 15140Kb
+ capacity estimate: 0bit
+ min/max network layer size:           52 /    1500
+ min/max overhead-adjusted size:      106 /    1696
+ active queues:                         0
+ average network hdr offset:            0
+
+                  Tin 0
+  thresh           0bit
+  target            5ms
+  interval        100ms
+  pk_delay          0us
+  av_delay          0us
+  sp_delay          0us
+  backlog            0b
+  pkts                2
+  bytes            1580
+  way_inds            0
+  way_miss            1
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            1
+  bk_flows            0
+  un_flows            0
+  max_len          1514
+  quantum          1514
+

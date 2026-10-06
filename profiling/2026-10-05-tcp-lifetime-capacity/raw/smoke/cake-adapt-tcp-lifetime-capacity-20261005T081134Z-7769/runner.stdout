@@ -1,0 +1,287 @@
+VERIFIER_LOG_BEGIN
+processed 481926 insns (limit 1000000) max_states_per_insn 31 total_states 14032 peak_states 1783 mark_read 121
+
+VERIFIER_LOG_END
+ASSERT	PASS	successful_kernel_verifier_log_captured
+MAP	seen_syn	kernel_name=seen_syn	type=9	key=44	value=1	capacity=4096	flags=0
+ASSERT	PASS	map_abi_seen_syn
+MAP	pending_sides	kernel_name=pending_sides	type=9	key=40	value=4	capacity=2048	flags=0
+ASSERT	PASS	map_abi_pending_sides
+MAP	lifecycles	kernel_name=lifecycles	type=9	key=36	value=8	capacity=1024	flags=0
+ASSERT	PASS	map_abi_lifecycles
+MAP	confirmed_pairs	kernel_name=confirmed_pairs	type=9	key=44	value=4	capacity=4096	flags=0
+ASSERT	PASS	map_abi_confirmed_pairs
+MAP	identities	kernel_name=identities	type=9	key=40	value=12	capacity=1024	flags=0
+ASSERT	PASS	map_abi_identities
+MAP	generation_states	kernel_name=generation_stat	type=9	key=40	value=32	capacity=1024	flags=0
+ASSERT	PASS	map_abi_generation_states
+MAP	departures	kernel_name=departures	type=9	key=44	value=8	capacity=8192	flags=0
+ASSERT	PASS	map_abi_departures
+MAP	generation_allocator	kernel_name=generation_allo	type=2	key=4	value=4	capacity=1	flags=0
+ASSERT	PASS	map_abi_generation_allocator
+MAP	samples	kernel_name=samples	type=27	key=0	value=0	capacity=262144	flags=0
+ASSERT	PASS	map_abi_samples
+MAP	counters	kernel_name=counters	type=6	key=4	value=32	capacity=1	flags=0
+ASSERT	PASS	map_abi_counters
+FDINFO	map	seen_syn	pos:	0
+FDINFO	map	seen_syn	flags:	02000002
+FDINFO	map	seen_syn	mnt_id:	10
+FDINFO	map	seen_syn	ino:	26
+FDINFO	map	seen_syn	map_type:	9
+FDINFO	map	seen_syn	key_size:	44
+FDINFO	map	seen_syn	value_size:	1
+FDINFO	map	seen_syn	max_entries:	4096
+FDINFO	map	seen_syn	map_flags:	0x0
+FDINFO	map	seen_syn	map_extra:	0x0
+FDINFO	map	seen_syn	memlock:	361408
+FDINFO	map	seen_syn	map_id:	31
+FDINFO	map	seen_syn	frozen:	0
+FDINFO	map	pending_sides	pos:	0
+FDINFO	map	pending_sides	flags:	02000002
+FDINFO	map	pending_sides	mnt_id:	10
+FDINFO	map	pending_sides	ino:	26
+FDINFO	map	pending_sides	map_type:	9
+FDINFO	map	pending_sides	key_size:	40
+FDINFO	map	pending_sides	value_size:	4
+FDINFO	map	pending_sides	max_entries:	2048
+FDINFO	map	pending_sides	map_flags:	0x0
+FDINFO	map	pending_sides	map_extra:	0x0
+FDINFO	map	pending_sides	memlock:	164800
+FDINFO	map	pending_sides	map_id:	32
+FDINFO	map	pending_sides	frozen:	0
+FDINFO	map	lifecycles	pos:	0
+FDINFO	map	lifecycles	flags:	02000002
+FDINFO	map	lifecycles	mnt_id:	10
+FDINFO	map	lifecycles	ino:	26
+FDINFO	map	lifecycles	map_type:	9
+FDINFO	map	lifecycles	key_size:	36
+FDINFO	map	lifecycles	value_size:	8
+FDINFO	map	lifecycles	max_entries:	1024
+FDINFO	map	lifecycles	map_flags:	0x0
+FDINFO	map	lifecycles	map_extra:	0x0
+FDINFO	map	lifecycles	memlock:	82880
+FDINFO	map	lifecycles	map_id:	33
+FDINFO	map	lifecycles	frozen:	0
+FDINFO	map	confirmed_pairs	pos:	0
+FDINFO	map	confirmed_pairs	flags:	02000002
+FDINFO	map	confirmed_pairs	mnt_id:	10
+FDINFO	map	confirmed_pairs	ino:	26
+FDINFO	map	confirmed_pairs	map_type:	9
+FDINFO	map	confirmed_pairs	key_size:	44
+FDINFO	map	confirmed_pairs	value_size:	4
+FDINFO	map	confirmed_pairs	max_entries:	4096
+FDINFO	map	confirmed_pairs	map_flags:	0x0
+FDINFO	map	confirmed_pairs	map_extra:	0x0
+FDINFO	map	confirmed_pairs	memlock:	361408
+FDINFO	map	confirmed_pairs	map_id:	34
+FDINFO	map	confirmed_pairs	frozen:	0
+FDINFO	map	identities	pos:	0
+FDINFO	map	identities	flags:	02000002
+FDINFO	map	identities	mnt_id:	10
+FDINFO	map	identities	ino:	26
+FDINFO	map	identities	map_type:	9
+FDINFO	map	identities	key_size:	40
+FDINFO	map	identities	value_size:	12
+FDINFO	map	identities	max_entries:	1024
+FDINFO	map	identities	map_flags:	0x0
+FDINFO	map	identities	map_extra:	0x0
+FDINFO	map	identities	memlock:	91072
+FDINFO	map	identities	map_id:	35
+FDINFO	map	identities	frozen:	0
+FDINFO	map	generation_states	pos:	0
+FDINFO	map	generation_states	flags:	02000002
+FDINFO	map	generation_states	mnt_id:	10
+FDINFO	map	generation_states	ino:	26
+FDINFO	map	generation_states	map_type:	9
+FDINFO	map	generation_states	key_size:	40
+FDINFO	map	generation_states	value_size:	32
+FDINFO	map	generation_states	max_entries:	1024
+FDINFO	map	generation_states	map_flags:	0x0
+FDINFO	map	generation_states	map_extra:	0x0
+FDINFO	map	generation_states	memlock:	107456
+FDINFO	map	generation_states	map_id:	36
+FDINFO	map	generation_states	frozen:	0
+FDINFO	map	departures	pos:	0
+FDINFO	map	departures	flags:	02000002
+FDINFO	map	departures	mnt_id:	10
+FDINFO	map	departures	ino:	26
+FDINFO	map	departures	map_type:	9
+FDINFO	map	departures	key_size:	44
+FDINFO	map	departures	value_size:	8
+FDINFO	map	departures	max_entries:	8192
+FDINFO	map	departures	map_flags:	0x0
+FDINFO	map	departures	map_extra:	0x0
+FDINFO	map	departures	memlock:	721856
+FDINFO	map	departures	map_id:	37
+FDINFO	map	departures	frozen:	0
+FDINFO	map	generation_allocator	pos:	0
+FDINFO	map	generation_allocator	flags:	02000002
+FDINFO	map	generation_allocator	mnt_id:	10
+FDINFO	map	generation_allocator	ino:	26
+FDINFO	map	generation_allocator	map_type:	2
+FDINFO	map	generation_allocator	key_size:	4
+FDINFO	map	generation_allocator	value_size:	4
+FDINFO	map	generation_allocator	max_entries:	1
+FDINFO	map	generation_allocator	map_flags:	0x0
+FDINFO	map	generation_allocator	map_extra:	0x0
+FDINFO	map	generation_allocator	memlock:	208
+FDINFO	map	generation_allocator	map_id:	38
+FDINFO	map	generation_allocator	frozen:	0
+FDINFO	map	samples	pos:	0
+FDINFO	map	samples	flags:	02000002
+FDINFO	map	samples	mnt_id:	10
+FDINFO	map	samples	ino:	26
+FDINFO	map	samples	map_type:	27
+FDINFO	map	samples	key_size:	0
+FDINFO	map	samples	value_size:	0
+FDINFO	map	samples	max_entries:	262144
+FDINFO	map	samples	map_flags:	0x0
+FDINFO	map	samples	map_extra:	0x0
+FDINFO	map	samples	memlock:	275148
+FDINFO	map	samples	map_id:	39
+FDINFO	map	samples	frozen:	0
+FDINFO	map	counters	pos:	0
+FDINFO	map	counters	flags:	02000002
+FDINFO	map	counters	mnt_id:	10
+FDINFO	map	counters	ino:	26
+FDINFO	map	counters	map_type:	6
+FDINFO	map	counters	key_size:	4
+FDINFO	map	counters	value_size:	32
+FDINFO	map	counters	max_entries:	1
+FDINFO	map	counters	map_flags:	0x0
+FDINFO	map	counters	map_extra:	0x0
+FDINFO	map	counters	memlock:	268
+FDINFO	map	counters	map_id:	40
+FDINFO	map	counters	frozen:	0
+FDINFO	program	tcpdelay	pos:	0
+FDINFO	program	tcpdelay	flags:	02000002
+FDINFO	program	tcpdelay	mnt_id:	10
+FDINFO	program	tcpdelay	ino:	26
+FDINFO	program	tcpdelay	prog_type:	1
+FDINFO	program	tcpdelay	prog_jited:	0
+FDINFO	program	tcpdelay	prog_tag:	5e59899d8072d2ae
+FDINFO	program	tcpdelay	memlock:	28672
+FDINFO	program	tcpdelay	prog_id:	16
+FDINFO	program	tcpdelay	run_time_ns:	0
+FDINFO	program	tcpdelay	run_cnt:	0
+FDINFO	program	tcpdelay	recursion_misses:	0
+FDINFO	program	tcpdelay	verified_insns:	481926
+RECORD	case	generation	arrival_ns	departure_ns	tsval	flow_local_port
+ASSERT	PASS	active_open_generation_started
+ASSERT	PASS	active_open_emitted_handshake_and_data_samples
+ASSERT	PASS	active_open_lifecycle_identity_pair_pending_state_departure_invariants
+ASSERT	PASS	active_open_remembers_pure_syn_only
+ASSERT	PASS	echoed_timestamp_uses_matching_upload_departure
+ASSERT	PASS	outgoing_packet_increments_upload_bytes
+ASSERT	PASS	outgoing_pure_ack_increments_ack_bytes
+ASSERT	PASS	incoming_packet_does_not_increment_upload_counters
+DATA	active_open	generation=1	records=3
+ASSERT	PASS	passive_open_confirmed
+ASSERT	PASS	passive_open_state_invariants
+ASSERT	PASS	passive_open_remembers_peer_pure_syn_only
+ASSERT	PASS	passive_open_echo_matches_local_synack_departure
+ASSERT	PASS	syn_retransmission_handshake_confirmed
+ASSERT	PASS	syn_and_synack_retransmissions_do_not_allocate_duplicate_generation
+ASSERT	PASS	retransmitted_synack_does_not_duplicate_sample
+ASSERT	PASS	predecessor_lifetime_emits_authentic_records
+ASSERT	PASS	same_tuple_new_isns_advance_generation
+ASSERT	PASS	successor_handshake_state_invariants
+ASSERT	PASS	successor_lifetime_emits_authentic_synack_and_data_records
+ASSERT	PASS	old_lifetime_tsecr_cannot_match_successor_departure
+ASSERT	PASS	simultaneous_open_shares_confirmed_generation
+ASSERT	PASS	simultaneous_open_state_invariants
+ASSERT	PASS	simultaneous_open_synack_sample_is_idempotent
+ASSERT	PASS	simultaneous_open_remembers_both_pure_syns
+ASSERT	PASS	tcp_ack_wrap_confirms_syn
+ASSERT	PASS	ack_wrap_state_invariants
+ASSERT	PASS	ack_wrap_emits_synack_record
+ASSERT	PASS	bootstrap_fixture_starts_untracked
+ASSERT	PASS	midstream_flow_bootstraps
+ASSERT	PASS	bootstrap_lifecycle_is_active_and_latest
+ASSERT	PASS	bootstrap_identity_is_unconfirmed
+ASSERT	PASS	bootstrap_has_no_pending_syn_sides
+ASSERT	PASS	bootstrap_has_generation_state_and_departure
+ASSERT	PASS	outgoing_bootstrap_packet_does_not_emit_incoming_record
+ASSERT	PASS	old_and_new_authentic_records_drain
+ASSERT	PASS	ring_records_are_isolated_by_scenario
+ASSERT	PASS	ring_successor_generation_is_newer
+ASSERT	PASS	production_estimator_accepts_successor_in_natural_ring_order
+ASSERT	PASS	authentic_old_and_new_records_have_distinct_generation_departures
+ASSERT	PASS	authentic_records_found_for_reorder_test
+ASSERT	PASS	fresh_estimator_accepts_authentic_successor_first
+ASSERT	PASS	delayed_authentic_predecessor_changes_neither_generation_nor_lru_time
+ASSERT	PASS	pre_terminal_ring_and_generation_health_counters_zero
+ASSERT	PASS	terminal_nonzero_generation_is_allocatable
+ASSERT	PASS	terminal_nonzero_generation_emits_one_authentic_record
+ASSERT	PASS	wrapped_zero_allocator_fails_closed
+ASSERT	PASS	allocator_exhaustion_increments_exactly_one_failure
+ASSERT	PASS	terminal_failure_emits_no_ring_record
+ASSERT	PASS	terminal_failure_keeps_lifecycle_inactive
+ASSERT	PASS	terminal_failure_retains_only_current_pending_syns
+ASSERT	PASS	terminal_failure_creates_no_pair_identity_state_or_departure
+DATA	allocator_terminal	value=0	failures=1
+CAPACITY	seen_syn	cleared=12	max=4096
+ASSERT	PASS	capacity_reached_seen_syn
+ASSERT	PASS	overflow_eviction_seen_syn
+ASSERT	PASS	oldest_key_evicted_seen_syn
+ASSERT	PASS	overflow_reclaims_entries_seen_syn
+DATA	capacity_eviction_seen_syn	capacity=4096	entries=3969
+CAPACITY	pending_sides	cleared=18	max=2048
+ASSERT	PASS	capacity_reached_pending_sides
+ASSERT	PASS	overflow_eviction_pending_sides
+ASSERT	PASS	oldest_key_evicted_pending_sides
+ASSERT	PASS	overflow_reclaims_entries_pending_sides
+DATA	capacity_eviction_pending_sides	capacity=2048	entries=1921
+CAPACITY	lifecycles	cleared=10	max=1024
+ASSERT	PASS	capacity_reached_lifecycles
+ASSERT	PASS	overflow_eviction_lifecycles
+ASSERT	PASS	oldest_key_evicted_lifecycles
+ASSERT	PASS	overflow_reclaims_entries_lifecycles
+DATA	capacity_eviction_lifecycles	capacity=1024	entries=897
+CAPACITY	confirmed_pairs	cleared=10	max=4096
+ASSERT	PASS	capacity_reached_confirmed_pairs
+ASSERT	PASS	overflow_eviction_confirmed_pairs
+ASSERT	PASS	oldest_key_evicted_confirmed_pairs
+ASSERT	PASS	overflow_reclaims_entries_confirmed_pairs
+DATA	capacity_eviction_confirmed_pairs	capacity=4096	entries=3969
+CAPACITY	identities	cleared=11	max=1024
+ASSERT	PASS	capacity_reached_identities
+ASSERT	PASS	overflow_eviction_identities
+ASSERT	PASS	oldest_key_evicted_identities
+ASSERT	PASS	overflow_reclaims_entries_identities
+DATA	capacity_eviction_identities	capacity=1024	entries=897
+CAPACITY	generation_states	cleared=11	max=1024
+ASSERT	PASS	capacity_reached_generation_states
+ASSERT	PASS	overflow_eviction_generation_states
+ASSERT	PASS	oldest_key_evicted_generation_states
+ASSERT	PASS	overflow_reclaims_entries_generation_states
+DATA	capacity_eviction_generation_states	capacity=1024	entries=897
+CAPACITY	departures	cleared=12	max=8192
+ASSERT	PASS	capacity_reached_departures
+ASSERT	PASS	overflow_eviction_departures
+ASSERT	PASS	oldest_key_evicted_departures
+ASSERT	PASS	overflow_reclaims_entries_departures
+DATA	capacity_eviction_departures	capacity=8192	entries=8065
+ASSERT	PASS	packet_path_recovers_with_all_lru_maps_pressured
+ASSERT	PASS	packet_path_emits_sample_after_all_lru_maps_pressured
+UNTESTED	allocator_cas_contention	no deterministic retry counter
+UNTESTED	cross_cpu_generation_order	BPF packet CPU was not observed per event
+UNTESTED	runtime_hot_cold_profile	run_time_ns batches not collected
+RECORD	packet	1	21145811006073	0	9000	50001
+RECORD	packet	1	21145826313239	21145819854641	9001	50001
+RECORD	packet	1	21145830330122	21145827538839	9002	50001
+RECORD	packet	2	21145848566128	21145842533899	302	50002
+RECORD	packet	3	21145859018532	0	1	50003
+RECORD	packet	4	21145869205988	0	900	50004
+RECORD	packet	4	21145873620136	21145870773400	901	50004
+RECORD	packet	5	21145884174732	0	1	50004
+RECORD	packet	5	21145888967166	0	2	50004
+RECORD	packet	6	21145909282043	0	13	50005
+RECORD	packet	7	21145917299974	0	22	50006
+RECORD	packet	9	21145929016758	0	50	50008
+RECORD	packet	9	21145938400834	21145931580474	51	50008
+RECORD	packet	10	21145943283004	0	1	50008
+RECORD	packet	10	21145956992820	0	2	50008
+RECORD	packet	4294967295	21145961080626	0	1	52000
+RECORD	packet	1	21146060825115	21146055631053	2001	55000
+SUMMARY	assertions=92	failures=0	records=17

@@ -1,0 +1,386 @@
+diff --git a/TUPLE_LIFETIME_CAPABILITIES.md b/TUPLE_LIFETIME_CAPABILITIES.md
+index f08cbbe..55c3e91 100644
+--- a/TUPLE_LIFETIME_CAPABILITIES.md
++++ b/TUPLE_LIFETIME_CAPABILITIES.md
+@@ -2,8 +2,9 @@
+ 
+ ✓ Local SDK metadata and compiler ABI inventory recorded for x86/generic and
+ mediatek/filogic. This is configuration evidence, not a kernel load or JIT result.
+-The [work orders](TUPLE_LIFETIME_WORK_ORDERS.md) retain every required architecture.
+-No additional SDK or runtime has been acquired or guessed.
++✓ The user narrowed current work to arm64, x86_64 and x86/i386 on 2026-10-05.
++The [work orders](TUPLE_LIFETIME_WORK_ORDERS.md) record that scope. Other families
++and big-endian runtime work are deferred. No SDK path or runtime was guessed.
+ 
+ ## Common requirements
+ 
+@@ -100,31 +101,29 @@ build logs inside it or changing tools/docs during the build changes the input.
+ checkout. Future SDK builds must keep those inputs stable. No production-code
+ or SDK-policy change was needed, and the passing x86 build was reused.
+ 
+-## Missing target resources
+-
+-The following rows are required investigation slots, not verified target
+-selections. A package ABI name alone does not pin a target, SDK or kernel.
+-
+-| Required family / representative ABI | Missing information and resources |
+-| --- | --- |
+-| x86-64 / `x86_64` | Exact target/subtarget SDK, kernel config, build and runtime evidence. |
+-| ARM32 little-endian / `arm_cortex-a7` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| ARM32 big-endian / `armeb_xscale` | Exact SDK/target/compiler/kernel config, helper/JIT capability and runtime evidence. |
+-| MIPS32 big-endian / `mips_24kc` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| MIPS32 little-endian / `mipsel_24kc` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| MIPS64 big-endian / `mips64_mips64r2` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| MIPS64 little-endian / `mips64el_mips64r2` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| PowerPC32 big-endian / `powerpc_8548` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| PowerPC64 big-endian / `powerpc64_e5500` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| RISC-V64 little-endian / `riscv64_generic` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-| LoongArch64 little-endian / `loongarch64_generic` | Exact SDK/target/compiler/kernel config and runtime evidence. |
+-
+-To close a missing row, supply the exact OpenWrt 25.12 SDK directory and target
+-kernel configuration, then a representative runtime or emulator for kernel cases.
+-At least one big-endian kernel with 32-bit ABI coverage must exercise actual
+-packet parsing and map/ring transfer. Compiling `bpfeb` alone cannot close that
+-runtime gap. Nothing in this inventory removes a missing row from the support
+-requirement or declares broad OpenWrt support complete.
++## x86_64 evidence and current resource gap
++
++✓ Existing focused host units and sanitizers run natively on x86_64. The local
++compiler is `x86_64-linux-gnu` GCC 13.3.0; pointer/long/long-long sizes are 8/8/8
++bytes and byte order is little-endian. The existing estimator and lifetime test
++executables are ELF64, machine 62 (x86_64). Their unchanged passing results are
++reused; this inventory did not rerun them.
++
++The common BPF program has no CPU-family lifetime branches or unsupported atomic
++synchronization. Native 64-bit record assertions complement the i386 and arm64
++SDK checks, but do not establish an OpenWrt x86_64 musl package build or kernel
++execution. The user confirmed no x86_64 OpenWrt SDK or VM is available. Exact
++OpenWrt target/subtarget/compiler/kernel/configuration and JIT/runtime coverage
++remain unverified. This gap does not block continuing the two available targets.
++
++## Deferred architecture scope
++
++ARM32 (both byte orders), MIPS32/64 (both byte orders), PowerPC32/64, RISC-V64 and
++LoongArch64 are deferred by the user. Their previously missing SDK/kernel/runtime
++resources are not acceptance blockers for the current three-architecture work.
++No support claim is added or withdrawn by completing current-scope tests.
++Big-endian packet parsing and map/ring transfer must be verified if wider support
++is resumed; a `bpfeb` compilation would still not prove that runtime path.
+ 
+ ## Acceptance limits fixed before target runs
+ 
+diff --git a/TUPLE_LIFETIME_DESIGN.md b/TUPLE_LIFETIME_DESIGN.md
+index 1661085..8e54366 100644
+--- a/TUPLE_LIFETIME_DESIGN.md
++++ b/TUPLE_LIFETIME_DESIGN.md
+@@ -8,7 +8,8 @@ runtime/cost acceptance are pending. This records the implementation selected
+ for the [work orders](TUPLE_LIFETIME_WORK_ORDERS.md). The one-time implementation
+ pass has ended; it does not establish support or readiness. The detailed
+ [capability inventory](TUPLE_LIFETIME_CAPABILITIES.md) records available and
+-missing target resources.
++missing target resources. ✓ Current architecture scope is arm64, x86_64 and
++x86/i386 by the user's 2026-10-05 decision; other families are deferred.
+ 
+ ## Ownership and observation contract
+ 
+@@ -219,15 +220,16 @@ separate, including the unresolved ACK-control regression.
+ ✓ The existing x86/generic and mediatek/filogic package builds and native ABI
+ assertions pass. The [detailed capability inventory](TUPLE_LIFETIME_CAPABILITIES.md)
+ records exact local compiler/kernel/library metadata, packaged artifact hashes,
+-emitted helper instructions and missing resources for every other required row.
++emitted helper instructions and the explicit unavailable x86_64 OpenWrt resources.
+ No VM was accessed for those inventory/build checks.
+ 
+ The available SDK headers expose the bounded consume and ring-position APIs.
+ Availability on every selected SDK is still a matrix task. The common algorithm
+ uses ordinary hash/LRU/per-CPU-array/ring helpers and no CPU-family branches;
+ this alone is not evidence that every target kernel enables them or JITs the
+-resulting instructions. Big-endian transfer, remaining native ABIs, actual kernel
+-paths and cost remain open. ✓ The bounded x86 preflight refreshed kernel 6.12.108 and confirmed actual
++resulting instructions. Full selected-target kernel paths and cost remain open. Big-endian transfer
++and other architecture families are deferred; native x86_64 host checks do not
++prove the unavailable OpenWrt x86_64 build/runtime. ✓ The bounded x86 preflight refreshed kernel 6.12.108 and confirmed actual
+ JIT execution; it does not close full kernel/lifetime acceptance. The available
+ arm64 emulator supplies functional coverage only, and has not run this filter.
+ 
+diff --git a/TUPLE_LIFETIME_WORK_ORDERS.md b/TUPLE_LIFETIME_WORK_ORDERS.md
+index 053d261..35ae88e 100644
+--- a/TUPLE_LIFETIME_WORK_ORDERS.md
++++ b/TUPLE_LIFETIME_WORK_ORDERS.md
+@@ -18,10 +18,11 @@ not imply its kernel, architecture or performance validation has passed.
+ - ✓ Selected protocol and transition/record contract (TL-02).
+ - ✓ Production implementation and focused host unit/replay/sanitizer checks.
+ - ✓ Acceptance limits frozen before target runs (TL-01.4).
+-- Partial: [architecture capability inventory](TUPLE_LIFETIME_CAPABILITIES.md) (TL-01.3).
++- ✓ Current-scope [capability inventory](TUPLE_LIFETIME_CAPABILITIES.md) recorded
++  (TL-01.3), including the explicit missing x86_64 SDK/runtime gap.
+ - ✓ Producer branch tests and packaged-object instruction inspection (TL-03.5).
+ - ✓ Existing x86 and Filogic package builds and target ABI assertions. Other
+-  required target builds remain open (TL-06.2).
++  x86_64 OpenWrt build/runtime remains unverified (TL-06.2).
+ - ✓ Minimal harness/local review and i386 JIT preflight: 10 assertions pass
+   ([evidence](profiling/2026-10-05-tcp-lifetime-stream/README.md)).
+ - In progress: remaining kernel harness cases and acceptance plan (TL-05).
+@@ -38,7 +39,8 @@ remain unchanged. No kernel or runtime acceptance follows from host checks.
+ 
+ The [selected lifetime-stream design](TUPLE_LIFETIME_DESIGN.md) records ownership,
+ ordering, loss/recovery, ABI and numerical bounds. TL-01/TL-02 design work is
+-recorded there; the architecture capability inventory remains partial. TL-03 and
++recorded there; the inventory now covers the user-selected three architectures,
++with x86_64 OpenWrt resources explicitly unavailable. TL-03 and
+ TL-04 source implementation and host unit checks are complete. ✓ Instruction
+ inspection and both existing SDK package builds pass; kernel and remaining
+ architecture gates stay open. TL-05 harness work is in progress; TL-06 target
+@@ -97,9 +99,11 @@ Source review and implementation authorization do not establish runtime acceptan
+ 
+ ## Portability contract
+ 
+-The solution must support multiple OpenWrt architectures through one common
+-algorithm and protocol. i386 and arm64 are available test machines, not the
+-definition of support.
++✓ Current scope narrowed by the user on 2026-10-05: arm64, x86_64 and x86
++(i386). ARM32, MIPS, PowerPC, RISC-V, LoongArch and big-endian runtime work are
++deferred; they do not block this milestone. Keep one common algorithm and fixed
++record protocol. This scope change does not add CPU-specific behavior or claim
++that unavailable target builds/runtimes were tested.
+ 
+ 1. Target OpenWrt 25.12. Choose supported kernel APIs, helpers, map types and
+    BPF instructions from a documented common capability baseline. Do not require
+@@ -127,30 +131,19 @@ definition of support.
+    Do not acquire new machines, touch Windows, or expand deployment permissions
+    just to fill the matrix. Record the gap and the resource needed to close it.
+ 
+-The [OpenWrt 25.12.0 package architecture index](https://downloads.openwrt.org/releases/25.12.0/packages/)
+-confirms the following architecture families exist in that release. The table is
+-a required investigation/build matrix, not a claim that cake-adapt or its TCP
+-filter has already been validated on them. TL-01 must pin exact target, subtarget,
+-SDK, kernel configuration and ABI for each row; do not infer those from names alone.
++Current target matrix:
+ 
+-| Family and representative package ABI | Width / byte order to verify | Planned evidence |
++| Family / package ABI | Width / byte order | Evidence and remaining gap |
+ | --- | --- | --- |
+-| x86: `i386_pentium4` | 32 / little | Existing x86 SDK and VM; functional, JIT and cost baseline. |
+-| x86: `x86_64` | 64 / little | SDK build, ABI checks and representative kernel load. |
+-| ARM: `arm_cortex-a7` | 32 / little | SDK build, ABI checks and representative kernel load. |
+-| ARM: `armeb_xscale` | 32 / big | Capability investigation, SDK build and endian checks. |
+-| AArch64: `aarch64_cortex-a53`, `aarch64_generic` | 64 / little | Filogic SDK plus existing emulated arm64 VM; functional only. |
+-| MIPS: `mips_24kc` | 32 / big | SDK build, ABI/endian checks and representative kernel load. |
+-| MIPS: `mipsel_24kc` | 32 / little | SDK build, ABI checks and representative kernel load. |
+-| MIPS64: `mips64_mips64r2`, `mips64el_mips64r2` | 64 / both | SDK builds, ABI/endian checks and capability investigation. |
+-| PowerPC: `powerpc_8548`, `powerpc64_e5500` | 32/64 / big | SDK builds, ABI/endian checks and capability investigation. |
+-| RISC-V: `riscv64_generic` | 64 / little | SDK build, ABI checks and representative kernel load. |
+-| LoongArch: `loongarch64_generic` | 64 / little | SDK build, ABI checks and capability investigation. |
+-
+-At least one big-endian kernel must exercise actual map/ring exchange and packet
+-parsing before claiming endian runtime coverage. Every selected row needs a
+-capability result and build result. A representative runtime result covers only
+-the tested kernel/configuration; untested configurations remain listed as such.
++| x86 / `i386_pentium4` | 32 / little | ✓ SDK build/ABI and minimal JIT preflight. Full kernel and cost cases pending. |
++| x86_64 / `x86_64` | 64 / little | ✓ Native x86_64 host ABI/unit/sanitizer checks. No OpenWrt SDK or VM supplied; target build/runtime unverified. |
++| arm64 / `aarch64_cortex-a53` | 64 / little | ✓ Filogic SDK build/ABI. Existing `armsr/armv8` VM supplies functional coverage only; current filter execution pending. |
++
++The user confirmed no x86_64 OpenWrt SDK or VM is available and accepts continuing
++with the common implementation and native 64-bit checks. Record the target gap;
++do not guess a filesystem path or count glibc host tests as an OpenWrt musl build.
++The previous wider architecture matrix is deferred by this explicit decision.
++Big-endian runtime evidence becomes a gate only if that scope is resumed.
+ 
+ ## Delivery order and ownership
+ 
+@@ -189,10 +182,12 @@ must not be hidden behind a claim of perfect connection identity.
+   List detected capture loss, undetected loss before the observation point,
+   exact tuple/ISN reuse, closure ambiguity and capture restart limits.
+   No passive observer can promise recovery from evidence it never observes.
+-- **TL-01.3:** Fill the architecture matrix with exact OpenWrt target/subtarget,
++- ✓ **TL-01.3:** Fill the architecture matrix with exact OpenWrt target/subtarget,
+   package ABI, endian/width, kernel version/configuration, map/helper support,
+   available JIT instructions, libbpf/toolchain versions and test resources.
+-  Reuse existing SDKs first; unavailable rows get an explicit blocker.
++  Reuse existing SDKs first; unavailable rows get an explicit verification gap.
++  ✓ Current three-architecture inventory records available resources and the
++  missing x86_64 OpenWrt SDK/runtime; target acceptance remains separate.
+ - ✓ **TL-01.4:** Define numerical limits for maps, ring storage, retries, invalidation
+   latency, recovery, retained state and acceptable measurement coverage/cost.
+   Separate recovery after sufficient new evidence from a promise to recover
+@@ -351,7 +346,8 @@ instruction sets, byte orders or userspace layouts.
+ 
+ - **TL-06.1:** Run focused host checks and sanitizer builds; compile ABI assertions
+   with each selected target compiler. Verify serialization/packet fixtures on
+-  both byte orders, not just a successful `bpfeb` compilation.
++  the selected little-endian 32/64-bit ABIs. Big-endian checks are deferred
++  with the user's wider architecture scope.
+ - **TL-06.2:** Build packages for the TL-01 matrix using each exact target SDK.
+   Run the existing x86 and Filogic build tasks concurrently. Additional SDK
+   paths must be explicitly supplied; do not guess locations or modify unrelated
+@@ -360,10 +356,10 @@ instruction sets, byte orders or userspace layouts.
+   verifier output, object identity and actual JIT/interpreter mode. Exercise
+   same-lifetime and replacement-lifetime paths plus one forced loss/recovery
+   case. Run the TL-05 functional batch on the existing x86 and arm64 VMs.
+-- **TL-06.4:** Exercise actual parsing and map/ring transfer on at least one
+-  big-endian kernel with 32-bit ABI coverage. Obtain missing runtime resources
+-  through the normal scope/permission process; do not claim a host fixture is
+-  a big-endian kernel execution.
++- **TL-06.4 — Deferred:** The original big-endian kernel parsing/map/ring
++  transfer gate is outside the user's current arm64/x86_64/x86 scope. Resume
++  it only if broader architecture support is requested; it is not a completed
++  runtime check.
+ - **TL-06.5:** Test unavailable capabilities and incompatible objects as separate
+   failure cases: daemon/fping survive, TCP input becomes unavailable, and the
+   user can identify the reason. Keep those outcomes separate from support passes.
+@@ -371,7 +367,8 @@ instruction sets, byte orders or userspace layouts.
+ **Output and gate:** a matrix with separate build, ABI, kernel, execution-mode,
+ functional and unverified columns. Common source and semantics pass on verified
+ targets; every missing required check is visible. Do not mark broad portability
+-complete with only the two existing little-endian machines.
++complete from native host checks. Current target claims must distinguish the
++verified i386/arm64 results from unavailable x86_64 OpenWrt runtime coverage.
+ 
+ ### TL-07 — Measure cost and make final acceptance reviewable
+ 
+diff --git a/tools/tcp-lifetime/runner.c b/tools/tcp-lifetime/runner.c
+index e4070a2..50bf937 100644
+--- a/tools/tcp-lifetime/runner.c
++++ b/tools/tcp-lifetime/runner.c
+@@ -256,6 +256,132 @@ find_flow(struct tcpdelay_capture *capture, const struct tcpdelay_record_flow *f
+ 	return NULL;
+ }
+ 
++static void run_simultaneous_open(
++	int sender,
++	unsigned int capture_index,
++	unsigned int peer_index,
++	struct tcpdelay_capture *capture,
++	struct tcpdelay_record_flow flow
++)
++{
++	struct packet_spec packet = {
++		.port = 51003U,
++		.sequence = 0x10203040U,
++		.flags = TCPDELAY_TCP_SYN,
++		.outgoing = true,
++	};
++	struct tcpdelay_lifetime_slot *slot;
++	bool local_syn_drained;
++	bool remote_syn_drained;
++	bool local_synack_drained;
++	bool remote_synack_drained;
++
++	flow.local_port = htons(packet.port);
++	packet.timestamp = true;
++	send_packet(sender, capture_index, &packet);
++	local_syn_drained = drain_until(capture, 1U);
++	packet.sequence = 0x50607080U;
++	packet.outgoing = false;
++	send_packet(sender, peer_index, &packet);
++	remote_syn_drained = drain_until(capture, 1U);
++	packet.flags = TCPDELAY_TCP_SYN | TCPDELAY_TCP_ACK;
++	packet.sequence = 0x10203040U;
++	packet.acknowledgment = 0x50607081U;
++	packet.outgoing = true;
++	send_packet(sender, capture_index, &packet);
++	local_synack_drained = drain_until(capture, 1U);
++	packet.sequence = 0x50607080U;
++	packet.acknowledgment = 0x10203041U;
++	packet.outgoing = false;
++	send_packet(sender, peer_index, &packet);
++	remote_synack_drained = drain_until(capture, 1U);
++	slot = find_flow(capture, &flow);
++	check(local_syn_drained && remote_syn_drained && local_synack_drained &&
++		      remote_synack_drained && slot != NULL && slot->active && slot->confirmed &&
++		      slot->local_isn == 0x10203040U && slot->remote_isn == 0x50607080U,
++	      "simultaneous_open_pairs_both_syn_directions");
++	if (slot == NULL || !slot->confirmed)
++		fprintf(stderr,
++			"simultaneous-open state missing after four drained lifecycle records\n");
++}
++
++static void run_ring_loss_recovery(
++	int sender,
++	unsigned int capture_index,
++	struct tcpdelay_capture *capture,
++	struct tcpdelay_record_flow flow
++)
++{
++	/* Ring capacity is 256 KiB; each record consumes 64 bytes plus ring metadata. */
++	enum {
++		LIFECYCLE_BURST = TCPDELAY_RING_BYTES / sizeof(struct tcpdelay_record) + 256U
++	};
++	struct tcpdelay_counters counters;
++	struct packet_spec packet = {
++		.port = 51004U,
++		.sequence = 0xabcdef01U,
++		.flags = TCPDELAY_TCP_SYN,
++		.outgoing = true,
++	};
++	uint32_t epoch = capture->epoch;
++	uint32_t loss_marker = 0U;
++	uint64_t original_generation = capture->lifetime->next_generation;
++	struct timespec cooldown = { .tv_sec = 1, .tv_nsec = 100000000L };
++	unsigned int index;
++	bool marker_readable;
++	bool counters_readable;
++	bool recovered;
++	bool handshake_drained;
++	struct tcpdelay_lifetime_slot *slot;
++
++	flow.local_port = htons(packet.port);
++	flow.remote_port = htons(443U);
++	for (index = 0U; index < LIFECYCLE_BURST; index++)
++		send_packet(sender, capture_index, &packet);
++	marker_readable = bpf_map_lookup_elem(capture->loss_descriptor, &epoch, &loss_marker) == 0;
++	counters_readable = tcpdelay_capture_counters(capture, &counters) == 0;
++	check(marker_readable && loss_marker == 1U && counters_readable && counters.ring_full > 0U,
++	      "ring_loss_publishes_epoch_marker_and_counters_remain_readable");
++	(void)drain_until(capture, 1U);
++	check(capture->state == TCPDELAY_CAPTURE_RECOVERING &&
++		      !tcpdelay_capture_timing_available(capture) &&
++		      capture->lifetime->next_generation == 0U,
++	      "loss_consumer_withdraws_timing_and_resets_lifetime");
++	(void)nanosleep(&cooldown, NULL);
++	(void)tcpdelay_capture_drain(capture);
++	recovered = capture->state == TCPDELAY_CAPTURE_READY && capture->epoch == epoch + 1U &&
++		    tcpdelay_capture_timing_available(capture) &&
++		    capture->lifetime->next_generation == 0U;
++	check(recovered, "loss_cooldown_advances_epoch_without_old_record_repopulation");
++	packet.sequence++;
++	send_packet(sender, capture_index, &packet);
++	handshake_drained = drain_until(capture, 1U);
++	packet.flags = TCPDELAY_TCP_SYN | TCPDELAY_TCP_ACK;
++	packet.sequence = 0x13572468U;
++	packet.acknowledgment = 0xabcdef02U;
++	packet.outgoing = false;
++	send_packet(sender, capture_index, &packet);
++	{
++		bool synack_drained = drain_until(capture, 1U);
++
++		packet.flags = TCPDELAY_TCP_ACK;
++		packet.sequence = 0xabcdef02U;
++		packet.acknowledgment = 0x13572469U;
++		packet.timestamp = true;
++		packet.tsval = 7U;
++		packet.outgoing = true;
++		send_packet(sender, capture_index, &packet);
++		{
++			bool ack_drained = drain_until(capture, 1U);
++
++			slot = find_flow(capture, &flow);
++			check(handshake_drained && synack_drained && ack_drained && slot != NULL &&
++				      slot->confirmed && slot->generation != original_generation,
++			      "fresh_post_recovery_handshake_confirms_new_generation");
++		}
++	}
++}
++
+ static int run(const char *object_path, const char *capture_if, const char *peer_if, bool preflight)
+ {
+ 	struct tcpdelay_capture capture;
+@@ -391,6 +517,8 @@ static int run(const char *object_path, const char *capture_if, const char *peer
+ 				      slot->remote_isn == 0x0fffffffU,
+ 			      "passive_open_pairs_remote_syn_with_local_synack");
+ 		}
++		run_simultaneous_open(sender, capture_index, peer_index, &capture, flow);
++		run_ring_loss_recovery(sender, capture_index, &capture, flow);
+ 		check(tcpdelay_capture_timing_available(&capture),
+ 		      "bounded_capture_drain_leaves_timing_available");
+ 	}

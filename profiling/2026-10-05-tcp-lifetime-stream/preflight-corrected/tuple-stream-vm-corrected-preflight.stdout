@@ -1,0 +1,15 @@
+package unchanged
+process unchanged
+bpf-jit unchanged
+network unchanged
+qdisc unchanged
+files unchanged
+namespaces unchanged
+RESULT_DIR=/tmp/cake-adapt-tuple-stream.aoOnNi/results RUN_RC=0 STATE_RC=0
+package unchanged
+process unchanged
+bpf-jit unchanged
+network unchanged
+qdisc unchanged
+files unchanged
+namespaces unchanged

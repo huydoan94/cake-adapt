@@ -1,0 +1,12 @@
+/dev/root / ext4 rw,noatime 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0
+cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,noatime 0 0
+/dev/sda1 /boot ext4 rw,noatime 0 0
+/dev/sda1 /boot ext4 rw,noatime 0 0
+tmpfs /dev tmpfs rw,nosuid,noexec,noatime,size=512k,mode=755 0 0
+devpts /dev/pts devpts rw,nosuid,noexec,noatime,mode=600,ptmxmode=000 0 0
+debugfs /sys/kernel/debug debugfs rw,nosuid,nodev,noexec,noatime 0 0
+bpffs /sys/fs/bpf bpf rw,nosuid,nodev,noexec,noatime,mode=700 0 0
+tmpfs /tmp/run/netns tmpfs rw,nosuid,nodev,noatime 0 0

@@ -1,0 +1,11 @@
+68365.05 start
+68380.07 upload-steady
+68440.40 idle
+68450.41 upload-step
+68470.41 capacity-low
+68490.42 capacity-back
+68510.57 idle
+68520.57 download-steady
+68580.74 idle
+68590.74 bidirectional
+68651.00 end

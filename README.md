@@ -80,8 +80,66 @@ differences are in integration and safety:
   of `tc`, and is read back from the kernel to verify the effective rate.
 - Reflectors come only from local configuration. Remote reflector-list
   retrieval is not implemented.
-- `fping` is the supported pinger. The IRTT backend exists but is not yet
-  supported for production use.
+- `fping` is the supported pinger. The `fping-ts` method (fping with ICMP
+  timestamps, giving separate download and upload delays) is implemented as in
+  cake-autorate and verified on the emulated testbed, where its one-way delays
+  track the real queues and it beats fping's RTT/2 in every phase but a sudden
+  capacity drop
+  ([evidence](profiling/2026-10-03-fping-ts-testbed/README.md)). It is not yet
+  verified on internet reflectors, whose clocks and timestamp support vary, so
+  it is not yet supported for production use. `fping-ts` accepts only IPv4
+  reflectors, because ICMP timestamps are IPv4 only; cake-autorate leaves
+  fping to fail on IPv6 targets at runtime.
+- **The IRTT backend (`pinger_method 'irtt'`) is experimental.** It follows
+  cake-autorate and passes its host tests, but it has never run against a
+  real IRTT server and no runtime behavior has been verified. Do not use it
+  for production shaping.
+- Deliberate departures aimed at less bufferbloat (the replayed upstream
+  traces still match with them off):
+  - With `fping`, whose RTT/2 is one delay for both directions, a detected
+    bufferbloat is attributed to a direction by download delivery: download
+    delivering its full shaper rate has no standing queue.
+  - `tcp_delay_attribution` (default off, `fping` only): measure each
+    direction's queueing delay from TCP timestamps with an eBPF socket filter
+    on the upload interface (`/lib/bpf/cake-adapt-tcpdelay.o`, loaded with
+    libbpf). It sees packets after upload CAKE and before the ingress IFB, and
+    measures TCP timing changes that include both path delay and remote
+    response timing. Once measured queues total at least 5 ms, fping's
+    round-trip delay is split by their measured shares, and only a direction
+    holding at least a quarter of the queue is then cut. With
+    `output_processing_stats`
+    the estimates are logged as `TCP_QUEUE` records.
+    Directional estimates now come from one flow: prefer a fresh complete pair,
+    then the longest measurement history, instead of independent minima across
+    flows. This keeps a new connection's congested baseline from overwriting a
+    fresh established pair. Estimates remain relative to per-flow floors; age
+    alone cannot prove that a new flow's initial path was uncongested.
+    The estimator holds its minimum baseline while fping reports at least 5 ms
+    of added round-trip delay or no fresh independent observation is available.
+    This keeps standing queues visible, but persistent fping congestion can hold
+    a stale baseline; clear fping allows upward adaptation for route or clock
+    drift. A new flow's initial queue remains unknown, and TCP timestamps cannot
+    distinguish sustained receiver ACK wait from upload queueing.
+    See the [flow-pair regression evidence](profiling/2026-10-04-flow-pair/README.md).
+  - `ul_congest_ack_share` (default `0`, off): download ACKs can fill a slow
+    upload. The same eBPF filter splits upload, after the upload CAKE, into
+    pure ACKs and everything else. While upload is above `high_load_thr`,
+    ACKs may use what the other traffic leaves free, less 5% headroom so its
+    growth shows; download is held so its ACKs fit, but never so far that
+    they fall below this share of the upload shaper rate (for example
+    `0.45`). It is not a reservation: while ACKs need less, other traffic
+    uses the rest. Download is never held below its minimum rate.
+    Both byte counters use the upload CAKE's overhead, minimum packet size
+    (MPU), RAW setting and ATM/PTM framing, with a fresh capture when those
+    settings or the qdisc change. Accounting supports non-GSO, untagged
+    Ethernet IP/ARP and IP packets on PPP or raw-IP links; RAW also permits
+    other untagged packet protocols. Tagged packets, post-qdisc GSO aggregates
+    and unknown framing disable the ACK ceiling for that sampling interval,
+    report degradation, and recover after a clean interval. TCP timestamp
+    measurement continues. This is conservative coverage, not full offload
+    or tunnel accounting.
+    This setting was renamed from `upload_ack_share_min`; update existing UCI
+    and standalone shell configurations to `ul_congest_ack_share`.
 - Configuration is typed UCI. A cake-autorate configuration file can be
   imported (see [Standalone shell configuration](#standalone-shell-configuration)),
   but it is validated like UCI and never sourced by the daemon.
@@ -90,7 +148,7 @@ differences are in integration and safety:
 
 - [Current-code flowcharts](flowchart/README.md) — architecture, event flow,
   controller decisions, CAKE updates, and lifecycle behavior.
-  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/tcp-measurement/flowchart/index.html).
 - [Controller comparison with cake-autorate](profiling/controller-comparison/README.md)
   — side-by-side VM runs and the replayed upstream traces.
 - [Resource use compared with cake-autorate](profiling/cake-autorate-resources/README.md)
@@ -98,7 +156,7 @@ differences are in integration and safety:
 - [End-to-end run and profiling, 2026-09-30](profiling/2026-09-30/README.md)
   — the final VM run, CPU before and after the optimization pass, flame graphs,
   and raw `perf` data.
-  [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html).
+  [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/tcp-measurement/profiling/2026-09-30/index.html).
 - [All profiling evidence](profiling/README.md), including the superseded first
   capture.
 
@@ -159,9 +217,8 @@ warning that `interface` was overridden.
 - `zlib`
 - `bash`, for importing a cake-autorate configuration file
 
-The OpenWrt package declares these runtime dependencies. The IRTT pinger
-backend (`pinger_method 'irtt'`), which is not yet supported for production use,
-additionally needs the `irtt` package; install it separately only if you select
+The OpenWrt package declares these runtime dependencies. The experimental IRTT
+pinger backend (`pinger_method 'irtt'`) additionally needs the `irtt` package; install it separately only if you select
 that backend. As in cake-autorate, an enabled instance refuses to start, with
 an error in syslog, when the selected pinger's executable is missing.
 
@@ -478,13 +535,14 @@ release assets.
 ```text
 src/
 ├── main.c              CLI, configuration loading, logging setup, lifecycle
-├── monitor/            uloop event loop, split by responsibility:
-│   ├── monitor.c         loop setup and teardown, traffic timer, activity
+├── monitor/            uloop event loop; one struct monitor, a part per file:
+│   ├── monitor.c         loop setup and teardown, traffic tick, activity
 │   │                     state, CPU and log timers, signals
-│   ├── observe.c         CAKE discovery, achieved rates, qdisc events
+│   ├── links.c           both directions' CAKE, achieved rates, qdisc events
 │   ├── control.c         controller input, CAKE updates and readback, records
 │   ├── pingers.c         pinger start, output, exit, restart, and grace
-│   └── reflectors.c      reflector order, health checks, and replacement
+│   ├── reflectors.c      latency trackers, reflector order, health, replacement
+│   └── tcpdelay.c        TCP capture, queue estimate, upload ACK rate
 ├── common/             shared constants, generic helpers, error formatting
 ├── config/             typed UCI loading (config.c), validation
 │                       (validate.c), and built-in defaults
@@ -584,8 +642,9 @@ The cake-autorate parity and refactor sequence is complete:
 Deferred work:
 
 - Additional pinger backends. `fping` is the supported production backend;
-  the IRTT backend needs its own controller fixtures and runtime verification
-  before it is supported.
+  `fping-ts` needs verification on internet reflectors, and the experimental
+  IRTT backend needs fixtures and runtime verification against an IRTT
+  server before either is supported.
 - Native SQM ownership (CAKE, IFB, `ctinfo` and `mirred` setup) remains a
   possible later phase. It requires an explicit decision and is not part of
   the current daemon.

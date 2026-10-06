@@ -21,10 +21,8 @@
 #define MICROSECONDS_PER_SECOND SECOND
 #define MICROSECONDS_PER_MINUTE MINUTE
 #define NANOSECONDS_PER_MICROSECOND THOUSAND
-#define NANOSECONDS_PER_MILLISECOND \
-    (THOUSAND * NANOSECONDS_PER_MICROSECOND)
-#define NANOSECONDS_PER_SECOND \
-    ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
+#define NANOSECONDS_PER_MILLISECOND (THOUSAND * NANOSECONDS_PER_MICROSECOND)
+#define NANOSECONDS_PER_SECOND ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
 
 /* Shared application bounds. */
 #define CONFIG_MAX_REFLECTORS 64U
@@ -39,6 +37,7 @@
 #define CLI_OPTIONS "C:LfS:Vh"
 #define IFB_PREFIX "ifb4"
 #define PINGER_METHOD_FPING "fping"
+#define PINGER_METHOD_FPING_TS "fping-ts"
 #define PINGER_METHOD_IRTT "irtt"
 #define PROGRAM_NAME "cake-adapt"
 /* Set by the build from the package version; other builds report "unknown". */
@@ -51,6 +50,7 @@
 
 /* Runtime states, directions, timers, and generic text tokens. */
 #define STATE_BELOW_CAPACITY "below-capacity"
+#define STATE_ACK_SHARE "ack-share"
 #define STATE_CLEAR "clear"
 #define STATE_CONGESTION "congestion"
 #define STATE_DETECTED "detected"
@@ -59,14 +59,19 @@
 #define STATE_IDLE "idle"
 #define STATE_IDLE_UPPER "IDLE"
 #define STATE_INITIAL "initial"
+#define STATE_INITIALIZED "initialized"
 #define STATE_LOW "low"
 #define STATE_RECONCILE "reconcile"
+#define STATE_RECOVERED "recovered"
 #define STATE_RETURN_TO_BASE "return-to-base"
 #define STATE_RUNNING_UPPER "RUNNING"
 #define STATE_SATURATED "saturated"
 #define STATE_STALL_UPPER "STALL"
 #define STATE_UNCHANGED "unchanged"
 #define STATE_UNKNOWN "unknown"
+#define STATE_UNLIMITED "unlimited"
+#define STATE_UNAVAILABLE "unavailable"
+#define STATE_VALID "valid"
 #define STATUS_DISABLED "disabled"
 #define STATUS_ENABLED "enabled"
 
@@ -79,33 +84,58 @@
 #define TIMER_REFLECTOR_HEALTH "reflector health"
 #define TIMER_TRAFFIC "traffic"
 
+/* Reflector comparison columns, named as in cake-autorate's messages. */
+#define REFLECTOR_SUM_OWD_BASELINES "sum_owd_baselines_us"
+#define REFLECTOR_DL_OWD_DELTA_EWMA "dl_owd_delta_ewma_us"
+#define REFLECTOR_UL_OWD_DELTA_EWMA "ul_owd_delta_ewma_us"
+
+/* rtnetlink sockets and requests, as errors name them. */
+#define NETLINK_SOCKET_REQUESTS "rtnetlink"
+#define NETLINK_SOCKET_EVENTS "qdisc event"
+#define NETLINK_REQUEST_QDISC_DUMP "qdisc dump"
+#define NETLINK_REQUEST_QDISC_CHANGE "qdisc change"
+
+#define BLANK_CHARACTERS " \t"
 #define DECIMAL_DIGITS "0123456789"
-#define TARGET_CHARACTERS \
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-"
+#define TARGET_CHARACTERS "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-"
 #define FRACTION_ZEROES "000000"
 #define EMPTY_STRING ""
-#define NULL_VALUE "(null)"
 
 /* fping command-line arguments and output grammar. */
 #define FPING_BYTES_SEPARATOR " bytes, "
 #define FPING_FIELD_SEPARATOR ", "
+#define FPING_ICMP_TIMESTAMP "--icmp-timestamp"
 #define FPING_INTERFACE_LONG "--iface"
 #define FPING_INTERFACE_LONG_PREFIX "--iface="
 #define FPING_INTERFACE_SHORT "-I"
 #define FPING_INTERVAL "--interval"
+#define FPING_LOCAL_RECEIVE "Localreceive="
 #define FPING_LOOP "--loop"
 #define FPING_MILLISECONDS_SUFFIX " ms"
+#define FPING_ORIGINATE "Originate="
 #define FPING_PATH "/usr/bin/fping"
 #define FPING_PERIOD "--period"
+#define FPING_RECEIVE "Receive="
 #define FPING_SEQUENCE_SEPARATOR " : ["
 #define FPING_TIMEOUT "--timeout"
 #define FPING_TIMEOUT_SUFFIX ", timed out"
 #define FPING_TIMESTAMP "--timestamp"
+#define FPING_TIMESTAMPS_PREFIX " timestamps: "
+#define FPING_TRANSMIT "Transmit="
 #define IRTT_CLIENT "client"
 #define IRTT_DURATION "-d"
 #define IRTT_INTERVAL "-i"
 #define IRTT_PATH "/usr/bin/irtt"
+#define IRTT_RECEIVE_DELAY "rd"
+#define IRTT_SEND_DELAY "sd"
+#define IRTT_SEQUENCE "seq"
+#define IRTT_UNIT_NANOSECONDS "ns"
+#define IRTT_UNIT_MICROSECONDS "us"
+#define IRTT_UNIT_MICROSECONDS_SIGN "µs"
+#define IRTT_UNIT_MILLISECONDS "ms"
+#define IRTT_UNIT_SECONDS "s"
 #define NULL_DEVICE_PATH "/dev/null"
+#define TCPDELAY_OBJECT_PATH "/lib/bpf/cake-adapt-tcpdelay.o"
 
 /* Proc, file, archive, and log-format constants. */
 #define CPU_PREFIX "cpu"
@@ -134,6 +164,7 @@
 #define RECORD_SHAPER "SHAPER"
 #define RECORD_SYSLOG "SYSLOG"
 #define RECORD_SUMMARY "SUMMARY"
+#define RECORD_TCP_QUEUE "TCP_QUEUE"
 #define RECORD_WARNING "WARNING"
 
 /* UCI option names, grouped in the same order as the configuration model. */
@@ -200,20 +231,16 @@
 #define OPTION_HIGH_LOAD_THRESHOLD "high_load_thr"
 #define OPTION_BUFFERBLOAT_REFRACTORY "bufferbloat_refractory_period_ms"
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
+#define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
+#define OPTION_UL_CONGEST_ACK_SHARE "ul_congest_ack_share"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
-#define OPTION_REFLECTOR_MISBEHAVING_WINDOW \
-    "reflector_misbehaving_detection_window"
-#define OPTION_REFLECTOR_MISBEHAVING_THRESHOLD \
-    "reflector_misbehaving_detection_thr"
-#define OPTION_REFLECTOR_REPLACEMENT_INTERVAL \
-    "reflector_replacement_interval_mins"
-#define OPTION_REFLECTOR_COMPARISON_INTERVAL \
-    "reflector_comparison_interval_mins"
-#define OPTION_REFLECTOR_BASELINE_DELTA \
-    "reflector_sum_owd_baselines_delta_thr_ms"
-#define OPTION_REFLECTOR_EWMA_DELTA \
-    "reflector_owd_delta_ewma_delta_thr_ms"
+#define OPTION_REFLECTOR_MISBEHAVING_WINDOW "reflector_misbehaving_detection_window"
+#define OPTION_REFLECTOR_MISBEHAVING_THRESHOLD "reflector_misbehaving_detection_thr"
+#define OPTION_REFLECTOR_REPLACEMENT_INTERVAL "reflector_replacement_interval_mins"
+#define OPTION_REFLECTOR_COMPARISON_INTERVAL "reflector_comparison_interval_mins"
+#define OPTION_REFLECTOR_BASELINE_DELTA "reflector_sum_owd_baselines_delta_thr_ms"
+#define OPTION_REFLECTOR_EWMA_DELTA "reflector_owd_delta_ewma_delta_thr_ms"
 #define OPTION_STALL_DETECTION_THRESHOLD "stall_detection_thr"
 #define OPTION_GLOBAL_PING_TIMEOUT "global_ping_response_timeout_s"
 #define OPTION_INTERFACE_UP_INTERVAL "if_up_check_interval_s"

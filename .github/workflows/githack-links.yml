@@ -1,0 +1,40 @@
+name: Point githack links at the branch
+
+# GitHub shows linked .html files as source, so the docs link rendered pages
+# through raw.githack.com, whose URLs name a branch. On every branch push this
+# rewrites those links to the pushed branch and commits the change. Pushes made
+# with GITHUB_TOKEN do not start workflows, so the commit does not loop.
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: githack-links-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rewrite:
+    name: Rewrite githack links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Point links at ${{ github.ref_name }} and commit them if any changed
+        run: |
+          set -euo pipefail
+          # The script prints each file whose links it rewrote, one per line.
+          changed=$(python3 tools/githack-links.py --repo "$GITHUB_REPOSITORY" --branch "$GITHUB_REF_NAME")
+          if [ -z "$changed" ]; then
+            echo "Every link already points at ${GITHUB_REF_NAME}; nothing to commit."
+            exit 0
+          fi
+          printf '%s\n' "$changed"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          printf '%s\n' "$changed" | xargs -d '\n' git add --
+          git commit -m "Point githack links at ${GITHUB_REF_NAME}"
+          git push

@@ -1,0 +1,70 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 804b: dev cwan root refcnt 3 bandwidth 2354Kbit besteffort triple-isolate nat nowash ack-filter split-gso rtt 100ms noatm overhead 44 mpu 84 
+ Sent 12636928 bytes 45527 pkt (dropped 1641, overlimits 61835 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 14420b of 4Mb
+ capacity estimate: 6Mbit
+ min/max network layer size:           28 /    1500
+ min/max overhead-adjusted size:       84 /    1544
+ active queues:                         0
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh       2354Kbit
+  target         7.72ms
+  interval        103ms
+  pk_delay       3.85ms
+  av_delay        545us
+  sp_delay         10us
+  backlog            0b
+  pkts            47168
+  bytes        12848578
+  way_inds         5108
+  way_miss           33
+  way_cols            0
+  drops              68
+  marks               0
+  ack_drop         1573
+  sp_flows            3
+  bk_flows            1
+  un_flows            0
+  max_len          3028
+  quantum           300
+
+qdisc ingress ffff: dev cwan parent ffff:fff1 ---------------- 
+ Sent 129303757 bytes 96905 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 804c: dev ifb4cwan root refcnt 2 bandwidth 27Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms noatm overhead 44 mpu 84 
+ Sent 131885985 bytes 96406 pkt (dropped 499, overlimits 75951 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 507200b of 4Mb
+ capacity estimate: 30Mbit
+ min/max network layer size:           28 /    1500
+ min/max overhead-adjusted size:       84 /    1544
+ active queues:                         0
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh         27Mbit
+  target            5ms
+  interval        100ms
+  pk_delay       2.18ms
+  av_delay        506us
+  sp_delay          5us
+  backlog            0b
+  pkts            96905
+  bytes       132641471
+  way_inds            0
+  way_miss           25
+  way_cols            0
+  drops             499
+  marks               0
+  ack_drop            0
+  sp_flows            4
+  bk_flows            1
+  un_flows            0
+  max_len          7570
+  quantum           823
+

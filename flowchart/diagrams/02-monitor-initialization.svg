@@ -13,194 +13,194 @@
 <!-- start -->
 <g id="node1" class="node">
 <title>start</title>
-<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="341.24" cy="-964.3" rx="81.7" ry="18.5"/>
-<text xml:space="preserve" text-anchor="middle" x="341.24" y="-961" font-family="Arial" font-size="11.00">monitor_run(config)</text>
+<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="341.08" cy="-964.3" rx="81.7" ry="18.5"/>
+<text xml:space="preserve" text-anchor="middle" x="341.08" y="-961" font-family="Arial" font-size="11.00">monitor_run(config)</text>
 </g>
 <!-- pingers -->
 <g id="node2" class="node">
 <title>pingers</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M406.57,-908.8C406.57,-908.8 275.9,-908.8 275.9,-908.8 269.9,-908.8 263.9,-902.8 263.9,-896.8 263.9,-896.8 263.9,-881.44 263.9,-881.44 263.9,-875.44 269.9,-869.44 275.9,-869.44 275.9,-869.44 406.57,-869.44 406.57,-869.44 412.57,-869.44 418.57,-875.44 418.57,-881.44 418.57,-881.44 418.57,-896.8 418.57,-896.8 418.57,-902.8 412.57,-908.8 406.57,-908.8"/>
-<text xml:space="preserve" text-anchor="middle" x="341.24" y="-892.42" font-family="Arial" font-size="11.00">prepare_pingers</text>
-<text xml:space="preserve" text-anchor="middle" x="341.24" y="-879.22" font-family="Arial" font-size="11.00">bind pinger slots and timers</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M406.42,-908.8C406.42,-908.8 275.75,-908.8 275.75,-908.8 269.75,-908.8 263.75,-902.8 263.75,-896.8 263.75,-896.8 263.75,-881.44 263.75,-881.44 263.75,-875.44 269.75,-869.44 275.75,-869.44 275.75,-869.44 406.42,-869.44 406.42,-869.44 412.42,-869.44 418.42,-875.44 418.42,-881.44 418.42,-881.44 418.42,-896.8 418.42,-896.8 418.42,-902.8 412.42,-908.8 406.42,-908.8"/>
+<text xml:space="preserve" text-anchor="middle" x="341.08" y="-892.42" font-family="Arial" font-size="11.00">pingers_prepare</text>
+<text xml:space="preserve" text-anchor="middle" x="341.08" y="-879.22" font-family="Arial" font-size="11.00">bind pinger slots and timers</text>
 </g>
 <!-- start&#45;&gt;pingers -->
 <g id="edge1" class="edge">
 <title>start&#45;&gt;pingers</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M341.24,-945.21C341.24,-936.93 341.24,-926.95 341.24,-917.76"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="343.69,-917.94 341.24,-910.94 338.79,-917.94 343.69,-917.94"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M341.08,-945.21C341.08,-936.93 341.08,-926.95 341.08,-917.76"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="343.53,-917.94 341.08,-910.94 338.63,-917.94 343.53,-917.94"/>
 </g>
 <!-- controller -->
 <g id="node3" class="node">
 <title>controller</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M375.69,-832.44C375.69,-832.44 306.78,-832.44 306.78,-832.44 300.78,-832.44 294.78,-826.44 294.78,-820.44 294.78,-820.44 294.78,-805.08 294.78,-805.08 294.78,-799.08 300.78,-793.08 306.78,-793.08 306.78,-793.08 375.69,-793.08 375.69,-793.08 381.69,-793.08 387.69,-799.08 387.69,-805.08 387.69,-805.08 387.69,-820.44 387.69,-820.44 387.69,-826.44 381.69,-832.44 375.69,-832.44"/>
-<text xml:space="preserve" text-anchor="middle" x="341.24" y="-816.06" font-family="Arial" font-size="11.00">start_controller</text>
-<text xml:space="preserve" text-anchor="middle" x="341.24" y="-802.86" font-family="Arial" font-size="11.00">controller_init</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M371.87,-832.44C371.87,-832.44 310.29,-832.44 310.29,-832.44 304.29,-832.44 298.29,-826.44 298.29,-820.44 298.29,-820.44 298.29,-805.08 298.29,-805.08 298.29,-799.08 304.29,-793.08 310.29,-793.08 310.29,-793.08 371.87,-793.08 371.87,-793.08 377.87,-793.08 383.87,-799.08 383.87,-805.08 383.87,-805.08 383.87,-820.44 383.87,-820.44 383.87,-826.44 377.87,-832.44 371.87,-832.44"/>
+<text xml:space="preserve" text-anchor="middle" x="341.08" y="-816.06" font-family="Arial" font-size="11.00">control_start</text>
+<text xml:space="preserve" text-anchor="middle" x="341.08" y="-802.86" font-family="Arial" font-size="11.00">controller_init</text>
 </g>
 <!-- pingers&#45;&gt;controller -->
 <g id="edge2" class="edge">
 <title>pingers&#45;&gt;controller</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M341.24,-868.97C341.24,-860.56 341.24,-850.52 341.24,-841.32"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="343.69,-841.51 341.24,-834.51 338.79,-841.51 343.69,-841.51"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M341.08,-868.97C341.08,-860.56 341.08,-850.52 341.08,-841.32"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="343.53,-841.51 341.08,-834.51 338.63,-841.51 343.53,-841.51"/>
 </g>
 <!-- reflectors -->
 <g id="node4" class="node">
 <title>reflectors</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M365.59,-756.08C365.59,-756.08 168.88,-756.08 168.88,-756.08 162.88,-756.08 156.88,-750.08 156.88,-744.08 156.88,-744.08 156.88,-728.72 156.88,-728.72 156.88,-722.72 162.88,-716.72 168.88,-716.72 168.88,-716.72 365.59,-716.72 365.59,-716.72 371.59,-716.72 377.59,-722.72 377.59,-728.72 377.59,-728.72 377.59,-744.08 377.59,-744.08 377.59,-750.08 371.59,-756.08 365.59,-756.08"/>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-739.7" font-family="Arial" font-size="11.00">start_reflectors</text>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-726.5" font-family="Arial" font-size="11.00">trackers, optional shuffle, health windows</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M365.44,-756.08C365.44,-756.08 168.73,-756.08 168.73,-756.08 162.73,-756.08 156.73,-750.08 156.73,-744.08 156.73,-744.08 156.73,-728.72 156.73,-728.72 156.73,-722.72 162.73,-716.72 168.73,-716.72 168.73,-716.72 365.44,-716.72 365.44,-716.72 371.44,-716.72 377.44,-722.72 377.44,-728.72 377.44,-728.72 377.44,-744.08 377.44,-744.08 377.44,-750.08 371.44,-756.08 365.44,-756.08"/>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-739.7" font-family="Arial" font-size="11.00">reflectors_start</text>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-726.5" font-family="Arial" font-size="11.00">trackers, optional shuffle, health windows</text>
 </g>
 <!-- controller&#45;&gt;reflectors -->
 <g id="edge3" class="edge">
 <title>controller&#45;&gt;reflectors</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M322.18,-792.61C313.03,-783.42 301.95,-772.28 292.14,-762.43"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="294.08,-760.9 287.4,-757.66 290.6,-764.35 294.08,-760.9"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M322.03,-792.61C312.88,-783.42 301.79,-772.28 291.99,-762.43"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="293.92,-760.9 287.25,-757.66 290.45,-764.35 293.92,-760.9"/>
 </g>
 <!-- fail -->
 <g id="node13" class="node">
 <title>fail</title>
-<path fill="#ffe3e0" stroke="#c2413b" stroke-width="1.2" d="M416.15,-367.84C416.15,-367.84 320.32,-367.84 320.32,-367.84 314.32,-367.84 308.32,-361.84 308.32,-355.84 308.32,-355.84 308.32,-340.48 308.32,-340.48 308.32,-334.48 314.32,-328.48 320.32,-328.48 320.32,-328.48 416.15,-328.48 416.15,-328.48 422.15,-328.48 428.15,-334.48 428.15,-340.48 428.15,-340.48 428.15,-355.84 428.15,-355.84 428.15,-361.84 422.15,-367.84 416.15,-367.84"/>
-<text xml:space="preserve" text-anchor="middle" x="368.24" y="-351.46" font-family="Arial" font-size="11.00">required setup failed</text>
-<text xml:space="preserve" text-anchor="middle" x="368.24" y="-338.26" font-family="Arial" font-size="11.00">→ cleanup, result &#45;1</text>
+<path fill="#ffe3e0" stroke="#c2413b" stroke-width="1.2" d="M416,-367.84C416,-367.84 320.16,-367.84 320.16,-367.84 314.16,-367.84 308.16,-361.84 308.16,-355.84 308.16,-355.84 308.16,-340.48 308.16,-340.48 308.16,-334.48 314.16,-328.48 320.16,-328.48 320.16,-328.48 416,-328.48 416,-328.48 422,-328.48 428,-334.48 428,-340.48 428,-340.48 428,-355.84 428,-355.84 428,-361.84 422,-367.84 416,-367.84"/>
+<text xml:space="preserve" text-anchor="middle" x="368.08" y="-351.46" font-family="Arial" font-size="11.00">required setup failed</text>
+<text xml:space="preserve" text-anchor="middle" x="368.08" y="-338.26" font-family="Arial" font-size="11.00">→ cleanup, result &#45;1</text>
 </g>
 <!-- controller&#45;&gt;fail -->
 <g id="edge12" class="edge">
 <title>controller&#45;&gt;fail</title>
-<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M360.29,-792.61C382.22,-770.58 415.24,-737.4 415.24,-737.4 415.24,-737.4 415.24,-737.4 415.24,-433.32 415.24,-433.32 396.78,-400.28 383,-375.6"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="385.26,-374.63 379.71,-369.71 380.99,-377.02 385.26,-374.63"/>
-<text xml:space="preserve" text-anchor="middle" x="424.74" y="-582.66" font-family="Arial" font-size="9.00" fill="#334155">error</text>
+<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M360.14,-792.61C382.06,-770.58 415.08,-737.4 415.08,-737.4 415.08,-737.4 415.08,-737.4 415.08,-433.32 415.08,-433.32 396.63,-400.28 382.85,-375.6"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="385.11,-374.63 379.56,-369.71 380.83,-377.02 385.11,-374.63"/>
+<text xml:space="preserve" text-anchor="middle" x="424.58" y="-582.66" font-family="Arial" font-size="9.00" fill="#334155">error</text>
 </g>
 <!-- clocks -->
 <g id="node5" class="node">
 <title>clocks</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M344.33,-679.72C344.33,-679.72 190.14,-679.72 190.14,-679.72 184.14,-679.72 178.14,-673.72 178.14,-667.72 178.14,-667.72 178.14,-652.36 178.14,-652.36 178.14,-646.36 184.14,-640.36 190.14,-640.36 190.14,-640.36 344.33,-640.36 344.33,-640.36 350.33,-640.36 356.33,-646.36 356.33,-652.36 356.33,-652.36 356.33,-667.72 356.33,-667.72 356.33,-673.72 350.33,-679.72 344.33,-679.72"/>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-663.34" font-family="Arial" font-size="11.00">seed reflector, response and</text>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-650.14" font-family="Arial" font-size="11.00">pinger clocks; state = RUNNING</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M344.17,-679.72C344.17,-679.72 189.99,-679.72 189.99,-679.72 183.99,-679.72 177.99,-673.72 177.99,-667.72 177.99,-667.72 177.99,-652.36 177.99,-652.36 177.99,-646.36 183.99,-640.36 189.99,-640.36 189.99,-640.36 344.17,-640.36 344.17,-640.36 350.17,-640.36 356.17,-646.36 356.17,-652.36 356.17,-652.36 356.17,-667.72 356.17,-667.72 356.17,-673.72 350.17,-679.72 344.17,-679.72"/>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-663.34" font-family="Arial" font-size="11.00">seed reflector, response and</text>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-650.14" font-family="Arial" font-size="11.00">pinger clocks; state = RUNNING</text>
 </g>
 <!-- reflectors&#45;&gt;clocks -->
 <g id="edge4" class="edge">
 <title>reflectors&#45;&gt;clocks</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M267.24,-716.25C267.24,-707.84 267.24,-697.8 267.24,-688.6"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="269.69,-688.79 267.24,-681.79 264.79,-688.79 269.69,-688.79"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M267.08,-716.25C267.08,-707.84 267.08,-697.8 267.08,-688.6"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="269.53,-688.79 267.08,-681.79 264.63,-688.79 269.53,-688.79"/>
 </g>
 <!-- uloop -->
 <g id="node6" class="node">
 <title>uloop</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M288.86,-603.36C288.86,-603.36 245.61,-603.36 245.61,-603.36 239.61,-603.36 233.61,-597.36 233.61,-591.36 233.61,-591.36 233.61,-579.36 233.61,-579.36 233.61,-573.36 239.61,-567.36 245.61,-567.36 245.61,-567.36 288.86,-567.36 288.86,-567.36 294.86,-567.36 300.86,-573.36 300.86,-579.36 300.86,-579.36 300.86,-591.36 300.86,-591.36 300.86,-597.36 294.86,-603.36 288.86,-603.36"/>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-582.06" font-family="Arial" font-size="11.00">uloop_init</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M288.71,-603.36C288.71,-603.36 245.46,-603.36 245.46,-603.36 239.46,-603.36 233.46,-597.36 233.46,-591.36 233.46,-591.36 233.46,-579.36 233.46,-579.36 233.46,-573.36 239.46,-567.36 245.46,-567.36 245.46,-567.36 288.71,-567.36 288.71,-567.36 294.71,-567.36 300.71,-573.36 300.71,-579.36 300.71,-579.36 300.71,-591.36 300.71,-591.36 300.71,-597.36 294.71,-603.36 288.71,-603.36"/>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-582.06" font-family="Arial" font-size="11.00">uloop_init</text>
 </g>
 <!-- clocks&#45;&gt;uloop -->
 <g id="edge5" class="edge">
 <title>clocks&#45;&gt;uloop</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M267.24,-639.94C267.24,-631.4 267.24,-621.21 267.24,-612.01"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="269.69,-612.25 267.24,-605.25 264.79,-612.25 269.69,-612.25"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M267.08,-639.94C267.08,-631.4 267.08,-621.21 267.08,-612.01"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="269.53,-612.25 267.08,-605.25 264.63,-612.25 269.53,-612.25"/>
 </g>
 <!-- events -->
 <g id="node7" class="node">
 <title>events</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M327.05,-530.36C327.05,-530.36 207.42,-530.36 207.42,-530.36 201.42,-530.36 195.42,-524.36 195.42,-518.36 195.42,-518.36 195.42,-503 195.42,-503 195.42,-497 201.42,-491 207.42,-491 207.42,-491 327.05,-491 327.05,-491 333.05,-491 339.05,-497 339.05,-503 339.05,-503 339.05,-518.36 339.05,-518.36 339.05,-524.36 333.05,-530.36 327.05,-530.36"/>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-513.98" font-family="Arial" font-size="11.00">watch_qdisc_events</text>
-<text xml:space="preserve" text-anchor="middle" x="267.24" y="-500.78" font-family="Arial" font-size="11.00">subscribe RTNLGRP_TC</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M326.9,-530.36C326.9,-530.36 207.26,-530.36 207.26,-530.36 201.26,-530.36 195.26,-524.36 195.26,-518.36 195.26,-518.36 195.26,-503 195.26,-503 195.26,-497 201.26,-491 207.26,-491 207.26,-491 326.9,-491 326.9,-491 332.9,-491 338.9,-497 338.9,-503 338.9,-503 338.9,-518.36 338.9,-518.36 338.9,-524.36 332.9,-530.36 326.9,-530.36"/>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-513.98" font-family="Arial" font-size="11.00">links_watch_events</text>
+<text xml:space="preserve" text-anchor="middle" x="267.08" y="-500.78" font-family="Arial" font-size="11.00">subscribe RTNLGRP_TC</text>
 </g>
 <!-- uloop&#45;&gt;events -->
 <g id="edge6" class="edge">
 <title>uloop&#45;&gt;events</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M267.24,-566.77C267.24,-558.55 267.24,-548.58 267.24,-539.39"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="269.69,-539.56 267.24,-532.56 264.79,-539.56 269.69,-539.56"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M267.08,-566.77C267.08,-558.55 267.08,-548.58 267.08,-539.39"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="269.53,-539.56 267.08,-532.56 264.63,-539.56 269.53,-539.56"/>
 </g>
 <!-- timers -->
 <g id="node8" class="node">
 <title>timers</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M296.45,-454C296.45,-454 200.02,-454 200.02,-454 194.02,-454 188.02,-448 188.02,-442 188.02,-442 188.02,-426.64 188.02,-426.64 188.02,-420.64 194.02,-414.64 200.02,-414.64 200.02,-414.64 296.45,-414.64 296.45,-414.64 302.45,-414.64 308.45,-420.64 308.45,-426.64 308.45,-426.64 308.45,-442 308.45,-442 308.45,-448 302.45,-454 296.45,-454"/>
-<text xml:space="preserve" text-anchor="middle" x="248.24" y="-437.62" font-family="Arial" font-size="11.00">traffic timer</text>
-<text xml:space="preserve" text-anchor="middle" x="248.24" y="-424.42" font-family="Arial" font-size="11.00">reflector health timer</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M296.29,-454C296.29,-454 199.87,-454 199.87,-454 193.87,-454 187.87,-448 187.87,-442 187.87,-442 187.87,-426.64 187.87,-426.64 187.87,-420.64 193.87,-414.64 199.87,-414.64 199.87,-414.64 296.29,-414.64 296.29,-414.64 302.29,-414.64 308.29,-420.64 308.29,-426.64 308.29,-426.64 308.29,-442 308.29,-442 308.29,-448 302.29,-454 296.29,-454"/>
+<text xml:space="preserve" text-anchor="middle" x="248.08" y="-437.62" font-family="Arial" font-size="11.00">traffic timer</text>
+<text xml:space="preserve" text-anchor="middle" x="248.08" y="-424.42" font-family="Arial" font-size="11.00">reflector health timer</text>
 </g>
 <!-- events&#45;&gt;timers -->
 <g id="edge7" class="edge">
 <title>events&#45;&gt;timers</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M262.34,-490.53C260.17,-482.03 257.57,-471.87 255.21,-462.6"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="257.63,-462.19 253.52,-456.02 252.88,-463.41 257.63,-462.19"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M262.19,-490.53C260.02,-482.03 257.42,-471.87 255.05,-462.6"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="257.48,-462.19 253.37,-456.02 252.73,-463.41 257.48,-462.19"/>
 </g>
 <!-- events&#45;&gt;fail -->
 <g id="edge13" class="edge">
 <title>events&#45;&gt;fail</title>
-<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M285.82,-490.52C301.44,-474.41 321.24,-454 321.24,-454 321.24,-454 342.32,-406.97 356.25,-375.9"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="358.31,-377.3 358.93,-369.91 353.83,-375.29 358.31,-377.3"/>
-<text xml:space="preserve" text-anchor="middle" x="348.04" y="-431.62" font-family="Arial" font-size="9.00" fill="#334155">error</text>
+<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M285.67,-490.52C301.29,-474.41 321.08,-454 321.08,-454 321.08,-454 342.17,-406.97 356.09,-375.9"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="358.15,-377.3 358.78,-369.91 353.68,-375.29 358.15,-377.3"/>
+<text xml:space="preserve" text-anchor="middle" x="347.88" y="-431.62" font-family="Arial" font-size="9.00" fill="#334155">error</text>
 </g>
 <!-- first -->
 <g id="node9" class="node">
 <title>first</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M270.82,-367.84C270.82,-367.84 167.65,-367.84 167.65,-367.84 161.65,-367.84 155.65,-361.84 155.65,-355.84 155.65,-355.84 155.65,-340.48 155.65,-340.48 155.65,-334.48 161.65,-328.48 167.65,-328.48 167.65,-328.48 270.82,-328.48 270.82,-328.48 276.82,-328.48 282.82,-334.48 282.82,-340.48 282.82,-340.48 282.82,-355.84 282.82,-355.84 282.82,-361.84 276.82,-367.84 270.82,-367.84"/>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-351.46" font-family="Arial" font-size="11.00">observe_traffic_cycle</text>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-338.26" font-family="Arial" font-size="11.00">apply_traffic_cadence</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M270.67,-367.84C270.67,-367.84 167.5,-367.84 167.5,-367.84 161.5,-367.84 155.5,-361.84 155.5,-355.84 155.5,-355.84 155.5,-340.48 155.5,-340.48 155.5,-334.48 161.5,-328.48 167.5,-328.48 167.5,-328.48 270.67,-328.48 270.67,-328.48 276.67,-328.48 282.67,-334.48 282.67,-340.48 282.67,-340.48 282.67,-355.84 282.67,-355.84 282.67,-361.84 276.67,-367.84 270.67,-367.84"/>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-351.46" font-family="Arial" font-size="11.00">links_observe</text>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-338.26" font-family="Arial" font-size="11.00">apply_traffic_cadence</text>
 </g>
 <!-- timers&#45;&gt;first -->
 <g id="edge8" class="edge">
 <title>timers&#45;&gt;first</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M241.65,-414.22C237.8,-403.03 232.86,-388.71 228.61,-376.36"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="230.93,-375.58 226.33,-369.76 226.3,-377.17 230.93,-375.58"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M241.5,-414.22C237.65,-403.03 232.71,-388.71 228.45,-376.36"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="230.78,-375.58 226.18,-369.76 226.14,-377.17 230.78,-375.58"/>
 </g>
 <!-- timers&#45;&gt;fail -->
 <g id="edge14" class="edge">
 <title>timers&#45;&gt;fail</title>
-<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M275.46,-414.22C292.96,-401.96 315.81,-385.93 334.45,-372.85"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="335.43,-375.16 339.75,-369.14 332.61,-371.15 335.43,-375.16"/>
-<text xml:space="preserve" text-anchor="middle" x="324.92" y="-388.54" font-family="Arial" font-size="9.00" fill="#334155">error</text>
+<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M275.31,-414.22C292.8,-401.96 315.65,-385.93 334.3,-372.85"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="335.27,-375.16 339.6,-369.14 332.46,-371.15 335.27,-375.16"/>
+<text xml:space="preserve" text-anchor="middle" x="324.77" y="-388.54" font-family="Arial" font-size="9.00" fill="#334155">error</text>
 </g>
 <!-- optional -->
 <g id="node10" class="node">
 <title>optional</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M302,-291.48C302,-291.48 136.47,-291.48 136.47,-291.48 130.47,-291.48 124.47,-285.48 124.47,-279.48 124.47,-279.48 124.47,-264.12 124.47,-264.12 124.47,-258.12 130.47,-252.12 136.47,-252.12 136.47,-252.12 302,-252.12 302,-252.12 308,-252.12 314,-258.12 314,-264.12 314,-264.12 314,-279.48 314,-279.48 314,-285.48 308,-291.48 302,-291.48"/>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-275.1" font-family="Arial" font-size="11.00">watch_cpu (if CPU stats)</text>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-261.9" font-family="Arial" font-size="11.00">watch_log_maintenance (if log file)</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M301.85,-291.48C301.85,-291.48 136.32,-291.48 136.32,-291.48 130.32,-291.48 124.32,-285.48 124.32,-279.48 124.32,-279.48 124.32,-264.12 124.32,-264.12 124.32,-258.12 130.32,-252.12 136.32,-252.12 136.32,-252.12 301.85,-252.12 301.85,-252.12 307.85,-252.12 313.85,-258.12 313.85,-264.12 313.85,-264.12 313.85,-279.48 313.85,-279.48 313.85,-285.48 307.85,-291.48 301.85,-291.48"/>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-275.1" font-family="Arial" font-size="11.00">watch_cpu (if CPU stats)</text>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-261.9" font-family="Arial" font-size="11.00">watch_log_maintenance (if log file)</text>
 </g>
 <!-- first&#45;&gt;optional -->
 <g id="edge9" class="edge">
 <title>first&#45;&gt;optional</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M219.24,-328.01C219.24,-319.6 219.24,-309.56 219.24,-300.36"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="221.69,-300.55 219.24,-293.55 216.79,-300.55 221.69,-300.55"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M219.08,-328.01C219.08,-319.6 219.08,-309.56 219.08,-300.36"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="221.53,-300.55 219.08,-293.55 216.63,-300.55 221.53,-300.55"/>
 </g>
 <!-- latency -->
 <g id="node11" class="node">
 <title>latency</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M304.74,-215.12C304.74,-215.12 133.73,-215.12 133.73,-215.12 127.73,-215.12 121.73,-209.12 121.73,-203.12 121.73,-203.12 121.73,-187.76 121.73,-187.76 121.73,-181.76 127.73,-175.76 133.73,-175.76 133.73,-175.76 304.74,-175.76 304.74,-175.76 310.74,-175.76 316.74,-181.76 316.74,-187.76 316.74,-187.76 316.74,-203.12 316.74,-203.12 316.74,-209.12 310.74,-215.12 304.74,-215.12"/>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-198.74" font-family="Arial" font-size="11.00">watch_latency</text>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-185.54" font-family="Arial" font-size="11.00">(starts pingers once CAKE is ready)</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M304.58,-215.12C304.58,-215.12 133.58,-215.12 133.58,-215.12 127.58,-215.12 121.58,-209.12 121.58,-203.12 121.58,-203.12 121.58,-187.76 121.58,-187.76 121.58,-181.76 127.58,-175.76 133.58,-175.76 133.58,-175.76 304.58,-175.76 304.58,-175.76 310.58,-175.76 316.58,-181.76 316.58,-187.76 316.58,-187.76 316.58,-203.12 316.58,-203.12 316.58,-209.12 310.58,-215.12 304.58,-215.12"/>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-198.74" font-family="Arial" font-size="11.00">pingers_watch</text>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-185.54" font-family="Arial" font-size="11.00">(starts pingers once CAKE is ready)</text>
 </g>
 <!-- optional&#45;&gt;latency -->
 <g id="edge10" class="edge">
 <title>optional&#45;&gt;latency</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M219.24,-251.65C219.24,-243.24 219.24,-233.2 219.24,-224"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="221.69,-224.19 219.24,-217.19 216.79,-224.19 221.69,-224.19"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M219.08,-251.65C219.08,-243.24 219.08,-233.2 219.08,-224"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="221.53,-224.19 219.08,-217.19 216.63,-224.19 221.53,-224.19"/>
 </g>
 <!-- run -->
 <g id="node12" class="node">
 <title>run</title>
-<path fill="#dcfce7" stroke="#15803d" stroke-width="1.2" d="M245.44,-138.76C245.44,-138.76 193.03,-138.76 193.03,-138.76 187.03,-138.76 181.03,-132.76 181.03,-126.76 181.03,-126.76 181.03,-114.76 181.03,-114.76 181.03,-108.76 187.03,-102.76 193.03,-102.76 193.03,-102.76 245.44,-102.76 245.44,-102.76 251.44,-102.76 257.44,-108.76 257.44,-114.76 257.44,-114.76 257.44,-126.76 257.44,-126.76 257.44,-132.76 251.44,-138.76 245.44,-138.76"/>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-117.46" font-family="Arial" font-size="11.00">uloop_run()</text>
+<path fill="#dcfce7" stroke="#15803d" stroke-width="1.2" d="M245.29,-138.76C245.29,-138.76 192.87,-138.76 192.87,-138.76 186.87,-138.76 180.87,-132.76 180.87,-126.76 180.87,-126.76 180.87,-114.76 180.87,-114.76 180.87,-108.76 186.87,-102.76 192.87,-102.76 192.87,-102.76 245.29,-102.76 245.29,-102.76 251.29,-102.76 257.29,-108.76 257.29,-114.76 257.29,-114.76 257.29,-126.76 257.29,-126.76 257.29,-132.76 251.29,-138.76 245.29,-138.76"/>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-117.46" font-family="Arial" font-size="11.00">uloop_run()</text>
 </g>
 <!-- latency&#45;&gt;run -->
 <g id="edge11" class="edge">
 <title>latency&#45;&gt;run</title>
-<path fill="none" stroke="#475569" stroke-width="1.1" d="M219.24,-175.34C219.24,-166.8 219.24,-156.61 219.24,-147.41"/>
-<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="221.69,-147.65 219.24,-140.65 216.79,-147.65 221.69,-147.65"/>
+<path fill="none" stroke="#475569" stroke-width="1.1" d="M219.08,-175.34C219.08,-166.8 219.08,-156.61 219.08,-147.41"/>
+<polygon fill="#475569" stroke="#475569" stroke-width="1.1" points="221.53,-147.65 219.08,-140.65 216.63,-147.65 221.53,-147.65"/>
 </g>
 <!-- cb -->
 <g id="node14" class="node">
 <title>cb</title>
-<polygon fill="#f4f4f5" stroke="#71717a" stroke-width="1.2" points="350.5,-65.76 81.97,-65.76 81.97,0 356.5,0 356.5,-59.76 350.5,-65.76"/>
-<polyline fill="none" stroke="#71717a" stroke-width="1.2" points="350.5,-65.76 350.5,-59.76"/>
-<polyline fill="none" stroke="#71717a" stroke-width="1.2" points="356.5,-59.76 350.5,-59.76"/>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-49.38" font-family="Arial" font-size="11.00">callbacks:</text>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-36.18" font-family="Arial" font-size="11.00">handle_traffic_timer · handle_reflector_health_timer</text>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-22.98" font-family="Arial" font-size="11.00">handle_qdisc_events · handle_pinger_output/exit</text>
-<text xml:space="preserve" text-anchor="middle" x="219.24" y="-9.78" font-family="Arial" font-size="11.00">handle_cpu_timer · handle_log_timer · SIGUSR1/2</text>
+<polygon fill="#f4f4f5" stroke="#71717a" stroke-width="1.2" points="350.04,-65.76 82.13,-65.76 82.13,0 356.04,0 356.04,-59.76 350.04,-65.76"/>
+<polyline fill="none" stroke="#71717a" stroke-width="1.2" points="350.04,-65.76 350.04,-59.76"/>
+<polyline fill="none" stroke="#71717a" stroke-width="1.2" points="356.04,-59.76 350.04,-59.76"/>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-49.38" font-family="Arial" font-size="11.00">callbacks:</text>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-36.18" font-family="Arial" font-size="11.00">handle_traffic_timer · handle_health_timer</text>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-22.98" font-family="Arial" font-size="11.00">handle_qdisc_events · handle_pinger_output/exit</text>
+<text xml:space="preserve" text-anchor="middle" x="219.08" y="-9.78" font-family="Arial" font-size="11.00">handle_cpu_timer · handle_log_timer · SIGUSR1/2</text>
 </g>
 <!-- run&#45;&gt;cb -->
 <g id="edge15" class="edge">
 <title>run&#45;&gt;cb</title>
-<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M219.24,-102.38C219.24,-94.34 219.24,-84.43 219.24,-74.66"/>
-<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="221.69,-74.84 219.24,-67.84 216.79,-74.84 221.69,-74.84"/>
+<path fill="none" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M219.08,-102.38C219.08,-94.34 219.08,-84.43 219.08,-74.66"/>
+<polygon fill="#64748b" stroke="#64748b" stroke-width="1.1" points="221.53,-74.84 219.08,-67.84 216.63,-74.84 221.53,-74.84"/>
 </g>
 </g>
 </svg>

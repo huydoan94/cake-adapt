@@ -1,0 +1,24 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+/dev/root / ext4 rw,noatime 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0
+cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate 0 0
+tmpfs /tmp tmpfs rw,nosuid,nodev,noatime 0 0
+/dev/sda1 /boot ext4 rw,noatime 0 0
+/dev/sda1 /boot ext4 rw,noatime 0 0
+tmpfs /dev tmpfs rw,nosuid,noexec,noatime,size=512k,mode=755 0 0
+devpts /dev/pts devpts rw,nosuid,noexec,noatime,mode=600,ptmxmode=000 0 0
+debugfs /sys/kernel/debug debugfs rw,nosuid,nodev,noexec,noatime 0 0
+bpffs /sys/fs/bpf bpf rw,nosuid,nodev,noexec,noatime,mode=700 0 0
+tmpfs /tmp/run/netns tmpfs rw,nosuid,nodev,noatime 0 0
+lrwxrwxrwx    1 root     root             7 Sep 25 01:06 /etc/TZ -> /tmp/TZ
+lrwxrwxrwx    1 root     root             3 Sep 25 01:06 /var -> tmp
+drwxr-xr-x    2 root     root           160 Oct  6 00:29 /var/log
+vm.dirty_expire_centisecs = 3000
+vm.dirty_writeback_centisecs = 500
+-rw-r--r--    1 root     root          1235 Oct  5 21:53 apk.log
+-rw-r--r--    1 root     root         38119 Oct  6 00:37 cake-adapt.log
+-rw-r--r--    1 root     root             0 Oct  6 00:29 cake-adapt.log.old
+-rw-r--r--    1 root     root         62138 Oct  6 00:29 cake-adapt_2026_10_06_00_29_41.log.gz
+-rw-r--r--    1 root     root             0 Oct  5 14:15 lastlog
+-rw-r--r--    1 root     root             0 Oct  5 14:15 wtmp

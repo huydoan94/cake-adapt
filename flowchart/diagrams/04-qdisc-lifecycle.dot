@@ -11,10 +11,10 @@ digraph G {
   ignore [label="ignore",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   type [label="event type",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   delmatch [label="AVAILABLE and same handle?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  removed [label="log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; close_latency",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
+  removed [label="log CAKE removed;\nclear observation; NOT_FOUND;\nreset traffic; close upload TCP capture;\nreset ACK sampling; pingers_close",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   same [label="AVAILABLE with same handle?\n(bandwidth change)",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   refresh [label="invalidate; reset traffic;\ndue now; qdisc_refresh = true",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  cycle [label="after the batch:\nhandle_traffic_timer() immediately",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  cycle [label="after the batch:\nmonitor_tick() immediately",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   fd -> recv;
   recv -> recvok;
   recvok -> fatal [label="no"];

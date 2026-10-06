@@ -1,0 +1,11 @@
+before early pairs 118 median_dl_ul_us (80335.0, 26707.0)
+before late pairs 118 median_dl_ul_us (880.0, 8771.0)
+before recovered pairs 98 median_dl_ul_us (692.0, 2460.0)
+before upload receiver_bytes 9961472
+before download receiver_bytes 605683712
+after early pairs 116 median_dl_ul_us (80346.5, 20252.5)
+after late pairs 118 median_dl_ul_us (80108.5, 20096.0)
+after recovered pairs 77 median_dl_ul_us (187, 217)
+after upload receiver_bytes 10616832
+after download receiver_bytes 551550976
+baseline retention, recovery, received payloads, and restoration checks passed

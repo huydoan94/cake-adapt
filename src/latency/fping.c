@@ -5,6 +5,7 @@
 #include "common/constants.h"
 #include "common/error.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 #include "config/defaults.h"
 
 #include <errno.h>
@@ -16,179 +17,137 @@
 #include <string.h>
 #include <wordexp.h>
 
-int latency_open(
-    struct latency *latency,
-    const char *interface,
-    const char *const *targets,
-    size_t target_count,
-    uint64_t reflector_ping_interval_microseconds,
-    const char *extra_arguments,
-    const char *prefix,
-    char *error,
-    size_t error_size
+static enum latency_probe_result
+probe_result(enum latency_fping_line_result parsed, const char *line, char *error, size_t error_size)
+{
+	if (parsed == LATENCY_FPING_LINE_INVALID) {
+		error_set(error, error_size, "unexpected fping output: %.160s", line);
+		return LATENCY_PROBE_ERROR;
+	}
+	return parsed == LATENCY_FPING_LINE_SAMPLE ? LATENCY_PROBE_SUCCESS : LATENCY_PROBE_TIMEOUT;
+}
+
+static enum latency_probe_result fping_parse(
+	const struct latency_child *child,
+	const char *line,
+	struct latency_sample *sample,
+	char *error,
+	size_t error_size
 )
 {
-    char period_milliseconds[32];
-    char response_interval_milliseconds[32];
-    char **arguments = NULL;
-    wordexp_t extra_words = { 0 };
-    wordexp_t prefix_words = { 0 };
-    uint64_t period;
-    uint64_t response_interval;
-    size_t index;
-    size_t cursor = 0U;
-    bool interface_configured = false;
-    int result = -1;
-
-    if (
-        interface == NULL ||
-        interface[0] == '\0'
-    ) {
-        error_set(error, error_size, "fping interface is empty");
-        return -1;
-    }
-    if (
-        targets == NULL || target_count == 0U || extra_arguments == NULL ||
-        prefix == NULL
-    ) {
-        error_set(error, error_size, "fping requires at least one target");
-        return -1;
-    }
-    if (target_count > CONFIG_MAX_REFLECTORS) {
-        error_set(
-            error,
-            error_size,
-            "fping supports at most %u targets",
-            CONFIG_MAX_REFLECTORS
-        );
-        return -1;
-    }
-    if (
-        reflector_ping_interval_microseconds / target_count <
-        MICROSECONDS_PER_MILLISECOND
-    ) {
-        error_set(
-            error,
-            error_size,
-            "reflector ping interval must provide at least 1 ms per target"
-        );
-        return -1;
-    }
-    if (validate_targets(targets, target_count, error, error_size) != 0) {
-        return -1;
-    }
-
-    period = rounded_divide(
-        reflector_ping_interval_microseconds,
-        MICROSECONDS_PER_MILLISECOND
-    );
-    response_interval =
-        reflector_ping_interval_microseconds / target_count /
-        MICROSECONDS_PER_MILLISECOND;
-    (void)snprintf(
-        period_milliseconds,
-        sizeof(period_milliseconds),
-        "%" PRIu64,
-        period
-    );
-    (void)snprintf(
-        response_interval_milliseconds,
-        sizeof(response_interval_milliseconds),
-        "%" PRIu64,
-        response_interval
-    );
-
-    if (
-        expand_words(
-            extra_arguments,
-            false,
-            OPTION_PING_EXTRA_ARGS,
-            &extra_words,
-            error,
-            error_size
-        ) != 0 ||
-        expand_words(
-            prefix,
-            true,
-            OPTION_PING_PREFIX_STRING,
-            &prefix_words,
-            error,
-            error_size
-        ) != 0
-    ) {
-        goto done;
-    }
-    arguments = calloc(
-        prefix_words.we_wordc + extra_words.we_wordc + target_count + 13U,
-        sizeof(*arguments)
-    );
-    if (arguments == NULL) {
-        error_set(
-            error,
-            error_size,
-            "could not allocate fping arguments: %s",
-            strerror(errno)
-        );
-        goto done;
-    }
-    for (index = 0U; index < prefix_words.we_wordc; index++) {
-        arguments[cursor++] = prefix_words.we_wordv[index];
-    }
-    arguments[cursor++] = (char *)FPING_PATH;
-    for (index = 0U; index < extra_words.we_wordc; index++) {
-        arguments[cursor++] = extra_words.we_wordv[index];
-        if (
-            strncmp(
-                extra_words.we_wordv[index],
-                FPING_INTERFACE_SHORT,
-                strlen(FPING_INTERFACE_SHORT)
-            ) == 0 ||
-            strcmp(extra_words.we_wordv[index], FPING_INTERFACE_LONG) == 0 ||
-            strncmp(
-                extra_words.we_wordv[index],
-                FPING_INTERFACE_LONG_PREFIX,
-                strlen(FPING_INTERFACE_LONG_PREFIX)
-            ) == 0
-        ) {
-            interface_configured = true;
-        }
-    }
-    /* Keep the SQM interface default, but honor an explicit routing override. */
-    if (!interface_configured) {
-        arguments[cursor++] = (char *)FPING_INTERFACE_SHORT;
-        arguments[cursor++] = (char *)interface;
-    }
-    arguments[cursor++] = (char *)FPING_TIMESTAMP;
-    arguments[cursor++] = (char *)FPING_LOOP;
-    arguments[cursor++] = (char *)FPING_PERIOD;
-    arguments[cursor++] = period_milliseconds;
-    arguments[cursor++] = (char *)FPING_INTERVAL;
-    arguments[cursor++] = response_interval_milliseconds;
-    arguments[cursor++] = (char *)FPING_TIMEOUT;
-    arguments[cursor++] = (char *)DEFAULT_FPING_TIMEOUT_MILLISECONDS;
-    for (index = 0U; index < target_count; index++) {
-        arguments[cursor++] = (char *)targets[index];
-    }
-
-    if (
-        start_child(
-            &latency->children[0],
-            arguments,
-            PINGER_METHOD_FPING,
-            error,
-            error_size
-        ) != 0
-    ) {
-        goto done;
-    }
-    latency->backend = LATENCY_BACKEND_FPING;
-    latency->active = true;
-    latency->child_count = 1U;
-    result = 0;
-
-done:
-    free(arguments);
-    wordfree(&prefix_words);
-    wordfree(&extra_words);
-    return result;
+	(void)child;
+	return probe_result(parse_fping_line(line, sample), line, error, error_size);
 }
+
+static enum latency_probe_result fping_ts_parse(
+	const struct latency_child *child,
+	const char *line,
+	struct latency_sample *sample,
+	char *error,
+	size_t error_size
+)
+{
+	(void)child;
+	return probe_result(parse_fping_timestamp_line(line, sample), line, error, error_size);
+}
+
+/* fping runs until stopped, so any exit is a failure. */
+static enum latency_probe_result
+fping_exited(struct latency_child *child, char *error, size_t error_size)
+{
+	(void)child;
+	(void)error;
+	(void)error_size;
+	return LATENCY_PROBE_ERROR;
+}
+
+/* -I, --iface or --iface=NAME: the user chose the interface. */
+static bool selects_interface(const char *word)
+{
+	return strncmp(word, FPING_INTERFACE_SHORT, strlen(FPING_INTERFACE_SHORT)) == 0 ||
+	       strcmp(word, FPING_INTERFACE_LONG) == 0 ||
+	       strncmp(word, FPING_INTERFACE_LONG_PREFIX, strlen(FPING_INTERFACE_LONG_PREFIX)) == 0;
+}
+
+/* One fping for all targets; fping-ts adds ICMP timestamp requests (type 13). */
+static int fping_open(
+	struct latency *latency,
+	const char *const *targets,
+	size_t target_count,
+	uint64_t timestamp_microseconds,
+	char *error,
+	size_t error_size
+)
+{
+	const struct latency_settings *settings = &latency->settings;
+	uint64_t interval = settings->reflector_ping_interval_microseconds;
+	struct pinger_command command;
+	char period[PINGER_ARGUMENT_SIZE];
+	char response_interval[PINGER_ARGUMENT_SIZE];
+	bool interface_selected = false;
+	size_t index;
+	int ret;
+
+	(void)timestamp_microseconds;
+	(void)snprintf(
+		period,
+		sizeof(period),
+		"%" PRIu64,
+		rounded_divide(interval, MICROSECONDS_PER_MILLISECOND)
+	);
+	(void)snprintf(
+		response_interval,
+		sizeof(response_interval),
+		"%" PRIu64,
+		interval / target_count / MICROSECONDS_PER_MILLISECOND
+	);
+
+	/* Up to 13 fixed arguments besides the targets. */
+	if (pinger_command_init(&command, latency, 13U + target_count, error, error_size) != 0)
+		return -1;
+	pinger_command_add(&command, FPING_PATH);
+	for (index = 0U; index < command.extra.we_wordc; index++) {
+		pinger_command_add(&command, command.extra.we_wordv[index]);
+		if (selects_interface(command.extra.we_wordv[index]))
+			interface_selected = true;
+	}
+	/* Keep the SQM interface default, but honor an explicit routing override. */
+	if (!interface_selected) {
+		pinger_command_add(&command, FPING_INTERFACE_SHORT);
+		pinger_command_add(&command, settings->interface);
+	}
+	pinger_command_add(&command, FPING_TIMESTAMP);
+	pinger_command_add(&command, FPING_LOOP);
+	pinger_command_add(&command, FPING_PERIOD);
+	pinger_command_add(&command, period);
+	pinger_command_add(&command, FPING_INTERVAL);
+	pinger_command_add(&command, response_interval);
+	pinger_command_add(&command, FPING_TIMEOUT);
+	pinger_command_add(&command, DEFAULT_FPING_TIMEOUT_MILLISECONDS);
+	if (latency->ops == &fping_ts_ops)
+		pinger_command_add(&command, FPING_ICMP_TIMESTAMP);
+	for (index = 0U; index < target_count; index++)
+		pinger_command_add(&command, targets[index]);
+
+	ret = start_child(latency, 0U, command.argv, error, error_size);
+	if (ret == 0) {
+		latency->active = true;
+		latency->child_count = 1U;
+	}
+	pinger_command_free(&command);
+	return ret;
+}
+
+const struct pinger_ops fping_ops = {
+	.name = PINGER_METHOD_FPING,
+	.open = fping_open,
+	.parse = fping_parse,
+	.exited = fping_exited,
+};
+
+const struct pinger_ops fping_ts_ops = {
+	.name = PINGER_METHOD_FPING,
+	.open = fping_open,
+	.parse = fping_ts_parse,
+	.exited = fping_exited,
+};

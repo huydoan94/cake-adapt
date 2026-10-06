@@ -1,0 +1,11 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+A-fping                upload-steady     2.2   73.0   83.7   27.8   20.7     0      86.0       nan
+A-fping                upload-step       2.5   79.7  210.7   26.1   20.0     0      83.0       nan
+A-fping                download-steady   15.1   27.0   31.4   50.1    1.3     0       nan      91.3
+A-fping                bidirectional    20.9   72.6   90.7   63.2   33.8     0      82.9      73.9
+                       (idle base RTT 23.3 ms; delays are added RTT in ms)
+A-fping-ts             upload-steady     3.2   62.2   77.3   32.5   19.4     0      87.7       nan
+A-fping-ts             upload-step       3.2   90.3  452.3   26.8   20.9     0      81.9       nan
+A-fping-ts             download-steady    7.4   27.4   46.0   28.7    2.8     0       nan      76.0
+A-fping-ts             bidirectional    12.2   79.3  107.3   44.1   30.5     0      82.7      57.1
+                       (idle base RTT 24.7 ms; delays are added RTT in ms)

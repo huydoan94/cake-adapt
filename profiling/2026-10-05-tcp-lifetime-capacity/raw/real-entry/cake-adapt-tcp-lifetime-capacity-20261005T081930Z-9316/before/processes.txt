@@ -1,0 +1,63 @@
+=== cake-adapt PIDs ===
+2646
+=== PID 2646 ===
+exe=/usr/sbin/cake-adapt
+cmdline=/usr/sbin/cake-adapt -C /tmp/cake-adapt-config/main -S main 
+Name:	cake-adapt
+Umask:	0022
+State:	S (sleeping)
+Tgid:	2646
+Ngid:	0
+Pid:	2646
+PPid:	1
+TracerPid:	0
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	32
+Groups:	 
+NStgid:	2646
+NSpid:	2646
+NSpgid:	1
+NSsid:	1
+Kthread:	0
+VmPeak:	    1228 kB
+VmSize:	    1228 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    1068 kB
+VmRSS:	    1068 kB
+RssAnon:	     152 kB
+RssFile:	     912 kB
+RssShmem:	       4 kB
+VmData:	      96 kB
+VmStk:	     132 kB
+VmExe:	      52 kB
+VmLib:	     600 kB
+VmPTE:	      36 kB
+VmSwap:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffff
+Threads:	1
+SigQ:	0/7962
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000000000
+SigIgn:	0000000000001000
+SigCgt:	0000000000014a02
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	vulnerable
+SpeculationIndirectBranch:	always enabled
+Cpus_allowed:	3
+Cpus_allowed_list:	0-1
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	132741
+nonvoluntary_ctxt_switches:	6

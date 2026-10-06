@@ -1,0 +1,12 @@
+This run stopped before the first runner version's state-after capture because
+candidate steady coverage saw 804 program runs for 803 injected packets. A
+separate immediate read-only check after the wrapper exit recorded:
+
+namespaces= (empty)
+log=183 /tmp/sqm-mon-test.log
+daemon=2646
+qdisc=0e8a7df8dc040a743fc8dfbf6f721fad8047aee56c870d67978fe7bd7945eb53
+
+IPv6 link-local setup traffic was then disabled in the private namespace. The
+subsequent corrected wrapper captures full before/after state on success and
+failure.

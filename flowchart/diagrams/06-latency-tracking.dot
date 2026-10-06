@@ -15,7 +15,7 @@ digraph G {
   health [label="last response time → activity\nhealth_record_response",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   stale [label="reply > 500 ms old?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   skip [label="debug: Skipping",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
-  controller [label="update_controller\n(chart 07)",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  controller [label="control_update\n(chart 07)",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   sample -> active;
   active -> unknown [label="no"];
   active -> clock [label="yes"];

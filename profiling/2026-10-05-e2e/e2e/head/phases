@@ -1,0 +1,38 @@
+1791257742 start
+1791257754 download
+1791257779 recover
+1791257787 upload
+1791257807 recover
+1791257815 bidirectional
+1791257841 recover
+1791257849 capacity-drop
+1791257859 capacity-1500
+1791257869 capacity-2500
+1791257879 recover
+1791257887 log-export
+-rw-r--r--    2 root     root       1045314 Oct  5 21:38 cake-adapt.log
+-rw-r--r--    1 root     root        161117 Oct  5 21:38 cake-adapt_2026_10_05_21_38_07.log.gz
+1791257889 log-reset size=1045314
+1791257891 log-reset-done size=11235 inode=288
+1791257891 upload-cake-removed
+1791257895 upload-cake-recreated
+1791257901 download-cake-removed
+1791257905 download-cake-recreated
+1791257911 upload-bandwidth-external
+1791257915 ifb-removed
+1791257919 ifb-recreated
+1791257925 ifb-download
+1791257935 one-reflector-down
+1791257950 one-reflector-up
+1791257955 all-reflectors-down
+1791257975 all-reflectors-up
+1791257985 idle-wait
+1791258020 idle children=[] zombies=0
+1791258020 wake-download
+1791258033 awake children=[28038:(fping) ] zombies=0
+1791258036 shutdown
+1791258037 daemon-exit 0
+1791258037 leftover children=[] zombies=0
+1791258038 inode-unchanged
+1791258038 namespaces=[] fping=[] iperf3=[]
+1791258038 end

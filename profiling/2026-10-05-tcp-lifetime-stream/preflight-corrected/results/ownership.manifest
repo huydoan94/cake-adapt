@@ -1,0 +1,27 @@
+wrapper-pid	5427
+namespace	planned caketl5427
+log-directory	planned /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427
+runner-pid-file	/tmp/cake-adapt-tcp-lifetime-runner.5427.pid
+soft-deadline-path	/tmp/cake-adapt-tcp-lifetime-deadline.5427
+soft-watchdog-pid	5429
+hard-watchdog-pid	5430
+runner	planned /tmp/cake-adapt-tuple-stream.aoOnNi/tools/tcp-lifetime/../../build/tcp-lifetime/runner
+test-log	inode 19:288 path /tmp/sqm-mon-test.log
+test-log	truncate-intent
+test-log	truncated
+log-directory	mkdir-intent /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427
+log-directory	created /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427
+log-link	create-intent /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427/cake-adapt.log
+log-link	created /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427/cake-adapt.log
+namespace	create-intent caketl5427
+namespace	created caketl5427
+veth	create-intent namespace=caketl5427 names=tl0,tl1
+veth	created namespace=caketl5427 names=tl0,tl1
+runner	launch-intent
+runner-pid	5947
+namespace	delete-intent caketl5427
+namespace	deleted caketl5427
+log-link	remove-intent /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427/cake-adapt.log
+log-link	removed
+log-directory	remove-intent /tmp/cake-adapt-tcp-lifetime-log.XXXXXX.5427
+log-directory	removed

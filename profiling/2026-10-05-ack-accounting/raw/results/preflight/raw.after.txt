@@ -1,0 +1,2 @@
+case=raw variant=after ack=66 upload=1580 unaccounted=0 ring_full=0 runs=2 runtime_ns=9858 jit_bytes=0 xlated_bytes=4728 affinity=0
+JIT and exact packet count: Invalid argument

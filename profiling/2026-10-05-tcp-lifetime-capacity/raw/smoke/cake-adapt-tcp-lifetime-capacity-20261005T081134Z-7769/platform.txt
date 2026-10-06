@@ -1,0 +1,13 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+
+=== versions ===
+busybox: applet not found
+ip utility, iproute2-6.18.0, libbpf 1.6.2
+tc utility, iproute2-6.18.0, libbpf 1.6.2
+runner alarm bounds the BPF batch; outer SSH command has a 300 s timeout
+/tmp/cake-adapt-tcp-lifetime-capacity/evidence.sh: line 281: opkg: not found
+
+=== available tools ===
+bpftool unavailable
+clang unavailable
+llvm-objdump unavailable

@@ -1,0 +1,4 @@
+log_inode_before=183
+log_inode_after=183
+log_inode_unchanged=yes
+runner_exit_code=0

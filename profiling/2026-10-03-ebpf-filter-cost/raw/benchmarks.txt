@@ -1,0 +1,87 @@
+Sat Oct  3 16:10:55 2026 C-1: runs=222330 ns_per_run=1874 daemon_ticks=26
+Sat Oct  3 16:12:07 2026 C-2: runs=226461 ns_per_run=1787 daemon_ticks=26
+Sat Oct  3 16:13:18 2026 C-3: runs=221640 ns_per_run=1997 daemon_ticks=25
+Sat Oct  3 16:14:29 2026 C-4: runs=226640 ns_per_run=1815 daemon_ticks=23
+Sat Oct  3 16:15:41 2026 C-5: runs=227033 ns_per_run=1752 daemon_ticks=23
+Sat Oct  3 16:17:17 2026 R1-before: runs=226219 ns_per_run=1933 daemon_ticks=26
+Sat Oct  3 16:18:28 2026 R1-after: capture did not start
+Sat Oct  3 16:18:28 2026 R1-after: runs=20 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 16:19:40 2026 R2-before: runs=221245 ns_per_run=1983 daemon_ticks=25
+Sat Oct  3 16:20:51 2026 R2-after: capture did not start
+Sat Oct  3 16:20:51 2026 R2-after: runs=19 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 16:22:02 2026 R3-before: runs=218536 ns_per_run=1819 daemon_ticks=24
+Sat Oct  3 16:23:14 2026 R3-after: capture did not start
+Sat Oct  3 16:23:14 2026 R3-after: runs=15 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 16:24:25 2026 R4-before: runs=223822 ns_per_run=1947 daemon_ticks=27
+Sat Oct  3 16:25:36 2026 R4-after: capture did not start
+Sat Oct  3 16:25:36 2026 R4-after: runs=15 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 16:28:37 2026 R1-before: runs=226151 ns_per_run=1916 daemon_ticks=24
+Sat Oct  3 16:29:48 2026 R1-after: runs=220476 ns_per_run=1849 daemon_ticks=24
+Sat Oct  3 16:31:00 2026 R2-before: runs=227118 ns_per_run=1872 daemon_ticks=24
+Sat Oct  3 16:32:11 2026 R2-after: runs=227649 ns_per_run=1781 daemon_ticks=26
+Sat Oct  3 16:33:22 2026 R3-before: runs=220971 ns_per_run=1982 daemon_ticks=25
+Sat Oct  3 16:34:34 2026 R3-after: runs=219712 ns_per_run=2222 daemon_ticks=30
+Sat Oct  3 16:35:45 2026 R4-before: runs=228850 ns_per_run=1932 daemon_ticks=24
+Sat Oct  3 16:36:57 2026 R4-after: runs=226463 ns_per_run=1785 daemon_ticks=28
+Sat Oct  3 16:50:39 2026 C1-empty: runs=153290 ns_per_run=122 daemon_ticks=18
+Sat Oct  3 16:51:50 2026 C1-after: runs=221884 ns_per_run=1921 daemon_ticks=32
+Sat Oct  3 16:53:01 2026 C2-empty: runs=136566 ns_per_run=144 daemon_ticks=15
+Sat Oct  3 16:54:13 2026 C2-after: runs=223565 ns_per_run=1891 daemon_ticks=28
+Sat Oct  3 16:55:24 2026 C3-empty: runs=144357 ns_per_run=130 daemon_ticks=16
+Sat Oct  3 16:56:36 2026 C3-after: runs=223901 ns_per_run=1813 daemon_ticks=26
+Sat Oct  3 16:58:40 2026 S1-p1-counters: runs=198215 ns_per_run=297 daemon_ticks=10
+Sat Oct  3 16:59:51 2026 S1-p2-headers: runs=196475 ns_per_run=466 daemon_ticks=9
+Sat Oct  3 17:01:03 2026 S1-p3-options: runs=195514 ns_per_run=578 daemon_ticks=12
+Sat Oct  3 17:02:14 2026 S1-full: runs=197153 ns_per_run=1749 daemon_ticks=15
+Sat Oct  3 17:03:25 2026 S1-lazyclock: runs=196568 ns_per_run=1672 daemon_ticks=13
+Sat Oct  3 17:04:37 2026 S2-p1-counters: runs=197158 ns_per_run=279 daemon_ticks=10
+Sat Oct  3 17:05:48 2026 S2-p2-headers: runs=196269 ns_per_run=505 daemon_ticks=10
+Sat Oct  3 17:06:59 2026 S2-p3-options: runs=195954 ns_per_run=579 daemon_ticks=10
+Sat Oct  3 17:08:11 2026 S2-full: runs=197173 ns_per_run=1770 daemon_ticks=15
+Sat Oct  3 17:09:22 2026 S2-lazyclock: runs=197226 ns_per_run=1783 daemon_ticks=15
+Sat Oct  3 18:12:25 2026 P1-pre: runs=225749 ns_per_run=2057 daemon_ticks=25
+Sat Oct  3 18:13:36 2026 P1-refactor: runs=225738 ns_per_run=1852 daemon_ticks=27
+Sat Oct  3 18:14:47 2026 P2-pre: runs=226601 ns_per_run=1978 daemon_ticks=25
+Sat Oct  3 18:15:59 2026 P2-refactor: runs=217766 ns_per_run=2610 daemon_ticks=38
+Sat Oct  3 18:17:10 2026 P3-pre: runs=223878 ns_per_run=2285 daemon_ticks=27
+Sat Oct  3 18:18:22 2026 P3-refactor: runs=224964 ns_per_run=2347 daemon_ticks=33
+Sat Oct  3 18:19:33 2026 P4-pre: runs=225906 ns_per_run=2220 daemon_ticks=32
+Sat Oct  3 18:20:45 2026 P4-refactor: runs=223476 ns_per_run=2378 daemon_ticks=32
+Sat Oct  3 20:24:33 2026 E1-base: runs=198847 ns_per_run=1890 daemon_ticks=16
+Sat Oct  3 20:25:44 2026 E1-opt1: runs=198131 ns_per_run=1701 daemon_ticks=15
+Sat Oct  3 20:26:56 2026 E1-flow: runs=199298 ns_per_run=695 daemon_ticks=10
+Sat Oct  3 20:28:07 2026 E1-noring: capture did not start
+Sat Oct  3 20:28:07 2026 E1-noring: runs=9 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 20:29:18 2026 E1-percpu: runs=197747 ns_per_run=1587 daemon_ticks=12
+Sat Oct  3 20:30:30 2026 E2-base: runs=199291 ns_per_run=1526 daemon_ticks=14
+Sat Oct  3 20:31:41 2026 E2-opt1: runs=198588 ns_per_run=1462 daemon_ticks=13
+Sat Oct  3 20:32:52 2026 E2-flow: runs=195200 ns_per_run=752 daemon_ticks=11
+Sat Oct  3 20:34:04 2026 E2-noring: capture did not start
+Sat Oct  3 20:34:04 2026 E2-noring: runs=7 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 20:35:15 2026 E2-percpu: runs=195734 ns_per_run=1441 daemon_ticks=10
+Sat Oct  3 20:36:26 2026 E3-base: runs=198706 ns_per_run=1398 daemon_ticks=14
+Sat Oct  3 20:37:38 2026 E3-opt1: runs=196034 ns_per_run=2009 daemon_ticks=14
+Sat Oct  3 20:38:49 2026 E3-flow: runs=196724 ns_per_run=1293 daemon_ticks=15
+Sat Oct  3 20:40:00 2026 E3-noring: capture did not start
+Sat Oct  3 20:40:00 2026 E3-noring: runs=12 ns_per_run=0 daemon_ticks=0
+Sat Oct  3 20:41:11 2026 E3-percpu: runs=193840 ns_per_run=3183 daemon_ticks=18
+Sat Oct  3 20:43:06 2026 E4-base: runs=195207 ns_per_run=2829 daemon_ticks=20
+Sat Oct  3 20:44:17 2026 E4-opt1: runs=196137 ns_per_run=2839 daemon_ticks=23
+Sat Oct  3 20:45:29 2026 E4-percpu: runs=194503 ns_per_run=3129 daemon_ticks=19
+Sat Oct  3 20:46:40 2026 E4-noring: runs=196419 ns_per_run=2658 daemon_ticks=17
+Sat Oct  3 20:47:51 2026 E5-base: runs=196002 ns_per_run=2952 daemon_ticks=22
+Sat Oct  3 20:49:03 2026 E5-opt1: runs=195053 ns_per_run=2848 daemon_ticks=21
+Sat Oct  3 20:50:14 2026 E5-percpu: runs=196758 ns_per_run=2993 daemon_ticks=19
+Sat Oct  3 20:51:26 2026 E5-noring: runs=195608 ns_per_run=2539 daemon_ticks=13
+Sat Oct  3 20:52:37 2026 E6-base: runs=195016 ns_per_run=2939 daemon_ticks=20
+Sat Oct  3 20:53:48 2026 E6-opt1: runs=194295 ns_per_run=2886 daemon_ticks=20
+Sat Oct  3 20:55:00 2026 E6-percpu: runs=195819 ns_per_run=3142 daemon_ticks=22
+Sat Oct  3 20:56:11 2026 E6-noring: runs=197731 ns_per_run=2505 daemon_ticks=15
+Sat Oct  3 20:57:22 2026 E7-base: runs=195512 ns_per_run=2855 daemon_ticks=19
+Sat Oct  3 20:58:34 2026 E7-opt1: runs=196568 ns_per_run=2799 daemon_ticks=19
+Sat Oct  3 20:59:45 2026 E7-percpu: runs=195838 ns_per_run=2958 daemon_ticks=20
+Sat Oct  3 21:00:57 2026 E7-noring: runs=198097 ns_per_run=2540 daemon_ticks=16
+Sat Oct  3 21:02:08 2026 E8-base: runs=195272 ns_per_run=2926 daemon_ticks=21
+Sat Oct  3 21:03:19 2026 E8-opt1: runs=194536 ns_per_run=2949 daemon_ticks=21
+Sat Oct  3 21:04:31 2026 E8-percpu: runs=197035 ns_per_run=3212 daemon_ticks=24
+Sat Oct  3 21:05:42 2026 E8-noring: runs=195160 ns_per_run=2614 daemon_ticks=17

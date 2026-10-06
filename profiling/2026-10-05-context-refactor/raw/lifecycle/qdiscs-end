@@ -1,0 +1,4 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc cake 804f: dev cwan root refcnt 3 bandwidth 3Mbit besteffort triple-isolate nonat nowash ack-filter split-gso rtt 100ms noatm overhead 44 mpu 84 
+qdisc ingress ffff: dev cwan parent ffff:fff1 ---------------- 
+qdisc cake 8050: dev ifb4cwan root refcnt 2 bandwidth 27Mbit besteffort triple-isolate nonat nowash no-ack-filter split-gso rtt 100ms noatm overhead 44 mpu 84 

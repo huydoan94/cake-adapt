@@ -1,0 +1,7 @@
+runner=3c36710d9349da08e3f32fb727c53ce862efe0966e136891da8d9c4e5f16f110  /tmp/cake-adapt-tcp-lifetime-capacity/runner
+object=e4758f03b96e9cc4bf470a93a2a7dda0389b25db9c3e10a00ec2e8aa3f86b4ba  /tmp/cake-adapt-tcp-lifetime-capacity/candidate.o
+wrapper=44764e5164663215b50d0b46df5286fb50f48d532b83b13abf551f80b54b44c1  /tmp/cake-adapt-tcp-lifetime-capacity/run.sh
+evidence=92f51d62c88fafff97fa8925692f07f49299cc358c6689ced8e8872644154773  /tmp/cake-adapt-tcp-lifetime-capacity/evidence.sh
+log_inode=183
+log_override=/tmp/cake-adapt-tcp-lifetime-logs.IEcnka
+namespace_baseline_file=/root/cake-adapt-tcp-lifetime-capacity-20261005T082501Z-10860/namespaces.before.txt

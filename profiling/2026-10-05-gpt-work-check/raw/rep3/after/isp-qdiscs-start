@@ -1,0 +1,15 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc netem 1: dev iwan root refcnt 3 limit 100000 delay 10ms seed 15681019368735172000
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc tbf 10: dev iwan parent 1:1 rate 30Mbit burst 16413b/1 mpu 84b lat 496ms overhead 30 linklayer ethernet 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc netem 1: dev iinet root refcnt 3 limit 100000 delay 10ms seed 2288123940611332000
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc tbf 10: dev iinet parent 1:1 rate 2500Kbit burst 16414b/1 mpu 84b lat 447ms overhead 30 linklayer ethernet 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
