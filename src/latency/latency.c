@@ -77,6 +77,7 @@ static int spawn_child(char *const arguments[], const int output_pipe[2], pid_t 
 	posix_spawn_file_actions_t actions;
 	posix_spawnattr_t attributes;
 	sigset_t child_signal_mask;
+	sigset_t default_signals;
 	int result;
 
 	result = posix_spawn_file_actions_init(&actions);
@@ -100,14 +101,23 @@ static int spawn_child(char *const arguments[], const int output_pipe[2], pid_t 
 	if (result != 0)
 		goto destroy_actions;
 	(void)sigemptyset(&child_signal_mask);
+	/*
+	 * uloop ignores SIGPIPE, and an ignored signal survives exec. With the
+	 * default restored, a pinger whose reader died (even by SIGKILL) exits on
+	 * its next write instead of running on as an orphan.
+	 */
+	(void)sigemptyset(&default_signals);
+	(void)sigaddset(&default_signals, SIGPIPE);
 
 	result = posix_spawnattr_setsigmask(&attributes, &child_signal_mask);
+	if (result == 0)
+		result = posix_spawnattr_setsigdefault(&attributes, &default_signals);
 	if (result == 0)
 		result = posix_spawnattr_setpgroup(&attributes, 0);
 	if (result == 0) {
 		result = posix_spawnattr_setflags(
 			&attributes,
-			POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETPGROUP
+			POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETPGROUP
 		);
 	}
 	if (result == 0) {
