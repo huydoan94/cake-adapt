@@ -14,6 +14,15 @@
 struct pinger_ops {
 	/* Names the pinger in exit diagnostics. */
 	const char *name;
+	/* Implements latency_open() for this backend. */
+	int (*open)(
+		struct latency *latency,
+		const char *const *targets,
+		size_t target_count,
+		uint64_t timestamp_microseconds,
+		char *error,
+		size_t error_size
+	);
 	enum latency_probe_result (*parse)(
 		const struct latency_child *child,
 		const char *line,
@@ -42,15 +51,13 @@ struct pinger_command {
 };
 
 /*
- * Expands the prefix and extra-argument options and allocates room for their
- * words plus fixed more arguments; argv already starts with the prefix.
+ * Expands the session's prefix and extra-argument options and allocates room
+ * for their words plus fixed more arguments; argv already starts with the prefix.
  */
 int pinger_command_init(
 	struct pinger_command *command,
-	const char *prefix,
-	const char *extra,
+	const struct latency *latency,
 	size_t fixed,
-	const char *name,
 	char *error,
 	size_t error_size
 );
@@ -62,16 +69,14 @@ static inline void pinger_command_add(struct pinger_command *command, const char
 
 void pinger_command_free(struct pinger_command *command);
 
-int validate_targets(const char *const *targets, size_t target_count, char *error, size_t error_size);
-
 /*
  * Starts arguments[0] in its own process group with stdout on a nonblocking
- * pipe owned by child and stderr on /dev/null.
+ * pipe owned by the session's child_index and stderr on /dev/null.
  */
 int start_child(
-	struct latency_child *child,
+	struct latency *latency,
+	size_t child_index,
 	char *const arguments[],
-	const char *name,
 	char *error,
 	size_t error_size
 );

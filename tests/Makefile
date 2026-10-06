@@ -61,7 +61,7 @@ $(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monit
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c logging/log.c common/error.c common/helpers.c)
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c logging/log.c common/error.c common/helpers.c)
 
 .PHONY: check-config
 check-config: $(BINARY_DIR)/test_config

@@ -47,7 +47,6 @@ void reflectors_record(
 	struct monitor *monitor,
 	size_t slot,
 	const struct latency_sample *sample,
-	bool low_load,
 	uint64_t response_microseconds,
 	struct latency_observation *observation
 )
@@ -56,7 +55,7 @@ void reflectors_record(
 		&monitor->reflectors.trackers[monitor->reflectors.order[slot]];
 
 	tracker_update(tracker, sample, observation);
-	tracker_update_delta_ewma(tracker, low_load, observation);
+	tracker_update_delta_ewma(tracker, control_low_load(monitor), observation);
 	health_record_response(&monitor->reflectors.health[slot], response_microseconds);
 }
 
@@ -319,32 +318,25 @@ static void handle_health_timer(struct uloop_interval *timer)
 int reflectors_start(struct monitor *monitor, uint64_t start_microseconds)
 {
 	const struct config *config = monitor->config;
-	const struct latency_tracker_config latency_tracker_config = {
+	struct monitor_reflectors *reflectors = &monitor->reflectors;
+	size_t index;
+
+	reflectors->tracker_config = (struct latency_tracker_config){
 		.alpha_baseline_increase_per_million = config->alpha_baseline_increase_per_million,
 		.alpha_baseline_decrease_per_million = config->alpha_baseline_decrease_per_million,
 		.alpha_delta_ewma_per_million = config->alpha_delta_ewma_per_million,
 	};
-	const struct reflector_health_config reflector_health_config = {
+	reflectors->health_config = (struct reflector_health_config){
 		.response_deadline_microseconds = config->reflector_response_deadline_microseconds,
 		.detection_window = (size_t)config->reflector_misbehaving_detection_window,
 		.detection_threshold = (size_t)config->reflector_misbehaving_detection_threshold,
 	};
-	size_t index;
-
-	monitor->reflectors.health_timer.cb = handle_health_timer;
-	monitor->reflectors.last_replacement_microseconds = start_microseconds;
-	monitor->reflectors.last_comparison_microseconds = start_microseconds;
+	reflectors->health_timer.cb = handle_health_timer;
+	reflectors->last_replacement_microseconds = start_microseconds;
+	reflectors->last_comparison_microseconds = start_microseconds;
 	for (index = 0U; index < (size_t)config->reflector_count; index++) {
-		if (tracker_init(&monitor->reflectors.trackers[index], &latency_tracker_config) !=
-		    0) {
-			log_message(
-				LOG_LEVEL_ERROR,
-				"could not initialize latency tracker: %s",
-				strerror(errno)
-			);
-			return -1;
-		}
-		monitor->reflectors.order[index] = index;
+		tracker_init(&reflectors->trackers[index], &reflectors->tracker_config);
+		reflectors->order[index] = index;
 	}
 	log_message(LOG_LEVEL_DEBUG, "Randomizing reflectors.");
 	if (config->randomize_reflectors) {
@@ -352,7 +344,7 @@ int reflectors_start(struct monitor *monitor, uint64_t start_microseconds)
 		size_t reflector_count = (size_t)config->reflector_count;
 		size_t size = reflector_count * sizeof(*randomized_order);
 
-		memcpy(randomized_order, monitor->reflectors.order, size);
+		memcpy(randomized_order, reflectors->order, size);
 		if (!shuffle(randomized_order, reflector_count, entropy_u32, NULL)) {
 			log_message(
 				LOG_LEVEL_WARNING,
@@ -360,13 +352,13 @@ int reflectors_start(struct monitor *monitor, uint64_t start_microseconds)
 				strerror(errno)
 			);
 		} else {
-			memcpy(monitor->reflectors.order, randomized_order, size);
+			memcpy(reflectors->order, randomized_order, size);
 		}
 	}
 	for (index = 0U; index < (size_t)config->no_pingers; index++) {
 		if (health_init(
-			    &monitor->reflectors.health[index],
-			    &reflector_health_config,
+			    &reflectors->health[index],
+			    &reflectors->health_config,
 			    start_microseconds
 		    ) != 0) {
 			log_message(

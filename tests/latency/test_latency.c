@@ -37,6 +37,16 @@ int __wrap_access(const char *path, int mode)
 	return access_result;
 }
 
+/* A session as the monitor configures one, before a test changes its options. */
+static const struct latency_settings fping_settings = {
+	.pinger_method = PINGER_METHOD_FPING,
+	.interface = "lo",
+	.extra_arguments = "",
+	.prefix = "",
+	.reflector_ping_interval_microseconds = SECOND,
+	.irtt_session_duration_minutes = 10U,
+};
+
 /* Linux wait status encodings, as reported by waitpid() and uloop. */
 #define EXIT_STATUS(code) ((code) << 8)
 #define SIGNAL_STATUS(signal) (signal)
@@ -45,7 +55,7 @@ static void test_initial_state_is_closed(void)
 {
 	struct latency latency;
 
-	latency_init(&latency);
+	latency_init(&latency, &fping_settings);
 
 	assert(latency.children[0].output_descriptor == -1);
 	assert(latency.children[0].process_identifier == -1);
@@ -92,7 +102,7 @@ static void test_fping_lines_are_handled(void)
 	struct latency_sample sample;
 	char error[256] = "";
 
-	latency_init(&latency);
+	latency_init(&latency, &fping_settings);
 	latency.child_count = 1U;
 	assert(latency_handle_line(
 		       &latency,
@@ -147,7 +157,7 @@ static void test_exit_status_is_reported(void)
 	struct latency latency;
 	char error[256] = "";
 
-	latency_init(&latency);
+	latency_init(&latency, &fping_settings);
 	latency.active = true;
 	latency.child_count = 1U;
 	/* No process is signalled: exits are only reported here. */
@@ -163,61 +173,11 @@ static void test_exit_status_is_reported(void)
 	assert(strcmp(error, "fping terminated by signal 9") == 0);
 }
 
-static void test_invalid_target_is_rejected_before_starting_fping(void)
-{
-	struct latency latency;
-	const char *targets[] = { "not an endpoint" };
-	char error[256] = "";
-
-	latency_init(&latency);
-
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       targets,
-		       1U,
-		       1000000U,
-		       "",
-		       "",
-		       false,
-		       error,
-		       sizeof(error)
-	       ) != 0);
-	assert(latency.children[0].output_descriptor == -1);
-	assert(latency.children[0].process_identifier == -1);
-	assert(strlen(error) > 0U);
-}
-
-static void test_empty_target_list_is_rejected(void)
-{
-	struct latency latency;
-	char error[256] = "";
-
-	latency_init(&latency);
-	assert(latency_open(&latency, "lo", NULL, 0U, 1000000U, "", "", false, error, sizeof(error)) !=
-	       0);
-	assert(strstr(error, "at least one target") != NULL);
-	assert(!latency_is_open(&latency));
-}
-
-static void test_sub_millisecond_response_spacing_is_rejected(void)
-{
-	struct latency latency;
-	const char *targets[] = { "1.1.1.1", "9.9.9.9" };
-	char error[256] = "";
-
-	latency_init(&latency);
-	assert(latency_open(&latency, "lo", targets, 2U, 1999U, "", "", false, error, sizeof(error)) !=
-	       0);
-	assert(strstr(error, "at least 1 ms per target") != NULL);
-	assert(!latency_is_open(&latency));
-}
-
 static void test_close_is_idempotent(void)
 {
 	struct latency latency;
 
-	latency_init(&latency);
+	latency_init(&latency, &fping_settings);
 	latency_close(&latency);
 	latency_close(&latency);
 
@@ -231,7 +191,7 @@ static void test_close_releases_every_owned_descriptor(void)
 	int first[2];
 	int second[2];
 
-	latency_init(&latency);
+	latency_init(&latency, &fping_settings);
 	assert(pipe(first) == 0);
 	assert(pipe(second) == 0);
 	latency.children[0].output_descriptor = first[0];
@@ -254,9 +214,10 @@ static void test_irtt_lines_ignore_non_samples(void)
 	struct latency latency;
 	struct latency_sample sample;
 	char error[256] = "";
+	struct latency_settings settings = fping_settings;
 
-	latency_init(&latency);
-	latency.ops = &irtt_ops;
+	settings.pinger_method = PINGER_METHOD_IRTT;
+	latency_init(&latency, &settings);
 	latency.active = true;
 	latency.child_count = 1U;
 	latency.children[0].target = "9.9.9.9";
@@ -303,24 +264,15 @@ static uint64_t monotonic_milliseconds(void)
 static void open_long_running_child(struct latency *latency, const char *script)
 {
 	const char *targets[] = { "127.0.0.1" };
+	struct latency_settings settings = fping_settings;
 	char prefix[128];
 	char error[256] = "";
 
 	/* The fping arguments become the shell's positional parameters. */
 	(void)snprintf(prefix, sizeof(prefix), "/bin/sh -c '%s'", script);
-	latency_init(latency);
-	assert(latency_open(
-		       latency,
-		       "lo",
-		       targets,
-		       1U,
-		       1000000U,
-		       "",
-		       prefix,
-		       false,
-		       error,
-		       sizeof(error)
-	       ) == 0);
+	settings.prefix = prefix;
+	latency_init(latency, &settings);
+	assert(latency_open(latency, targets, 1U, 0U, error, sizeof(error)) == 0);
 	assert(latency_child_process(latency, 0U) > 0);
 }
 
@@ -392,35 +344,18 @@ static void test_pinger_arguments_reject_command_substitution(void)
 {
 	struct latency latency;
 	const char *targets[] = { "1.1.1.1" };
+	struct latency_settings settings = fping_settings;
 	char error[256] = "";
 
-	latency_init(&latency);
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       targets,
-		       1U,
-		       1000000U,
-		       "$(id)",
-		       "",
-		       false,
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	settings.extra_arguments = "$(id)";
+	latency_init(&latency, &settings);
+	assert(latency_open(&latency, targets, 1U, 0U, error, sizeof(error)) != 0);
 	assert(strstr(error, "ping_extra_args") != NULL);
 	assert(!latency_is_open(&latency));
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       targets,
-		       1U,
-		       1000000U,
-		       "",
-		       "'unterminated",
-		       false,
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	settings = fping_settings;
+	settings.prefix = "'unterminated";
+	latency_init(&latency, &settings);
+	assert(latency_open(&latency, targets, 1U, 0U, error, sizeof(error)) != 0);
 	assert(strstr(error, "ping_prefix_string") != NULL);
 	assert(!latency_is_open(&latency));
 }
@@ -441,52 +376,36 @@ static void test_failed_spawn_closes_pipe(void)
 {
 	struct latency latency;
 	const char *targets[] = { "127.0.0.1" };
+	struct latency_settings settings = fping_settings;
 	char error[256];
 	size_t descriptors = open_descriptor_count();
 
-	latency_init(&latency);
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       targets,
-		       1U,
-		       1000000U,
-		       "",
-		       "/nonexistent-cake-adapt-test/fping",
-		       false,
-		       error,
-		       sizeof(error)
-	       ) != 0);
+	settings.prefix = "/nonexistent-cake-adapt-test/fping";
+	latency_init(&latency, &settings);
+	assert(latency_open(&latency, targets, 1U, 0U, error, sizeof(error)) != 0);
 	assert(strstr(error, "could not start fping") != NULL);
 	assert(!latency_is_open(&latency));
 	assert(open_descriptor_count() == descriptors);
 }
 
 /* The printf prefix echoes the fping command line, one argument per line. */
-static void check_fping_arguments(bool icmp_timestamps, const char *expected)
+static void check_fping_arguments(const char *pinger_method, const char *expected)
 {
 	struct latency latency;
 	pid_t process_identifier;
 	const char *targets[] = { "1.1.1.1", "::1" };
+	struct latency_settings settings = fping_settings;
 	char error[256] = "";
 	char output[1024];
 	size_t length = 0U;
 	struct pollfd descriptor;
 
-	latency_init(&latency);
-	assert(latency_open(
-		       &latency,
-		       "lo",
-		       targets,
-		       2U,
-		       300000U,
-		       "-I 'lo2' -k 768",
-		       "/usr/bin/printf '%s\\n'",
-		       icmp_timestamps,
-		       error,
-		       sizeof(error)
-	       ) == 0);
-	assert(latency.ops == (icmp_timestamps ? &fping_ts_ops : &fping_ops));
+	settings.pinger_method = pinger_method;
+	settings.reflector_ping_interval_microseconds = 300000U;
+	settings.extra_arguments = "-I 'lo2' -k 768";
+	settings.prefix = "/usr/bin/printf '%s\\n'";
+	latency_init(&latency, &settings);
+	assert(latency_open(&latency, targets, 2U, 0U, error, sizeof(error)) == 0);
 	descriptor =
 		(struct pollfd){ .fd = latency.children[0].output_descriptor, .events = POLLIN };
 	for (;;) {
@@ -515,13 +434,13 @@ static void check_fping_arguments(bool icmp_timestamps, const char *expected)
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
 	check_fping_arguments(
-		false,
+		PINGER_METHOD_FPING,
 		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
 		"--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
 	);
 	/* Like cake-autorate's fping-ts, --icmp-timestamp follows --timeout. */
 	check_fping_arguments(
-		true,
+		PINGER_METHOD_FPING_TS,
 		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
 		"--period\n300\n--interval\n150\n--timeout\n10000\n--icmp-timestamp\n"
 		"1.1.1.1\n::1\n"
@@ -537,36 +456,31 @@ static void test_irtt_children_start_in_separate_slots(void)
 	pid_t second;
 	int status;
 	const char *targets[] = { "1.1.1.1", "2001:db8::1" };
+	struct latency_settings settings = fping_settings;
 	char error[256] = "";
 	char output[1024];
 	size_t length = 0U;
 	struct pollfd descriptor;
 
-	latency_init(&latency);
-	assert(latency_open_irtt(
-		       &latency,
-		       targets,
-		       2U,
-		       300U * MILLISECOND,
-		       10U,
-		       "--fill=rand",
-		       "/usr/bin/printf '%s\\n'",
-		       1000U,
-		       error,
-		       sizeof(error)
-	       ) == 0);
+	/* Opened at the slot origin, the first session starts one interval later. */
+	settings.pinger_method = PINGER_METHOD_IRTT;
+	settings.reflector_ping_interval_microseconds = 300U * MILLISECOND;
+	settings.extra_arguments = "--fill=rand";
+	settings.prefix = "/usr/bin/printf '%s\\n'";
+	latency_init(&latency, &settings);
+	assert(latency_open(&latency, targets, 2U, 0U, error, sizeof(error)) == 0);
 	assert(latency_is_open(&latency));
 	assert(latency_child_count(&latency) == 2U);
 	assert(latency_child_descriptor(&latency, 0U) == -1);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
 	assert(latency_irtt_start_pending(&latency));
-	assert(latency_start_irtt_children(&latency, 999U, error, sizeof(error)) == 0);
+	assert(latency_start_irtt_children(&latency, 299999U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 0U) == -1);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
-	assert(latency_start_irtt_children(&latency, 1000U, error, sizeof(error)) == 0);
+	assert(latency_start_irtt_children(&latency, 300000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 0U) >= 0);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
-	assert(latency_irtt_next_start_microseconds(&latency) == 151000U);
+	assert(latency_irtt_next_start_microseconds(&latency) == 450000U);
 
 	descriptor =
 		(struct pollfd){ .fd = latency_child_descriptor(&latency, 0U), .events = POLLIN };
@@ -585,7 +499,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 		      "/usr/bin/irtt\nclient\n--fill=rand\n-i\n0.300000s\n"
 		      "-d\n10m\n1.1.1.1\n") == 0);
 
-	assert(latency_start_irtt_children(&latency, 151000U, error, sizeof(error)) == 0);
+	assert(latency_start_irtt_children(&latency, 450000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 1U) >= 0);
 	assert(!latency_irtt_start_pending(&latency));
 	/* A finished session is reaped and restarted without stopping the others. */
@@ -643,9 +557,6 @@ int main(void)
 	test_output_is_split_into_lines();
 	test_fping_lines_are_handled();
 	test_exit_status_is_reported();
-	test_invalid_target_is_rejected_before_starting_fping();
-	test_empty_target_list_is_rejected();
-	test_sub_millisecond_response_spacing_is_rejected();
 	test_close_is_idempotent();
 	test_close_releases_every_owned_descriptor();
 	test_irtt_lines_ignore_non_samples();

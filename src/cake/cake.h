@@ -9,10 +9,8 @@
 #include <stdint.h>
 
 struct cake_observation {
-	/* Cached while CAKE is found; zero makes the next read resolve the name. */
-	unsigned int interface_index;
-	uint32_t handle;
-	uint32_t parent;
+	/* Its interface index is cached while CAKE is found; zero resolves the name again. */
+	struct qdisc_id qdisc;
 	uint64_t bandwidth_bits_per_second;
 	uint64_t bytes;
 	uint32_t mtu_bytes;
@@ -37,23 +35,14 @@ struct cake_read {
 	struct cake_observation *observation;
 	enum cake_read_result result;
 	char error[ERROR_SIZE];
-	/* Working state owned by cake_read_all(). */
+	/* Working state owned by cake_read(). */
 	struct cake_observation previous;
 	unsigned int interface_index;
 	bool found;
 };
 
 /* Fills every read from a single qdisc dump. */
-void cake_read_all(struct netlink *netlink, struct cake_read *reads, size_t count);
-
-/* Pass the previous observation (or zeroes) to reuse its index and MTU. */
-enum cake_read_result cake_read(
-	struct netlink *netlink,
-	const char *interface,
-	struct cake_observation *observation,
-	char *error,
-	size_t error_size
-);
+void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count);
 
 /* The observation must come from a successful cake_read(). */
 int cake_set_bandwidth(

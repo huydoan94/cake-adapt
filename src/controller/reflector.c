@@ -2,7 +2,6 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,17 +11,10 @@ int health_init(
 	uint64_t start_microseconds
 )
 {
-	if (health == NULL || config == NULL || config->detection_window == 0U ||
-	    config->detection_threshold == 0U ||
-	    config->detection_threshold > config->detection_window) {
-		errno = EINVAL;
-		return -1;
-	}
-
 	health->offences = calloc(config->detection_window, sizeof(*health->offences));
 	if (health->offences == NULL)
 		return -1;
-	health->config = *config;
+	health->config = config;
 	health->last_response_microseconds = start_microseconds;
 	health->offence_index = 0U;
 	health->offence_count = 0U;
@@ -39,7 +31,7 @@ void health_cleanup(struct reflector_health *health)
 
 void health_reset(struct reflector_health *health, uint64_t start_microseconds)
 {
-	memset(health->offences, 0, health->config.detection_window * sizeof(*health->offences));
+	memset(health->offences, 0, health->config->detection_window * sizeof(*health->offences));
 	health->last_response_microseconds = start_microseconds;
 	health->offence_index = 0U;
 	health->offence_count = 0U;
@@ -56,7 +48,7 @@ health_check(struct reflector_health *health, uint64_t timestamp_microseconds)
 	bool offence = interval_elapsed(
 		timestamp_microseconds,
 		health->last_response_microseconds,
-		health->config.response_deadline_microseconds
+		health->config->response_deadline_microseconds
 	);
 
 	if (health->offences[health->offence_index] != 0U)
@@ -65,10 +57,10 @@ health_check(struct reflector_health *health, uint64_t timestamp_microseconds)
 	if (offence)
 		health->offence_count++;
 	health->offence_index++;
-	if (health->offence_index == health->config.detection_window)
+	if (health->offence_index == health->config->detection_window)
 		health->offence_index = 0U;
 
-	if (health->offence_count >= health->config.detection_threshold)
+	if (health->offence_count >= health->config->detection_threshold)
 		return REFLECTOR_MISBEHAVING;
 	return offence ? REFLECTOR_OFFENCE : REFLECTOR_HEALTHY;
 }

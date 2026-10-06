@@ -88,9 +88,12 @@ static void test_response(bool interrupted, bool complete)
 	netlink_close(&netlink);
 }
 
-static void record_event(const struct qdisc_event *event, void *context)
+static struct qdisc_event received;
+
+static void record_event(struct netlink *netlink, const struct qdisc_event *event)
 {
-	*(struct qdisc_event *)context = *event;
+	(void)netlink;
+	received = *event;
 }
 
 static void test_request(const char *request, bool fail_send)
@@ -118,11 +121,7 @@ static void test_request(const char *request, bool fail_send)
 
 static void test_qdisc_events(void)
 {
-	struct qdisc_event received = { 0 };
-	struct netlink netlink = {
-		.event_handler = record_event,
-		.event_handler_context = &received,
-	};
+	struct netlink netlink = { .qdisc_event = record_event };
 	struct tcmsg tc = { .tcm_ifindex = 7, .tcm_handle = 0x10000, .tcm_parent = TC_H_ROOT };
 	struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
 
@@ -130,25 +129,25 @@ static void test_qdisc_events(void)
 	/* Reject truncated kernel payloads before invoking the event handler. */
 	assert(handle_qdisc_event(message, &netlink) == NL_OK);
 	assert(netlink.event_parse_failed);
-	assert(received.interface_index == 0U);
+	assert(received.qdisc.interface_index == 0U);
 	netlink.event_parse_failed = false;
 
 	assert(nlmsg_append(message, &tc, sizeof(tc), NLMSG_ALIGNTO) == 0);
 	assert(handle_qdisc_event(message, &netlink) == NL_OK);
 	assert(!netlink.event_parse_failed);
 	assert(received.type == QDISC_CREATED);
-	assert(received.interface_index == 7U);
-	assert(received.handle == tc.tcm_handle);
-	assert(received.parent == TC_H_ROOT);
+	assert(received.qdisc.interface_index == 7U);
+	assert(received.qdisc.handle == tc.tcm_handle);
+	assert(received.qdisc.parent == TC_H_ROOT);
 
 	nlmsg_hdr(message)->nlmsg_type = RTM_DELQDISC;
 	assert(handle_qdisc_event(message, &netlink) == NL_OK);
 	assert(received.type == QDISC_REMOVED);
 
 	nlmsg_hdr(message)->nlmsg_type = RTM_NEWLINK;
-	received.interface_index = 0U;
+	received.qdisc.interface_index = 0U;
 	assert(handle_qdisc_event(message, &netlink) == NL_OK);
-	assert(received.interface_index == 0U);
+	assert(received.qdisc.interface_index == 0U);
 	assert(!netlink.event_parse_failed);
 	nlmsg_free(message);
 }

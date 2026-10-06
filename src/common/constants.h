@@ -70,6 +70,8 @@
 #define STATE_UNCHANGED "unchanged"
 #define STATE_UNKNOWN "unknown"
 #define STATE_UNLIMITED "unlimited"
+#define STATE_UNAVAILABLE "unavailable"
+#define STATE_VALID "valid"
 #define STATUS_DISABLED "disabled"
 #define STATUS_ENABLED "enabled"
 
