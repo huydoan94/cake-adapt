@@ -33,6 +33,8 @@ struct config;
 #define QUEUE_SHARE_DIVISOR 4
 /* Upload kept free beyond other traffic's use, so its growth shows (percent). */
 #define UPLOAD_ACK_HEADROOM_PERCENT 5U
+/* MEMORY records: a week is about 60,000 lines, and a leak shows within minutes. */
+#define MEMORY_SAMPLE_INTERVAL_MICROSECONDS (10U * SECOND)
 
 /* TCP-timestamp queue estimation. */
 /* Result windows; a result covers the current and the previous one. */

@@ -5,6 +5,7 @@
 
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "config/defaults.h"
 #include "logging/log.h"
 #include "platform/memory.h"
 
@@ -15,9 +16,6 @@
 #include <limits.h>
 #include <signal.h>
 #include <string.h>
-
-/* A week of samples is about 60,000 lines; a leak shows within minutes. */
-#define MEMORY_SAMPLE_INTERVAL_MICROSECONDS (10U * SECOND)
 
 static void update_activity(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
