@@ -1,6 +1,6 @@
 # cake-adapt current-code flowcharts
 
-[View the rendered flowchart viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html),
+[View the rendered flowchart viewer](https://raw.githack.com/huydoan94/cake-adapt/further-integration/flowchart/index.html),
 or open `index.html` locally. The viewer contains 16 linked diagrams and works
 without a build step. The hosted link reads the `main` branch, so it shows the
 latest version pushed to GitHub.
