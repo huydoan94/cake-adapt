@@ -2,7 +2,8 @@
 
 Status: ✓ The selected protocol, implementation, focused host checks, replay,
 sanitizers, packaged-object instruction inspection and existing x86/Filogic
-package builds pass. Kernel verification, remaining architecture coverage and
+package builds pass. ✓ The i386 minimal preflight passes 10 assertions with
+actual JIT execution. Full kernel cases, remaining architecture coverage and
 runtime/cost acceptance are pending. This records the implementation selected
 for the [work orders](TUPLE_LIFETIME_WORK_ORDERS.md). The one-time implementation
 pass has ended; it does not establish support or readiness. The detailed
@@ -226,8 +227,9 @@ Availability on every selected SDK is still a matrix task. The common algorithm
 uses ordinary hash/LRU/per-CPU-array/ring helpers and no CPU-family branches;
 this alone is not evidence that every target kernel enables them or JITs the
 resulting instructions. Big-endian transfer, remaining native ABIs, actual kernel
-paths and cost remain open. Historical x86 kernel 6.12.108 is not a live refresh,
-and the available arm64 emulator supplies functional coverage only.
+paths and cost remain open. ✓ The bounded x86 preflight refreshed kernel 6.12.108 and confirmed actual
+JIT execution; it does not close full kernel/lifetime acceptance. The available
+arm64 emulator supplies functional coverage only, and has not run this filter.
 
 ## Host verification at the end of implementation
 
