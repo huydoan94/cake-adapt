@@ -27,6 +27,8 @@
 
 static bool log_to_stdout;
 static bool log_to_syslog;
+/* Warnings and errors are also written to stderr, for an interactive check. */
+static bool problems_to_stderr;
 static bool debug_to_syslog;
 static FILE *log_file;
 static char log_path[LOG_PATH_SIZE];
@@ -390,6 +392,7 @@ void log_init(const char *identifier, bool foreground)
 	log_to_stdout = foreground;
 	log_to_syslog = !foreground;
 	debug_to_syslog = false;
+	problems_to_stderr = false;
 
 	if (log_to_syslog)
 		openlog(identifier, LOG_PID | LOG_NDELAY, LOG_DAEMON);
@@ -469,6 +472,11 @@ void log_set_level(enum log_level level)
 void log_set_debug_syslog(bool enabled)
 {
 	debug_to_syslog = enabled;
+}
+
+void log_problems_to_stderr(void)
+{
+	problems_to_stderr = true;
 }
 
 void log_print_headers(const struct log_records *records)
@@ -781,6 +789,7 @@ void log_message(enum log_level level, const char *format, ...)
 	va_list arguments;
 	uint64_t timestamp_microseconds;
 	bool send_syslog;
+	bool send_stderr;
 
 	if (level > minimum_log_level)
 		return;
@@ -788,7 +797,9 @@ void log_message(enum log_level level, const char *format, ...)
 		level = LOG_LEVEL_ERROR;
 	send_syslog = log_to_syslog &&
 		      (level <= LOG_LEVEL_WARNING || (level == LOG_LEVEL_DEBUG && debug_to_syslog));
-	if (!send_syslog && !log_to_stdout && log_file == NULL)
+	/* In the foreground the message already reaches the terminal on stdout. */
+	send_stderr = problems_to_stderr && !log_to_stdout && level <= LOG_LEVEL_WARNING;
+	if (!send_syslog && !send_stderr && !log_to_stdout && log_file == NULL)
 		return;
 
 	va_start(arguments, format);
@@ -803,6 +814,8 @@ void log_message(enum log_level level, const char *format, ...)
 			timestamp_microseconds,
 			message
 		);
+	if (send_stderr)
+		(void)fprintf(stderr, "%s: %s\n", levels[level].record, message);
 	if (log_to_stdout || log_file != NULL)
 		write_record_at(levels[level].record, message, timestamp_microseconds);
 }
