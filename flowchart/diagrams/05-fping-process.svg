@@ -13,8 +13,8 @@
 <!-- watch -->
 <g id="node1" class="node">
 <title>watch</title>
-<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="162.62" cy="-806.02" rx="63.54" ry="18.5"/>
-<text xml:space="preserve" text-anchor="middle" x="162.62" y="-802.72" font-family="Arial" font-size="11.00">watch_latency</text>
+<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="162.62" cy="-806.02" rx="64.41" ry="18.5"/>
+<text xml:space="preserve" text-anchor="middle" x="162.62" y="-802.72" font-family="Arial" font-size="11.00">pingers_watch</text>
 </g>
 <!-- ready -->
 <g id="node2" class="node">
@@ -62,7 +62,7 @@
 <g id="node5" class="node">
 <title>fping</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M283.55,-519.28C283.55,-519.28 143.7,-519.28 143.7,-519.28 137.7,-519.28 131.7,-513.28 131.7,-507.28 131.7,-507.28 131.7,-491.92 131.7,-491.92 131.7,-485.92 137.7,-479.92 143.7,-479.92 143.7,-479.92 283.55,-479.92 283.55,-479.92 289.55,-479.92 295.55,-485.92 295.55,-491.92 295.55,-491.92 295.55,-507.28 295.55,-507.28 295.55,-513.28 289.55,-519.28 283.55,-519.28"/>
-<text xml:space="preserve" text-anchor="middle" x="213.62" y="-502.9" font-family="Arial" font-size="11.00">latency_open</text>
+<text xml:space="preserve" text-anchor="middle" x="213.62" y="-502.9" font-family="Arial" font-size="11.00">fping_open</text>
 <text xml:space="preserve" text-anchor="middle" x="213.62" y="-489.7" font-family="Arial" font-size="11.00">one fping for all active targets</text>
 </g>
 <!-- method&#45;&gt;fping -->
@@ -76,7 +76,7 @@
 <g id="node6" class="node">
 <title>irtt</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M456.29,-525.88C456.29,-525.88 332.95,-525.88 332.95,-525.88 326.95,-525.88 320.95,-519.88 320.95,-513.88 320.95,-513.88 320.95,-485.32 320.95,-485.32 320.95,-479.32 326.95,-473.32 332.95,-473.32 332.95,-473.32 456.29,-473.32 456.29,-473.32 462.29,-473.32 468.29,-479.32 468.29,-485.32 468.29,-485.32 468.29,-513.88 468.29,-513.88 468.29,-519.88 462.29,-525.88 456.29,-525.88"/>
-<text xml:space="preserve" text-anchor="middle" x="394.62" y="-509.5" font-family="Arial" font-size="11.00">latency_open_irtt</text>
+<text xml:space="preserve" text-anchor="middle" x="394.62" y="-509.5" font-family="Arial" font-size="11.00">irtt_open</text>
 <text xml:space="preserve" text-anchor="middle" x="394.62" y="-496.3" font-family="Arial" font-size="11.00">one irtt per target,</text>
 <text xml:space="preserve" text-anchor="middle" x="394.62" y="-483.1" font-family="Arial" font-size="11.00">starts aligned to ping slots</text>
 </g>

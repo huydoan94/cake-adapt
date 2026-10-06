@@ -12,7 +12,7 @@ digraph G {
   match [label="FOUND ∧ bandwidth == desired?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   mismatch [label="warning: verification failed\n(error or readback mismatch)",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   ok [label="observation = verified state",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
-  comp [label="update_serialization_compensation\nSUMMARY / DATA records",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  comp [label="control_update_compensation\nSUMMARY / DATA records",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   start -> shaper;
   shaper -> valid;
   valid -> fail [label="no"];

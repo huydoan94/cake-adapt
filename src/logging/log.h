@@ -10,118 +10,129 @@
 #define LOG_PATH_SIZE 512U
 #define LOG_DATETIME_SIZE 20U
 #define LOG_EXPORT_PATH_SIZE \
-    (LOG_PATH_SIZE + LOG_DATETIME_SIZE + sizeof(LOG_EXTENSION) + sizeof(GZIP_EXTENSION))
+	(LOG_PATH_SIZE + LOG_DATETIME_SIZE + sizeof(LOG_EXTENSION) + sizeof(GZIP_EXTENSION))
 
 enum log_level {
-    LOG_LEVEL_ERROR,
-    LOG_LEVEL_WARNING,
-    LOG_LEVEL_NOTICE,
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_DEBUG
+	LOG_LEVEL_ERROR,
+	LOG_LEVEL_WARNING,
+	LOG_LEVEL_NOTICE,
+	LOG_LEVEL_INFO,
+	LOG_LEVEL_DEBUG
 };
 
 struct log_load_record {
-    uint64_t download_achieved_rate_kbps;
-    uint64_t upload_achieved_rate_kbps;
-    uint64_t cake_download_rate_kbps;
-    uint64_t cake_upload_rate_kbps;
+	uint64_t download_achieved_rate_kbps;
+	uint64_t upload_achieved_rate_kbps;
+	uint64_t cake_download_rate_kbps;
+	uint64_t cake_upload_rate_kbps;
 };
 
 struct log_data_record {
-    uint64_t download_achieved_rate_kbps;
-    uint64_t upload_achieved_rate_kbps;
-    unsigned int download_load_percent;
-    unsigned int upload_load_percent;
-    /* The pinger's timestamp token, verbatim. */
-    const char *icmp_timestamp;
-    const char *reflector;
-    uint64_t sequence;
-    int64_t download_owd_baseline_microseconds;
-    int64_t download_owd_microseconds;
-    int64_t download_owd_delta_ewma_microseconds;
-    int64_t download_owd_delta_microseconds;
-    uint64_t download_adjust_delay_threshold_microseconds;
-    int64_t upload_owd_baseline_microseconds;
-    int64_t upload_owd_microseconds;
-    int64_t upload_owd_delta_ewma_microseconds;
-    int64_t upload_owd_delta_microseconds;
-    uint64_t upload_adjust_delay_threshold_microseconds;
-    unsigned int download_sum_delays;
-    int64_t download_average_owd_delta_microseconds;
-    uint64_t download_maximum_adjust_up_threshold_microseconds;
-    uint64_t download_maximum_adjust_down_threshold_microseconds;
-    unsigned int upload_sum_delays;
-    int64_t upload_average_owd_delta_microseconds;
-    uint64_t upload_maximum_adjust_up_threshold_microseconds;
-    uint64_t upload_maximum_adjust_down_threshold_microseconds;
-    const char *download_load_condition;
-    const char *upload_load_condition;
-    uint64_t cake_download_rate_kbps;
-    uint64_t cake_upload_rate_kbps;
+	uint64_t download_achieved_rate_kbps;
+	uint64_t upload_achieved_rate_kbps;
+	unsigned int download_load_percent;
+	unsigned int upload_load_percent;
+	/* The pinger's timestamp token, verbatim. */
+	const char *icmp_timestamp;
+	const char *reflector;
+	uint64_t sequence;
+	int64_t download_owd_baseline_microseconds;
+	int64_t download_owd_microseconds;
+	int64_t download_owd_delta_ewma_microseconds;
+	int64_t download_owd_delta_microseconds;
+	uint64_t download_adjust_delay_threshold_microseconds;
+	int64_t upload_owd_baseline_microseconds;
+	int64_t upload_owd_microseconds;
+	int64_t upload_owd_delta_ewma_microseconds;
+	int64_t upload_owd_delta_microseconds;
+	uint64_t upload_adjust_delay_threshold_microseconds;
+	unsigned int download_sum_delays;
+	int64_t download_average_owd_delta_microseconds;
+	uint64_t download_maximum_adjust_up_threshold_microseconds;
+	uint64_t download_maximum_adjust_down_threshold_microseconds;
+	unsigned int upload_sum_delays;
+	int64_t upload_average_owd_delta_microseconds;
+	uint64_t upload_maximum_adjust_up_threshold_microseconds;
+	uint64_t upload_maximum_adjust_down_threshold_microseconds;
+	const char *download_load_condition;
+	const char *upload_load_condition;
+	uint64_t cake_download_rate_kbps;
+	uint64_t cake_upload_rate_kbps;
 };
 
 struct log_summary_record {
-    uint64_t download_achieved_rate_kbps;
-    uint64_t upload_achieved_rate_kbps;
-    unsigned int download_sum_delays;
-    unsigned int upload_sum_delays;
-    int64_t download_average_owd_delta_microseconds;
-    int64_t upload_average_owd_delta_microseconds;
-    const char *download_load_condition;
-    const char *upload_load_condition;
-    uint64_t cake_download_rate_kbps;
-    uint64_t cake_upload_rate_kbps;
+	uint64_t download_achieved_rate_kbps;
+	uint64_t upload_achieved_rate_kbps;
+	unsigned int download_sum_delays;
+	unsigned int upload_sum_delays;
+	int64_t download_average_owd_delta_microseconds;
+	int64_t upload_average_owd_delta_microseconds;
+	const char *download_load_condition;
+	const char *upload_load_condition;
+	uint64_t cake_download_rate_kbps;
+	uint64_t cake_upload_rate_kbps;
 };
 
 struct log_reflector_record {
-    const char *reflector;
-    int64_t minimum_sum_owd_baselines_microseconds;
-    int64_t sum_owd_baselines_microseconds;
-    uint64_t sum_owd_baselines_delta_microseconds;
-    uint64_t sum_owd_baselines_delta_threshold_microseconds;
-    int64_t minimum_download_delta_ewma_microseconds;
-    int64_t download_delta_ewma_microseconds;
-    int64_t download_delta_ewma_delta_microseconds;
-    uint64_t delta_ewma_delta_threshold_microseconds;
-    int64_t minimum_upload_delta_ewma_microseconds;
-    int64_t upload_delta_ewma_microseconds;
-    int64_t upload_delta_ewma_delta_microseconds;
+	const char *reflector;
+	int64_t minimum_sum_owd_baselines_microseconds;
+	int64_t sum_owd_baselines_microseconds;
+	uint64_t sum_owd_baselines_delta_microseconds;
+	uint64_t sum_owd_baselines_delta_threshold_microseconds;
+	int64_t minimum_download_delta_ewma_microseconds;
+	int64_t download_delta_ewma_microseconds;
+	int64_t download_delta_ewma_delta_microseconds;
+	uint64_t delta_ewma_delta_threshold_microseconds;
+	int64_t minimum_upload_delta_ewma_microseconds;
+	int64_t upload_delta_ewma_microseconds;
+	int64_t upload_delta_ewma_delta_microseconds;
 };
 
-void log_init(
-    const char *identifier,
-    bool foreground
-);
+void log_init(const char *identifier, bool foreground);
 
 void log_close(void);
 
-int log_set_file(
-    const char *path,
-    uint64_t maximum_time_minutes,
-    uint64_t maximum_size_kilobytes,
-    uint64_t buffer_timeout_microseconds,
-    bool compress_exports
-);
+/* Rotation, buffering and export of the detailed log file; zero disables a limit. */
+struct log_file_settings {
+	uint64_t maximum_time_minutes;
+	uint64_t maximum_size_kilobytes;
+	uint64_t buffer_timeout_microseconds;
+	bool compress_exports;
+};
+
+int log_set_file(const char *path, const struct log_file_settings *settings);
 
 void log_set_level(enum log_level level);
 
 void log_tick(void);
 
-int log_export_file(
-    char *export_path,
-    size_t export_path_size
-);
+int log_export_file(char *export_path, size_t export_path_size);
 
 int log_reset_file(void);
 
 void log_set_debug_syslog(bool enabled);
 
-void log_print_headers(
-    bool output_processing_stats,
-    bool output_load_stats,
-    bool output_reflector_stats,
-    bool output_summary_stats
-);
+/* The record types written to the log file; their headers start every rotated file. */
+struct log_records {
+	bool data;
+	bool load;
+	bool reflector;
+	bool summary;
+	/* cake-adapt only: per-direction queues measured from TCP timestamps. */
+	bool tcp_queue;
+};
+
+void log_print_headers(const struct log_records *records);
+
+/* cake-adapt only: per-direction queues measured from TCP timestamps. */
+struct log_tcp_queue_record {
+	bool download_valid;
+	bool upload_valid;
+	int64_t download_queue_microseconds;
+	int64_t upload_queue_microseconds;
+};
+
+void log_tcp_queue(const struct log_tcp_queue_record *record);
 
 void log_load(const struct log_load_record *record);
 
@@ -132,32 +143,20 @@ void log_summary(const struct log_summary_record *record);
 void log_reflector(const struct log_reflector_record *record);
 
 void log_print_cpu_headers(
-    const struct cpu_sample *sample,
-    bool output_cpu_stats,
-    bool output_cpu_raw_stats
+	const struct cpu_sample *sample,
+	bool output_cpu_stats,
+	bool output_cpu_raw_stats
 );
 
-void log_cpu(
-    const struct cpu_sample *sample,
-    const unsigned int *usage
-);
+void log_cpu(const struct cpu_sample *sample, const unsigned int *usage);
 
 void log_cpu_raw(const struct cpu_sample *sample);
 
-void log_shaper(
-    const char *interface,
-    uint64_t rate_kbps
-);
+void log_shaper(const char *interface, uint64_t rate_kbps);
 
-void log_system_message(
-    const char *format,
-    ...
-) __attribute__((format(printf, 1, 2)));
+void log_system_message(const char *format, ...) __attribute__((format(printf, 1, 2)));
 
-void log_message(
-    enum log_level level,
-    const char *format,
-    ...
-) __attribute__((format(printf, 2, 3)));
+void log_message(enum log_level level, const char *format, ...)
+	__attribute__((format(printf, 2, 3)));
 
 #endif

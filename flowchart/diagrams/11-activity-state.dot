@@ -11,7 +11,7 @@ digraph G {
   timer [label="idle for > sustained_idle_sleep_thr?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   idle [label="IDLE\noptional minimum rates;\nclose_latency",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   wake [label="either rate > active_thr?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  resume [label="RUNNING after IDLE:\ngrant pinger grace; watch_latency",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  resume [label="RUNNING after IDLE:\ngrant pinger grace; pingers_watch",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   recover [label="response age ≤ stall timeout\n∨ both rates > stall_thr?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   global [label="response age ≥ global timeout?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   warn [label="warning once; optional minimum\nrates; restart pingers once\nper timeout period",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
