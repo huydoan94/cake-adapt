@@ -530,31 +530,30 @@ void controller_update(
 					 controller->config.high_load_threshold_percent ||
 				 download_delivery >= FULL_DELIVERY_PERCENT;
 
-	/* TCP queue shares refine attribution only when they agree with delivery. */
+	/*
+	 * Measured per-direction queues replace the heuristic, unless they are too
+	 * small to explain the shared delay, which then arose outside the paths
+	 * TCP observes.
+	 */
 	if (controller->config.shared_delay && queue->valid &&
 	    queue->download_microseconds + queue->upload_microseconds >=
 		    QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS) {
 		int64_t total = queue->download_microseconds + queue->upload_microseconds;
-		bool measured_download = queue->download_microseconds * QUEUE_SHARE_DIVISOR >=
-					 total;
-		bool measured_upload = queue->upload_microseconds * QUEUE_SHARE_DIVISOR >= total;
 
-		/* Conflicting direction classifications fall back to the delivery heuristic. */
-		if (measured_download == download_attributed &&
-		    measured_upload == upload_attributed) {
-			/*
-			 * Split the round-trip delta by the measured shares instead of RTT/2
-			 * each way, so a one-sided queue counts at its full size.
-			 */
-			if (download_latency.valid && upload_latency.valid) {
-				int64_t round_trip = download_latency.owd_delta_microseconds +
-						     upload_latency.owd_delta_microseconds;
+		download_attributed = queue->download_microseconds * QUEUE_SHARE_DIVISOR >= total;
+		upload_attributed = queue->upload_microseconds * QUEUE_SHARE_DIVISOR >= total;
+		/*
+		 * Split the round-trip delta by the measured shares instead of RTT/2
+		 * each way, so a one-sided queue counts at its full size.
+		 */
+		if (download_latency.valid && upload_latency.valid) {
+			int64_t round_trip = download_latency.owd_delta_microseconds +
+					     upload_latency.owd_delta_microseconds;
 
-				download_latency.owd_delta_microseconds =
-					round_trip * queue->download_microseconds / total;
-				upload_latency.owd_delta_microseconds =
-					round_trip - download_latency.owd_delta_microseconds;
-			}
+			download_latency.owd_delta_microseconds =
+				round_trip * queue->download_microseconds / total;
+			upload_latency.owd_delta_microseconds =
+				round_trip - download_latency.owd_delta_microseconds;
 		}
 	}
 

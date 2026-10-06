@@ -1,19 +1,20 @@
 # eBPF TCP-delay review
 
-**2026-10-05: portable tuple-lifetime implementation host-tested; target acceptance pending.**
-The user authorized one implementation pass with unit-test authoring and
-execution deferred until the end. The
-[selected lifetime-stream design](TUPLE_LIFETIME_DESIGN.md) moves authoritative
-lifetime and departure ownership to one userspace writer. BPF publishes raw
-lifecycle/timing records and persistent loss evidence; it uses no lifetime
-atomics or CPU-family-specific synchronization. Capture uncertainty withdraws
-timing confidence while ACK accounting continues. Source implementation, bounded
-review, focused host units and native sanitizer checks pass; the unchanged replay
-matches all 4,703 decisions. No new package build, actual BPF instruction check,
-kernel verification, VM or performance result is established. Finding 2 remains
-open pending the work-order acceptance gates.
+**2026-10-05 (evening): agreement guard and lifetime stream reverted.** A
+three-repetition VM check ([evidence](profiling/2026-10-05-gpt-work-check/README.md))
+found that requiring TCP queue shares to agree with the delivery heuristic
+caused the failed ACK/control comparison: mixed-load download fell from about
+20 to 11-12 Mbit/s and upload-only p95 rose from about 64 to 97-101 ms, because
+under upload bufferbloat with download busy the heuristic blames download and
+the guard discarded the TCP evidence. Reverting only the guard restored the
+earlier results, so the controller is back to its `518df81` form. The
+tuple-lifetime stream (`885f7d9`) measured neutral at 49-64% more filter time
+per packet for a rare case (a reused tuple only removes that flow's estimate)
+and was reverted at the user's request; its design, tools and unfinished work
+are archived in [its evidence directory](profiling/2026-10-05-tcp-lifetime-stream/README.md).
+The ACK accounting and the HOLD/FOLLOW floor policy remain.
 
-**Earlier 2026-10-05 attempt: full tuple-lifetime implementation deferred and reverted.**
+**2026-10-05: full tuple-lifetime implementation deferred and reverted.**
 The uncommitted generation-handling implementation and its tests were restored
 to the current committed baseline at the user's request. Phase 1's committed
 accepted-sample freshness fix remains. The candidate's atomic instructions are
@@ -31,16 +32,16 @@ spin-lock helpers are unavailable to this socket-filter program type. Safely
 handling lost reset evidence requires a larger protocol change, so the existing
 scope stop condition was honored. No production changes or VM runs followed.
 
-The [tuple-lifetime work orders](TUPLE_LIFETIME_WORK_ORDERS.md) now define the
+The [tuple-lifetime work orders](profiling/2026-10-05-tcp-lifetime-stream/design/TUPLE_LIFETIME_WORK_ORDERS.md) now define the
 problem, portable design requirements, dependent tasks and acceptance gates.
 They require common behavior across OpenWrt architectures, including 32/64-bit
-and both byte orders. The selected design and current source work supersede the
-earlier planning-only status; architecture and runtime acceptance remain pending.
+and both byte orders. They are planning work; no redesign is selected or started.
 
 **2026-10-05: standing-floor and conflicting ACK-delay mitigations implemented.**
 Fresh clear fping permits rolling floor adaptation; congestion or unavailable
 independent observations hold the retained minimum. TCP direction classifications
-must agree with delivery attribution before they split RTT. Host and target
+had to agree with delivery attribution before they split RTT; that guard was
+reverted the same evening (see the top of this document). Host and target
 regressions pass, and a bounded observation-only VM comparison verifies baseline
 retention and recovery. See the
 [before/after evidence](profiling/2026-10-05-tcp-confidence/README.md).
@@ -565,15 +566,12 @@ latency and the normal congestion conditions. It does demonstrate false
 directional evidence. If an unrelated download queue raises fping RTT at the
 same time, that RTT can be incorrectly assigned to upload.
 
-The controller now uses measured queue shares only when both quarter-share
-classifications agree with the existing download-delivery heuristic. If the
-direction classifications contradict, it keeps RTT/2 and delivery attribution,
-so a false 0/40-ms pair cannot move an independently detected download cut to
-upload. Agreement permits the measured ratio to split RTT; it does not prove
-that the ratio reflects link queues. Sustained delayed-ACK evidence that agrees
-with the heuristic remains ambiguous and can still affect the split. The
-deterministic fallback regression passes on the host and x86 target. Live
-receiver-wait identification and control-throughput effects remain unverified.
+A guard that used measured queue shares only when they agreed with the
+download-delivery heuristic was added on 2026-10-05 and reverted the same
+evening: it also discarded correct TCP evidence whenever the heuristic was
+wrong, which is the case the extension exists for, and it caused the measured
+control regression. A sustained change in remote reply timing can therefore
+still misattribute delay; it remains an open, uncommon case.
 
 ## 6. Finding: ACK-byte accounting is not CAKE bandwidth accounting
 
@@ -824,8 +822,8 @@ This was the original proposed order. Fix 1 above implements the scoped
 new-flow aggregation change and its regression tests. Sections 4 and 5 retain
 the original failure characterizations; production now adds a HOLD/FOLLOW
 baseline policy and falls back to delivery attribution when measured queue
-shares disagree with that heuristic. Host/target tests cover those bounded
-mitigations, and the observation-only VM batch verifies floor retention and
+shares disagree with that heuristic; that guard was reverted (see the top of
+this document). Host/target tests cover those bounded mitigations, and the observation-only VM batch verifies floor retention and
 recovery. ACK counters now use the upload CAKE's charge within documented
 non-GSO coverage; the bounded kernel comparison verifies the supported charge
 models and all planned conservative fallback/disabled cases. Full tuple-lifetime
@@ -840,8 +838,9 @@ acceptance despite valid measurements and complete restoration.
    fallback heuristic. These tests establish synthetic behavior only; full
    tuple-lifetime handling remains deferred and open.
 2. **Define measurement confidence before rate policy.** The implemented
-   confidence rules use fresh fping evidence to select baseline policy and
-   require queue shares to agree with delivery attribution. Do not assume a
+   confidence rules use fresh fping evidence to select baseline policy; the
+   requirement that queue shares agree with delivery attribution was reverted.
+   Do not assume a
    zero proves absence of congestion; the bounded runtime batch verifies floor
    integration, with deployment-specific confidence limits remaining.
 3. **Repair flow lifetime and aggregation together with focused tests.** Bound
