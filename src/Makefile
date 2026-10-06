@@ -76,7 +76,7 @@ $(OBJECT_DIR)/tcpdelay/capture.o: OBJECT_CFLAGS := $(LIBBPF_CFLAGS)
 # Kernel BPF objects carry BTF for libbpf, but not the DWARF debug sections.
 $(BPF_OBJECT): tcpdelay/tcpdelay.bpf.c
 	@mkdir -p $(@D)
-	$(BPF_CLANG) -O2 -g -target $(BPF_TARGET) -I$(CURDIR) $(BPF_INCLUDES) -Wall -Wextra -Werror -MMD -MP -c -o $@ $<
+	$(BPF_CLANG) -O2 -g -target $(BPF_TARGET) -I$(CURDIR) -I$(CURDIR)/tcpdelay/include $(BPF_INCLUDES) -Wall -Wextra -Werror -MMD -MP -c -o $@ $<
 	$(if $(BPF_STRIP),$(BPF_STRIP) --strip-debug $@)
 
 clean:
