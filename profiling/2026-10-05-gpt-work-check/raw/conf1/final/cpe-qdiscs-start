@@ -1,0 +1,70 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 8035: dev cwan root refcnt 3 bandwidth 2250Kbit besteffort triple-isolate nat nowash ack-filter split-gso rtt 100ms noatm overhead 44 mpu 84 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 0b of 4Mb
+ capacity estimate: 6Mbit
+ min/max network layer size:        65535 /       0
+ min/max overhead-adjusted size:    65535 /       0
+ active queues:                         0
+ average network hdr offset:            0
+
+                  Tin 0
+  thresh       2250Kbit
+  target         8.07ms
+  interval        103ms
+  pk_delay          0us
+  av_delay          0us
+  sp_delay          0us
+  backlog            0b
+  pkts                0
+  bytes               0
+  way_inds            0
+  way_miss            0
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            0
+  bk_flows            0
+  un_flows            0
+  max_len             0
+  quantum           300
+
+qdisc ingress ffff: dev cwan parent ffff:fff1 ---------------- 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 8036: dev ifb4cwan root refcnt 2 bandwidth 27Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms noatm overhead 44 mpu 84 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 0b of 4Mb
+ capacity estimate: 30Mbit
+ min/max network layer size:        65535 /       0
+ min/max overhead-adjusted size:    65535 /       0
+ active queues:                         0
+ average network hdr offset:            0
+
+                  Tin 0
+  thresh         27Mbit
+  target            5ms
+  interval        100ms
+  pk_delay          0us
+  av_delay          0us
+  sp_delay          0us
+  backlog            0b
+  pkts                0
+  bytes               0
+  way_inds            0
+  way_miss            0
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            0
+  bk_flows            0
+  un_flows            0
+  max_len             0
+  quantum           823
+
