@@ -438,6 +438,7 @@ static void update_direction(
 	enum controller_line_state previous_state = direction->state;
 	enum controller_congestion_state previous_congestion = direction->congestion;
 	bool attributed = update->bufferbloat_attributed;
+	bool ack_share_active = update->ceiling_bits_per_second != UINT64_MAX;
 
 	output->state = update_line_state(direction, update->input);
 	output->congestion = update_congestion(direction, config, &update->latency);
@@ -450,6 +451,10 @@ static void update_direction(
 	output->bufferbloat_attributed = attributed;
 	output->bufferbloat_attribution_changed = attributed != direction->bufferbloat_attributed;
 	direction->bufferbloat_attributed = attributed;
+	output->ack_share_active = ack_share_active;
+	output->ack_share_ceiling_bits_per_second = update->ceiling_bits_per_second;
+	output->ack_share_changed = ack_share_active != direction->ack_share_active;
+	direction->ack_share_active = ack_share_active;
 }
 
 /*
