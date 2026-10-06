@@ -250,6 +250,26 @@ result:
 }
 
 /*
+ * The largest added round-trip delay fping reported in the current and the
+ * previous second. A single low reply cannot lower the bound, since a floor
+ * that rises does not come back down.
+ */
+static int64_t tcp_queue_bound(struct monitor_tcp *tcp, int64_t delay_ns, uint64_t timestamp_us)
+{
+	uint64_t second = timestamp_us / SECOND;
+
+	if (second != tcp->bound_second) {
+		tcp->bound_previous_ns = second == tcp->bound_second + 1U ? tcp->bound_current_ns :
+									    0;
+		tcp->bound_current_ns = delay_ns;
+		tcp->bound_second = second;
+	} else {
+		tcp->bound_current_ns = max_i64(tcp->bound_current_ns, delay_ns);
+	}
+	return max_i64(tcp->bound_current_ns, tcp->bound_previous_ns);
+}
+
+/*
  * Drains the capture on demand, so the estimates are current whenever the
  * controller runs. Records are submitted without wakeups and wait in the ring
  * buffer until this or the next traffic tick drains them.
@@ -267,13 +287,17 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 		return;
 	/*
 	 * A queue on the access link delays fping's round trip as well, so no TCP
-	 * queue may exceed fping's added delay. The bound stays until the next
-	 * reply, also for records the traffic tick drains.
+	 * queue may exceed fping's recent added delay. The bound stays until the
+	 * next reply, also for records the traffic tick drains.
 	 */
 	if (download->valid && upload->valid)
 		tcpdelay_estimator_set_bound(
 			&monitor->tcp.capture.estimator,
-			max_i64(round_trip, 0) * (int64_t)NANOSECONDS_PER_MICROSECOND
+			tcp_queue_bound(
+				&monitor->tcp,
+				max_i64(round_trip, 0) * (int64_t)NANOSECONDS_PER_MICROSECOND,
+				input->timestamp_microseconds
+			)
 		);
 	/* Records wait in the ring buffer until drained, even without attribution. */
 	if (!drain(monitor))
