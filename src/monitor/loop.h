@@ -119,6 +119,10 @@ struct monitor_tcp {
 	struct qdisc_id qdisc;
 	/* Upload interface whose capture failed; retried once it is recreated. */
 	unsigned int failed_index;
+	/* fping's largest added round-trip delay in the current and previous second. */
+	uint64_t bound_second;
+	int64_t bound_current_ns;
+	int64_t bound_previous_ns;
 	uint64_t dropped_records;
 	uint64_t next_counter_check_microseconds;
 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
