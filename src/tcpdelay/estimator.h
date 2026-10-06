@@ -21,11 +21,12 @@ struct tcpdelay_sample {
 	uint32_t tsval;
 };
 
-/* Minimum of a value over two alternating time buckets. */
+/*
+ * The lowest raw delay a flow has shown, taken as its empty path. It moves up
+ * only as far as the estimator's queue bound requires.
+ */
 struct tcpdelay_floor {
-	int64_t current;
-	int64_t previous;
-	uint64_t bucket;
+	int64_t value;
 	bool valid;
 };
 
@@ -59,15 +60,14 @@ struct tcpdelay_flow {
 	struct tcpdelay_window upload;
 };
 
-/* HOLD preserves the lowest baseline; FOLLOW uses the rolling buckets. */
-enum tcpdelay_baseline_policy {
-	TCPDELAY_BASELINE_HOLD,
-	TCPDELAY_BASELINE_FOLLOW,
-};
-
 struct tcpdelay_estimator {
 	struct tcpdelay_flow flows[TCPDELAY_FLOWS];
-	enum tcpdelay_baseline_policy baseline_policy;
+	/*
+	 * No sample may show a queue above queue_bound_ns: one that would moves its
+	 * floor up instead. Without a bound, floors only move down.
+	 */
+	bool bounded;
+	int64_t queue_bound_ns;
 };
 
 struct tcpdelay_estimate {
@@ -77,10 +77,12 @@ struct tcpdelay_estimate {
 	int64_t upload_queue_microseconds;
 };
 
-void tcpdelay_estimator_set_policy(
-	struct tcpdelay_estimator *estimator,
-	enum tcpdelay_baseline_policy policy
-);
+/*
+ * The largest queue any flow may show from now on, such as fping's round-trip
+ * delay above its baseline: a queue on the access link delays both. A zero
+ * bound re-zeroes every floor, absorbing remote clock drift and route changes.
+ */
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns);
 
 void tcpdelay_estimator_add(
 	struct tcpdelay_estimator *estimator,
