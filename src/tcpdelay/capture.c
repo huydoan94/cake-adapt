@@ -251,10 +251,12 @@ int tcpdelay_capture_counters(
 	if (bpf_map_lookup_elem(capture->counters_descriptor, &key, capture->counter_values) != 0)
 		return -1;
 	for (cpu = 0U; cpu < capture->cpu_count; cpu++) {
-		counters->ring_full += capture->counter_values[cpu].ring_full;
-		counters->ack_bytes += capture->counter_values[cpu].ack_bytes;
-		counters->upload_bytes += capture->counter_values[cpu].upload_bytes;
-		counters->unaccounted_packets += capture->counter_values[cpu].unaccounted_packets;
+		const struct tcpdelay_counters *value = &capture->counter_values[cpu];
+
+		counters->ring_full += value->ring_full;
+		counters->ack_bytes += value->ack_bytes;
+		counters->upload_bytes += value->upload_bytes;
+		counters->unaccounted_packets += value->unaccounted_packets;
 	}
 	return 0;
 }

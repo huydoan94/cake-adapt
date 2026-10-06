@@ -329,6 +329,7 @@ static enum controller_rate_reason adjust_rate(
 	const struct direction_update *update
 )
 {
+	const struct controller_direction_config *limits = &direction->config;
 	const struct controller_direction_input *input = update->input;
 	uint64_t timestamp_microseconds = update->timestamp_microseconds;
 	uint64_t previous_rate = direction->shaper_rate_bits_per_second;
@@ -337,7 +338,7 @@ static enum controller_rate_reason adjust_rate(
 	bool high_load;
 	bool capped = false;
 
-	if (!direction->config.adjust || !input->valid)
+	if (!limits->adjust || !input->valid)
 		return CONTROLLER_RATE_UNCHANGED;
 	if (direction->initial_rate_pending) {
 		direction->initial_rate_pending = false;
@@ -372,19 +373,15 @@ static enum controller_rate_reason adjust_rate(
 			scale_rate(previous_rate, upward_factor(direction, config), MILLION);
 		/* Give the increased rate a full decay interval to be observed. */
 		direction->last_decay_adjustment_microseconds = timestamp_microseconds;
-	} else if (!congested && !high_load &&
-		   previous_rate != direction->config.base_rate_bits_per_second &&
+	} else if (!congested && !high_load && previous_rate != limits->base_rate_bits_per_second &&
 		   interval_elapsed(
 			   timestamp_microseconds,
 			   direction->last_decay_adjustment_microseconds,
 			   config->decay_refractory_period_microseconds
 		   )) {
 		/* With low load, converge by 1% steps instead of jumping to base. */
-		direction->shaper_rate_bits_per_second = rate_toward_base(
-			previous_rate,
-			direction->config.base_rate_bits_per_second,
-			config
-		);
+		direction->shaper_rate_bits_per_second =
+			rate_toward_base(previous_rate, limits->base_rate_bits_per_second, config);
 		direction->last_decay_adjustment_microseconds = timestamp_microseconds;
 	}
 
@@ -394,7 +391,7 @@ static enum controller_rate_reason adjust_rate(
 	}
 	/* The minimum rate still wins over the ceiling. */
 	direction->shaper_rate_bits_per_second =
-		clamp_rate(direction->shaper_rate_bits_per_second, &direction->config);
+		clamp_rate(direction->shaper_rate_bits_per_second, limits);
 	if (direction->shaper_rate_bits_per_second == previous_rate)
 		return CONTROLLER_RATE_UNCHANGED;
 	if (capped)
@@ -464,20 +461,24 @@ static void update_direction(
 static uint64_t
 download_ceiling(const struct controller *controller, const struct controller_input *input)
 {
+	const struct controller_config *config = &controller->config;
+	const struct controller_ack_input *acks = &input->acks;
+	const struct controller_direction_input *download = &input->download;
+	const struct controller_direction_input *upload = &input->upload;
 	uint64_t room = controller->upload.shaper_rate_bits_per_second;
-	uint64_t ack_rate = input->acks.upload_ack_rate_bits_per_second;
-	uint64_t minimum = mul_div(room, controller->config.ul_congest_ack_share_percent, PERCENT);
+	uint64_t ack_rate = acks->upload_ack_rate_bits_per_second;
+	uint64_t minimum = mul_div(room, config->ul_congest_ack_share_percent, PERCENT);
 	uint64_t other;
 	uint64_t taken;
 	uint64_t allowed;
 
-	if (controller->config.ul_congest_ack_share_percent == 0U || !input->acks.valid ||
-	    ack_rate == 0U || !input->upload.valid || !input->download.valid ||
-	    load_percent(input->upload.traffic_rate_bits_per_second, room) <=
-		    controller->config.high_load_threshold_percent) {
+	if (config->ul_congest_ack_share_percent == 0U || !acks->valid || ack_rate == 0U ||
+	    !upload->valid || !download->valid ||
+	    load_percent(upload->traffic_rate_bits_per_second, room) <=
+		    config->high_load_threshold_percent) {
 		return UINT64_MAX;
 	}
-	other = saturating_sub(input->acks.upload_rate_bits_per_second, ack_rate);
+	other = saturating_sub(acks->upload_rate_bits_per_second, ack_rate);
 	taken = other + mul_div(room, UPLOAD_ACK_HEADROOM_PERCENT, PERCENT);
 	allowed = saturating_sub(room, taken);
 	if (allowed < minimum)
@@ -485,7 +486,7 @@ download_ceiling(const struct controller *controller, const struct controller_in
 	if (ack_rate <= allowed)
 		return UINT64_MAX;
 	/* Whole kbit/s like other rates. */
-	return mul_div(input->download.traffic_rate_bits_per_second, allowed, ack_rate) / KILOBIT *
+	return mul_div(download->traffic_rate_bits_per_second, allowed, ack_rate) / KILOBIT *
 	       KILOBIT;
 }
 
@@ -495,6 +496,7 @@ void controller_update(
 	struct controller_output *output
 )
 {
+	const struct controller_config *config = &controller->config;
 	unsigned int download_delivery =
 		input->download.valid ? load_percent(
 						input->download.traffic_rate_bits_per_second,
@@ -511,7 +513,7 @@ void controller_update(
 		 * delivering less than its shaper rate is the bottleneck, so the delay
 		 * is its own.
 		 */
-		.bufferbloat_attributed = !controller->config.shared_delay ||
+		.bufferbloat_attributed = !config->shared_delay ||
 					  download_delivery < FULL_DELIVERY_PERCENT,
 		.ceiling_bits_per_second = download_ceiling(controller, input),
 		.timestamp_microseconds = input->timestamp_microseconds,
@@ -519,9 +521,9 @@ void controller_update(
 	struct direction_update upload = {
 		.input = &input->upload,
 		.latency = input->upload_latency,
-		.bufferbloat_attributed = !controller->config.shared_delay ||
+		.bufferbloat_attributed = !config->shared_delay ||
 					  download_delivery <=
-						  controller->config.high_load_threshold_percent ||
+						  config->high_load_threshold_percent ||
 					  download_delivery >= FULL_DELIVERY_PERCENT,
 		.ceiling_bits_per_second = UINT64_MAX,
 		.timestamp_microseconds = input->timestamp_microseconds,
@@ -532,7 +534,7 @@ void controller_update(
 	 * small to explain the shared delay, which then arose outside the paths
 	 * TCP observes.
 	 */
-	if (controller->config.shared_delay && queue->valid &&
+	if (config->shared_delay && queue->valid &&
 	    queue->download_microseconds + queue->upload_microseconds >=
 		    QUEUE_ATTRIBUTION_MINIMUM_MICROSECONDS) {
 		int64_t total = queue->download_microseconds + queue->upload_microseconds;
@@ -556,8 +558,8 @@ void controller_update(
 		}
 	}
 
-	update_direction(&controller->download, &controller->config, &download, &output->download);
-	update_direction(&controller->upload, &controller->config, &upload, &output->upload);
+	update_direction(&controller->download, config, &download, &output->download);
+	update_direction(&controller->upload, config, &upload, &output->upload);
 }
 
 static void compensate_direction(
@@ -566,16 +568,17 @@ static void compensate_direction(
 	uint64_t wire_packet_bits
 )
 {
+	struct controller_direction_config *effective = &direction->config;
 	uint64_t compensation =
 		serialization_microseconds(wire_packet_bits, direction->shaper_rate_bits_per_second);
 
-	direction->config.average_delay_maximum_adjust_up_microseconds = saturating_add(
+	effective->average_delay_maximum_adjust_up_microseconds = saturating_add(
 		configured->average_delay_maximum_adjust_up_microseconds,
 		compensation
 	);
-	direction->config.delay_threshold_microseconds =
+	effective->delay_threshold_microseconds =
 		saturating_add(configured->delay_threshold_microseconds, compensation);
-	direction->config.average_delay_maximum_adjust_down_microseconds = saturating_add(
+	effective->average_delay_maximum_adjust_down_microseconds = saturating_add(
 		configured->average_delay_maximum_adjust_down_microseconds,
 		compensation
 	);

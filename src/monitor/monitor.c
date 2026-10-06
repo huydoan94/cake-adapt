@@ -22,25 +22,28 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		STATE_IDLE_UPPER,
 		STATE_STALL_UPPER,
 	};
+	struct controller_activity *activity = &monitor->activity;
+	const struct monitor_pingers *pingers = &monitor->pingers;
 	const struct monitor_links *links = &monitor->links;
+	const struct monitor_direction *download = &links->download;
+	const struct monitor_direction *upload = &links->upload;
 	const struct config *config = monitor->config;
-	const struct controller_activity_config *activity_config = &monitor->activity.config;
+	const struct controller_activity_config *activity_config = &activity->config;
 	const struct controller_activity_input input = {
-		.download = { .valid = links->download.traffic_valid,
+		.download = { .valid = download->traffic_valid,
 			      .traffic_rate_bits_per_second =
-				      links->download.traffic_rate_bits_per_second },
-		.upload = { .valid = links->upload.traffic_valid,
-			    .traffic_rate_bits_per_second =
-				    links->upload.traffic_rate_bits_per_second },
+				      download->traffic_rate_bits_per_second },
+		.upload = { .valid = upload->traffic_valid,
+			    .traffic_rate_bits_per_second = upload->traffic_rate_bits_per_second },
 		.timestamp_microseconds = timestamp_microseconds,
-		.last_response_microseconds = monitor->pingers.last_response_microseconds,
-		.last_pinger_start_microseconds = monitor->pingers.last_restart_microseconds,
-		.grace_until_microseconds = monitor->pingers.grace_until_microseconds,
+		.last_response_microseconds = pingers->last_response_microseconds,
+		.last_pinger_start_microseconds = pingers->last_restart_microseconds,
+		.grace_until_microseconds = pingers->grace_until_microseconds,
 	};
-	enum controller_activity_state previous = monitor->activity.state;
+	enum controller_activity_state previous = activity->state;
 	struct controller_activity_output output;
 
-	activity_update(&monitor->activity, &input, &output);
+	activity_update(activity, &input, &output);
 	if (output.check_stall_loads) {
 		log_message(
 			LOG_LEVEL_DEBUG,
@@ -51,12 +54,12 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 			LOG_LEVEL_DEBUG,
 			"load check is: (( %" PRIu64 " kbps > %" PRIu64
 			" kbps for download && %" PRIu64 " kbps > %" PRIu64 " kbps for upload ))",
-			links->download.traffic_rate_bits_per_second / KILOBIT,
+			download->traffic_rate_bits_per_second / KILOBIT,
 			config->connection_stall_threshold_bits_per_second / KILOBIT,
-			links->upload.traffic_rate_bits_per_second / KILOBIT,
+			upload->traffic_rate_bits_per_second / KILOBIT,
 			config->connection_stall_threshold_bits_per_second / KILOBIT
 		);
-		if (monitor->activity.state == CONTROLLER_RUNNING) {
+		if (activity->state == CONTROLLER_RUNNING) {
 			log_message(
 				LOG_LEVEL_DEBUG,
 				"load above connection stall threshold so resuming normal operation."
@@ -72,7 +75,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		);
 	}
 	if (output.state_changed) {
-		if (monitor->activity.state == CONTROLLER_RUNNING) {
+		if (activity->state == CONTROLLER_RUNNING) {
 			log_message(
 				LOG_LEVEL_DEBUG,
 				previous == CONTROLLER_IDLE ?
@@ -84,9 +87,9 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 			LOG_LEVEL_DEBUG,
 			"Changing main state from: %s to: %s",
 			names[previous],
-			names[monitor->activity.state]
+			names[activity->state]
 		);
-		if (monitor->activity.state == CONTROLLER_IDLE) {
+		if (activity->state == CONTROLLER_IDLE) {
 			log_message(LOG_LEVEL_DEBUG, "Connection idle. Waiting for minimum load.");
 			if (config->minimum_shaper_rates_enforcement) {
 				log_message(LOG_LEVEL_DEBUG, "Enforcing minimum shaper rates.");

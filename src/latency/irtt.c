@@ -89,9 +89,10 @@ static int irtt_open(
 	pinger_command_free(&command);
 
 	for (index = 0U; index < target_count; index++) {
-		latency->children[index].target = targets[index];
-		latency->children[index].next_start_microseconds =
-			first_start_microseconds + index * spacing;
+		struct latency_child *child = &latency->children[index];
+
+		child->target = targets[index];
+		child->next_start_microseconds = first_start_microseconds + index * spacing;
 	}
 	latency->active = true;
 	latency->child_count = target_count;

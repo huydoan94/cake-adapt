@@ -153,13 +153,14 @@ int pinger_command_init(
 	size_t error_size
 )
 {
-	const char *prefix = latency->settings.prefix;
+	const struct latency_settings *settings = &latency->settings;
+	const char *prefix = settings->prefix;
 	size_t count;
 	size_t index;
 
 	*command = (struct pinger_command){ 0 };
 	if (expand_words(
-		    latency->settings.extra_arguments,
+		    settings->extra_arguments,
 		    OPTION_PING_EXTRA_ARGS,
 		    &command->extra,
 		    error,
@@ -273,8 +274,10 @@ void latency_init(struct latency *latency, const struct latency_settings *settin
 		.settings = *settings,
 	};
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
-		latency->children[index].output_descriptor = -1;
-		latency->children[index].process_identifier = -1;
+		struct latency_child *child = &latency->children[index];
+
+		child->output_descriptor = -1;
+		child->process_identifier = -1;
 	}
 }
 

@@ -51,12 +51,12 @@ void reflectors_record(
 	struct latency_observation *observation
 )
 {
-	struct latency_tracker *tracker =
-		&monitor->reflectors.trackers[monitor->reflectors.order[slot]];
+	struct monitor_reflectors *reflectors = &monitor->reflectors;
+	struct latency_tracker *tracker = &reflectors->trackers[reflectors->order[slot]];
 
 	tracker_update(tracker, sample, observation);
 	tracker_update_delta_ewma(tracker, control_low_load(monitor), observation);
-	health_record_response(&monitor->reflectors.health[slot], response_microseconds);
+	health_record_response(&reflectors->health[slot], response_microseconds);
 }
 
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds)
@@ -71,10 +71,11 @@ void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microse
 static void
 replace_active_reflector(struct monitor *monitor, size_t pinger, uint64_t timestamp_microseconds)
 {
+	struct monitor_reflectors *reflectors = &monitor->reflectors;
 	const struct config *config = monitor->config;
 	size_t active_count = (size_t)config->no_pingers;
 	size_t reflector_count = (size_t)config->reflector_count;
-	size_t bad_index = monitor->reflectors.order[pinger];
+	size_t bad_index = reflectors->order[pinger];
 	const char *bad = config->reflectors[bad_index];
 	bool rotate = reflector_count > active_count;
 
@@ -103,11 +104,11 @@ replace_active_reflector(struct monitor *monitor, size_t pinger, uint64_t timest
 				"Discarding reflector stats associated with %s",
 				bad
 			);
-			tracker_reset(&monitor->reflectors.trackers[bad_index]);
+			tracker_reset(&reflectors->trackers[bad_index]);
 		}
-		reflector_rotate(monitor->reflectors.order, reflector_count, active_count, pinger);
+		reflector_rotate(reflectors->order, reflector_count, active_count, pinger);
 	}
-	health_reset(&monitor->reflectors.health[pinger], timestamp_microseconds);
+	health_reset(&reflectors->health[pinger], timestamp_microseconds);
 	log_message(
 		LOG_LEVEL_DEBUG,
 		"Resetting reflector offences associated with reflector: %s.",
@@ -120,16 +121,12 @@ replace_active_reflector(struct monitor *monitor, size_t pinger, uint64_t timest
 
 static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
+	struct monitor_reflectors *reflectors = &monitor->reflectors;
 	struct reflector_comparison comparisons[CONFIG_MAX_REFLECTORS];
 	size_t active_count = (size_t)monitor->config->no_pingers;
 	size_t index;
 
-	reflector_compare(
-		monitor->reflectors.trackers,
-		monitor->reflectors.order,
-		active_count,
-		comparisons
-	);
+	reflector_compare(reflectors->trackers, reflectors->order, active_count, comparisons);
 
 	for (index = 0U; index < active_count; index++) {
 		const struct reflector_comparison *comparison = &comparisons[index];
@@ -195,6 +192,7 @@ static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestam
 
 static bool run_scheduled_reflector_work(struct monitor *monitor, uint64_t timestamp_microseconds)
 {
+	struct monitor_reflectors *reflectors = &monitor->reflectors;
 	uint64_t replacement_interval_microseconds =
 		monitor->config->reflector_replacement_interval_minutes * MICROSECONDS_PER_MINUTE;
 	uint64_t comparison_interval_microseconds =
@@ -203,10 +201,10 @@ static bool run_scheduled_reflector_work(struct monitor *monitor, uint64_t times
 
 	if (interval_elapsed(
 		    timestamp_microseconds,
-		    monitor->reflectors.last_replacement_microseconds,
+		    reflectors->last_replacement_microseconds,
 		    replacement_interval_microseconds
 	    )) {
-		monitor->reflectors.last_replacement_microseconds = timestamp_microseconds;
+		reflectors->last_replacement_microseconds = timestamp_microseconds;
 		if (!random_below((size_t)monitor->config->no_pingers, entropy_u32, NULL, &pinger)) {
 			log_message(
 				LOG_LEVEL_WARNING,
@@ -226,10 +224,10 @@ static bool run_scheduled_reflector_work(struct monitor *monitor, uint64_t times
 
 	if (interval_elapsed(
 		    timestamp_microseconds,
-		    monitor->reflectors.last_comparison_microseconds,
+		    reflectors->last_comparison_microseconds,
 		    comparison_interval_microseconds
 	    )) {
-		monitor->reflectors.last_comparison_microseconds = timestamp_microseconds;
+		reflectors->last_comparison_microseconds = timestamp_microseconds;
 		return compare_active_reflectors(monitor, timestamp_microseconds);
 	}
 	return false;
@@ -239,6 +237,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 {
 	struct monitor *monitor =
 		__extension__ container_of(timer, struct monitor, reflectors.health_timer);
+	struct monitor_reflectors *reflectors = &monitor->reflectors;
 	uint64_t timestamp_microseconds;
 	bool reflector_replaced = false;
 	size_t index;
@@ -247,22 +246,22 @@ static void handle_health_timer(struct uloop_interval *timer)
 		return;
 
 	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		if (!monitor->reflectors.clock_failed) {
+		if (!reflectors->clock_failed) {
 			log_message(
 				LOG_LEVEL_WARNING,
 				"reflector health check degraded: monotonic clock failed: %s",
 				strerror(errno)
 			);
 		}
-		monitor->reflectors.clock_failed = true;
+		reflectors->clock_failed = true;
 		return;
 	}
-	if (monitor->reflectors.clock_failed) {
+	if (reflectors->clock_failed) {
 		log_message(
 			LOG_LEVEL_NOTICE,
 			"reflector health check recovered: monotonic clock available"
 		);
-		monitor->reflectors.clock_failed = false;
+		reflectors->clock_failed = false;
 	}
 	if (timestamp_microseconds < monitor->pingers.grace_until_microseconds)
 		return;
@@ -271,7 +270,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 
 	for (index = 0U; index < (size_t)monitor->config->no_pingers; index++) {
 		enum reflector_health_result result =
-			health_check(&monitor->reflectors.health[index], timestamp_microseconds);
+			health_check(&reflectors->health[index], timestamp_microseconds);
 		const char *reflector = reflector_name(monitor, index);
 
 		if (result == REFLECTOR_HEALTHY)
@@ -290,7 +289,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 			"reflector=%s, sum_reflector_offences=%zu and"
 			" reflector_misbehaving_detection_thr=%" PRIu64,
 			reflector,
-			monitor->reflectors.health[index].offence_count,
+			reflectors->health[index].offence_count,
 			monitor->config->reflector_misbehaving_detection_threshold
 		);
 		if (result == REFLECTOR_MISBEHAVING) {
