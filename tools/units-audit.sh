@@ -4,7 +4,7 @@
 #
 # Usage: tools/units-audit.sh [SOURCE_DIR]   (default: src)
 #
-# Base units (UNITS_PLAN.md): bits and bytes (rates in bit/s), microseconds
+# Base units (UNITS_PLAN.md): bits and bytes (rates in bit/s, suffix _bps), microseconds
 # (suffix _us, sub-microsecond results rounded), and ratios as integers per
 # million (suffix _e6). Anything else printed here should be a conversion at a boundary
 # (configuration, kernel, pinger output, logs or timers) or one of
@@ -13,8 +13,8 @@ set -eu
 
 source_dir=${1:-src}
 
-suffixes='e6|E6|us|US|bits_per_second|bytes_per_second|kilobits_per_second|per_million|per_thousand|whole_hundred|whole_thousand|whole_million|ratio|kbps|minutes|milliseconds|ms|nanoseconds|ns|microseconds|percent|kilobytes|bytes|bits'
-conversions='KILOBIT|MEGABIT|THOUSAND|MILLION|KILOBYTE|BITS_PER_BYTE|PER_THOUSAND|PER_MILLION|MILLISECONDS_PER|MICROSECONDS_PER|NANOSECONDS_PER'
+suffixes='e6|E6|us|US|bps|kbps|byte_ps|per_million|per_thousand|whole_hundred|whole_thousand|whole_million|ratio|minutes|sec|ms|ns|percent|kilobytes|bytes|bits'
+conversions='KILOBIT|MEGABIT|THOUSAND|MILLION|KILOBYTE|BITS_PER_BYTE|PER_THOUSAND|PER_MILLION|US_PER|NANOSECONDS_PER'
 
 find "$source_dir" -name '*.[ch]' | sort | while read -r file; do
 	identifiers=$(grep -oE "\\b[a-z_]*_($suffixes)\\b" "$file" | sort | uniq -c |
