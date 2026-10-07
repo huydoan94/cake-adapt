@@ -36,15 +36,15 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 		interval,
 		sizeof(interval),
 		"%" PRIu64 ".%06" PRIu64 "s",
-		settings->reflector_ping_interval_us / SECOND,
-		settings->reflector_ping_interval_us % SECOND
+		settings->reflector_ping_interval_us / MICROSECONDS_PER_SECOND,
+		settings->reflector_ping_interval_us % MICROSECONDS_PER_SECOND
 	);
 	(void)snprintf(
 		duration,
 		sizeof(duration),
 		"%" PRIu64 ".%06" PRIu64 "s",
-		settings->irtt_session_duration_us / SECOND,
-		settings->irtt_session_duration_us % SECOND
+		settings->irtt_session_duration_us / MICROSECONDS_PER_SECOND,
+		settings->irtt_session_duration_us % MICROSECONDS_PER_SECOND
 	);
 	if (strchr(child->target, ':') == NULL)
 		(void)strcpy(endpoint, child->target);
@@ -77,10 +77,10 @@ static int irtt_open(
 )
 {
 	const struct latency_settings *settings = &latency->settings;
-	uint64_t interval = settings->reflector_ping_interval_us;
-	uint64_t elapsed = timestamp_us - settings->slot_origin_us;
-	uint64_t first_start_us = timestamp_us + interval - elapsed % interval;
-	uint64_t spacing = rounded_divide(interval, target_count);
+	uint64_t interval_us = settings->reflector_ping_interval_us;
+	uint64_t elapsed_us = timestamp_us - settings->slot_origin_us;
+	uint64_t first_start_us = timestamp_us + interval_us - elapsed_us % interval_us;
+	uint64_t spacing_us = rounded_divide(interval_us, target_count);
 	struct pinger_command command;
 	size_t index;
 
@@ -93,7 +93,7 @@ static int irtt_open(
 		struct latency_child *child = &latency->children[index];
 
 		child->target = targets[index];
-		child->next_start_us = first_start_us + index * spacing;
+		child->next_start_us = first_start_us + index * spacing_us;
 	}
 	latency->active = true;
 	latency->child_count = target_count;
@@ -137,16 +137,16 @@ bool latency_irtt_start_pending(const struct latency *latency)
 
 uint64_t latency_irtt_next_start_us(const struct latency *latency)
 {
-	uint64_t next = UINT64_MAX;
+	uint64_t next_us = UINT64_MAX;
 	size_t index;
 
 	for (index = 0U; index < latency->child_count; index++) {
 		const struct latency_child *child = &latency->children[index];
 
-		if (child->output_descriptor < 0 && child->next_start_us < next)
-			next = child->next_start_us;
+		if (child->output_descriptor < 0 && child->next_start_us < next_us)
+			next_us = child->next_start_us;
 	}
-	return next;
+	return next_us;
 }
 
 static enum latency_probe_result irtt_parse(

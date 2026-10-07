@@ -189,7 +189,7 @@ measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controll
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
 	struct tcpdelay_counters counters;
-	uint64_t elapsed;
+	uint64_t elapsed_us;
 
 	if (timestamp_us >= tcp->ack_sampled_us + TCPDELAY_ACK_RATE_INTERVAL_US) {
 		bool degraded;
@@ -202,15 +202,15 @@ measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controll
 			ack_accounting_state(monitor, degraded);
 			goto result;
 		}
-		elapsed = timestamp_us - tcp->ack_sampled_us;
+		elapsed_us = timestamp_us - tcp->ack_sampled_us;
 		degraded = counters.unaccounted_packets != tcp->unaccounted_packets ||
 			   (tcp->ack_sampled && (counters.ack_bytes < tcp->ack_bytes ||
 						 counters.upload_bytes < tcp->upload_bytes));
 		tcp->ack_rate_valid = false;
 		if (tcp->ack_sampled && !degraded) {
-			tcp->ack_rate_bps = bps(counters.ack_bytes - tcp->ack_bytes, elapsed);
+			tcp->ack_rate_bps = bps(counters.ack_bytes - tcp->ack_bytes, elapsed_us);
 			tcp->upload_rate_bps =
-				bps(counters.upload_bytes - tcp->upload_bytes, elapsed);
+				bps(counters.upload_bytes - tcp->upload_bytes, elapsed_us);
 			tcp->ack_rate_valid = true;
 		}
 		/* A baseline alone cannot establish recovery after unavailable counters. */
@@ -240,7 +240,7 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	struct tcpdelay_capture *capture = &tcp->capture;
 	struct controller_queue_input *queue = &input->queue;
 	struct controller_ack_input *acks = &input->acks;
-	int64_t recent_delay = reflectors_recent_delay(monitor, input->timestamp_us);
+	int64_t recent_delay_us = reflectors_recent_delay_us(monitor, input->timestamp_us);
 
 	queue->valid = false;
 	acks->valid = false;
@@ -251,8 +251,8 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	 * queue may exceed fping's recent added delay. The bound stays until the
 	 * next reply, also for records the traffic tick drains.
 	 */
-	if (recent_delay >= 0)
-		tcpdelay_estimator_set_bound(&capture->estimator, recent_delay);
+	if (recent_delay_us >= 0)
+		tcpdelay_estimator_set_bound(&capture->estimator, recent_delay_us);
 	/* Records wait in the ring buffer until drained, even without attribution. */
 	if (!drain(monitor))
 		return;

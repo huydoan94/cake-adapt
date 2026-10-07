@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "cake/cake.h"
+#include "cake/accounting.h"
 #include "common/constants.h"
 #include "common/error.h"
 #include "common/utils.h"
@@ -53,23 +54,23 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 
 uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
 {
-	uint64_t bits;
+	uint64_t wire_bytes;
 
 	if (!observation->has_mtu)
 		return 0U;
-	bits = saturating_mul(observation->mtu_bytes, BITS_PER_BYTE);
 	if (observation->raw || observation->overhead_bytes < 0 ||
 	    (observation->atm_mode != CAKE_ATM_NONE && observation->atm_mode != CAKE_ATM_ATM)) {
-		return bits;
+		return byte_to_bit(observation->mtu_bytes);
 	}
-	bits = saturating_mul(
-		saturating_add(observation->mtu_bytes, (uint64_t)observation->overhead_bytes),
-		BITS_PER_BYTE
-	);
+	wire_bytes = saturating_add(observation->mtu_bytes, (uint64_t)observation->overhead_bytes);
 	if (observation->atm_mode != CAKE_ATM_ATM)
-		return bits;
-	/* Whole 48-byte ATM cell payloads, each sent as a 53-byte cell. */
-	return saturating_mul(saturating_add(bits, UINT64_C(376)) / UINT64_C(384), UINT64_C(424));
+		return byte_to_bit(wire_bytes);
+	/* Whole ATM cell payloads, each sent as a full cell. */
+	return byte_to_bit(saturating_mul(
+		saturating_add(wire_bytes, CAKE_ATM_CELL_PAYLOAD_BYTES - 1U) /
+			CAKE_ATM_CELL_PAYLOAD_BYTES,
+		CAKE_ATM_CELL_BYTES
+	));
 }
 
 static void parse_stats(struct nlattr *stats, struct cake_observation *observation)

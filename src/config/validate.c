@@ -8,9 +8,10 @@
 #include <string.h>
 
 /* A uloop interval: a positive whole number of milliseconds that fits its unsigned argument. */
-static bool timer_interval_valid(uint64_t us)
+static bool timer_interval_valid(uint64_t interval_us)
 {
-	return us > 0U && us % MILLISECOND == 0U && us / MILLISECOND <= UINT_MAX;
+	return interval_us > 0U && interval_us % MICROSECONDS_PER_MILLISECOND == 0U &&
+	       interval_us / MICROSECONDS_PER_MILLISECOND <= UINT_MAX;
 }
 
 static int validate_rate_range(
@@ -20,13 +21,13 @@ static int validate_rate_range(
 	size_t error_size
 )
 {
-	uint64_t minimum = rates->minimum_rate_bps;
-	uint64_t base = rates->base_rate_bps;
-	uint64_t maximum = rates->maximum_rate_bps;
+	uint64_t minimum_bps = rates->minimum_rate_bps;
+	uint64_t base_bps = rates->base_rate_bps;
+	uint64_t maximum_bps = rates->maximum_rate_bps;
 
-	if (!rates->adjust && minimum == 0U && base == 0U && maximum == 0U)
+	if (!rates->adjust && minimum_bps == 0U && base_bps == 0U && maximum_bps == 0U)
 		return 0;
-	if (minimum == 0U || base == 0U || maximum == 0U) {
+	if (minimum_bps == 0U || base_bps == 0U || maximum_bps == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -34,7 +35,7 @@ static int validate_rate_range(
 			direction
 		);
 	}
-	if (minimum > base || base > maximum) {
+	if (minimum_bps > base_bps || base_bps > maximum_bps) {
 		return error_set(
 			error,
 			error_size,
@@ -43,8 +44,8 @@ static int validate_rate_range(
 		);
 	}
 	/* CAKE holds whole bytes/s. */
-	if (minimum % SHAPER_RATE_STEP_BPS != 0U || base % SHAPER_RATE_STEP_BPS != 0U ||
-	    maximum % SHAPER_RATE_STEP_BPS != 0U) {
+	if (minimum_bps % SHAPER_RATE_STEP_BPS != 0U || base_bps % SHAPER_RATE_STEP_BPS != 0U ||
+	    maximum_bps % SHAPER_RATE_STEP_BPS != 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -247,7 +248,7 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 			UINT_MAX
 		);
 	}
-	if (config->log_file_buffer_timeout_us / MILLISECOND > UINT_MAX ||
+	if (config->log_file_buffer_timeout_us / MICROSECONDS_PER_MILLISECOND > UINT_MAX ||
 	    config->reflector_ping_interval_us > UINT64_MAX / 2U) {
 		return error_set(error, error_size, "logging or pinger intervals are too large");
 	}

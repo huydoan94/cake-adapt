@@ -43,11 +43,11 @@ size_t reflectors_find(const struct monitor *monitor, const char *target)
 	return SIZE_MAX;
 }
 
-/* The largest of a slot's replies within a sec; the sec before it is kept. */
+/* The largest of a slot's replies within a second; the second before it is kept. */
 static void
 recent_delay_add(struct reflector_recent_delay *recent, int64_t delay_us, uint64_t timestamp_us)
 {
-	uint64_t sec = timestamp_us / SECOND;
+	uint64_t sec = timestamp_us / MICROSECONDS_PER_SECOND;
 
 	if (sec != recent->sec) {
 		recent->previous_us = sec == recent->sec + 1U ? recent->current_us : 0;
@@ -58,7 +58,7 @@ recent_delay_add(struct reflector_recent_delay *recent, int64_t delay_us, uint64
 	}
 }
 
-/* A slot's largest added delay over the current and previous sec, if it replied in them. */
+/* A slot's largest added delay over the current and previous second, if it replied in them. */
 static bool
 recent_delay_value(const struct reflector_recent_delay *recent, uint64_t sec, int64_t *delay_us)
 {
@@ -71,27 +71,28 @@ recent_delay_value(const struct reflector_recent_delay *recent, uint64_t sec, in
 	return true;
 }
 
-int64_t reflectors_recent_delay(const struct monitor *monitor, uint64_t timestamp_us)
+int64_t reflectors_recent_delay_us(const struct monitor *monitor, uint64_t timestamp_us)
 {
 	const struct monitor_reflectors *reflectors = &monitor->reflectors;
 	const struct config *config = monitor->config;
-	uint64_t sec = timestamp_us / SECOND;
-	int64_t values[CONFIG_MAX_REFLECTORS];
+	uint64_t sec = timestamp_us / MICROSECONDS_PER_SECOND;
+	int64_t values_us[CONFIG_MAX_REFLECTORS];
 	size_t count = 0U;
 
 	/* Insertion sort: there are only a few pinger slots. */
 	for (size_t slot = 0U; slot < (size_t)config->no_pingers; slot++) {
-		int64_t value;
+		int64_t value_us;
 		size_t position;
 
-		if (!recent_delay_value(&reflectors->recent[slot], sec, &value))
+		if (!recent_delay_value(&reflectors->recent[slot], sec, &value_us))
 			continue;
-		for (position = count; position > 0U && values[position - 1U] > value; position--)
-			values[position] = values[position - 1U];
-		values[position] = value;
+		for (position = count; position > 0U && values_us[position - 1U] > value_us;
+		     position--)
+			values_us[position] = values_us[position - 1U];
+		values_us[position] = value_us;
 		count++;
 	}
-	return count == 0U ? -1 : values[(count - 1U) / 2U];
+	return count == 0U ? -1 : values_us[(count - 1U) / 2U];
 }
 
 void reflectors_record(

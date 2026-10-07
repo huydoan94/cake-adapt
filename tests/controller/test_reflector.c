@@ -1,4 +1,5 @@
 #include "controller/reflector.h"
+#include "common/constants.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -20,13 +21,13 @@ static void init_tracker(struct latency_tracker *tracker)
 static void test_reflector_health_uses_rolling_offence_window(void)
 {
 	const struct reflector_health_config config = {
-		.response_deadline_us = 1000000U,
+		.response_deadline_us = SECOND,
 		.detection_window = 4U,
 		.detection_threshold = 2U,
 	};
 	struct reflector_health health = { 0 };
 
-	assert(health_init(&health, &config, 1000000U) == 0);
+	assert(health_init(&health, &config, SECOND) == 0);
 	assert(health_check(&health, 2000000U) == REFLECTOR_HEALTHY);
 	assert(health_check(&health, 2000001U) == REFLECTOR_OFFENCE);
 	health_record_response(&health, 2500000U);

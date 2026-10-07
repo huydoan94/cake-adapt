@@ -47,7 +47,7 @@ static void stop_child(pid_t process_identifier)
 {
 	const struct timespec interval = {
 		.tv_sec = 0,
-		.tv_nsec = (long)(CHILD_STOP_INTERVAL_US * NANOSECONDS_PER_US),
+		.tv_nsec = (long)(CHILD_STOP_INTERVAL_US * NANOSECONDS_PER_MICROSECOND),
 	};
 	unsigned int attempt;
 

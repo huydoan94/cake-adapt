@@ -40,13 +40,13 @@ int memory_read(const char *path, struct memory_sample *sample, char *error, siz
 	/* Lines read "VmRSS:\t    1234 kB"; the values are always in kB. */
 	while (getline(&line, &capacity, file) >= 0) {
 		char name[FIELD_NAME_SIZE];
-		uint64_t value;
+		uint64_t kilobytes;
 
-		if (sscanf(line, "%31[^:]: %" SCNu64, name, &value) != 2)
+		if (sscanf(line, "%31[^:]: %" SCNu64, name, &kilobytes) != 2)
 			continue;
 		for (size_t index = 0U; index < ARRAY_SIZE(fields); index++) {
 			if (strcmp(name, fields[index].name) == 0) {
-				*fields[index].value = kbyte_to_byte(value);
+				*fields[index].value = kbyte_to_byte(kilobytes);
 				found |= 1U << index;
 			}
 		}

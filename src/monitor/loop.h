@@ -273,7 +273,7 @@ void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_us);
  * those two seconds. One slow reflector cannot raise it, and one whose baseline
  * sits too high cannot hold it down.
  */
-int64_t reflectors_recent_delay(const struct monitor *monitor, uint64_t timestamp_us);
+int64_t reflectors_recent_delay_us(const struct monitor *monitor, uint64_t timestamp_us);
 
 /* monitor.c */
 
