@@ -4,8 +4,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define MILLISECOND MILLISECOND
-
 static struct config config = { .no_pingers = 6U };
 static struct monitor monitor = { .config = &config };
 

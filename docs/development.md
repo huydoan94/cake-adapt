@@ -25,6 +25,17 @@ host tests, builds each architecture, and publishes packages as workflow
 artifacts. Tags beginning with `v` additionally publish the packages as GitHub
 release assets.
 
+## Editor setup
+
+Editors resolve includes through `compile_commands.json`, which
+`tools/compile-commands.sh` (or the VS Code task *Generate
+compile_commands.json (IntelliSense)*) writes from the x86 SDK beside the
+repository or `OPENWRT_SDK_X86`. It covers every C file under `src/`, `tests/`
+and `tools/`, including the socket filter with the SDK's BPF clang and the
+kernel headers, so libbpf's `<bpf/...>` and libnl-tiny resolve. The file holds
+absolute paths and is not committed; regenerate it after adding or moving a
+source file.
+
 ## Source layout
 
 ```text
@@ -97,3 +108,65 @@ make -C tests check check-netlink OBJECT_DIR=../build/sanitize \
 The production daemon itself is built with strict warnings, including
 `-Wall`, `-Wextra`, `-Wpedantic`, `-Wformat=2`, `-Wshadow`, `-Wconversion`, and
 `-Werror`.
+
+## Recording a router's log
+
+`tools/capture-log.sh` streams a router's cake-adapt log over SSH into a local
+file for long recordings. It follows the daemon's in-place rotation, reconnects
+after dropped connections or router reboots without losing or repeating lines,
+and archives the local file with gzip at a size limit (1024 MB by default):
+
+```sh
+tools/capture-log.sh root@router cake-adapt.log            # status screen
+tools/capture-log.sh -s 512 root@router cake-adapt.log     # archive at 512 MB
+tools/capture-log.sh -l root@router cake-adapt.log         # print lines instead
+```
+
+The router needs SSH key authentication; nothing is installed on it. Capture
+events (connect, disconnect, archive, stop) go to `cake-adapt.log.events`.
+
+By default the console shows a status screen that is redrawn in place every
+second (this one was captured from the test VM's emulated ISP under load):
+
+```text
+Connection   connected since 2026-10-07 11:50:10 (45 s), reconnects 0
+Throughput   download 22.5 Mbit/s (2.7 MB/s), upload 2.7 Mbit/s (328.4 KB/s)
+Log capture  450.6 KB this run at 11.9 KB/s; file 683.5 KB of 1.0 GB; 0 archived
+Router       cake-adapt 0.3.8-r1, PID 6388, started 2026-10-07 11:49:46 (1 min 9 s ago)
+Last record  2026-10-07 11:50:55 (0 s ago)
+
+                 achieved          shaper   load condition     avg delay  delayed  TCP queue
+Download      22.5 Mbit/s     25.2 Mbit/s    86% dl_high          1.6 ms      0/6     445 µs
+Upload         2.7 Mbit/s      3.0 Mbit/s    89% ul_high          2.8 ms      0/6     2.7 ms
+
+Bufferbloat  last 60 s: download 196 (16.4%), upload 203 (17.0%) of 1192 samples; 242 shaper changes
+Daemon       RSS 2.1 MB, peak 2.1 MB, heap 228.0 KB; router CPU 25%
+Warnings     0 seen; last -
+```
+
+Each value takes the largest unit in which it is at least 1.0: sizes from B to
+GB (1 KB is 1,024 bytes), link rates from bit/s to Gbit/s with their byte rate
+beside them, delays from µs to s. Times are local date and time, and
+intervals whole seconds, minutes, hours and days (`1 min 9 s`, `3 h 4 min`).
+
+- **Throughput** and the **achieved** and **shaper** columns come from the
+  router's latest `LOAD` record, written with every traffic sample, or from
+  `SUMMARY` when `LOAD` records are off.
+- **Load**, **condition**, **avg delay** and **delayed** come from the latest
+  `DATA` and `SUMMARY` records, and **TCP queue** from `TCP_QUEUE`. While the
+  line is idle the daemon stops pinging, so these keep their last values.
+- **Log capture** is the log data saved to the local file, not router traffic;
+  **archived** counts the files renamed and compressed at the size limit
+  during this run.
+- **Bufferbloat** counts the `SUMMARY` records of the last 60 s of router time
+  with a `_bb` condition, and the `SHAPER` records in the same minute.
+- **Daemon** memory comes from `MEMORY` records and the router's CPU use from
+  `CPU` records, shown only when `output_memory_stats` and `output_cpu_stats`
+  are on.
+- **Warnings** are counted over the last 3,000 lines of the file and
+  everything after.
+
+The screen reads the file's history once at start and then takes each line
+from the capture itself, so it keeps working when the local file is on a
+Windows drive (`/mnt/c`, `/mnt/d`), where following a growing file can fail.
+It needs GNU awk (`gawk`); `-l` does not.
