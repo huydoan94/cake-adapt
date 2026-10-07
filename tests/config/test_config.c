@@ -312,9 +312,6 @@ static void test_new_timer_and_limit_validation(void)
 	config.monitor_cpu_usage_interval_us = 500U;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 	config = valid_config();
-	config.log_file_max_size_kilobytes = UINT64_MAX;
-	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-	config = valid_config();
 	config.enable_sleep_function = true;
 	config.connection_active_threshold_bits_per_second = 5000001U;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
@@ -359,6 +356,11 @@ int main(void)
 	assert(parse_decimal("1.00000001", MINUTE, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "more precision") != NULL);
 	assert(parse_decimal("307445734561826", MINUTE, &value, error, sizeof(error)) != 0);
+	assert(strstr(error, "too large") != NULL);
+	/* KB in bytes: 1,024 each. */
+	assert(parse_decimal("2000", KILOBYTE, &value, error, sizeof(error)) == 0);
+	assert(value == 2048000U);
+	assert(parse_decimal("18014398509481984", KILOBYTE, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "too large") != NULL);
 	assert(parse_decimal("+1", 1U, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "non-negative decimal") != NULL);

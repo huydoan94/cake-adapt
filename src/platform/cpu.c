@@ -96,7 +96,7 @@ done:
 void cpu_usage(
 	struct cpu_monitor *monitor,
 	const struct cpu_sample *sample,
-	unsigned int usage[CPU_MAX_COUNT]
+	struct cpu_busy usage[CPU_MAX_COUNT]
 )
 {
 	size_t index;
@@ -107,7 +107,10 @@ void cpu_usage(
 		uint64_t idle =
 			saturating_sub(sample->counters[index].idle, monitor->previous_idle[index]);
 
-		usage[index] = delta > idle ? (unsigned int)(PERCENT * (delta - idle) / delta) : 0U;
+		usage[index] = (struct cpu_busy){
+			.busy_ticks = saturating_sub(delta, idle),
+			.total_ticks = delta,
+		};
 		monitor->previous_sums[index] = sum;
 		monitor->previous_idle[index] = sample->counters[index].idle;
 	}

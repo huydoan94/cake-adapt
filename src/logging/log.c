@@ -22,7 +22,7 @@
 
 #define LOG_MESSAGE_SIZE 2048U
 #define LOG_COPY_BUFFER_SIZE 4096U
-#define LOG_FILE_BUFFER_SIZE (16U * KIBIBYTE)
+#define LOG_FILE_BUFFER_SIZE (16U * KILOBYTE)
 /* UINT64_MAX seconds, a point, six digits and the terminating NUL. */
 #define TIMESTAMP_SIZE 28U
 
@@ -308,8 +308,8 @@ static void rotate_log_file(enum rotation_reason reason)
 			LOG_LEVEL_DEBUG,
 			"log file size: %" PRIu64 " KB has exceeded configured maximum: %" PRIu64
 			" KB so flushing and rotating log file.",
-			log_size_bytes / KIBIBYTE,
-			log_maximum_size_bytes / KIBIBYTE
+			byte_to_kbyte(log_size_bytes),
+			byte_to_kbyte(log_maximum_size_bytes)
 		);
 	}
 	/* The active log becomes the previous one, replacing it. */
@@ -460,7 +460,7 @@ int log_set_file(const char *path, const struct log_file_settings *settings)
 	log_opened_us = clock_us(CLOCK_MONOTONIC);
 	log_last_flush_us = log_opened_us;
 	log_maximum_age_us = settings->maximum_time_us;
-	log_maximum_size_bytes = settings->maximum_size_kilobytes * KIBIBYTE;
+	log_maximum_size_bytes = settings->maximum_size_bytes;
 	log_size_bytes = (uint64_t)file_status.st_size;
 	log_buffer_timeout_us = settings->buffer_timeout_us;
 	log_compress_exports = settings->compress_exports;
@@ -605,10 +605,10 @@ void log_memory(const struct memory_sample *sample)
 	write_timed_record(
 		RECORD_MEMORY,
 		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-		sample->rss_kilobytes,
-		sample->peak_rss_kilobytes,
-		sample->anonymous_kilobytes,
-		sample->data_kilobytes
+		byte_to_kbyte(sample->rss_bytes),
+		byte_to_kbyte(sample->peak_rss_bytes),
+		byte_to_kbyte(sample->anonymous_bytes),
+		byte_to_kbyte(sample->data_bytes)
 	);
 }
 
@@ -713,7 +713,7 @@ void log_reflector(const struct log_reflector_record *record)
 	);
 }
 
-void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
+void log_cpu(const struct cpu_sample *sample, const struct cpu_busy *usage)
 {
 	char *message = NULL;
 	char stamp[TIMESTAMP_SIZE];
@@ -727,7 +727,14 @@ void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
 	}
 	(void)fputs(timestamp_text(stamp, sample->timestamp_us), stream);
 	for (index = 0U; index < sample->count; index++)
-		(void)fprintf(stream, "; %u", usage[index]);
+		(void)fprintf(
+			stream,
+			"; %" PRIu64,
+			whole_percent(fraction_to_ratio_e6(
+				usage[index].busy_ticks,
+				usage[index].total_ticks
+			))
+		);
 	if (!close_stream(stream))
 		log_message(LOG_LEVEL_WARNING, "could not finish CPU log record");
 	else

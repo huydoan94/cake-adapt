@@ -21,7 +21,7 @@ void defaults_apply(struct config *config)
 		/* Not in cake-autorate; off until measured on real lines. */
 		.ul_congest_ack_share_ratio_e6 = 0U,
 		.log_file_max_time_us = 10U * MINUTE,
-		.log_file_max_size_kilobytes = 2000U,
+		.log_file_max_size_bytes = 2000U * KILOBYTE,
 		.no_pingers = 6U,
 		.reflector_ping_interval_us = 300U * MILLISECOND,
 		.download.average_owd_delta_maximum_adjust_up_us = 10U * MILLISECOND,
