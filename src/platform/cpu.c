@@ -17,9 +17,10 @@
 static uint64_t counter_sum(const struct cpu_counter *counter)
 {
 	/* Match cake-autorate: sum all ten counters, treating only IDLE as idle. */
-	return counter->user + counter->nice + counter->system + counter->idle + counter->iowait +
-	       counter->irq + counter->softirq + counter->steal + counter->guest +
-	       counter->guest_nice;
+	return counter->user_ticks + counter->nice_ticks + counter->system_ticks +
+	       counter->idle_ticks + counter->iowait_ticks + counter->irq_ticks +
+	       counter->softirq_ticks + counter->steal_ticks + counter->guest_ticks +
+	       counter->guest_nice_ticks;
 }
 
 void cpu_init(struct cpu_monitor *monitor)
@@ -34,7 +35,7 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 	size_t capacity = 0U;
 	int result = -1;
 
-	if (!read_clock_microseconds(CLOCK_REALTIME, &sample->timestamp_microseconds)) {
+	if (!read_clock_us(CLOCK_REALTIME, &sample->timestamp_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -67,16 +68,16 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 			   "%15s %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64
 			   " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64,
 			   counter->identifier,
-			   &counter->user,
-			   &counter->nice,
-			   &counter->system,
-			   &counter->idle,
-			   &counter->iowait,
-			   &counter->irq,
-			   &counter->softirq,
-			   &counter->steal,
-			   &counter->guest,
-			   &counter->guest_nice) < 5) {
+			   &counter->user_ticks,
+			   &counter->nice_ticks,
+			   &counter->system_ticks,
+			   &counter->idle_ticks,
+			   &counter->iowait_ticks,
+			   &counter->irq_ticks,
+			   &counter->softirq_ticks,
+			   &counter->steal_ticks,
+			   &counter->guest_ticks,
+			   &counter->guest_nice_ticks) < 5) {
 			error_set(error, error_size, "invalid CPU counters in %s", path);
 			goto done;
 		}
@@ -96,19 +97,25 @@ done:
 void cpu_usage(
 	struct cpu_monitor *monitor,
 	const struct cpu_sample *sample,
-	unsigned int usage[CPU_MAX_COUNT]
+	struct cpu_busy usage[CPU_MAX_COUNT]
 )
 {
 	size_t index;
 
 	for (index = 0U; index < sample->count; index++) {
-		uint64_t sum = counter_sum(&sample->counters[index]);
-		uint64_t delta = saturating_sub(sum, monitor->previous_sums[index]);
-		uint64_t idle =
-			saturating_sub(sample->counters[index].idle, monitor->previous_idle[index]);
+		uint64_t total_ticks = counter_sum(&sample->counters[index]);
+		uint64_t delta_ticks =
+			saturating_sub(total_ticks, monitor->previous_total_ticks[index]);
+		uint64_t idle_ticks = saturating_sub(
+			sample->counters[index].idle_ticks,
+			monitor->previous_idle_ticks[index]
+		);
 
-		usage[index] = delta > idle ? (unsigned int)(PERCENT * (delta - idle) / delta) : 0U;
-		monitor->previous_sums[index] = sum;
-		monitor->previous_idle[index] = sample->counters[index].idle;
+		usage[index] = (struct cpu_busy){
+			.busy_ticks = saturating_sub(delta_ticks, idle_ticks),
+			.total_ticks = delta_ticks,
+		};
+		monitor->previous_total_ticks[index] = total_ticks;
+		monitor->previous_idle_ticks[index] = sample->counters[index].idle_ticks;
 	}
 }

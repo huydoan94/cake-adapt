@@ -13,9 +13,9 @@
 <!-- t0 -->
 <g id="node1" class="node">
 <title>t0</title>
-<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="312.49" cy="-614.35" rx="114.11" ry="27.83"/>
+<ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="312.49" cy="-614.35" rx="125.36" ry="27.83"/>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-617.65" font-family="Arial" font-size="11.00">t = 0: first valid sample</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-604.45" font-family="Arial" font-size="11.00">INITIAL → write 20 000 kbit/s</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-604.45" font-family="Arial" font-size="11.00">INITIAL → write 20 000 000 bit/s</text>
 </g>
 <!-- hold -->
 <g id="node2" class="node">
@@ -35,11 +35,11 @@
 <!-- inc1 -->
 <g id="node3" class="node">
 <title>inc1</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M406.27,-477.16C406.27,-477.16 218.7,-477.16 218.7,-477.16 212.7,-477.16 206.7,-471.16 206.7,-465.16 206.7,-465.16 206.7,-423.4 206.7,-423.4 206.7,-417.4 212.7,-411.4 218.7,-411.4 218.7,-411.4 406.27,-411.4 406.27,-411.4 412.27,-411.4 418.27,-417.4 418.27,-423.4 418.27,-423.4 418.27,-465.16 418.27,-465.16 418.27,-471.16 412.27,-477.16 406.27,-477.16"/>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M404.57,-477.16C404.57,-477.16 220.4,-477.16 220.4,-477.16 214.4,-477.16 208.4,-471.16 208.4,-465.16 208.4,-465.16 208.4,-423.4 208.4,-423.4 208.4,-417.4 214.4,-411.4 220.4,-411.4 220.4,-411.4 404.57,-411.4 404.57,-411.4 410.57,-411.4 416.57,-417.4 416.57,-423.4 416.57,-423.4 416.57,-465.16 416.57,-465.16 416.57,-471.16 410.57,-477.16 404.57,-477.16"/>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-460.78" font-family="Arial" font-size="11.00">t = 350 ms: delta 45 ms enters window</text>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-447.58" font-family="Arial" font-size="11.00">avg 11.67 ms, 1 delayed → CLEAR</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-434.38" font-family="Arial" font-size="11.00">a = ⌊1000·(30.6 − 11.667)/20⌋ = 946</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-421.18" font-family="Arial" font-size="11.00">factor 1.03784 → 20 756 kbit/s</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-434.38" font-family="Arial" font-size="11.00">a = (30.6 − 11.667) / 20 = 0.94665</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-421.18" font-family="Arial" font-size="11.00">factor 1.037866 → 20 757 320 bit/s</text>
 </g>
 <!-- hold&#45;&gt;inc1 -->
 <g id="edge2" class="edge">
@@ -50,10 +50,10 @@
 <!-- inc2 -->
 <g id="node4" class="node">
 <title>inc2</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M425.36,-376.4C425.36,-376.4 199.61,-376.4 199.61,-376.4 193.61,-376.4 187.61,-370.4 187.61,-364.4 187.61,-364.4 187.61,-335.84 187.61,-335.84 187.61,-329.84 193.61,-323.84 199.61,-323.84 199.61,-323.84 425.36,-323.84 425.36,-323.84 431.36,-323.84 437.36,-329.84 437.36,-335.84 437.36,-335.84 437.36,-364.4 437.36,-364.4 437.36,-370.4 431.36,-376.4 425.36,-376.4"/>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M444.63,-376.4C444.63,-376.4 180.35,-376.4 180.35,-376.4 174.35,-376.4 168.35,-370.4 168.35,-364.4 168.35,-364.4 168.35,-335.84 168.35,-335.84 168.35,-329.84 174.35,-323.84 180.35,-323.84 180.35,-323.84 444.63,-323.84 444.63,-323.84 450.63,-323.84 456.63,-329.84 456.63,-335.84 456.63,-335.84 456.63,-364.4 456.63,-364.4 456.63,-370.4 450.63,-376.4 444.63,-376.4"/>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-360.02" font-family="Arial" font-size="11.00">t = 400 ms: avg 18.33 ms, 2 delayed → CLEAR</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-346.82" font-family="Arial" font-size="11.00">thresholds now compensated at 20 756 kbit/s</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-333.62" font-family="Arial" font-size="11.00">→ 21 264 kbit/s</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-346.82" font-family="Arial" font-size="11.00">thresholds now compensated at 20.76 Mbit/s (+578 µs)</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-333.62" font-family="Arial" font-size="11.00">→ 21 265 664 bit/s</text>
 </g>
 <!-- inc1&#45;&gt;inc2 -->
 <g id="edge3" class="edge">
@@ -64,10 +64,10 @@
 <!-- cut -->
 <g id="node5" class="node">
 <title>cut</title>
-<path fill="#ffe3e0" stroke="#c2413b" stroke-width="1.2" d="M408.54,-288.84C408.54,-288.84 216.43,-288.84 216.43,-288.84 210.43,-288.84 204.43,-282.84 204.43,-276.84 204.43,-276.84 204.43,-248.28 204.43,-248.28 204.43,-242.28 210.43,-236.28 216.43,-236.28 216.43,-236.28 408.54,-236.28 408.54,-236.28 414.54,-236.28 420.54,-242.28 420.54,-248.28 420.54,-248.28 420.54,-276.84 420.54,-276.84 420.54,-282.84 414.54,-288.84 408.54,-288.84"/>
+<path fill="#ffe3e0" stroke="#c2413b" stroke-width="1.2" d="M423.39,-288.84C423.39,-288.84 201.58,-288.84 201.58,-288.84 195.58,-288.84 189.58,-282.84 189.58,-276.84 189.58,-276.84 189.58,-248.28 189.58,-248.28 189.58,-242.28 195.58,-236.28 201.58,-236.28 201.58,-236.28 423.39,-236.28 423.39,-236.28 429.39,-236.28 435.39,-242.28 435.39,-248.28 435.39,-248.28 435.39,-276.84 435.39,-276.84 435.39,-282.84 429.39,-288.84 423.39,-288.84"/>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-272.46" font-family="Arial" font-size="11.00">t = 450 ms: 3 delayed → DETECTED</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-259.26" font-family="Arial" font-size="11.00">avg 25.0 ms &lt; 30.6 → minimum cut 0.99</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-246.06" font-family="Arial" font-size="11.00">21 264 → 21 051 kbit/s</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-259.26" font-family="Arial" font-size="11.00">avg 25.0 ms &lt; 30.56 → minimum cut 0.99</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-246.06" font-family="Arial" font-size="11.00">21 265 664 → 21 053 000 bit/s (whole bytes/s)</text>
 </g>
 <!-- inc2&#45;&gt;cut -->
 <g id="edge4" class="edge">
@@ -96,7 +96,7 @@
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M407.48,-126.92C407.48,-126.92 217.5,-126.92 217.5,-126.92 211.5,-126.92 205.5,-120.92 205.5,-114.92 205.5,-114.92 205.5,-86.36 205.5,-86.36 205.5,-80.36 211.5,-74.36 217.5,-74.36 217.5,-74.36 407.48,-74.36 407.48,-74.36 413.48,-74.36 419.48,-80.36 419.48,-86.36 419.48,-86.36 419.48,-114.92 419.48,-114.92 419.48,-120.92 413.48,-126.92 407.48,-126.92"/>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-110.54" font-family="Arial" font-size="11.00">t = 800 ms: delta back to 5 ms</text>
 <text xml:space="preserve" text-anchor="middle" x="312.49" y="-97.34" font-family="Arial" font-size="11.00">2 delayed → CLEAR; refractory elapsed</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-84.14" font-family="Arial" font-size="11.00">→ increase to 21 565 kbit/s</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-84.14" font-family="Arial" font-size="11.00">→ increase to 21 568 248 bit/s</text>
 </g>
 <!-- wait&#45;&gt;clear -->
 <g id="edge6" class="edge">
@@ -107,9 +107,9 @@
 <!-- climb -->
 <g id="node8" class="node">
 <title>climb</title>
-<path fill="#dcfce7" stroke="#15803d" stroke-width="1.2" d="M418.96,-39.36C418.96,-39.36 206.01,-39.36 206.01,-39.36 200.01,-39.36 194.01,-33.36 194.01,-27.36 194.01,-27.36 194.01,-12 194.01,-12 194.01,-6 200.01,0 206.01,0 206.01,0 418.96,0 418.96,0 424.96,0 430.96,-6 430.96,-12 430.96,-12 430.96,-27.36 430.96,-27.36 430.96,-33.36 424.96,-39.36 418.96,-39.36"/>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-22.98" font-family="Arial" font-size="11.00">t = 850…950 ms: 22 379 → 23 274 → 24 204</text>
-<text xml:space="preserve" text-anchor="middle" x="312.49" y="-9.78" font-family="Arial" font-size="11.00">(factor reaches 1.04 once avg ≤ 10.6 ms)</text>
+<path fill="#dcfce7" stroke="#15803d" stroke-width="1.2" d="M451.08,-39.36C451.08,-39.36 173.9,-39.36 173.9,-39.36 167.9,-39.36 161.9,-33.36 161.9,-27.36 161.9,-27.36 161.9,-12 161.9,-12 161.9,-6 167.9,0 173.9,0 173.9,0 451.08,0 451.08,0 457.08,0 463.08,-6 463.08,-12 463.08,-12 463.08,-27.36 463.08,-27.36 463.08,-33.36 457.08,-39.36 451.08,-39.36"/>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-22.98" font-family="Arial" font-size="11.00">t = 850…950 ms: 22 383 048 → 23 278 368 → 24 209 496</text>
+<text xml:space="preserve" text-anchor="middle" x="312.49" y="-9.78" font-family="Arial" font-size="11.00">(factor reaches 1.04 once avg ≤ 10.54 ms)</text>
 </g>
 <!-- clear&#45;&gt;climb -->
 <g id="edge7" class="edge">

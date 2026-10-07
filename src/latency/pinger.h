@@ -19,7 +19,7 @@ struct pinger_ops {
 		struct latency *latency,
 		const char *const *targets,
 		size_t target_count,
-		uint64_t timestamp_microseconds,
+		uint64_t timestamp_us,
 		char *error,
 		size_t error_size
 	);

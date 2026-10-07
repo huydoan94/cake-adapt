@@ -415,7 +415,7 @@
       ],
       "notes": [
         "All monitor state lives in one struct monitor on monitor_run's stack, split into parts owned by links.c, control.c, pingers.c, reflectors.c and tcpdelay.c. The aggregate initializer zeroes everything that is not set explicitly.",
-        "control_start converts the per-million UCI factors to cake-autorate's per-thousand and percent rounding.",
+        "control_start copies the UCI settings into the controller configuration unchanged: ratios per million, durations in microseconds and rates in bit/s.",
         "reflectors_start initializes one latency tracker per configured reflector. With randomize_reflectors it shuffles the order using getentropy.",
         "The first traffic cycle runs before uloop_run, so CAKE discovery and the first counter baseline happen immediately.",
         "Pinger output, pinger exits, qdisc events, timers and SIGUSR1/SIGUSR2 are all uloop callbacks. No thread or polling loop sits outside uloop."
@@ -595,7 +595,7 @@
         "src/cake/cake.c:cake_read",
         "src/monitor/links.c:observe_traffic",
         "src/platform/traffic.c:traffic_update",
-        "src/platform/traffic.c:traffic_compensated_interval_microseconds"
+        "src/platform/traffic.c:traffic_compensated_interval_us"
       ],
       "notes": [
         "The kernel ignores tcm_ifindex in a qdisc dump, so one dump serves both directions. The interface index is cached and cleared when CAKE is not found.",
@@ -1236,13 +1236,13 @@
         "src/latency/tracker.c:tracker_update_direction",
         "src/latency/tracker.c:tracker_update_delta_ewma",
         "src/controller/controller.c:controller_low_load",
-        "src/common/helpers.c:response_monotonic_microseconds",
+        "src/common/helpers.c:response_monotonic_us",
         "src/common/helpers.c:response_stale"
       ],
       "notes": [
         "The baseline starts at 100 ms. It moves by alpha_baseline_increase (0.001) when the sample is at or above it, and by alpha_baseline_decrease (0.9) when below. A rising delay therefore barely moves the baseline, and an improvement is adopted almost at once.",
         "delta = OWD − baseline, per direction. The controller sees only this delta.",
-        "The delta EWMA (alpha 0.095) is used only for reflector comparison. It updates only while both directions are below high_load_thr, using the last load percentage, which is 0 before the first rate sample. This matches upstream.",
+        "The delta EWMA (alpha 0.095) is used only for reflector comparison. It updates only while both directions are below high_load_thr, using the last load ratio, which is 0 before the first rate sample. This matches upstream.",
         "The response timestamp is converted from realtime to monotonic. A reply older than 500 ms still updates baselines and health but does not reach the controller.",
         "irtt timestamps can roll over; a detected rollover resets the baseline to the sample and reports a zero delta."
       ],
@@ -1601,11 +1601,11 @@
         "src/controller/controller.c:adjust_rate",
         "src/controller/controller.c:set_rate_output",
         "src/common/utils.h:interval_elapsed",
-        "src/common/helpers.c:load_percent"
+        "src/common/helpers.h:load_ratio_e6"
       ],
       "notes": [
         "The order matches cake-autorate's update_shaper_rate: a bufferbloat cut first, then a high-load increase, then low-load decay toward base.",
-        "high load means achieved rate as a percentage of the previous shaper rate > high_load_thr (75%).",
+        "high load means achieved rate ÷ previous shaper rate, as a ratio per million, > high_load_thr (75%).",
         "Refractory comparisons are strict: an interval equal to the refractory period has not elapsed.",
         "A congestion cut also restarts the decay clock, so decay cannot immediately undo it. An increase restarts the decay clock too.",
         "The first valid sample writes the base rate even when CAKE already holds it, as upstream's first set_shaper_rates does. Both refractory clocks start then.",
@@ -1843,16 +1843,16 @@
       "id": "09-rate-math",
       "title": "09 — Rate factors, thresholds, rounding, and bounds",
       "refs": [
-        "src/controller/controller.c:downward_factor",
-        "src/controller/controller.c:upward_factor",
-        "src/controller/controller.c:interpolate_factor",
+        "src/controller/controller.c:downward_factor_e6",
+        "src/controller/controller.c:upward_factor_e6",
+        "src/controller/controller.c:interpolate_factor_e6",
         "src/controller/controller.c:scale_rate",
         "src/controller/controller.c:rate_toward_base",
         "src/controller/controller.c:compensate_direction",
         "src/monitor/control.c:control_start"
       ],
       "notes": [
-        "Rates are computed in whole kbit/s and truncated, like upstream's integer shell arithmetic. Factors are per-million: per-thousand endpoints plus three more decimal places from interpolation.",
+        "Rates are bit/s and factors are ratios per million (1,000,000 = 1.0), computed exactly. A scaled rate is truncated to whole bytes/s (a multiple of 8 bit/s), the precision CAKE holds. cake-autorate truncates to whole kbit/s and its factors to per-thousand steps; cake-adapt does not copy those truncations.",
         "Cut: delay ≤ threshold → minimum cut (0.99). Delay ≥ adjust-down maximum → maximum cut (0.75). Linear in between.",
         "Increase: delay ≤ adjust-up maximum → maximum increase (1.04). Delay ≥ threshold → minimum increase (1.00). Linear in between.",
         "Decay uses 0.99 above base and 1.01 below base, and never crosses base.",
@@ -1862,7 +1862,7 @@
       "nodes": [
         {
           "id": "comp",
-          "label": "compensation_µs = max_wire_packet_bits\n÷ shaper rate",
+          "label": "compensation_µs = max_wire_packet_bits\n÷ shaper rate, rounded to the µs",
           "kind": "process"
         },
         {
@@ -1872,27 +1872,27 @@
         },
         {
           "id": "down",
-          "label": "downward adjustment a ∈ [0,1000]\na = 1000·(avg − delay_thr) / (adjust_down − delay_thr)",
+          "label": "downward adjustment a ∈ [0, 1]\na = (avg − delay_thr) / (adjust_down − delay_thr)\nas a ratio per million",
           "kind": "process"
         },
         {
           "id": "dfac",
-          "label": "factor = 990·1000 − a·(990 − 750)",
+          "label": "factor = 0.99 − a·(0.99 − 0.75)",
           "kind": "process"
         },
         {
           "id": "up",
-          "label": "upward adjustment a ∈ [0,1000]\na = 1000·(delay_thr − avg) / (delay_thr − adjust_up)",
+          "label": "upward adjustment a ∈ [0, 1]\na = (delay_thr − avg) / (delay_thr − adjust_up)\nas a ratio per million",
           "kind": "process"
         },
         {
           "id": "ufac",
-          "label": "factor = 1000·1000 + a·(1040 − 1000)",
+          "label": "factor = 1.00 + a·(1.04 − 1.00)",
           "kind": "process"
         },
         {
           "id": "scale",
-          "label": "scale_rate: kbit = rate / 1000\nkbit·factor / 1 000 000 (truncated)\n× 1000, overflow-safe",
+          "label": "scale_rate: rate × factor / 1 000 000\n(overflow-safe), truncated to whole bytes/s",
           "kind": "process"
         },
         {
@@ -2132,7 +2132,7 @@
       "notes": [
         "The stall timeout = stall_detection_threshold × (reflector_ping_interval ÷ pingers), measured from the last reflector response.",
         "Idle requires enable_sleep_function, valid counters in both directions, and both rates ≤ connection_active_thr for longer than sustained_idle_sleep_thr_s. Entering IDLE stops the pingers.",
-        "Rates are compared in whole kbit/s, as upstream does. STALL needs both directions at or below the 10 kbit/s stall threshold; any traffic above it keeps RUNNING.",
+        "Rates are compared in bit/s. STALL needs both directions at or below the 10 kbit/s stall threshold; any traffic above it keeps RUNNING.",
         "After the pingers start (startup, IDLE wake, or CAKE returning) there is a grace of two ping intervals. Stall and reflector checks are skipped during the grace and reflector health restarts at its end.",
         "If no response arrives for global_ping_response_timeout_s, the warning is logged once. When minimum_shaper_rates_enforcement is set, minimum rates are applied. Pingers restart at most once per timeout period.",
         "Without CAKE in both directions, pingers are suspended and the activity machine does not run."
@@ -2781,22 +2781,22 @@
       "title": "15 — Worked example: 20 Mbit/s under load with a delay burst",
       "refs": [
         "src/controller/controller.c:adjust_rate",
-        "src/controller/controller.c:upward_factor",
-        "src/controller/controller.c:downward_factor",
+        "src/controller/controller.c:upward_factor_e6",
+        "src/controller/controller.c:downward_factor_e6",
         "src/controller/controller.c:scale_rate"
       ],
       "notes": [
         "Inputs: cake-autorate defaults; minimum/base/maximum 10/20/50 Mbit/s; a 12,000-bit maximum wire packet; one reply every 50 ms. Download is at 19 Mbit/s (95% of the shaper, so high load) throughout.",
-        "Every number here was produced by running the real controller (controller.c) on these inputs. The replay test checks the same arithmetic against recorded cake-autorate traces.",
+        "Every number here was produced by running the real controller (controller.c) on these inputs. The replay test checks the same arithmetic against recorded cake-autorate traces, within its tolerances for cake-autorate's truncations.",
         "With 12,000 bits at 20 Mbit/s, compensation is 600 µs and the thresholds become 10.6, 30.6 and 60.6 ms. They are recomputed at each new shaper rate.",
         "No increase happens before 350 ms: the initial write starts the bufferbloat refractory clock, and the comparison is strict.",
         "The cut uses the minimum factor because the window average (25.0 ms) is still below the delay threshold. The 6-slot average lags the instantaneous delay.",
-        "Further cuts would need another 300 ms. The window clears at 1.80 s, so only one cut happens and increases resume."
+        "Further cuts would need another 300 ms. The window clears at 0.80 s, so only one cut happens and increases resume."
       ],
       "nodes": [
         {
           "id": "t0",
-          "label": "t = 0: first valid sample\nINITIAL → write 20 000 kbit/s",
+          "label": "t = 0: first valid sample\nINITIAL → write 20 000 000 bit/s",
           "kind": "start"
         },
         {
@@ -2806,17 +2806,17 @@
         },
         {
           "id": "inc1",
-          "label": "t = 350 ms: delta 45 ms enters window\navg 11.67 ms, 1 delayed → CLEAR\na = ⌊1000·(30.6 − 11.667)/20⌋ = 946\nfactor 1.03784 → 20 756 kbit/s",
+          "label": "t = 350 ms: delta 45 ms enters window\navg 11.67 ms, 1 delayed → CLEAR\na = (30.6 − 11.667) / 20 = 0.94665\nfactor 1.037866 → 20 757 320 bit/s",
           "kind": "process"
         },
         {
           "id": "inc2",
-          "label": "t = 400 ms: avg 18.33 ms, 2 delayed → CLEAR\nthresholds now compensated at 20 756 kbit/s\n→ 21 264 kbit/s",
+          "label": "t = 400 ms: avg 18.33 ms, 2 delayed → CLEAR\nthresholds now compensated at 20.76 Mbit/s (+578 µs)\n→ 21 265 664 bit/s",
           "kind": "process"
         },
         {
           "id": "cut",
-          "label": "t = 450 ms: 3 delayed → DETECTED\navg 25.0 ms < 30.6 → minimum cut 0.99\n21 264 → 21 051 kbit/s",
+          "label": "t = 450 ms: 3 delayed → DETECTED\navg 25.0 ms < 30.56 → minimum cut 0.99\n21 265 664 → 21 053 000 bit/s (whole bytes/s)",
           "kind": "error"
         },
         {
@@ -2826,12 +2826,12 @@
         },
         {
           "id": "clear",
-          "label": "t = 800 ms: delta back to 5 ms\n2 delayed → CLEAR; refractory elapsed\n→ increase to 21 565 kbit/s",
+          "label": "t = 800 ms: delta back to 5 ms\n2 delayed → CLEAR; refractory elapsed\n→ increase to 21 568 248 bit/s",
           "kind": "process"
         },
         {
           "id": "climb",
-          "label": "t = 850…950 ms: 22 379 → 23 274 → 24 204\n(factor reaches 1.04 once avg ≤ 10.6 ms)",
+          "label": "t = 850…950 ms: 22 383 048 → 23 278 368 → 24 209 496\n(factor reaches 1.04 once avg ≤ 10.54 ms)",
           "kind": "end"
         }
       ],

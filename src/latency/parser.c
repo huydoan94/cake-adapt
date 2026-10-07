@@ -1,11 +1,11 @@
 #include "latency/parser.h"
 #include "common/constants.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -34,27 +34,56 @@ static bool copy_token(char *destination, size_t size, const char *start, const 
 	return true;
 }
 
-/* fping's RTT halved into each one-way delay, as cake-autorate records it. */
-static int64_t half_round_trip(double round_trip_milliseconds)
+/* fping's RTT halved into each one-way delay, rounded to the microsecond. */
+static int64_t half_round_trip(uint64_t round_trip_ns)
 {
-	double microseconds = round_trip_milliseconds * (double)MICROSECONDS_PER_MILLISECOND;
+	uint64_t half_us = rounded_divide(round_trip_ns, 2U * NANOSECONDS_PER_MICROSECOND);
 
-	if (microseconds > (double)UINT32_MAX)
-		return (int64_t)(UINT32_MAX / 2U);
-	return (int64_t)((uint32_t)(microseconds + 0.5) / 2U);
+	return half_us > (uint64_t)INT64_MAX ? INT64_MAX : (int64_t)half_us;
+}
+
+/* fping's RTT digits: whole milliseconds, then up to six decimals kept, the next rounding. */
+#define ROUND_TRIP_FRACTION_DIGITS 6U
+
+/* Reads fping's decimal RTT in milliseconds exactly, as nanoseconds. */
+static bool parse_round_trip(const char *text, const char **end, uint64_t *round_trip_ns)
+{
+	const char *cursor = text + strspn(text, DECIMAL_DIGITS);
+	uint64_t whole_ms;
+	/* Six decimals of a millisecond are nanoseconds. */
+	uint64_t fraction_ns = 0U;
+
+	if (!parse_unsigned(text, cursor, &whole_ms) ||
+	    whole_ms >= UINT64_MAX / NANOSECONDS_PER_MILLISECOND)
+		return false;
+	if (*cursor == '.') {
+		const char *digits = cursor + 1;
+		size_t count = strspn(digits, DECIMAL_DIGITS);
+
+		if (count == 0U)
+			return false;
+		for (size_t index = 0U; index < ROUND_TRIP_FRACTION_DIGITS; index++)
+			fraction_ns = fraction_ns * 10U +
+				      (index < count ? (uint64_t)(digits[index] - '0') : 0U);
+		if (count > ROUND_TRIP_FRACTION_DIGITS && digits[ROUND_TRIP_FRACTION_DIGITS] >= '5')
+			fraction_ns++;
+		cursor = digits + count;
+	}
+	*round_trip_ns = whole_ms * NANOSECONDS_PER_MILLISECOND + fraction_ns;
+	*end = cursor;
+	return true;
 }
 
 /* Microseconds have six fraction digits. */
 #define FRACTION_DIGITS (sizeof(FRACTION_ZEROES) - 1U)
 
-static bool
-parse_timestamp(const char *line, const char **remainder, uint64_t *timestamp_microseconds)
+static bool parse_timestamp(const char *line, const char **remainder, uint64_t *timestamp_us)
 {
 	const char *closing_bracket;
 	const char *decimal_point;
 	char fraction_digits[sizeof(FRACTION_ZEROES)] = FRACTION_ZEROES;
-	uint64_t fraction;
-	uint64_t seconds;
+	uint64_t fraction_us;
+	uint64_t whole_sec;
 	size_t digit_count;
 
 	if (line[0] != '[')
@@ -63,27 +92,29 @@ parse_timestamp(const char *line, const char **remainder, uint64_t *timestamp_mi
 	if (closing_bracket == NULL || closing_bracket[1] != ' ')
 		return false;
 	decimal_point = memchr(line + 1, '.', (size_t)(closing_bracket - (line + 1)));
-	if (decimal_point == NULL || !parse_unsigned(line + 1, decimal_point, &seconds))
+	if (decimal_point == NULL || !parse_unsigned(line + 1, decimal_point, &whole_sec))
 		return false;
 
 	digit_count = strspn(decimal_point + 1, DECIMAL_DIGITS);
 	if (digit_count == 0U || decimal_point + 1 + digit_count != closing_bracket)
 		return false;
-	/* Pad or truncate to six digits without rounding epoch time through float. */
+	/* Pad or round to six digits without passing epoch time through float. */
 	memcpy(fraction_digits,
 	       decimal_point + 1,
 	       digit_count < FRACTION_DIGITS ? digit_count : FRACTION_DIGITS);
-	fraction = strtoul(fraction_digits, NULL, 10);
+	fraction_us = strtoul(fraction_digits, NULL, 10);
+	if (digit_count > FRACTION_DIGITS && decimal_point[1 + FRACTION_DIGITS] >= '5')
+		fraction_us++;
 
-	if (seconds > (UINT64_MAX - fraction) / MICROSECONDS_PER_SECOND)
+	if (whole_sec > (UINT64_MAX - fraction_us) / MICROSECONDS_PER_SECOND)
 		return false;
-	*timestamp_microseconds = seconds * MICROSECONDS_PER_SECOND + fraction;
+	*timestamp_us = whole_sec * MICROSECONDS_PER_SECOND + fraction_us;
 	*remainder = closing_bracket + 2;
 	return true;
 }
 
 /* Reads "<name><milliseconds>" and the separating space, if any. */
-static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t *milliseconds)
+static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t *timestamp_ms)
 {
 	const char *digits = *cursor;
 	const char *end;
@@ -91,10 +122,9 @@ static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t
 	if (!skip_prefix(&digits, name))
 		return false;
 	end = digits + strspn(digits, DECIMAL_DIGITS);
-	if (!parse_unsigned(digits, end, milliseconds) || *milliseconds > UINT32_MAX ||
-	    (*end != '\0' && *end != ' ')) {
+	if (!parse_unsigned(digits, end, timestamp_ms) || *timestamp_ms > UINT32_MAX ||
+	    (*end != '\0' && *end != ' '))
 		return false;
-	}
 	*cursor = *end == ' ' ? end + 1 : end;
 	return true;
 }
@@ -107,23 +137,23 @@ static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t
  */
 static bool parse_icmp_timestamps(const char *cursor, struct latency_sample *sample)
 {
-	uint64_t originate;
-	uint64_t receive;
-	uint64_t transmit;
-	uint64_t local_receive;
+	uint64_t originate_ms;
+	uint64_t receive_ms;
+	uint64_t transmit_ms;
+	uint64_t local_receive_ms;
 
 	cursor = strstr(cursor, FPING_TIMESTAMPS_PREFIX);
 	if (cursor == NULL || !skip_prefix(&cursor, FPING_TIMESTAMPS_PREFIX) ||
-	    !parse_icmp_timestamp(&cursor, FPING_ORIGINATE, &originate) ||
-	    !parse_icmp_timestamp(&cursor, FPING_RECEIVE, &receive) ||
-	    !parse_icmp_timestamp(&cursor, FPING_TRANSMIT, &transmit) ||
-	    !parse_icmp_timestamp(&cursor, FPING_LOCAL_RECEIVE, &local_receive)) {
+	    !parse_icmp_timestamp(&cursor, FPING_ORIGINATE, &originate_ms) ||
+	    !parse_icmp_timestamp(&cursor, FPING_RECEIVE, &receive_ms) ||
+	    !parse_icmp_timestamp(&cursor, FPING_TRANSMIT, &transmit_ms) ||
+	    !parse_icmp_timestamp(&cursor, FPING_LOCAL_RECEIVE, &local_receive_ms)) {
 		return false;
 	}
-	sample->download_owd_microseconds = ((int64_t)local_receive - (int64_t)transmit) *
-					    (int64_t)MICROSECONDS_PER_MILLISECOND;
-	sample->upload_owd_microseconds =
-		((int64_t)receive - (int64_t)originate) * (int64_t)MICROSECONDS_PER_MILLISECOND;
+	sample->download_owd_us = ((int64_t)local_receive_ms - (int64_t)transmit_ms) *
+				  (int64_t)MICROSECONDS_PER_MILLISECOND;
+	sample->upload_owd_us = ((int64_t)receive_ms - (int64_t)originate_ms) *
+				(int64_t)MICROSECONDS_PER_MILLISECOND;
 	sample->timestamp_rollover_sensitive = true;
 	return true;
 }
@@ -135,19 +165,17 @@ static bool parse_icmp_timestamps(const char *cursor, struct latency_sample *sam
 static enum latency_fping_line_result parse_fping_reply(
 	const char *line,
 	struct latency_sample *sample,
-	double *round_trip,
+	uint64_t *round_trip_ns,
 	const char **tail
 )
 {
 	const char *cursor;
 	const char *separator;
 	const char *end;
-	char *rtt_end;
 	uint64_t sequence;
-	uint64_t timestamp_microseconds;
-	double round_trip_milliseconds;
+	uint64_t timestamp_us;
 
-	if (!parse_timestamp(line, &cursor, &timestamp_microseconds))
+	if (!parse_timestamp(line, &cursor, &timestamp_us))
 		return LATENCY_FPING_LINE_INVALID;
 	/* The bracketed token ends two bytes before cursor, at "] ". */
 	if (!copy_token(sample->timestamp_text, sizeof(sample->timestamp_text), line, cursor - 1))
@@ -166,9 +194,9 @@ static enum latency_fping_line_result parse_fping_reply(
 	end = strchr(cursor, ']');
 	if (end == NULL || !parse_unsigned(cursor, end, &sequence))
 		return LATENCY_FPING_LINE_INVALID;
-	sample->download_owd_microseconds = 0U;
-	sample->upload_owd_microseconds = 0U;
-	sample->timestamp_microseconds = timestamp_microseconds;
+	sample->download_owd_us = 0U;
+	sample->upload_owd_us = 0U;
+	sample->timestamp_us = timestamp_us;
 	sample->timestamp_rollover_sensitive = false;
 	sample->sequence = sequence;
 	cursor = end + 1;
@@ -183,37 +211,32 @@ static enum latency_fping_line_result parse_fping_reply(
 	cursor = end;
 	if (!skip_prefix(&cursor, FPING_BYTES_SEPARATOR))
 		return LATENCY_FPING_LINE_INVALID;
-	errno = 0;
-	round_trip_milliseconds = strtod(cursor, &rtt_end);
-	*tail = rtt_end;
-	if (errno == ERANGE || rtt_end == cursor || !isfinite(round_trip_milliseconds) ||
-	    round_trip_milliseconds < 0.0 || !skip_prefix(tail, FPING_MILLISECONDS_SUFFIX))
+	if (!parse_round_trip(cursor, tail, round_trip_ns) || !skip_prefix(tail, FPING_MS_SUFFIX))
 		return LATENCY_FPING_LINE_INVALID;
-	*round_trip = round_trip_milliseconds;
 	return LATENCY_FPING_LINE_SAMPLE;
 }
 
 enum latency_fping_line_result parse_fping_line(const char *line, struct latency_sample *sample)
 {
-	double round_trip_milliseconds;
+	uint64_t round_trip_ns;
 	const char *tail;
 	enum latency_fping_line_result result =
-		parse_fping_reply(line, sample, &round_trip_milliseconds, &tail);
+		parse_fping_reply(line, sample, &round_trip_ns, &tail);
 
 	if (result != LATENCY_FPING_LINE_SAMPLE)
 		return result;
-	sample->download_owd_microseconds = half_round_trip(round_trip_milliseconds);
-	sample->upload_owd_microseconds = sample->download_owd_microseconds;
+	sample->download_owd_us = half_round_trip(round_trip_ns);
+	sample->upload_owd_us = sample->download_owd_us;
 	return LATENCY_FPING_LINE_SAMPLE;
 }
 
 enum latency_fping_line_result
 parse_fping_timestamp_line(const char *line, struct latency_sample *sample)
 {
-	double round_trip_milliseconds;
+	uint64_t round_trip_ns;
 	const char *tail;
 	enum latency_fping_line_result result =
-		parse_fping_reply(line, sample, &round_trip_milliseconds, &tail);
+		parse_fping_reply(line, sample, &round_trip_ns, &tail);
 
 	if (result != LATENCY_FPING_LINE_SAMPLE)
 		return result;
@@ -227,32 +250,56 @@ static bool token_has_unit(const char *token, const char *unit)
 	return skip_prefix(&token, unit) && (*token == '\0' || isblank((unsigned char)*token));
 }
 
-static bool parse_irtt_duration(const char *value, int64_t *microseconds)
+/* Nanoseconds in one of IRTT's duration units, or zero for an unknown unit. */
+static uint64_t irtt_unit_ns(const char *unit)
 {
-	char *unit;
-	double parsed;
-	double scale;
-	double converted;
+	if (token_has_unit(unit, IRTT_UNIT_NS))
+		return 1U;
+	if (token_has_unit(unit, IRTT_UNIT_US) || token_has_unit(unit, IRTT_UNIT_US_SIGN))
+		return NANOSECONDS_PER_MICROSECOND;
+	if (token_has_unit(unit, IRTT_UNIT_MS))
+		return NANOSECONDS_PER_MILLISECOND;
+	if (token_has_unit(unit, IRTT_UNIT_SEC))
+		return NANOSECONDS_PER_SECOND;
+	return 0U;
+}
 
-	errno = 0;
-	parsed = strtod(value, &unit);
-	if (errno == ERANGE || unit == value || !isfinite(parsed) || parsed < 0.0)
+/*
+ * Reads an IRTT duration such as "1.234ms" exactly, as decimal text. Digits
+ * below a nanosecond are dropped: truncated nanoseconds still round to the
+ * same microsecond.
+ */
+static bool parse_irtt_duration(const char *value, int64_t *duration_us)
+{
+	const char *whole_end = value + strspn(value, DECIMAL_DIGITS);
+	const char *fraction = whole_end;
+	size_t fraction_count = 0U;
+	uint64_t whole;
+	uint64_t unit_ns;
+	uint64_t duration_ns;
+	uint64_t us;
+
+	if (!parse_unsigned(value, whole_end, &whole))
 		return false;
-	if (token_has_unit(unit, IRTT_UNIT_NANOSECONDS))
-		scale = 1.0 / (double)THOUSAND;
-	else if (token_has_unit(unit, IRTT_UNIT_MICROSECONDS) ||
-		 token_has_unit(unit, IRTT_UNIT_MICROSECONDS_SIGN))
-		scale = (double)MICROSECOND;
-	else if (token_has_unit(unit, IRTT_UNIT_MILLISECONDS))
-		scale = (double)MILLISECOND;
-	else if (token_has_unit(unit, IRTT_UNIT_SECONDS))
-		scale = (double)SECOND;
-	else
+	if (*whole_end == '.') {
+		fraction = whole_end + 1;
+		fraction_count = strspn(fraction, DECIMAL_DIGITS);
+		if (fraction_count == 0U)
+			return false;
+	}
+	unit_ns = irtt_unit_ns(fraction + fraction_count);
+	if (unit_ns == 0U || whole > UINT64_MAX / unit_ns - 1U)
 		return false;
-	converted = parsed * scale;
-	if (!isfinite(converted) || converted >= (double)INT64_MAX)
+	duration_ns = whole * unit_ns;
+	/* The fraction adds less than one unit, so it cannot overflow. */
+	for (size_t index = 0U; index < fraction_count && unit_ns / 10U > 0U; index++) {
+		unit_ns /= 10U;
+		duration_ns += (uint64_t)(fraction[index] - '0') * unit_ns;
+	}
+	us = ns_to_us(duration_ns);
+	if (us > (uint64_t)INT64_MAX)
 		return false;
-	*microseconds = (int64_t)(converted + 0.5);
+	*duration_us = (int64_t)us;
 	return true;
 }
 
@@ -284,8 +331,8 @@ bool parse_irtt_line(const char *line, const char *target, struct latency_sample
 	const char *upload_text;
 	char *sequence_end;
 	uintmax_t sequence;
-	int64_t download;
-	int64_t upload;
+	int64_t download_owd_us;
+	int64_t upload_owd_us;
 
 	if (!irtt_value(line, IRTT_SEQUENCE, &sequence_text) ||
 	    !irtt_value(line, IRTT_RECEIVE_DELAY, &download_text) ||
@@ -296,12 +343,12 @@ bool parse_irtt_line(const char *line, const char *target, struct latency_sample
 	sequence = strtoumax(sequence_text, &sequence_end, 10);
 	if (errno == ERANGE || sequence_end == sequence_text ||
 	    (*sequence_end != '\0' && !isblank((unsigned char)*sequence_end)) ||
-	    !parse_irtt_duration(download_text, &download) ||
-	    !parse_irtt_duration(upload_text, &upload)) {
+	    !parse_irtt_duration(download_text, &download_owd_us) ||
+	    !parse_irtt_duration(upload_text, &upload_owd_us)) {
 		return false;
 	}
-	*sample = (struct latency_sample){ .download_owd_microseconds = download,
-					   .upload_owd_microseconds = upload,
+	*sample = (struct latency_sample){ .download_owd_us = download_owd_us,
+					   .upload_owd_us = upload_owd_us,
 					   .timestamp_rollover_sensitive = false,
 					   .sequence = (uint64_t)sequence };
 	return copy_token(sample->target, sizeof(sample->target), target, target + strlen(target));

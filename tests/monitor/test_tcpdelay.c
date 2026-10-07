@@ -63,10 +63,10 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 	return 0;
 }
 
-void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns)
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_us)
 {
 	(void)estimator;
-	(void)queue_bound_ns;
+	(void)queue_bound_us;
 }
 
 void traffic_init(struct traffic_monitor *monitor)
@@ -81,7 +81,7 @@ void pingers_close(struct monitor *monitor)
 
 static void capture_lifecycle(struct monitor *monitor)
 {
-	struct config config = { .ul_congest_ack_share_per_million = 450000U };
+	struct config config = { .ul_congest_ack_share_ratio_e6 = 450000U };
 	struct monitor_direction *upload = &monitor->links.upload;
 	const struct cake_observation cake = {
 		.qdisc = { .interface_index = 10U, .handle = 0x10000U, .parent = TC_H_ROOT },
@@ -121,23 +121,6 @@ static void capture_lifecycle(struct monitor *monitor)
 	monitor->config = NULL;
 }
 
-/* The bound is fping's largest added delay over the current and previous second. */
-static void queue_bound(void)
-{
-	struct monitor_tcp tcp = { 0 };
-	const int64_t ms = (int64_t)NANOSECONDS_PER_MILLISECOND;
-
-	assert(tcp_queue_bound(&tcp, 30 * ms, 10U * SECOND) == 30 * ms);
-	/* A low reply in the same second leaves it. */
-	assert(tcp_queue_bound(&tcp, 5 * ms, 10U * SECOND + 500U * MILLISECOND) == 30 * ms);
-	/* The previous second still counts. */
-	assert(tcp_queue_bound(&tcp, 4 * ms, 11U * SECOND) == 30 * ms);
-	/* Once the high second is two seconds old, it falls. */
-	assert(tcp_queue_bound(&tcp, 3 * ms, 12U * SECOND) == 4 * ms);
-	/* After a gap without replies, only the new second counts. */
-	assert(tcp_queue_bound(&tcp, 7 * ms, 20U * SECOND) == 7 * ms);
-}
-
 int main(void)
 {
 	struct monitor *monitor = calloc(1U, sizeof(*monitor));
@@ -152,8 +135,8 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, SECOND, &acks);
 	assert(acks.valid);
-	assert(acks.upload_ack_rate_bits_per_second == 8000U);
-	assert(acks.upload_rate_bits_per_second == 16000U);
+	assert(acks.upload_ack_rate_bps == 8000U);
+	assert(acks.upload_rate_bps == 16000U);
 
 	supplied.unaccounted_packets++;
 	measure_ack_rate(monitor, 1500U * MILLISECOND, &acks);
@@ -167,7 +150,7 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, 2500U * MILLISECOND, &acks);
 	assert(acks.valid && notices == 1U);
-	assert(acks.upload_ack_rate_bits_per_second == 8000U);
+	assert(acks.upload_ack_rate_bps == 8000U);
 
 	/* Reset all counters, then establish a clean rate from the new baseline. */
 	supplied = (struct tcpdelay_counters){ 0 };
@@ -190,9 +173,8 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, 5U * SECOND, &acks);
 	assert(acks.valid && notices == 3U);
-	assert(rate_since(1U, 0U, 3U * SECOND) == 2U);
+	assert(bps(1U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
-	queue_bound();
 	free(monitor);
 	puts("monitor ACK accounting tests passed");
 	return 0;

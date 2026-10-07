@@ -7,35 +7,34 @@
 #include "latency/parser.h"
 
 struct latency_observation {
-	int64_t download_owd_microseconds;
-	int64_t download_owd_baseline_microseconds;
-	int64_t download_owd_delta_microseconds;
-	int64_t download_owd_delta_ewma_microseconds;
-	int64_t upload_owd_microseconds;
-	int64_t upload_owd_baseline_microseconds;
-	int64_t upload_owd_delta_microseconds;
-	int64_t upload_owd_delta_ewma_microseconds;
+	int64_t download_owd_us;
+	int64_t download_owd_baseline_us;
+	int64_t download_owd_delta_us;
+	int64_t download_owd_delta_ewma_us;
+	int64_t upload_owd_us;
+	int64_t upload_owd_baseline_us;
+	int64_t upload_owd_delta_us;
+	int64_t upload_owd_delta_ewma_us;
 };
 
+/* EWMA weights of a new sample, as ratios: validated at most RATIO_ONE_E6. */
 struct latency_tracker_config {
-	uint64_t alpha_baseline_increase_per_million;
-	uint64_t alpha_baseline_decrease_per_million;
-	uint64_t alpha_delta_ewma_per_million;
+	uint64_t alpha_baseline_increase_ratio_e6;
+	uint64_t alpha_baseline_decrease_ratio_e6;
+	uint64_t alpha_delta_ewma_ratio_e6;
 };
 
 struct latency_direction_tracker {
-	int64_t baseline_microseconds;
-	int64_t delta_ewma_microseconds;
+	int64_t baseline_us;
+	int64_t delta_ewma_us;
 };
 
 struct latency_tracker {
-	/* Shared by every tracker; alphas are validated per million, at most one. */
-	const struct latency_tracker_config *config;
+	struct latency_tracker_config config;
 	struct latency_direction_tracker download;
 	struct latency_direction_tracker upload;
 };
 
-/* config is borrowed for the tracker's lifetime. */
 void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config);
 
 void tracker_reset(struct latency_tracker *tracker);

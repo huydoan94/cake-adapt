@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "platform/memory.h"
+#include "common/constants.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -38,10 +39,10 @@ static void test_status_parsing(void)
 		"Threads:\t1\n"
 	);
 	assert(memory_read(path, &sample, error, sizeof(error)) == 0);
-	assert(sample.rss_kilobytes == 2136U);
-	assert(sample.peak_rss_kilobytes == 2200U);
-	assert(sample.anonymous_kilobytes == 412U);
-	assert(sample.data_kilobytes == 900U);
+	assert(sample.rss_bytes == 2136U * KILOBYTE);
+	assert(sample.peak_rss_bytes == 2200U * KILOBYTE);
+	assert(sample.anonymous_bytes == 412U * KILOBYTE);
+	assert(sample.data_bytes == 900U * KILOBYTE);
 	assert(unlink(path) == 0);
 }
 
@@ -67,7 +68,7 @@ static void test_own_status(void)
 	struct memory_sample sample;
 
 	assert(memory_read("/proc/self/status", &sample, error, sizeof(error)) == 0);
-	assert(sample.rss_kilobytes > 0U && sample.peak_rss_kilobytes >= sample.rss_kilobytes);
+	assert(sample.rss_bytes > 0U && sample.peak_rss_bytes >= sample.rss_bytes);
 }
 
 int main(void)

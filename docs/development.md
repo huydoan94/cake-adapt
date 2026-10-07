@@ -66,8 +66,10 @@ make -C tests check check-netlink
 ```
 
 `check` includes `test_replay`, which feeds two recorded cake-autorate traces
-(`tests/controller/fixtures/`) through the controller and fails on any
-decision that differs from upstream.
+(`tests/controller/fixtures/`) through the controller. Delay counts and
+bufferbloat decisions must match upstream exactly; because cake-adapt does not
+copy upstream's integer truncations, average delays may differ by 1 µs, rates
+by 0.5% and compensated thresholds by 3 µs.
 
 The host needs a C compiler, `zlib`, and development headers for libnl 3. The
 optional configuration test additionally needs `libuci` and `libubox`
