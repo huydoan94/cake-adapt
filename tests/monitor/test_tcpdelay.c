@@ -121,23 +121,6 @@ static void capture_lifecycle(struct monitor *monitor)
 	monitor->config = NULL;
 }
 
-/* The bound is fping's largest added delay over the current and previous second. */
-static void queue_bound(void)
-{
-	struct monitor_tcp tcp = { 0 };
-	const int64_t ms = (int64_t)NANOSECONDS_PER_MILLISECOND;
-
-	assert(tcp_queue_bound(&tcp, 30 * ms, 10U * SECOND) == 30 * ms);
-	/* A low reply in the same second leaves it. */
-	assert(tcp_queue_bound(&tcp, 5 * ms, 10U * SECOND + 500U * MILLISECOND) == 30 * ms);
-	/* The previous second still counts. */
-	assert(tcp_queue_bound(&tcp, 4 * ms, 11U * SECOND) == 30 * ms);
-	/* Once the high second is two seconds old, it falls. */
-	assert(tcp_queue_bound(&tcp, 3 * ms, 12U * SECOND) == 4 * ms);
-	/* After a gap without replies, only the new second counts. */
-	assert(tcp_queue_bound(&tcp, 7 * ms, 20U * SECOND) == 7 * ms);
-}
-
 int main(void)
 {
 	struct monitor *monitor = calloc(1U, sizeof(*monitor));
@@ -192,7 +175,6 @@ int main(void)
 	assert(acks.valid && notices == 3U);
 	assert(rate_since(1U, 0U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
-	queue_bound();
 	free(monitor);
 	puts("monitor ACK accounting tests passed");
 	return 0;

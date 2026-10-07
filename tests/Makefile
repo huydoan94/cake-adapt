@@ -48,14 +48,19 @@ UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
 .PHONY: check-tcpdelay
-check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_filter_accounting
+check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_reflectors $(BINARY_DIR)/test_filter_accounting
 	$(BINARY_DIR)/test_monitor_tcpdelay
+	$(BINARY_DIR)/test_monitor_reflectors
 	$(BINARY_DIR)/test_filter_accounting
 
 # libbpf map-definition macros require GNU typeof, as in the BPF build.
 $(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE_DIR)/tcpdelay/tcpdelay.bpf.c $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/cake/accounting.h
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=gnu11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
+
+$(BINARY_DIR)/test_monitor_reflectors: monitor/test_reflectors.c $(SOURCE_DIR)/monitor/reflectors.c $(SOURCE_DIR)/monitor/loop.h
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
 $(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/cake/accounting.h
 	@mkdir -p $(@D)
