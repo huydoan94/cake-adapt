@@ -80,11 +80,11 @@ uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bps)
 		return 0U;
 	whole = wire_packet_bits / rate_bps;
 	remainder = wire_packet_bits % rate_bps;
-	if (whole > UINT64_MAX / US_PER_SECOND ||
-	    __builtin_mul_overflow(remainder, US_PER_SECOND, &fractional)) {
+	if (whole > UINT64_MAX / MICROSECONDS_PER_SECOND ||
+	    __builtin_mul_overflow(remainder, MICROSECONDS_PER_SECOND, &fractional)) {
 		return UINT64_MAX;
 	}
-	whole *= US_PER_SECOND;
+	whole *= MICROSECONDS_PER_SECOND;
 	return saturating_add(whole, rounded_divide(fractional, rate_bps));
 }
 
@@ -112,13 +112,13 @@ bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_
 	       LATENCY_STALE_RESPONSE_US;
 }
 
-bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp)
+bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us)
 {
 	struct timespec value;
 
 	if (clock_gettime(clock_identifier, &value) != 0 || value.tv_sec < 0)
 		return false;
-	*timestamp = timespec_to_us(&value);
+	*timestamp_us = timespec_to_us(&value);
 	return true;
 }
 
@@ -144,7 +144,7 @@ uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole)
 
 uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us)
 {
-	const uint64_t scale = BITS_PER_BYTE * US_PER_SECOND;
+	const uint64_t scale = BITS_PER_BYTE * MICROSECONDS_PER_SECOND;
 	uint64_t scaled;
 	long double rate;
 

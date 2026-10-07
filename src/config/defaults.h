@@ -9,7 +9,6 @@ struct config;
 #define DEFAULT_CONFIG_PATH "/etc/config/" UCI_PACKAGE
 #define DEFAULT_LOG_DIRECTORY "/var/log"
 #define DEFAULT_LOG_FILE_BASE PROGRAM_NAME
-#define DEFAULT_FPING_TIMEOUT_MS "10000"
 
 /* Fixed operational defaults, separate from configurable UCI values. */
 #define CHILD_STOP_ATTEMPTS 50U
@@ -18,6 +17,8 @@ struct config;
 #define CHILD_STOP_TIMEOUT_US (CHILD_STOP_ATTEMPTS * CHILD_STOP_INTERVAL_US)
 #define INITIAL_ONE_WAY_BASELINE_US (100U * MILLISECOND)
 #define NETLINK_RESPONSE_TIMEOUT_US SECOND
+/* fping waits this long for each reply, as cake-autorate runs it. */
+#define FPING_TIMEOUT_US (10U * SECOND)
 #define SATURATION_ENTER_RATIO_E6 (90U * RATIO_PERCENT_E6)
 #define SATURATION_EXIT_RATIO_E6 (80U * RATIO_PERCENT_E6)
 #define SATURATION_CONFIRMATION_SAMPLES 3U

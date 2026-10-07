@@ -35,7 +35,7 @@ uint64_t response_monotonic_us(
 /* Strictly older than 500 ms when processed; a future timestamp is never stale. */
 bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us);
 
-bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp);
+bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us);
 
 /* A counter delta over a positive duration, in bit/s; saturated at UINT64_MAX. */
 uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us);

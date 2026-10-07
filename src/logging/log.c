@@ -114,10 +114,10 @@ static const struct {
 
 static uint64_t clock_us(clockid_t clock_identifier)
 {
-	uint64_t timestamp = 0U;
+	uint64_t timestamp_us = 0U;
 
-	(void)read_clock_us(clock_identifier, &timestamp);
-	return timestamp;
+	(void)read_clock_us(clock_identifier, &timestamp_us);
+	return timestamp_us;
 }
 
 /* "<seconds>.<microseconds>", the timestamp format of every record. */
@@ -127,8 +127,8 @@ static const char *timestamp_text(char text[TIMESTAMP_SIZE], uint64_t us)
 		text,
 		TIMESTAMP_SIZE,
 		"%" PRIu64 ".%06" PRIu64,
-		us / US_PER_SECOND,
-		us % US_PER_SECOND
+		us / MICROSECONDS_PER_SECOND,
+		us % MICROSECONDS_PER_SECOND
 	);
 	return text;
 }
@@ -301,7 +301,7 @@ static void rotate_log_file(enum rotation_reason reason)
 			LOG_LEVEL_DEBUG,
 			"log file maximum time: %" PRIu64
 			" minutes has elapsed so flushing and rotating log file.",
-			log_maximum_age_us / US_PER_MINUTE
+			log_maximum_age_us / MICROSECONDS_PER_MINUTE
 		);
 	} else {
 		log_message(
@@ -379,7 +379,7 @@ static void write_record_at(const char *type, const char *message, uint64_t time
 		sizeof(line),
 		"%s; %s; %s; %s",
 		type,
-		local_datetime((time_t)(timestamp_us / US_PER_SECOND)),
+		local_datetime((time_t)(timestamp_us / MICROSECONDS_PER_SECOND)),
 		timestamp_text(stamp, timestamp_us),
 		message
 	);
@@ -757,16 +757,16 @@ void log_cpu_raw(const struct cpu_sample *sample)
 			"; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
 			stamp,
 			counter->identifier,
-			counter->user,
-			counter->nice,
-			counter->system,
-			counter->idle,
-			counter->iowait,
-			counter->irq,
-			counter->softirq,
-			counter->steal,
-			counter->guest,
-			counter->guest_nice
+			counter->user_ticks,
+			counter->nice_ticks,
+			counter->system_ticks,
+			counter->idle_ticks,
+			counter->iowait_ticks,
+			counter->irq_ticks,
+			counter->softirq_ticks,
+			counter->steal_ticks,
+			counter->guest_ticks,
+			counter->guest_nice_ticks
 		);
 	}
 }

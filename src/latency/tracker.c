@@ -25,16 +25,16 @@ static bool sample_has_timestamp_rollover(
 	const struct latency_sample *sample
 )
 {
-	uint64_t download_delta;
-	uint64_t upload_delta;
+	uint64_t download_delta_us;
+	uint64_t upload_delta_us;
 
 	if (!sample->timestamp_rollover_sensitive)
 		return false;
-	download_delta =
+	download_delta_us =
 		absolute_difference(sample->download_owd_us, tracker->download.baseline_us);
-	upload_delta = absolute_difference(sample->upload_owd_us, tracker->upload.baseline_us);
-	return download_delta >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US ||
-	       upload_delta >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US - download_delta;
+	upload_delta_us = absolute_difference(sample->upload_owd_us, tracker->upload.baseline_us);
+	return download_delta_us >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US ||
+	       upload_delta_us >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US - download_delta_us;
 }
 
 /*
@@ -43,18 +43,22 @@ static bool sample_has_timestamp_rollover(
  * fit in 64 bits cannot be averaged.
  */
 static bool
-weighted_average(int64_t alpha, int64_t value_us, int64_t average_us, int64_t *result_us)
+weighted_average(int64_t alpha_e6, int64_t value_us, int64_t average_us, int64_t *result_us)
 {
-	int64_t value_component;
-	int64_t average_component;
-	int64_t weighted;
+	int64_t value_component_us_e6;
+	int64_t average_component_us_e6;
+	int64_t weighted_us_e6;
 
-	if (__builtin_mul_overflow(alpha, value_us, &value_component) ||
-	    __builtin_mul_overflow((int64_t)RATIO_ONE_E6 - alpha, average_us, &average_component) ||
-	    __builtin_add_overflow(value_component, average_component, &weighted)) {
+	if (__builtin_mul_overflow(alpha_e6, value_us, &value_component_us_e6) ||
+	    __builtin_mul_overflow(
+		    (int64_t)RATIO_ONE_E6 - alpha_e6,
+		    average_us,
+		    &average_component_us_e6
+	    ) ||
+	    __builtin_add_overflow(value_component_us_e6, average_component_us_e6, &weighted_us_e6)) {
 		return false;
 	}
-	*result_us = signed_rounded_divide(weighted, (int64_t)RATIO_ONE_E6);
+	*result_us = signed_rounded_divide(weighted_us_e6, (int64_t)RATIO_ONE_E6);
 	return true;
 }
 
@@ -66,11 +70,11 @@ static int64_t tracker_update_direction(
 )
 {
 	const struct latency_tracker_config *config = &tracker->config;
-	int64_t alpha = (int64_t)(value_us >= state->baseline_us ?
-					  config->alpha_baseline_increase_ratio_e6 :
-					  config->alpha_baseline_decrease_ratio_e6);
+	int64_t alpha_e6 = (int64_t)(value_us >= state->baseline_us ?
+					     config->alpha_baseline_increase_ratio_e6 :
+					     config->alpha_baseline_decrease_ratio_e6);
 
-	if (!weighted_average(alpha, value_us, state->baseline_us, &state->baseline_us)) {
+	if (!weighted_average(alpha_e6, value_us, state->baseline_us, &state->baseline_us)) {
 		/* Extreme timestamp values cannot preserve a meaningful EWMA. */
 		state->baseline_us = value_us;
 	}
@@ -115,10 +119,10 @@ void tracker_update(
 	report_delta_ewma(tracker, observation);
 }
 
-static void update_delta_ewma(int64_t alpha, int64_t delta_us, int64_t *ewma_us)
+static void update_delta_ewma(int64_t alpha_e6, int64_t delta_us, int64_t *ewma_us)
 {
 	/* Like the baseline, an EWMA that cannot be represented restarts at the sample. */
-	if (!weighted_average(alpha, delta_us, *ewma_us, ewma_us))
+	if (!weighted_average(alpha_e6, delta_us, *ewma_us, ewma_us))
 		*ewma_us = delta_us;
 }
 
@@ -129,17 +133,17 @@ void tracker_update_delta_ewma(
 )
 {
 	const struct latency_tracker_config *config = &tracker->config;
-	int64_t alpha = (int64_t)config->alpha_delta_ewma_ratio_e6;
+	int64_t alpha_e6 = (int64_t)config->alpha_delta_ewma_ratio_e6;
 
 	/* cake-autorate freezes reflector delay EWMA while either link is busy. */
 	if (low_load) {
 		update_delta_ewma(
-			alpha,
+			alpha_e6,
 			observation->download_owd_delta_us,
 			&tracker->download.delta_ewma_us
 		);
 		update_delta_ewma(
-			alpha,
+			alpha_e6,
 			observation->upload_owd_delta_us,
 			&tracker->upload.delta_ewma_us
 		);

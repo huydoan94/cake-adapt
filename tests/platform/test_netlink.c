@@ -15,7 +15,7 @@
 #include <linux/pkt_sched.h>
 #include <stdio.h>
 
-static uint64_t now;
+static uint64_t now_us;
 static unsigned int polls;
 static bool interrupt_wait;
 static bool acknowledge;
@@ -29,19 +29,20 @@ int test_send(struct nl_sock *socket, struct nl_msg *message)
 	return send_result;
 }
 
-bool test_clock(clockid_t clock_identifier, uint64_t *timestamp)
+bool test_clock(clockid_t clock_identifier, uint64_t *timestamp_us)
 {
 	assert(clock_identifier == CLOCK_MONOTONIC);
-	*timestamp = now;
+	*timestamp_us = now_us;
 	return true;
 }
 
-int test_poll(struct pollfd *descriptors, nfds_t count, int timeout)
+int test_poll(struct pollfd *descriptors, nfds_t count, int timeout_ms)
 {
 	assert(count == 1U);
-	assert(timeout > 0 && (uint64_t)timeout <= NETLINK_RESPONSE_TIMEOUT_US / MILLISECOND);
+	assert(timeout_ms > 0 &&
+	       (uint64_t)timeout_ms <= NETLINK_RESPONSE_TIMEOUT_US / MICROSECONDS_PER_MILLISECOND);
 	polls++;
-	now += 600000U;
+	now_us += 600U * MILLISECOND;
 	/* Without the shared deadline, a partial reply used to reach this timeout
 	 * and return the preceding successful receive result. */
 	if (polls >= 3U)
@@ -71,7 +72,7 @@ static void test_response(bool interrupted, bool complete)
 	int result;
 
 	assert(netlink.socket != NULL);
-	now = 1000000U;
+	now_us = SECOND;
 	polls = 0U;
 	interrupt_wait = interrupted;
 	acknowledge = complete;
@@ -105,7 +106,7 @@ static void test_request(const char *request, bool fail_send)
 
 	assert(netlink.socket != NULL);
 	assert(message != NULL);
-	now = 1000000U;
+	now_us = SECOND;
 	polls = 0U;
 	interrupt_wait = false;
 	acknowledge = true;

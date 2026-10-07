@@ -9,16 +9,16 @@
 
 struct cpu_counter {
 	char identifier[CPU_IDENTIFIER_SIZE];
-	uint64_t user;
-	uint64_t nice;
-	uint64_t system;
-	uint64_t idle;
-	uint64_t iowait;
-	uint64_t irq;
-	uint64_t softirq;
-	uint64_t steal;
-	uint64_t guest;
-	uint64_t guest_nice;
+	uint64_t user_ticks;
+	uint64_t nice_ticks;
+	uint64_t system_ticks;
+	uint64_t idle_ticks;
+	uint64_t iowait_ticks;
+	uint64_t irq_ticks;
+	uint64_t softirq_ticks;
+	uint64_t steal_ticks;
+	uint64_t guest_ticks;
+	uint64_t guest_nice_ticks;
 };
 
 struct cpu_sample {
@@ -34,8 +34,8 @@ struct cpu_busy {
 };
 
 struct cpu_monitor {
-	uint64_t previous_sums[CPU_MAX_COUNT];
-	uint64_t previous_idle[CPU_MAX_COUNT];
+	uint64_t previous_total_ticks[CPU_MAX_COUNT];
+	uint64_t previous_idle_ticks[CPU_MAX_COUNT];
 };
 
 void cpu_init(struct cpu_monitor *monitor);

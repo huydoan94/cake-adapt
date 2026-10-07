@@ -127,8 +127,8 @@ static void test_signed_asymmetric_tracker_handles_one_day_values(void)
 {
 	struct latency_tracker tracker;
 	const struct latency_sample sample = {
-		.download_owd_us = -(INT64_C(24) * 60 * 60 * 1000000),
-		.upload_owd_us = INT64_C(24) * 60 * 60 * 1000000,
+		.download_owd_us = -(int64_t)(24U * 60U * MINUTE),
+		.upload_owd_us = (int64_t)(24U * 60U * MINUTE),
 	};
 	struct latency_observation observation;
 

@@ -188,9 +188,9 @@ static int wait_for_response(
 	int result;
 
 	do {
-		uint64_t now;
+		uint64_t now_us;
 
-		if (!read_clock_us(CLOCK_MONOTONIC, &now)) {
+		if (!read_clock_us(CLOCK_MONOTONIC, &now_us)) {
 			return error_set(
 				error,
 				error_size,
@@ -199,14 +199,14 @@ static int wait_for_response(
 			);
 		}
 		if (*deadline_us == 0U)
-			*deadline_us = now + NETLINK_RESPONSE_TIMEOUT_US;
-		if (now >= *deadline_us)
+			*deadline_us = now_us + NETLINK_RESPONSE_TIMEOUT_US;
+		if (now_us >= *deadline_us)
 			return error_set(error, error_size, "rtnetlink response timed out");
 		result =
 			poll(&descriptor,
 			     1U,
 			     /* The remaining time is within NETLINK_RESPONSE_TIMEOUT_US. */
-			     (int)us_to_ms(*deadline_us - now));
+			     (int)us_to_ms(*deadline_us - now_us));
 		/* A poll timeout comes back to the deadline check above. */
 	} while ((result < 0 && errno == EINTR) || result == 0);
 

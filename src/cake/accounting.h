@@ -4,6 +4,11 @@
 #include <linux/pkt_sched.h>
 #include <linux/types.h>
 
+/* ATM sends 48 payload bytes in each 53-byte cell; PTM adds a byte per 64. */
+#define CAKE_ATM_CELL_PAYLOAD_BYTES 48U
+#define CAKE_ATM_CELL_BYTES 53U
+#define CAKE_PTM_BLOCK_BYTES 64U
+
 /* Shared with the socket filter; fixed-width fields keep its map ABI stable. */
 struct cake_accounting {
 	__s32 overhead_bytes;
@@ -23,17 +28,18 @@ _Static_assert(sizeof(struct cake_accounting) == 16, "CAKE accounting layout");
 static inline __attribute__((always_inline)) __u32
 cake_accounted_bytes(const struct cake_accounting *accounting, __u32 length, __u32 network_offset)
 {
-	__s64 adjusted = (__s64)(accounting->raw ? length : length - network_offset) +
-			 accounting->overhead_bytes;
+	__s64 adjusted_bytes = (__s64)(accounting->raw ? length : length - network_offset) +
+			       accounting->overhead_bytes;
 	__u32 bytes;
 
-	if (adjusted < (__s64)accounting->mpu_bytes)
-		adjusted = (__s64)accounting->mpu_bytes;
-	bytes = (__u32)adjusted;
+	if (adjusted_bytes < (__s64)accounting->mpu_bytes)
+		adjusted_bytes = (__s64)accounting->mpu_bytes;
+	bytes = (__u32)adjusted_bytes;
 	if (accounting->atm_mode == CAKE_ATM_ATM)
-		return (bytes + 47U) / 48U * 53U;
+		return (bytes + CAKE_ATM_CELL_PAYLOAD_BYTES - 1U) / CAKE_ATM_CELL_PAYLOAD_BYTES *
+		       CAKE_ATM_CELL_BYTES;
 	if (accounting->atm_mode == CAKE_ATM_PTM)
-		return bytes + (bytes + 63U) / 64U;
+		return bytes + (bytes + CAKE_PTM_BLOCK_BYTES - 1U) / CAKE_PTM_BLOCK_BYTES;
 	return bytes;
 }
 
