@@ -22,14 +22,13 @@ void traffic_init(struct traffic_monitor *monitor)
 enum traffic_update_result traffic_update(
 	struct traffic_monitor *monitor,
 	const struct traffic_sample *sample,
-	uint64_t *rate_bits_per_second
+	uint64_t *traffic_bits_per_second
 )
 {
 	struct traffic_sample previous = monitor->previous_sample;
 	bool has_previous = monitor->has_previous_sample;
-	uint64_t elapsed;
 
-	*rate_bits_per_second = 0U;
+	*traffic_bits_per_second = 0U;
 	monitor->previous_sample = *sample;
 	monitor->has_previous_sample = true;
 	if (!has_previous)
@@ -41,9 +40,13 @@ enum traffic_update_result traffic_update(
 	if (sample->bytes < previous.bytes)
 		return TRAFFIC_UPDATE_COUNTER_RESET;
 
-	if (!elapsed_milliseconds(&previous.timestamp, &sample->timestamp, &elapsed))
+	/* Shorter intervals are refreshes right after a sample, not a rate. */
+	if (!interval_elapsed(sample->timestamp_us, previous.timestamp_us, MILLISECOND - 1U))
 		return TRAFFIC_UPDATE_INVALID_INTERVAL;
 
-	*rate_bits_per_second = bits_per_second(sample->bytes - previous.bytes, elapsed);
+	*traffic_bits_per_second = bits_per_second(
+		sample->bytes - previous.bytes,
+		sample->timestamp_us - previous.timestamp_us
+	);
 	return TRAFFIC_UPDATE_RATES;
 }

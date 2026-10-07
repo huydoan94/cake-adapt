@@ -374,8 +374,8 @@ static void test_cake_autorate_headers_and_record_format(void)
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[8192];
 	const struct log_data_record data_record = {
-		.download_achieved_rate_kbps = 10U,
-		.upload_achieved_rate_kbps = 20U,
+		.download_achieved_rate_bits_per_second = 10U * KILOBIT,
+		.upload_achieved_rate_bits_per_second = 20U * KILOBIT,
 		.download_load_percent = 30U,
 		.upload_load_percent = 40U,
 		.icmp_timestamp = "[50.00006]",
@@ -401,26 +401,26 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.upload_maximum_adjust_down_threshold_us = 250U,
 		.download_load_condition = "dl_low",
 		.upload_load_condition = "ul_high_bb",
-		.cake_download_rate_kbps = 260U,
-		.cake_upload_rate_kbps = 270U,
+		.cake_download_rate_bits_per_second = 260U * KILOBIT,
+		.cake_upload_rate_bits_per_second = 270U * KILOBIT,
 	};
 	const struct log_load_record load_record = {
-		.download_achieved_rate_kbps = 10U,
-		.upload_achieved_rate_kbps = 20U,
-		.cake_download_rate_kbps = 30U,
-		.cake_upload_rate_kbps = 40U,
+		.download_achieved_rate_bits_per_second = 10U * KILOBIT,
+		.upload_achieved_rate_bits_per_second = 20U * KILOBIT,
+		.cake_download_rate_bits_per_second = 30U * KILOBIT,
+		.cake_upload_rate_bits_per_second = 40U * KILOBIT,
 	};
 	const struct log_summary_record summary_record = {
-		.download_achieved_rate_kbps = 11U,
-		.upload_achieved_rate_kbps = 21U,
+		.download_achieved_rate_bits_per_second = 11U * KILOBIT,
+		.upload_achieved_rate_bits_per_second = 21U * KILOBIT,
 		.download_sum_delays = 31U,
 		.upload_sum_delays = 41U,
 		.download_average_owd_delta_us = -51,
 		.upload_average_owd_delta_us = -61,
 		.download_load_condition = "dl_idle",
 		.upload_load_condition = "ul_low",
-		.cake_download_rate_kbps = 71U,
-		.cake_upload_rate_kbps = 81U,
+		.cake_download_rate_bits_per_second = 71U * KILOBIT,
+		.cake_upload_rate_bits_per_second = 81U * KILOBIT,
 	};
 	const struct log_reflector_record reflector_record = {
 		.reflector = "1.0.0.1",
@@ -453,7 +453,7 @@ static void test_cake_autorate_headers_and_record_format(void)
 	log_data(&data_record);
 	log_summary(&summary_record);
 	log_reflector(&reflector_record);
-	log_shaper("eth1", 28000U);
+	log_shaper("eth1", 28000U * KILOBIT);
 	log_system_message("Started test process");
 	log_close();
 
@@ -895,7 +895,7 @@ static void test_disabled_output_skips_formatting_clocks(void)
 	clock_reads = 0U;
 	syslog_count = 0U;
 	log_load(&load);
-	log_shaper("wan", 1000U);
+	log_shaper("wan", 1000U * KILOBIT);
 	log_message(LOG_LEVEL_DEBUG, "unused debug sample");
 	log_message(LOG_LEVEL_INFO, "unused information");
 	log_tick();

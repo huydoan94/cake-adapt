@@ -17,7 +17,7 @@
 #include <string.h>
 #include <time.h>
 
-static void observe_traffic(struct monitor_direction *direction, const struct timespec *timestamp)
+static void observe_traffic(struct monitor_direction *direction, uint64_t timestamp_us)
 {
 	struct cake_observation *cake = &direction->cake;
 	struct traffic_sample sample;
@@ -49,7 +49,7 @@ static void observe_traffic(struct monitor_direction *direction, const struct ti
 
 	sample = (struct traffic_sample){ .bytes = cake->bytes,
 					  .qdisc = cake->qdisc,
-					  .timestamp = *timestamp };
+					  .timestamp_us = timestamp_us };
 	update_result = traffic_update(
 		&direction->traffic_monitor,
 		&sample,
@@ -253,11 +253,13 @@ bool links_wire_ready(const struct monitor *monitor)
 static void
 log_load_stats(const struct monitor_direction *download, const struct monitor_direction *upload)
 {
+	const struct cake_observation *download_cake = &download->cake;
+	const struct cake_observation *upload_cake = &upload->cake;
 	const struct log_load_record record = {
-		.download_achieved_rate_kbps = download->traffic_rate_bits_per_second / KILOBIT,
-		.upload_achieved_rate_kbps = upload->traffic_rate_bits_per_second / KILOBIT,
-		.cake_download_rate_kbps = download->cake.bandwidth_bits_per_second / KILOBIT,
-		.cake_upload_rate_kbps = upload->cake.bandwidth_bits_per_second / KILOBIT,
+		.download_achieved_rate_bits_per_second = download->traffic_rate_bits_per_second,
+		.upload_achieved_rate_bits_per_second = upload->traffic_rate_bits_per_second,
+		.cake_download_rate_bits_per_second = download_cake->bandwidth_bits_per_second,
+		.cake_upload_rate_bits_per_second = upload_cake->bandwidth_bits_per_second,
 	};
 
 	log_load(&record);
@@ -269,10 +271,9 @@ void links_observe(struct monitor *monitor)
 	struct monitor_links *links = &monitor->links;
 	struct monitor_direction *download = &links->download;
 	struct monitor_direction *upload = &links->upload;
-	struct timespec traffic_timestamp;
 	uint64_t timestamp_us;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &traffic_timestamp) != 0) {
+	if (!read_clock_us(CLOCK_MONOTONIC, &timestamp_us)) {
 		if (!links->clock_failed) {
 			log_message(
 				LOG_LEVEL_WARNING,
@@ -290,7 +291,6 @@ void links_observe(struct monitor *monitor)
 		return;
 	}
 
-	timestamp_us = timespec_to_us(&traffic_timestamp);
 	observe_cake(monitor, timestamp_us);
 	if (links->clock_failed) {
 		log_message(
@@ -316,8 +316,8 @@ void links_observe(struct monitor *monitor)
 		);
 		links->cadence_initialized = true;
 	}
-	observe_traffic(download, &traffic_timestamp);
-	observe_traffic(upload, &traffic_timestamp);
+	observe_traffic(download, timestamp_us);
+	observe_traffic(upload, timestamp_us);
 
 	/* Valid traffic comes from a valid CAKE observation. */
 	if (config->output_load_stats && download->traffic_valid && upload->traffic_valid &&

@@ -36,8 +36,9 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 	if (options == NULL || nla_parse_nested(attributes, TCA_CAKE_MAX, options, policy) < 0)
 		return;
 	if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
-		observation->bandwidth_bits_per_second =
-			saturating_mul(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]), BITS_PER_BYTE);
+		uint64_t bytes_per_second = nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]);
+
+		observation->bandwidth_bits_per_second = byte_to_bit(bytes_per_second);
 		observation->has_bandwidth = true;
 	}
 	if (attributes[TCA_CAKE_ATM] != NULL)
@@ -278,7 +279,7 @@ int cake_set_bandwidth(
 	size_t error_size
 )
 {
-	uint64_t bandwidth_bytes_per_second = bandwidth_bits_per_second / BITS_PER_BYTE;
+	uint64_t bandwidth_bytes_per_second = bit_to_byte(bandwidth_bits_per_second);
 	const struct qdisc_option option = {
 		.kind = QDISC_KIND,
 		.type = TCA_CAKE_BASE_RATE64,
