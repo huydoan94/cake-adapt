@@ -142,40 +142,19 @@ unsigned int load_percent(uint64_t traffic_rate, uint64_t shaper_rate)
 	return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
 }
 
-bool elapsed_milliseconds(
-	const struct timespec *previous,
-	const struct timespec *current,
-	uint64_t *elapsed
-)
+uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_us)
 {
-	time_t seconds = current->tv_sec - previous->tv_sec;
-	long nanoseconds = current->tv_nsec - previous->tv_nsec;
-
-	if (nanoseconds < 0L) {
-		--seconds;
-		nanoseconds += NANOSECONDS_PER_SECOND;
-	}
-	if (seconds < 0 || (uint64_t)seconds > UINT64_MAX / MILLISECONDS_PER_SECOND)
-		return false;
-	*elapsed = (uint64_t)seconds * MILLISECONDS_PER_SECOND +
-		   (uint64_t)nanoseconds / NANOSECONDS_PER_MILLISECOND;
-	return *elapsed > 0U;
-}
-
-uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_ms)
-{
-	const uint64_t scale = BITS_PER_BYTE * MILLISECONDS_PER_SECOND;
+	const uint64_t scale = BITS_PER_BYTE * US_PER_SECOND;
 	uint64_t scaled;
 	long double rate;
 
-	/* Preserve saturation for an interval that cannot represent a rate. */
-	if (elapsed_ms == 0U)
+	if (elapsed_us == 0U)
 		return UINT64_MAX;
 	/* Normal counters need only integer arithmetic, including on soft-float CPUs. */
 	if (!__builtin_mul_overflow(byte_delta, scale, &scaled))
-		return scaled / elapsed_ms;
+		return scaled / elapsed_us;
 	/* Keep the full-width fallback for exceptional counter jumps. */
-	rate = (long double)byte_delta * (long double)scale / (long double)elapsed_ms;
+	rate = (long double)byte_delta * (long double)scale / (long double)elapsed_us;
 
 	return rate >= (long double)UINT64_MAX ? UINT64_MAX : (uint64_t)rate;
 }

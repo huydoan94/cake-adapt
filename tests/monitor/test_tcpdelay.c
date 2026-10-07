@@ -63,10 +63,10 @@ int tcpdelay_capture_drain(struct tcpdelay_capture *capture)
 	return 0;
 }
 
-void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns)
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_us)
 {
 	(void)estimator;
-	(void)queue_bound_ns;
+	(void)queue_bound_us;
 }
 
 void traffic_init(struct traffic_monitor *monitor)
@@ -173,7 +173,7 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, 5U * SECOND, &acks);
 	assert(acks.valid && notices == 3U);
-	assert(rate_since(1U, 0U, 3U * SECOND) == 2U);
+	assert(bits_per_second(1U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
 	free(monitor);
 	puts("monitor ACK accounting tests passed");

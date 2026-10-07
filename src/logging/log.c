@@ -616,10 +616,10 @@ void log_load(const struct log_load_record *record)
 	write_timed_record(
 		RECORD_LOAD,
 		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-		record->download_achieved_rate_kbps,
-		record->upload_achieved_rate_kbps,
-		record->cake_download_rate_kbps,
-		record->cake_upload_rate_kbps
+		bit_to_kbit(record->download_achieved_rate_bits_per_second),
+		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
+		bit_to_kbit(record->cake_download_rate_bits_per_second),
+		bit_to_kbit(record->cake_upload_rate_bits_per_second)
 	);
 }
 
@@ -633,8 +633,8 @@ void log_data(const struct log_data_record *record)
 		"; %" PRId64 "; %" PRId64 ";"
 		" %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %u; %" PRId64
 		"; %" PRIu64 "; %" PRIu64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		record->download_achieved_rate_kbps,
-		record->upload_achieved_rate_kbps,
+		bit_to_kbit(record->download_achieved_rate_bits_per_second),
+		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
 		record->download_load_percent,
 		record->upload_load_percent,
 		record->icmp_timestamp,
@@ -660,8 +660,8 @@ void log_data(const struct log_data_record *record)
 		record->upload_maximum_adjust_down_threshold_us,
 		record->download_load_condition,
 		record->upload_load_condition,
-		record->cake_download_rate_kbps,
-		record->cake_upload_rate_kbps
+		bit_to_kbit(record->cake_download_rate_bits_per_second),
+		bit_to_kbit(record->cake_upload_rate_bits_per_second)
 	);
 }
 
@@ -671,16 +671,16 @@ void log_summary(const struct log_summary_record *record)
 		RECORD_SUMMARY,
 		"%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
 		" %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		record->download_achieved_rate_kbps,
-		record->upload_achieved_rate_kbps,
+		bit_to_kbit(record->download_achieved_rate_bits_per_second),
+		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
 		record->download_sum_delays,
 		record->upload_sum_delays,
 		record->download_average_owd_delta_us,
 		record->upload_average_owd_delta_us,
 		record->download_load_condition,
 		record->upload_load_condition,
-		record->cake_download_rate_kbps,
-		record->cake_upload_rate_kbps
+		bit_to_kbit(record->cake_download_rate_bits_per_second),
+		bit_to_kbit(record->cake_upload_rate_bits_per_second)
 	);
 }
 
@@ -757,13 +757,13 @@ void log_cpu_raw(const struct cpu_sample *sample)
 	}
 }
 
-void log_shaper(const char *interface, uint64_t rate_kbps)
+void log_shaper(const char *interface, uint64_t rate_bits_per_second)
 {
 	write_formatted_record(
 		RECORD_SHAPER,
 		"tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
 		interface,
-		rate_kbps
+		bit_to_kbit(rate_bits_per_second)
 	);
 }
 
