@@ -37,11 +37,17 @@ not a runtime dependency.
 
 ## Differences from cake-autorate
 
-Controller decisions match cake-autorate `ac75f49` exactly: recorded upstream
-traces replay through the cake-adapt controller with no mismatching decision
-and no rounding tolerance (see
-[the controller comparison](../profiling/controller-comparison/README.md)). The
-differences are in integration and safety:
+Controller decisions match cake-autorate `ac75f49`: recorded upstream traces
+replay through the cake-adapt controller with the same delay counts and
+bufferbloat decisions (see
+[the controller comparison](../profiling/controller-comparison/README.md)).
+Since 2026-10-06 cake-adapt computes exactly instead of copying upstream's
+shell-integer truncations: rates are bit/s rather than whole kbit/s (CAKE
+holds whole bytes/s), loads and rate factors are exact ratios rather than
+whole percent and per-thousand steps, and delays round to the nearest
+microsecond. On the replayed traces this moves shaper rates by at most 0.12%
+and thresholds by at most 2 µs. The other differences are in integration and
+safety:
 
 - Rate adjustment is opt-in. `adjust_dl_shaper_rate` and
   `adjust_ul_shaper_rate` default to `0`, so a new installation only observes.
@@ -208,9 +214,11 @@ daemon behavior.
 
 The cake-autorate parity and refactor sequence is complete:
 
-- Controller decisions match cake-autorate `ac75f49` exactly on two replayed
-  traces (2,402 and 2,301 samples), and live side-by-side VM runs behave the
-  same per phase ([comparison](../profiling/controller-comparison/README.md)).
+- Controller decisions match cake-autorate `ac75f49` on two replayed traces
+  (2,402 and 2,301 samples): delay counts and bufferbloat decisions exactly,
+  rates within 0.5% since exact math replaced upstream's truncations. Live
+  side-by-side VM runs behave the same per phase
+  ([comparison](../profiling/controller-comparison/README.md)).
 - A final end-to-end run on the OpenWrt 25.12 x86 VM covered sustained
   download, upload and bidirectional load, congestion and recovery within
   bounds, qdisc removal and re-creation on both interfaces, idle sleep and
