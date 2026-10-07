@@ -1,5 +1,6 @@
 #include "config/config.h"
 #include "common/constants.h"
+#include "config/defaults.h"
 #include "common/error.h"
 #include "latency/latency.h"
 
@@ -41,12 +42,14 @@ static int validate_rate_range(
 			direction
 		);
 	}
-	/* The controller works in whole kbit/s, which CAKE can represent exactly. */
-	if (minimum % KILOBIT != 0U || base % KILOBIT != 0U || maximum % KILOBIT != 0U) {
+	/* CAKE holds whole bytes/s. */
+	if (minimum % SHAPER_RATE_STEP_BITS_PER_SECOND != 0U ||
+	    base % SHAPER_RATE_STEP_BITS_PER_SECOND != 0U ||
+	    maximum % SHAPER_RATE_STEP_BITS_PER_SECOND != 0U) {
 		return error_set(
 			error,
 			error_size,
-			"%s shaper rates must be whole kbit/s",
+			"%s shaper rates must be whole bytes/s (multiples of 8 bit/s)",
 			direction
 		);
 	}
@@ -174,16 +177,16 @@ static int validate_detection(const struct config *config, char *error, size_t e
 			" 'bufferbloat_detection_window'"
 		);
 	}
-	if (config->ul_congest_ack_share_per_million > MILLION) {
+	if (config->ul_congest_ack_share_ratio_e6 > RATIO_ONE_E6) {
 		return error_set(
 			error,
 			error_size,
 			"option 'ul_congest_ack_share' must be between 0 and 1"
 		);
 	}
-	if (config->alpha_baseline_increase_per_million > MILLION ||
-	    config->alpha_baseline_decrease_per_million > MILLION ||
-	    config->alpha_delta_ewma_per_million > MILLION) {
+	if (config->alpha_baseline_increase_ratio_e6 > RATIO_ONE_E6 ||
+	    config->alpha_baseline_decrease_ratio_e6 > RATIO_ONE_E6 ||
+	    config->alpha_delta_ewma_ratio_e6 > RATIO_ONE_E6) {
 		return error_set(error, error_size, "alpha options must be between 0 and 1");
 	}
 	return 0;

@@ -26,7 +26,7 @@ static struct cake_accounting accounting_model(const struct cake_observation *ca
 /* Either TCP feature needs the capture. */
 static bool tcp_enabled(const struct config *config)
 {
-	return config->tcp_delay_attribution || config->ul_congest_ack_share_per_million != 0U;
+	return config->tcp_delay_attribution || config->ul_congest_ack_share_ratio_e6 != 0U;
 }
 
 void tcp_init(struct monitor *monitor)
@@ -50,7 +50,7 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	char error[ERROR_SIZE] = { 0 };
 	const struct cake_accounting model = accounting_model(cake);
 	const struct cake_accounting *accounting =
-		monitor->config->ul_congest_ack_share_per_million != 0U ? &model : NULL;
+		monitor->config->ul_congest_ack_share_ratio_e6 != 0U ? &model : NULL;
 
 	if (tcpdelay_capture_open(
 		    &tcp->capture,
@@ -260,7 +260,7 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	report_dropped_records(monitor, input->timestamp_us);
 	if (config->tcp_delay_attribution)
 		measure_queues(monitor, input->timestamp_us, queue);
-	if (config->ul_congest_ack_share_per_million != 0U)
+	if (config->ul_congest_ack_share_ratio_e6 != 0U)
 		measure_ack_rate(monitor, input->timestamp_us, acks);
 }
 

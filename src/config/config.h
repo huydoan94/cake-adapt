@@ -69,18 +69,19 @@ struct config {
 	uint64_t monitor_cpu_usage_interval_us;
 	uint64_t bufferbloat_detection_window;
 	uint64_t bufferbloat_detection_threshold;
-	uint64_t alpha_baseline_increase_per_million;
-	uint64_t alpha_baseline_decrease_per_million;
-	uint64_t alpha_delta_ewma_per_million;
-	uint64_t shaper_rate_minimum_adjust_down_bufferbloat_per_million;
-	uint64_t shaper_rate_maximum_adjust_down_bufferbloat_per_million;
-	uint64_t shaper_rate_minimum_adjust_up_load_high_per_million;
-	uint64_t shaper_rate_maximum_adjust_up_load_high_per_million;
-	uint64_t shaper_rate_adjust_down_load_low_per_million;
-	uint64_t shaper_rate_adjust_up_load_low_per_million;
-	uint64_t high_load_threshold_per_million;
+	/* Ratios are integers per million: RATIO_ONE_E6 is 100%. */
+	uint64_t alpha_baseline_increase_ratio_e6;
+	uint64_t alpha_baseline_decrease_ratio_e6;
+	uint64_t alpha_delta_ewma_ratio_e6;
+	uint64_t shaper_rate_minimum_adjust_down_bufferbloat_ratio_e6;
+	uint64_t shaper_rate_maximum_adjust_down_bufferbloat_ratio_e6;
+	uint64_t shaper_rate_minimum_adjust_up_load_high_ratio_e6;
+	uint64_t shaper_rate_maximum_adjust_up_load_high_ratio_e6;
+	uint64_t shaper_rate_adjust_down_load_low_ratio_e6;
+	uint64_t shaper_rate_adjust_up_load_low_ratio_e6;
+	uint64_t high_load_threshold_ratio_e6;
 	/* cake-adapt only: ACKs' minimum share of upload; zero disables the hold. */
-	uint64_t ul_congest_ack_share_per_million;
+	uint64_t ul_congest_ack_share_ratio_e6;
 	uint64_t bufferbloat_refractory_period_us;
 	uint64_t decay_refractory_period_us;
 	uint64_t reflector_health_check_interval_us;

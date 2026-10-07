@@ -31,8 +31,8 @@ struct log_load_record {
 struct log_data_record {
 	uint64_t download_achieved_rate_bits_per_second;
 	uint64_t upload_achieved_rate_bits_per_second;
-	unsigned int download_load_percent;
-	unsigned int upload_load_percent;
+	uint64_t download_load_ratio_e6;
+	uint64_t upload_load_ratio_e6;
 	/* The pinger's timestamp token, verbatim. */
 	const char *icmp_timestamp;
 	const char *reflector;

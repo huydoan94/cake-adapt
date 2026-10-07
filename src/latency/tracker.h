@@ -17,10 +17,11 @@ struct latency_observation {
 	int64_t upload_owd_delta_ewma_us;
 };
 
+/* EWMA weights of a new sample, as ratios: validated at most RATIO_ONE_E6. */
 struct latency_tracker_config {
-	uint64_t alpha_baseline_increase_per_million;
-	uint64_t alpha_baseline_decrease_per_million;
-	uint64_t alpha_delta_ewma_per_million;
+	uint64_t alpha_baseline_increase_ratio_e6;
+	uint64_t alpha_baseline_decrease_ratio_e6;
+	uint64_t alpha_delta_ewma_ratio_e6;
 };
 
 struct latency_direction_tracker {
@@ -29,13 +30,11 @@ struct latency_direction_tracker {
 };
 
 struct latency_tracker {
-	/* Shared by every tracker; alphas are validated per million, at most one. */
-	const struct latency_tracker_config *config;
+	struct latency_tracker_config config;
 	struct latency_direction_tracker download;
 	struct latency_direction_tracker upload;
 };
 
-/* config is borrowed for the tracker's lifetime. */
 void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config);
 
 void tracker_reset(struct latency_tracker *tracker);
