@@ -23,12 +23,12 @@ void *__wrap_calloc(size_t count, size_t size)
 static struct controller_config default_config(void)
 {
 	return (struct controller_config){
-		.download = { .average_delay_maximum_adjust_up_microseconds = 10000U,
-			      .delay_threshold_microseconds = 30000U,
-			      .average_delay_maximum_adjust_down_microseconds = 60000U, },
-		.upload = { .average_delay_maximum_adjust_up_microseconds = 10000U,
-			    .delay_threshold_microseconds = 30000U,
-			    .average_delay_maximum_adjust_down_microseconds = 60000U, },
+		.download = { .average_delay_maximum_adjust_up_us = 10000U,
+			      .delay_threshold_us = 30000U,
+			      .average_delay_maximum_adjust_down_us = 60000U, },
+		.upload = { .average_delay_maximum_adjust_up_us = 10000U,
+			    .delay_threshold_us = 30000U,
+			    .average_delay_maximum_adjust_down_us = 60000U, },
 		.bufferbloat_detection_window = 6U,
 		.bufferbloat_detection_threshold = 3U,
 		.rate_minimum_adjust_down_bufferbloat_per_thousand = 990U,
@@ -38,8 +38,8 @@ static struct controller_config default_config(void)
 		.rate_adjust_down_low_load_per_thousand = 990U,
 		.rate_adjust_up_low_load_per_thousand = 1010U,
 		.high_load_threshold_percent = 75U,
-		.bufferbloat_refractory_period_microseconds = 300000U,
-		.decay_refractory_period_microseconds = 1000000U
+		.bufferbloat_refractory_period_us = 300000U,
+		.decay_refractory_period_us = 1000000U
 	};
 }
 
@@ -74,16 +74,16 @@ static struct controller_input input_with_rates(
 			    .traffic_sample_id = 1U,
 			    .traffic_rate_bits_per_second = upload_rate,
 			    .cake_rate_bits_per_second = upload_limit, },
-		.download_latency = { .valid = true, .owd_delta_microseconds = 0 },
-		.upload_latency = { .valid = true, .owd_delta_microseconds = 0 },
-		.timestamp_microseconds = 1000001U
+		.download_latency = { .valid = true, .owd_delta_us = 0 },
+		.upload_latency = { .valid = true, .owd_delta_us = 0 },
+		.timestamp_us = 1000001U
 	};
 }
 
-static void set_latency_delta(struct controller_input *input, int64_t delta_microseconds)
+static void set_latency_delta(struct controller_input *input, int64_t delta_us)
 {
-	input->download_latency.owd_delta_microseconds = delta_microseconds;
-	input->upload_latency.owd_delta_microseconds = delta_microseconds;
+	input->download_latency.owd_delta_us = delta_us;
+	input->upload_latency.owd_delta_us = delta_us;
 }
 
 static void update_repeatedly(
@@ -243,10 +243,10 @@ static void test_three_of_six_delays_detect_bufferbloat(void)
 	assert(output.download.congestion_changed);
 	assert(output.download.delayed_sample_count == 3U);
 	assert(output.upload.delayed_sample_count == 3U);
-	assert(controller.download.delay_sum_microseconds == 90003U);
-	assert(controller.upload.delay_sum_microseconds == 90003U);
-	assert(output.download.average_delay_microseconds == 15000U);
-	assert(output.upload.average_delay_microseconds == 15000U);
+	assert(controller.download.delay_sum_us == 90003U);
+	assert(controller.upload.delay_sum_us == 90003U);
+	assert(output.download.average_delay_us == 15001U);
+	assert(output.upload.average_delay_us == 15001U);
 	controller_close(&controller);
 }
 
@@ -262,10 +262,10 @@ static void test_below_baseline_delay_remains_signed(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 
-	assert(controller.download.delay_sum_microseconds == -3000);
-	assert(controller.upload.delay_sum_microseconds == -3000);
-	assert(output.download.average_delay_microseconds == -500);
-	assert(output.upload.average_delay_microseconds == -500);
+	assert(controller.download.delay_sum_us == -3000);
+	assert(controller.upload.delay_sum_us == -3000);
+	assert(output.download.average_delay_us == -500);
+	assert(output.upload.average_delay_us == -500);
 	assert(output.download.delayed_sample_count == 0U);
 	assert(output.upload.delayed_sample_count == 0U);
 	controller_close(&controller);
@@ -325,15 +325,15 @@ static void test_configured_delay_window_and_direction_thresholds(void)
 
 	config.bufferbloat_detection_window = 4U;
 	config.bufferbloat_detection_threshold = 2U;
-	config.download.delay_threshold_microseconds = 10000U;
-	config.upload.delay_threshold_microseconds = 20000U;
+	config.download.delay_threshold_us = 10000U;
+	config.upload.delay_threshold_us = 20000U;
 	set_latency_delta(&input, 15000);
 	init_controller(&controller, &config);
 	update_repeatedly(&controller, &input, &output, 2U);
 
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
 	assert(output.download.delayed_sample_count == 2U);
-	assert(output.download.average_delay_microseconds == 7500);
+	assert(output.download.average_delay_us == 7500);
 	assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
 	assert(output.upload.delayed_sample_count == 0U);
 	controller_close(&controller);
@@ -443,7 +443,7 @@ static void test_high_load_increases_rate_four_percent(void)
 
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.rate_bits_per_second == 8320000U);
@@ -462,7 +462,7 @@ static void test_high_load_consumes_each_direction_sample_once(void)
 
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8320000U);
 	assert(output.upload.rate_bits_per_second == 8320000U);
@@ -470,7 +470,7 @@ static void test_high_load_consumes_each_direction_sample_once(void)
 
 	/* Six reflector replies must not multiply one achieved-rate measurement. */
 	for (unsigned int index = 0U; index < 6U; index++) {
-		input.timestamp_microseconds += 50000U;
+		input.timestamp_us += 50000U;
 		controller_update(&controller, &input, &output);
 		assert(!output.download.rate_changed);
 		assert(!output.upload.rate_changed);
@@ -497,7 +497,7 @@ static void test_invalid_input_preserves_fresh_sample(void)
 
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	input.download_latency.valid = false;
 	input.upload_latency.valid = false;
 	controller_update(&controller, &input, &output);
@@ -528,7 +528,7 @@ static void test_noop_increase_consumes_sample(void)
 	config.rate_maximum_adjust_up_high_load_per_thousand = 1000U;
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 	assert(!output.download.rate_changed);
 	assert(controller.download.last_increase_sample_id == 1U);
@@ -548,7 +548,7 @@ static void test_noop_increase_consumes_sample(void)
 	update_repeatedly(&controller, &input, &output, 6U);
 	assert(output.download.rate_bits_per_second < 12U * MEBABIT);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_changed);
 	assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
@@ -566,17 +566,17 @@ static void test_high_load_waits_for_congestion_refractory_period(void)
 
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 299999U;
+	input.timestamp_us += 299999U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8320000U);
 	assert(output.download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
@@ -593,10 +593,10 @@ static void test_configured_high_load_adjustment_is_used(void)
 
 	config.high_load_threshold_percent = 50U;
 	config.rate_maximum_adjust_up_high_load_per_thousand = 1100U;
-	config.bufferbloat_refractory_period_microseconds = 10U;
+	config.bufferbloat_refractory_period_us = 10U;
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 11U;
+	input.timestamp_us += 11U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.rate_bits_per_second == 8800000U);
@@ -616,10 +616,10 @@ static void test_severe_bufferbloat_reduces_both_rates(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150001U;
+	input.timestamp_us += 150001U;
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150001U;
+	input.timestamp_us += 150001U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
@@ -640,10 +640,10 @@ static void detect_congestion(
 	set_latency_delta(input, 120000);
 	controller_update(controller, input, output);
 	accept_rates(input, output);
-	input->timestamp_microseconds += 150001U;
+	input->timestamp_us += 150001U;
 	controller_update(controller, input, output);
 	accept_rates(input, output);
-	input->timestamp_microseconds += 150001U;
+	input->timestamp_us += 150001U;
 	controller_update(controller, input, output);
 }
 
@@ -703,13 +703,12 @@ static void test_shared_delay_is_attributed_by_download_delivery(void)
 	check_shared_delay_attribution(2U * MEBABIT, 6U * MEBABIT, 6U * MEBABIT);
 }
 
-static struct controller_queue_input
-measured_queue(int64_t download_microseconds, int64_t upload_microseconds)
+static struct controller_queue_input measured_queue(int64_t download_us, int64_t upload_us)
 {
 	const struct controller_queue_input queue = {
 		.valid = true,
-		.download_microseconds = download_microseconds,
-		.upload_microseconds = upload_microseconds,
+		.download_us = download_us,
+		.upload_us = upload_us,
 	};
 
 	return queue;
@@ -801,12 +800,12 @@ static void test_measured_queues_split_round_trip_delta(void)
 	update_repeatedly(&controller, &input, &output, 6U);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
 	assert(output.upload.congestion == CONTROLLER_CONGESTION_DETECTED);
-	assert(output.upload.average_delay_microseconds == 40000);
+	assert(output.upload.average_delay_us == 40000);
 
 	/* Below the attribution floor, RTT/2 applies again. */
 	input.queue = measured_queue(1000, 3000);
 	update_repeatedly(&controller, &input, &output, 6U);
-	assert(output.upload.average_delay_microseconds == 25000);
+	assert(output.upload.average_delay_us == 25000);
 	controller_close(&controller);
 }
 
@@ -863,7 +862,7 @@ static struct controller_direction_output ack_capped_download(
 	/* The first update only writes the base rates. */
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 1000000U;
+	input.timestamp_us += 1000000U;
 	controller_update(&controller, &input, &output);
 	controller_close(&controller);
 	return output.download;
@@ -932,14 +931,14 @@ static void test_ack_share_changes_are_reported(void)
 	assert(!output.upload.ack_share_active && !output.upload.ack_share_changed);
 
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 1000000U;
+	input.timestamp_us += 1000000U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.ack_share_active && !output.download.ack_share_changed);
 
 	/* Upload falls below high load, so ACKs may use all of it again. */
 	accept_rates(&input, &output);
 	input.upload.traffic_rate_bits_per_second = KBIT(5000U);
-	input.timestamp_microseconds += 1000000U;
+	input.timestamp_us += 1000000U;
 	controller_update(&controller, &input, &output);
 	assert(!output.download.ack_share_active && output.download.ack_share_changed);
 	assert(output.download.ack_share_ceiling_bits_per_second == UINT64_MAX);
@@ -987,10 +986,10 @@ static void test_bufferbloat_reduction_scales_with_average_delay(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150000U;
+	input.timestamp_us += 150000U;
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150001U;
+	input.timestamp_us += 150001U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
@@ -1010,24 +1009,24 @@ static void test_bufferbloat_reduction_observes_refractory_period(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150000U;
+	input.timestamp_us += 150000U;
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 150001U;
+	input.timestamp_us += 150001U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 6U * MEBABIT);
 	accept_rates(&input, &output);
 
-	input.timestamp_microseconds += 299999U;
+	input.timestamp_us += 299999U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 6U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 6U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 5U * MEBABIT);
 	assert(output.download.rate_reason == CONTROLLER_RATE_CONGESTION);
@@ -1044,17 +1043,17 @@ static void test_configured_bufferbloat_adjustment_is_used(void)
 
 	config.bufferbloat_detection_window = 1U;
 	config.bufferbloat_detection_threshold = 1U;
-	config.download.delay_threshold_microseconds = 10000U;
-	config.download.average_delay_maximum_adjust_down_microseconds = 20000U;
+	config.download.delay_threshold_us = 10000U;
+	config.download.average_delay_maximum_adjust_down_us = 20000U;
 	config.download.minimum_rate_bits_per_second = 1U * MEBABIT;
 	config.rate_minimum_adjust_down_bufferbloat_per_thousand = 900U;
 	config.rate_maximum_adjust_down_bufferbloat_per_thousand = 500U;
-	config.bufferbloat_refractory_period_microseconds = 10U;
+	config.bufferbloat_refractory_period_us = 10U;
 	set_latency_delta(&input, 20000);
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 11U;
+	input.timestamp_us += 11U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
@@ -1076,7 +1075,7 @@ static void test_low_load_returns_rate_toward_baseline(void)
 	controller.upload.initial_rate_pending = false;
 	controller.download.shaper_rate_bits_per_second = 10U * MEBABIT;
 	controller.upload.shaper_rate_bits_per_second = 6U * MEBABIT;
-	input.timestamp_microseconds = 2000000U;
+	input.timestamp_us = 2000000U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.rate_bits_per_second == 9900000U);
@@ -1097,19 +1096,19 @@ static void test_low_load_waits_for_decay_refractory_period(void)
 	init_controller(&controller, &config);
 	controller.download.initial_rate_pending = false;
 	controller.download.shaper_rate_bits_per_second = 10U * MEBABIT;
-	controller.download.last_decay_adjustment_microseconds = input.timestamp_microseconds;
+	controller.download.last_decay_adjustment_us = input.timestamp_us;
 
-	input.timestamp_microseconds += 999999U;
+	input.timestamp_us += 999999U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 10U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 10U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 9900000U);
 	assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
@@ -1125,12 +1124,12 @@ static void test_configured_low_load_adjustment_is_used(void)
 	struct controller_output output;
 
 	config.rate_adjust_down_low_load_per_thousand = 950U;
-	config.decay_refractory_period_microseconds = 10U;
+	config.decay_refractory_period_us = 10U;
 	init_controller(&controller, &config);
 	controller.download.initial_rate_pending = false;
 	controller.download.shaper_rate_bits_per_second = 10U * MEBABIT;
-	controller.download.last_decay_adjustment_microseconds = input.timestamp_microseconds;
-	input.timestamp_microseconds += 11U;
+	controller.download.last_decay_adjustment_us = input.timestamp_us;
+	input.timestamp_us += 11U;
 	controller_update(&controller, &input, &output);
 
 	assert(output.download.rate_bits_per_second == 9500000U);
@@ -1152,32 +1151,32 @@ static void test_congestion_restarts_decay_refractory_period(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150000U;
+	input.timestamp_us += 150000U;
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 150001U;
+	input.timestamp_us += 150001U;
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	adjustment_time = input.timestamp_microseconds;
+	adjustment_time = input.timestamp_us;
 
 	set_latency_delta(&input, 0);
 	for (sample = 0U; sample < 4U; sample++) {
-		input.timestamp_microseconds++;
+		input.timestamp_us++;
 		controller_update(&controller, &input, &output);
 	}
 	assert(output.download.congestion == CONTROLLER_CONGESTION_CLEAR);
 
-	input.timestamp_microseconds = adjustment_time + 999999U;
+	input.timestamp_us = adjustment_time + 999999U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 6U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 6U * MEBABIT);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 6060000U);
 	assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
@@ -1196,23 +1195,23 @@ static void test_high_load_restarts_decay_refractory_period(void)
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 	accept_rates(&input, &output);
-	adjustment_time = input.timestamp_microseconds;
+	adjustment_time = input.timestamp_us;
 
 	input.download.traffic_rate_bits_per_second = 1U * MEBABIT;
-	input.timestamp_microseconds = adjustment_time + 999999U;
+	input.timestamp_us = adjustment_time + 999999U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8320000U);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8320000U);
 	assert(!output.download.rate_changed);
 
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8236000U);
 	assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
@@ -1230,7 +1229,7 @@ static void test_rate_limits_are_hard_bounds(void)
 	config.download.maximum_rate_bits_per_second = 8100000U;
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 300001U;
+	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 8100000U);
 
@@ -1242,9 +1241,9 @@ static void test_rate_limits_are_hard_bounds(void)
 	controller_close(&controller);
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 150001U;
+	input.timestamp_us += 150001U;
 	controller_update(&controller, &input, &output);
-	input.timestamp_microseconds += 150000U;
+	input.timestamp_us += 150000U;
 	controller_update(&controller, &input, &output);
 	assert(output.download.rate_bits_per_second == 7U * MEBABIT);
 	controller_close(&controller);
@@ -1282,8 +1281,8 @@ static void test_minimum_rate_enforcement_preserves_opt_out(void)
 	assert(controller.download.shaper_rate_bits_per_second ==
 	       config.download.minimum_rate_bits_per_second);
 	assert(!controller.download.initial_rate_pending);
-	assert(controller.download.last_congestion_adjustment_microseconds == 123U);
-	assert(controller.download.last_decay_adjustment_microseconds == 123U);
+	assert(controller.download.last_congestion_adjustment_us == 123U);
+	assert(controller.download.last_decay_adjustment_us == 123U);
 	assert(controller.upload.shaper_rate_bits_per_second ==
 	       config.upload.base_rate_bits_per_second);
 	controller_close(&controller);
@@ -1293,18 +1292,18 @@ static const struct controller_activity_config activity_config = {
 	.enable_sleep = true,
 	.active_threshold_bits_per_second = 2000000U,
 	.stall_threshold_bits_per_second = 10000U,
-	.sustained_idle_microseconds = 60000000U,
-	.stall_timeout_microseconds = 250000U,
-	.global_timeout_microseconds = 10000000U,
+	.sustained_idle_us = 60000000U,
+	.stall_timeout_us = 250000U,
+	.global_timeout_us = 10000000U,
 };
 
 static struct controller_activity_input activity_input(uint64_t timestamp)
 {
 	return (struct controller_activity_input){ .download = { .valid = true },
 						   .upload = { .valid = true },
-						   .timestamp_microseconds = timestamp,
-						   .last_response_microseconds = timestamp,
-						   .last_pinger_start_microseconds = 1U };
+						   .timestamp_us = timestamp,
+						   .last_response_us = timestamp,
+						   .last_pinger_start_us = 1U };
 }
 
 static void test_sustained_idle_sleep_and_wakeup(void)
@@ -1314,7 +1313,7 @@ static void test_sustained_idle_sleep_and_wakeup(void)
 	struct controller_activity_output output;
 
 	activity_update(&activity, &input, &output);
-	assert(activity.idle_started_microseconds == 1U);
+	assert(activity.idle_started_us == 1U);
 	input = activity_input(60000001U);
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
@@ -1322,8 +1321,8 @@ static void test_sustained_idle_sleep_and_wakeup(void)
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_IDLE);
 	assert(output.state_changed);
-	input.timestamp_microseconds += 20000000U;
-	input.last_response_microseconds = 1U;
+	input.timestamp_us += 20000000U;
+	input.last_response_us = 1U;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_IDLE);
 	assert(!output.restart_pingers);
@@ -1348,21 +1347,21 @@ static void test_interrupted_or_invalid_idle_does_not_sleep(void)
 	input = activity_input(20000000U);
 	input.download.traffic_rate_bits_per_second = 2001000U;
 	activity_update(&activity, &input, &output);
-	assert(activity.idle_started_microseconds == 0U);
+	assert(activity.idle_started_us == 0U);
 	input = activity_input(60000002U);
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
-	assert(activity.idle_started_microseconds == input.timestamp_microseconds);
+	assert(activity.idle_started_us == input.timestamp_us);
 	input = activity_input(120000004U);
 	input.download.valid = false;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
-	assert(activity.idle_started_microseconds == 0U);
+	assert(activity.idle_started_us == 0U);
 	activity.config.enable_sleep = false;
 	input = activity_input(200000000U);
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
-	assert(activity.idle_started_microseconds == 0U);
+	assert(activity.idle_started_us == 0U);
 }
 
 static void test_stall_timeout_restart_and_response_recovery(void)
@@ -1371,25 +1370,25 @@ static void test_stall_timeout_restart_and_response_recovery(void)
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
-	input.timestamp_microseconds = 250001U;
+	input.timestamp_us = 250001U;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_STALL);
 	assert(output.check_stall_loads);
 	assert(output.state_changed);
 	assert(!output.global_timeout_started);
-	input.timestamp_microseconds = 10000001U;
+	input.timestamp_us = 10000001U;
 	activity_update(&activity, &input, &output);
 	assert(output.global_timeout_started);
 	assert(output.restart_pingers);
-	input.last_pinger_start_microseconds = input.timestamp_microseconds;
-	input.timestamp_microseconds++;
+	input.last_pinger_start_us = input.timestamp_us;
+	input.timestamp_us++;
 	activity_update(&activity, &input, &output);
 	assert(!output.global_timeout_started);
 	assert(!output.restart_pingers);
-	input.last_response_microseconds = input.timestamp_microseconds;
+	input.last_response_us = input.timestamp_us;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(output.state_changed);
@@ -1402,7 +1401,7 @@ static void test_both_loads_bypass_stall_but_not_global_timeout(void)
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
-	input.timestamp_microseconds = 10000001U;
+	input.timestamp_us = 10000001U;
 	input.download.traffic_rate_bits_per_second = 11000U;
 	input.upload.traffic_rate_bits_per_second = 11000U;
 	activity_update(&activity, &input, &output);
@@ -1424,12 +1423,12 @@ static void test_wakeup_grace_prevents_false_stall(void)
 	struct controller_activity_input input = activity_input(1U);
 	struct controller_activity_output output;
 
-	input.timestamp_microseconds = 600000U;
-	input.grace_until_microseconds = 600001U;
+	input.timestamp_us = 600000U;
+	input.grace_until_us = 600001U;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_RUNNING);
 	assert(!output.check_stall_loads);
-	input.timestamp_microseconds++;
+	input.timestamp_us++;
 	activity_update(&activity, &input, &output);
 	assert(activity.state == CONTROLLER_STALL);
 }
@@ -1443,24 +1442,24 @@ static void test_compact_delay_window_boundaries(void)
 
 	config.bufferbloat_detection_window = 1U;
 	config.bufferbloat_detection_threshold = 1U;
-	config.download.delay_threshold_microseconds = 0U;
-	config.upload.delay_threshold_microseconds = UINT64_MAX;
+	config.download.delay_threshold_us = 0U;
+	config.upload.delay_threshold_us = UINT64_MAX;
 	init_controller(&controller, &config);
 	set_latency_delta(&input, INT64_C(2147483647));
 	controller_update(&controller, &input, &output);
-	assert(output.download.average_delay_microseconds == INT32_MAX);
+	assert(output.download.average_delay_us == INT32_MAX);
 	assert(output.download.delayed_sample_count == 1U);
 	assert(output.upload.delayed_sample_count == 0U);
 
 	set_latency_delta(&input, -INT64_C(2147483647));
 	controller_update(&controller, &input, &output);
-	assert(output.download.average_delay_microseconds == -INT64_C(2147483647));
+	assert(output.download.average_delay_us == -INT64_C(2147483647));
 	assert(output.download.delayed_sample_count == 0U);
 	assert(output.upload.delayed_sample_count == 0U);
 
 	set_latency_delta(&input, 0);
 	controller_update(&controller, &input, &output);
-	assert(controller.download.delay_sum_microseconds == 0);
+	assert(controller.download.delay_sum_us == 0);
 	assert(output.download.delayed_sample_count == 0U);
 	controller_close(&controller);
 }
@@ -1475,36 +1474,42 @@ static void test_directional_latency_windows_are_independent(void)
 	config.bufferbloat_detection_window = 3U;
 	config.bufferbloat_detection_threshold = 2U;
 	init_controller(&controller, &config);
-	input.download_latency.owd_delta_microseconds = 40000;
-	input.upload_latency.owd_delta_microseconds = -5000;
+	input.download_latency.owd_delta_us = 40000;
+	input.upload_latency.owd_delta_us = -5000;
 	update_repeatedly(&controller, &input, &output, 2U);
 
-	assert(controller.download.delay_sum_microseconds == 80000);
-	assert(output.download.average_delay_microseconds == 26666);
+	assert(controller.download.delay_sum_us == 80000);
+	assert(output.download.average_delay_us == 26667);
 	assert(output.download.delayed_sample_count == 2U);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
-	assert(controller.upload.delay_sum_microseconds == -10000);
-	assert(output.upload.average_delay_microseconds == -3333);
+	assert(controller.upload.delay_sum_us == -10000);
+	assert(output.upload.average_delay_us == -3333);
 	assert(output.upload.delayed_sample_count == 0U);
 	assert(output.upload.congestion == CONTROLLER_CONGESTION_CLEAR);
 
 	input.download_latency.valid = false;
-	input.upload_latency.owd_delta_microseconds = 40000;
+	input.upload_latency.owd_delta_us = 40000;
 	controller_update(&controller, &input, &output);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_UNKNOWN);
-	assert(controller.download.delay_sum_microseconds == 80000);
+	assert(controller.download.delay_sum_us == 80000);
 	assert(output.download.delayed_sample_count == 2U);
-	assert(controller.upload.delay_sum_microseconds == 30000);
+	assert(controller.upload.delay_sum_us == 30000);
 	assert(output.upload.delayed_sample_count == 1U);
 
 	input.download_latency.valid = true;
-	input.download_latency.owd_delta_microseconds = -1;
-	controller.download.config.delay_threshold_microseconds = UINT64_MAX;
+	input.download_latency.owd_delta_us = -1;
+	controller.download.config.delay_threshold_us = UINT64_MAX;
 	controller_update(&controller, &input, &output);
-	assert(controller.download.delay_sum_microseconds == 79999);
+	assert(controller.download.delay_sum_us == 79999);
 	assert(output.download.delayed_sample_count == 2U);
 	assert(output.download.congestion == CONTROLLER_CONGESTION_DETECTED);
 	controller_close(&controller);
+}
+
+/* value / divisor to the nearest integer, ties away from zero, computed independently. */
+static int64_t nearest(int64_t value, int64_t divisor)
+{
+	return (2 * value + (value >= 0 ? divisor : -divisor)) / (2 * divisor);
 }
 
 static void test_delay_window_matches_rescanned_history(void)
@@ -1522,8 +1527,8 @@ static void test_delay_window_matches_rescanned_history(void)
 
 	config.bufferbloat_detection_window = WINDOW_SIZE;
 	config.bufferbloat_detection_threshold = 5U;
-	config.download.delay_threshold_microseconds = 30000U;
-	config.upload.delay_threshold_microseconds = 1000000000U;
+	config.download.delay_threshold_us = 30000U;
+	config.upload.delay_threshold_us = 1000000000U;
 	init_controller(&controller, &config);
 	for (unsigned int index = 0U; index < SAMPLE_COUNT; index++) {
 		int64_t sum = 0;
@@ -1544,10 +1549,10 @@ static void test_delay_window_matches_rescanned_history(void)
 			upload_delays += history[slot] > 1000000000 ? 1U : 0U;
 		}
 		controller_update(&controller, &input, &output);
-		assert(controller.download.delay_sum_microseconds == sum);
-		assert(controller.upload.delay_sum_microseconds == sum);
-		assert(output.download.average_delay_microseconds == sum / WINDOW_SIZE);
-		assert(output.upload.average_delay_microseconds == sum / WINDOW_SIZE);
+		assert(controller.download.delay_sum_us == sum);
+		assert(controller.upload.delay_sum_us == sum);
+		assert(output.download.average_delay_us == nearest(sum, WINDOW_SIZE));
+		assert(output.upload.average_delay_us == nearest(sum, WINDOW_SIZE));
 		assert(output.download.delayed_sample_count == download_delays);
 		assert(output.upload.delayed_sample_count == upload_delays);
 	}
@@ -1559,11 +1564,11 @@ static void test_compensation_saturates_thresholds(void)
 	struct controller controller;
 	struct controller_config config = default_config();
 
-	config.download.delay_threshold_microseconds = UINT64_MAX - 1U;
+	config.download.delay_threshold_us = UINT64_MAX - 1U;
 	init_controller(&controller, &config);
 	controller.download.shaper_rate_bits_per_second = 1U;
 	controller_set_serialization_compensation(&controller, 12000U, 0U);
-	assert(controller.download.config.delay_threshold_microseconds == UINT64_MAX);
+	assert(controller.download.config.delay_threshold_us == UINT64_MAX);
 	controller_close(&controller);
 }
 
@@ -1574,11 +1579,11 @@ static void test_compensation_is_directional_and_preserves_history(void)
 	struct controller_input input = input_with_rates(1U, 1U, 1U, 1U);
 	struct controller_output output;
 
-	config.upload.average_delay_maximum_adjust_up_microseconds = 11000U;
-	config.upload.delay_threshold_microseconds = 31000U;
-	config.upload.average_delay_maximum_adjust_down_microseconds = 61000U;
-	input.download_latency.owd_delta_microseconds = 30001;
-	input.upload_latency.owd_delta_microseconds = 31001;
+	config.upload.average_delay_maximum_adjust_up_us = 11000U;
+	config.upload.delay_threshold_us = 31000U;
+	config.upload.average_delay_maximum_adjust_down_us = 61000U;
+	input.download_latency.owd_delta_us = 30001;
+	input.upload_latency.owd_delta_us = 31001;
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	assert(controller.download.delayed_sample_count == 1U);
@@ -1587,25 +1592,25 @@ static void test_compensation_is_directional_and_preserves_history(void)
 	controller.download.shaper_rate_bits_per_second = 1000000U;
 	controller.upload.shaper_rate_bits_per_second = 2000000U;
 	controller_set_serialization_compensation(&controller, 12000U, 24000U);
-	assert(controller.config.download.delay_threshold_microseconds == 30000U);
-	assert(controller.config.upload.delay_threshold_microseconds == 31000U);
-	assert(controller.download.config.average_delay_maximum_adjust_up_microseconds == 22000U);
-	assert(controller.download.config.delay_threshold_microseconds == 42000U);
-	assert(controller.download.config.average_delay_maximum_adjust_down_microseconds == 72000U);
-	assert(controller.upload.config.average_delay_maximum_adjust_up_microseconds == 23000U);
-	assert(controller.upload.config.delay_threshold_microseconds == 43000U);
-	assert(controller.upload.config.average_delay_maximum_adjust_down_microseconds == 73000U);
+	assert(controller.config.download.delay_threshold_us == 30000U);
+	assert(controller.config.upload.delay_threshold_us == 31000U);
+	assert(controller.download.config.average_delay_maximum_adjust_up_us == 22000U);
+	assert(controller.download.config.delay_threshold_us == 42000U);
+	assert(controller.download.config.average_delay_maximum_adjust_down_us == 72000U);
+	assert(controller.upload.config.average_delay_maximum_adjust_up_us == 23000U);
+	assert(controller.upload.config.delay_threshold_us == 43000U);
+	assert(controller.upload.config.average_delay_maximum_adjust_down_us == 73000U);
 	assert(controller.download.delayed_sample_count == 1U);
 	assert(controller.upload.delayed_sample_count == 1U);
 
 	controller.upload.shaper_rate_bits_per_second = 3000000U;
 	controller_set_serialization_compensation(&controller, 6000U, 6000U);
-	assert(controller.download.config.average_delay_maximum_adjust_up_microseconds == 16000U);
-	assert(controller.download.config.delay_threshold_microseconds == 36000U);
-	assert(controller.download.config.average_delay_maximum_adjust_down_microseconds == 66000U);
-	assert(controller.upload.config.average_delay_maximum_adjust_up_microseconds == 13000U);
-	assert(controller.upload.config.delay_threshold_microseconds == 33000U);
-	assert(controller.upload.config.average_delay_maximum_adjust_down_microseconds == 63000U);
+	assert(controller.download.config.average_delay_maximum_adjust_up_us == 16000U);
+	assert(controller.download.config.delay_threshold_us == 36000U);
+	assert(controller.download.config.average_delay_maximum_adjust_down_us == 66000U);
+	assert(controller.upload.config.average_delay_maximum_adjust_up_us == 13000U);
+	assert(controller.upload.config.delay_threshold_us == 33000U);
+	assert(controller.upload.config.average_delay_maximum_adjust_down_us == 63000U);
 	assert(controller.download.delayed_sample_count == 1U);
 	assert(controller.upload.delayed_sample_count == 1U);
 	controller_close(&controller);

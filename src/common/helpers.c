@@ -70,7 +70,7 @@ bool shuffle(size_t *items, size_t count, random_u32_source source, void *contex
 	return true;
 }
 
-uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bits_per_second)
+uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bits_per_second)
 {
 	uint64_t whole;
 	uint64_t remainder;
@@ -80,49 +80,45 @@ uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bit
 		return 0U;
 	whole = wire_packet_bits / rate_bits_per_second;
 	remainder = wire_packet_bits % rate_bits_per_second;
-	if (whole > UINT64_MAX / MICROSECONDS_PER_SECOND ||
-	    __builtin_mul_overflow(remainder, MICROSECONDS_PER_SECOND, &fractional)) {
+	if (whole > UINT64_MAX / US_PER_SECOND ||
+	    __builtin_mul_overflow(remainder, US_PER_SECOND, &fractional)) {
 		return UINT64_MAX;
 	}
-	whole *= MICROSECONDS_PER_SECOND;
-	fractional /= rate_bits_per_second;
-	return saturating_add(whole, fractional);
+	whole *= US_PER_SECOND;
+	return saturating_add(whole, rounded_divide(fractional, rate_bits_per_second));
 }
 
-uint64_t response_monotonic_microseconds(
-	uint64_t processing_realtime_microseconds,
-	uint64_t processing_monotonic_microseconds,
-	uint64_t response_realtime_microseconds
+uint64_t response_monotonic_us(
+	uint64_t processing_realtime_us,
+	uint64_t processing_monotonic_us,
+	uint64_t response_realtime_us
 )
 {
-	if (response_realtime_microseconds > processing_realtime_microseconds) {
+	if (response_realtime_us > processing_realtime_us) {
 		return saturating_add(
-			processing_monotonic_microseconds,
-			response_realtime_microseconds - processing_realtime_microseconds
+			processing_monotonic_us,
+			response_realtime_us - processing_realtime_us
 		);
 	}
 	return saturating_sub(
-		processing_monotonic_microseconds,
-		processing_realtime_microseconds - response_realtime_microseconds
+		processing_monotonic_us,
+		processing_realtime_us - response_realtime_us
 	);
 }
 
-bool response_stale(
-	uint64_t processing_realtime_microseconds,
-	uint64_t response_realtime_microseconds
-)
+bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us)
 {
-	return saturating_sub(processing_realtime_microseconds, response_realtime_microseconds) >
-	       LATENCY_STALE_RESPONSE_MICROSECONDS;
+	return saturating_sub(processing_realtime_us, response_realtime_us) >
+	       LATENCY_STALE_RESPONSE_US;
 }
 
-bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp)
+bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp)
 {
 	struct timespec value;
 
 	if (clock_gettime(clock_identifier, &value) != 0 || value.tv_sec < 0)
 		return false;
-	*timestamp = timespec_microseconds(&value);
+	*timestamp = timespec_to_us(&value);
 	return true;
 }
 

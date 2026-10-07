@@ -33,9 +33,9 @@ void traffic_init(struct traffic_monitor *monitor);
  * Pinned upstream cadence: at least ten round trips of one wire packet each
  * way. Sampling itself still uses actual elapsed time.
  */
-uint64_t traffic_compensated_interval_microseconds(
-	uint64_t configured_interval_microseconds,
-	uint64_t round_trip_serialization_microseconds
+uint64_t traffic_compensated_interval_us(
+	uint64_t configured_interval_us,
+	uint64_t round_trip_serialization_us
 );
 
 enum traffic_update_result traffic_update(

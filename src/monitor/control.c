@@ -86,9 +86,9 @@ static void log_congestion_state(
 	const struct latency_observation *latency
 )
 {
-	int64_t round_trip_microseconds;
-	int64_t baseline_microseconds;
-	int64_t delay_microseconds;
+	int64_t round_trip_us;
+	int64_t baseline_us;
+	int64_t delay_us;
 
 	if (state == CONTROLLER_CONGESTION_UNKNOWN) {
 		log_message(
@@ -99,13 +99,9 @@ static void log_congestion_state(
 		return;
 	}
 
-	round_trip_microseconds =
-		latency->download_owd_microseconds + latency->upload_owd_microseconds;
-	baseline_microseconds = latency->download_owd_baseline_microseconds +
-				latency->upload_owd_baseline_microseconds;
-	delay_microseconds = round_trip_microseconds >= baseline_microseconds ?
-				     round_trip_microseconds - baseline_microseconds :
-				     0;
+	round_trip_us = latency->download_owd_us + latency->upload_owd_us;
+	baseline_us = latency->download_owd_baseline_us + latency->upload_owd_baseline_us;
+	delay_us = round_trip_us >= baseline_us ? round_trip_us - baseline_us : 0;
 	log_message(
 		state == CONTROLLER_CONGESTION_DETECTED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
 		"congestion changed: direction=%s state=%s"
@@ -113,9 +109,9 @@ static void log_congestion_state(
 		" delta=%" PRId64 " us",
 		direction,
 		congestion_state_names[state],
-		round_trip_microseconds,
-		baseline_microseconds,
-		delay_microseconds
+		round_trip_us,
+		baseline_us,
+		delay_us
 	);
 }
 
@@ -211,36 +207,29 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 			.icmp_timestamp = sample->timestamp_text,
 			.reflector = sample->target,
 			.sequence = sample->sequence,
-			.download_owd_baseline_microseconds =
-				latency->download_owd_baseline_microseconds,
-			.download_owd_microseconds = latency->download_owd_microseconds,
-			.download_owd_delta_ewma_microseconds =
-				latency->download_owd_delta_ewma_microseconds,
-			.download_owd_delta_microseconds = latency->download_owd_delta_microseconds,
-			.download_adjust_delay_threshold_microseconds =
-				download_effective->delay_threshold_microseconds,
-			.upload_owd_baseline_microseconds =
-				latency->upload_owd_baseline_microseconds,
-			.upload_owd_microseconds = latency->upload_owd_microseconds,
-			.upload_owd_delta_ewma_microseconds =
-				latency->upload_owd_delta_ewma_microseconds,
-			.upload_owd_delta_microseconds = latency->upload_owd_delta_microseconds,
-			.upload_adjust_delay_threshold_microseconds =
-				upload_effective->delay_threshold_microseconds,
+			.download_owd_baseline_us = latency->download_owd_baseline_us,
+			.download_owd_us = latency->download_owd_us,
+			.download_owd_delta_ewma_us = latency->download_owd_delta_ewma_us,
+			.download_owd_delta_us = latency->download_owd_delta_us,
+			.download_adjust_delay_threshold_us =
+				download_effective->delay_threshold_us,
+			.upload_owd_baseline_us = latency->upload_owd_baseline_us,
+			.upload_owd_us = latency->upload_owd_us,
+			.upload_owd_delta_ewma_us = latency->upload_owd_delta_ewma_us,
+			.upload_owd_delta_us = latency->upload_owd_delta_us,
+			.upload_adjust_delay_threshold_us = upload_effective->delay_threshold_us,
 			.download_sum_delays = download_output->delayed_sample_count,
-			.download_average_owd_delta_microseconds =
-				download_output->average_delay_microseconds,
-			.download_maximum_adjust_up_threshold_microseconds =
-				download_effective->average_delay_maximum_adjust_up_microseconds,
-			.download_maximum_adjust_down_threshold_microseconds =
-				download_effective->average_delay_maximum_adjust_down_microseconds,
+			.download_average_owd_delta_us = download_output->average_delay_us,
+			.download_maximum_adjust_up_threshold_us =
+				download_effective->average_delay_maximum_adjust_up_us,
+			.download_maximum_adjust_down_threshold_us =
+				download_effective->average_delay_maximum_adjust_down_us,
 			.upload_sum_delays = upload_output->delayed_sample_count,
-			.upload_average_owd_delta_microseconds =
-				upload_output->average_delay_microseconds,
-			.upload_maximum_adjust_up_threshold_microseconds =
-				upload_effective->average_delay_maximum_adjust_up_microseconds,
-			.upload_maximum_adjust_down_threshold_microseconds =
-				upload_effective->average_delay_maximum_adjust_down_microseconds,
+			.upload_average_owd_delta_us = upload_output->average_delay_us,
+			.upload_maximum_adjust_up_threshold_us =
+				upload_effective->average_delay_maximum_adjust_up_us,
+			.upload_maximum_adjust_down_threshold_us =
+				upload_effective->average_delay_maximum_adjust_down_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
 			.cake_download_rate_kbps = download_rate,
@@ -256,10 +245,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 			.upload_achieved_rate_kbps = upload_achieved,
 			.download_sum_delays = download_output->delayed_sample_count,
 			.upload_sum_delays = upload_output->delayed_sample_count,
-			.download_average_owd_delta_microseconds =
-				download_output->average_delay_microseconds,
-			.upload_average_owd_delta_microseconds =
-				upload_output->average_delay_microseconds,
+			.download_average_owd_delta_us = download_output->average_delay_us,
+			.upload_average_owd_delta_us = upload_output->average_delay_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
 			.cake_download_rate_kbps = download_rate,
@@ -364,11 +351,11 @@ void control_update(
 			.download = direction_input(&links->download),
 			.upload = direction_input(&links->upload),
 			.download_latency = { .valid = true,
-					      .owd_delta_microseconds =
-						      latency->download_owd_delta_microseconds },
+					      .owd_delta_us =
+						      latency->download_owd_delta_us },
 			.upload_latency = { .valid = true,
-					    .owd_delta_microseconds =
-						    latency->upload_owd_delta_microseconds },
+					    .owd_delta_us =
+						    latency->upload_owd_delta_us },
 		},
 	};
 	const struct controller_queue_input *queue = &step.input.queue;
@@ -391,7 +378,7 @@ void control_update(
 		  DIRECTION_UPLOAD_SHORT },
 	};
 
-	(void)read_clock_microseconds(CLOCK_MONOTONIC, &step.input.timestamp_microseconds);
+	(void)read_clock_us(CLOCK_MONOTONIC, &step.input.timestamp_us);
 	tcp_observe(monitor, &step.input);
 
 	controller_update(&control->controller, &step.input, &step.output);
@@ -412,8 +399,8 @@ void control_update(
 				direction->name,
 				decision->bufferbloat_attributed ? BOOLEAN_YES : BOOLEAN_NO,
 				queue->valid ? STATE_VALID : STATE_UNAVAILABLE,
-				queue->download_microseconds,
-				queue->upload_microseconds
+				queue->download_us,
+				queue->upload_us
 			);
 		}
 		/* Only the start and end of a hold: the ceiling itself moves with traffic. */
@@ -460,7 +447,7 @@ void control_update(
 	log_controller_stats(monitor, &step);
 }
 
-void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds)
+void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_us)
 {
 	struct controller *controller = &monitor->control.controller;
 	const struct {
@@ -471,7 +458,7 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microse
 		{ &monitor->links.upload, &controller->upload },
 	};
 
-	controller_set_minimum_rates(controller, timestamp_microseconds);
+	controller_set_minimum_rates(controller, timestamp_us);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
 		const struct controller_direction_config *config =
 			&directions[index].controller->config;
@@ -494,11 +481,11 @@ static struct controller_direction_config direction_config(const struct config_d
 		.minimum_rate_bits_per_second = direction->minimum_rate_bits_per_second,
 		.base_rate_bits_per_second = direction->base_rate_bits_per_second,
 		.maximum_rate_bits_per_second = direction->maximum_rate_bits_per_second,
-		.average_delay_maximum_adjust_up_microseconds =
-			direction->average_owd_delta_maximum_adjust_up_microseconds,
-		.delay_threshold_microseconds = direction->owd_delta_delay_threshold_microseconds,
-		.average_delay_maximum_adjust_down_microseconds =
-			direction->average_owd_delta_maximum_adjust_down_microseconds,
+		.average_delay_maximum_adjust_up_us =
+			direction->average_owd_delta_maximum_adjust_up_us,
+		.delay_threshold_us = direction->owd_delta_delay_threshold_us,
+		.average_delay_maximum_adjust_down_us =
+			direction->average_owd_delta_maximum_adjust_down_us,
 	};
 }
 
@@ -536,10 +523,8 @@ int control_start(struct monitor *monitor)
 			rounded_divide(config->shaper_rate_adjust_up_load_low_per_million, THOUSAND),
 		.high_load_threshold_percent =
 			rounded_divide(config->high_load_threshold_per_million, FACTOR_PER_PERCENT),
-		.bufferbloat_refractory_period_microseconds =
-			config->bufferbloat_refractory_period_microseconds,
-		.decay_refractory_period_microseconds =
-			config->decay_refractory_period_microseconds,
+		.bufferbloat_refractory_period_us = config->bufferbloat_refractory_period_us,
+		.decay_refractory_period_us = config->decay_refractory_period_us,
 		/* Only fping reports one RTT/2 delay for both directions. */
 		.shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0,
 		.ul_congest_ack_share_percent =

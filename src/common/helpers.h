@@ -18,27 +18,24 @@ bool random_below(size_t count, random_u32_source source, void *context, size_t 
 /* Shuffle in place; callers needing failure atomicity provide a working copy. */
 bool shuffle(size_t *items, size_t count, random_u32_source source, void *context);
 
-/* Whole-microsecond serialization time, saturated on overflow. */
-uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bits_per_second);
+/* Serialization time in microseconds, rounded; saturated on overflow. */
+uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bits_per_second);
 
 /*
  * Map an epoch response timestamp into the monotonic clock domain, keeping
  * its age (or a future timestamp's offset). This keeps health/activity timers
  * monotonic without changing response age.
  */
-uint64_t response_monotonic_microseconds(
-	uint64_t processing_realtime_microseconds,
-	uint64_t processing_monotonic_microseconds,
-	uint64_t response_realtime_microseconds
+uint64_t response_monotonic_us(
+	uint64_t processing_realtime_us,
+	uint64_t processing_monotonic_us,
+	uint64_t response_realtime_us
 );
 
 /* Strictly older than 500 ms when processed; a future timestamp is never stale. */
-bool response_stale(
-	uint64_t processing_realtime_microseconds,
-	uint64_t response_realtime_microseconds
-);
+bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us);
 
-bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp);
+bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp);
 
 bool elapsed_milliseconds(
 	const struct timespec *previous,

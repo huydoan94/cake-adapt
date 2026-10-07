@@ -47,7 +47,7 @@ static void stop_child(pid_t process_identifier)
 {
 	const struct timespec interval = {
 		.tv_sec = 0,
-		.tv_nsec = CHILD_STOP_INTERVAL_NANOSECONDS,
+		.tv_nsec = (long)(CHILD_STOP_INTERVAL_US * NANOSECONDS_PER_US),
 	};
 	unsigned int attempt;
 
@@ -410,13 +410,12 @@ int latency_open(
 	struct latency *latency,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t timestamp_microseconds,
+	uint64_t timestamp_us,
 	char *error,
 	size_t error_size
 )
 {
-	return latency->ops
-		->open(latency, targets, target_count, timestamp_microseconds, error, error_size);
+	return latency->ops->open(latency, targets, target_count, timestamp_us, error, error_size);
 }
 
 enum latency_line_result

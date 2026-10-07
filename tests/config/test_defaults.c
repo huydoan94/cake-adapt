@@ -21,10 +21,10 @@ int main(void)
 	assert(config.enable_sleep_function);
 	assert(config.log_file_export_compress);
 	assert(strcmp(config.pinger_method, "fping") == 0);
-	assert(config.log_file_max_time_minutes == 10U);
+	assert(config.log_file_max_time_us == 600000000U);
 	assert(config.log_file_max_size_kilobytes == 2000U);
 	assert(config.no_pingers == 6U);
-	assert(config.reflector_ping_interval_microseconds == 300000U);
+	assert(config.reflector_ping_interval_us == 300000U);
 	assert(config.download.minimum_rate_bits_per_second == 5000000U);
 	assert(config.download.base_rate_bits_per_second == 20000000U);
 	assert(config.download.maximum_rate_bits_per_second == 80000000U);
@@ -32,13 +32,13 @@ int main(void)
 	assert(config.upload.base_rate_bits_per_second == 20000000U);
 	assert(config.upload.maximum_rate_bits_per_second == 35000000U);
 	assert(config.connection_active_threshold_bits_per_second == 2000000U);
-	assert(config.monitor_achieved_rates_interval_microseconds == 200000U);
+	assert(config.monitor_achieved_rates_interval_us == 200000U);
 	assert(!config.tcp_delay_attribution);
 	assert(config.ul_congest_ack_share_per_million == 0U);
 	assert(config.bufferbloat_detection_window == 6U);
 	assert(config.bufferbloat_detection_threshold == 3U);
-	assert(config.global_ping_response_timeout_microseconds == 10000000U);
-	assert(config.interface_up_check_interval_microseconds == 10000000U);
+	assert(config.global_ping_response_timeout_us == 10000000U);
+	assert(config.interface_up_check_interval_us == 10000000U);
 
 	(void)puts("default configuration tests passed");
 	return 0;

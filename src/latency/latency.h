@@ -26,8 +26,8 @@ struct latency_child {
 	pid_t process_identifier;
 	/* SIGTERM was sent by latency_close() and the exit has not been reported yet. */
 	bool stopping;
-	uint64_t started_microseconds;
-	uint64_t next_start_microseconds;
+	uint64_t started_us;
+	uint64_t next_start_us;
 	/* Borrowed from the validated configuration for the session lifetime. */
 	const char *target;
 };
@@ -39,10 +39,10 @@ struct latency_settings {
 	const char *interface;
 	const char *extra_arguments;
 	const char *prefix;
-	uint64_t reflector_ping_interval_microseconds;
-	uint64_t irtt_session_duration_minutes;
+	uint64_t reflector_ping_interval_us;
+	uint64_t irtt_session_duration_us;
 	/* IRTT sessions start aligned to ping slots counted from here. */
-	uint64_t slot_origin_microseconds;
+	uint64_t slot_origin_us;
 };
 
 struct pinger_ops;
@@ -91,14 +91,14 @@ bool latency_stopping(const struct latency *latency);
 /*
  * The validated configuration bounds targets and their spacing. fping and
  * fping-ts start one process for all targets now; IRTT schedules a session per
- * target from the next ping slot after timestamp_microseconds, started by
+ * target from the next ping slot after timestamp_us, started by
  * latency_start_irtt_children().
  */
 int latency_open(
 	struct latency *latency,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t timestamp_microseconds,
+	uint64_t timestamp_us,
 	char *error,
 	size_t error_size
 );
@@ -119,14 +119,14 @@ void latency_stop_now(struct latency *latency);
 /* Starts the IRTT sessions that are due; only while latency_irtt_start_pending(). */
 int latency_start_irtt_children(
 	struct latency *latency,
-	uint64_t timestamp_microseconds,
+	uint64_t timestamp_us,
 	char *error,
 	size_t error_size
 );
 
 bool latency_irtt_start_pending(const struct latency *latency);
 
-uint64_t latency_irtt_next_start_microseconds(const struct latency *latency);
+uint64_t latency_irtt_next_start_us(const struct latency *latency);
 
 /*
  * Copies the first complete line from data, without its CR/LF, and reports

@@ -7,10 +7,9 @@
 #include <string.h>
 
 /* A uloop interval: a positive whole number of milliseconds that fits its unsigned argument. */
-static bool timer_interval_valid(uint64_t microseconds)
+static bool timer_interval_valid(uint64_t us)
 {
-	return microseconds > 0U && microseconds % MILLISECOND == 0U &&
-	       microseconds / MILLISECOND <= UINT_MAX;
+	return us > 0U && us % MILLISECOND == 0U && us / MILLISECOND <= UINT_MAX;
 }
 
 static int validate_rate_range(
@@ -102,7 +101,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 		);
 	}
 	if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0 &&
-	    config->irtt_session_duration_minutes == 0U) {
+	    config->irtt_session_duration_us == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -136,7 +135,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 			"option 'tcp_delay_attribution' needs pinger_method 'fping'"
 		);
 	}
-	if (config->reflector_ping_interval_microseconds / config->no_pingers < MILLISECOND) {
+	if (config->reflector_ping_interval_us / config->no_pingers < MILLISECOND) {
 		return error_set(
 			error,
 			error_size,
@@ -149,7 +148,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 
 static int validate_detection(const struct config *config, char *error, size_t error_size)
 {
-	if (!timer_interval_valid(config->monitor_achieved_rates_interval_microseconds)) {
+	if (!timer_interval_valid(config->monitor_achieved_rates_interval_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -192,15 +191,15 @@ static int validate_detection(const struct config *config, char *error, size_t e
 
 static int validate_reflector_policy(const struct config *config, char *error, size_t error_size)
 {
-	if (config->reflector_health_check_interval_microseconds == 0U ||
-	    config->reflector_response_deadline_microseconds == 0U) {
+	if (config->reflector_health_check_interval_us == 0U ||
+	    config->reflector_response_deadline_us == 0U) {
 		return error_set(
 			error,
 			error_size,
 			"reflector health interval and response deadline must be positive"
 		);
 	}
-	if (!timer_interval_valid(config->reflector_health_check_interval_microseconds)) {
+	if (!timer_interval_valid(config->reflector_health_check_interval_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -220,20 +219,11 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 			"reflector offence threshold must be between 1 and its window"
 		);
 	}
-	if (config->reflector_replacement_interval_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE ||
-	    config->reflector_comparison_interval_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE) {
-		return error_set(
-			error,
-			error_size,
-			"reflector replacement and comparison intervals are too large"
-		);
-	}
 	if (config->stall_detection_threshold == 0U ||
 	    config->stall_detection_threshold >
-		    UINT64_MAX /
-			    (config->reflector_ping_interval_microseconds / config->no_pingers) ||
-	    config->global_ping_response_timeout_microseconds == 0U ||
-	    config->interface_up_check_interval_microseconds == 0U) {
+		    UINT64_MAX / (config->reflector_ping_interval_us / config->no_pingers) ||
+	    config->global_ping_response_timeout_us == 0U ||
+	    config->interface_up_check_interval_us == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -247,7 +237,7 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 static int validate_monitoring(const struct config *config, char *error, size_t error_size)
 {
 	if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
-	    !timer_interval_valid(config->monitor_cpu_usage_interval_microseconds)) {
+	    !timer_interval_valid(config->monitor_cpu_usage_interval_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -255,10 +245,9 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 			UINT_MAX
 		);
 	}
-	if (config->log_file_max_time_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE ||
-	    config->log_file_max_size_kilobytes > UINT64_MAX / KIBIBYTE ||
-	    config->log_file_buffer_timeout_microseconds / MILLISECOND > UINT_MAX ||
-	    config->reflector_ping_interval_microseconds > UINT64_MAX / 2U) {
+	if (config->log_file_max_size_kilobytes > UINT64_MAX / KIBIBYTE ||
+	    config->log_file_buffer_timeout_us / MILLISECOND > UINT_MAX ||
+	    config->reflector_ping_interval_us > UINT64_MAX / 2U) {
 		return error_set(error, error_size, "logging or pinger intervals are too large");
 	}
 	if (config->enable_sleep_function &&

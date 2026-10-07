@@ -25,7 +25,7 @@ static void test_proc_stat_parsing(void)
 		     file) >= 0);
 	assert(fclose(file) == 0);
 	assert(cpu_read(path, &sample, error, sizeof(error)) == 0);
-	assert(sample.timestamp_microseconds > 0U);
+	assert(sample.timestamp_us > 0U);
 	assert(sample.count == 2U);
 	assert(strcmp(sample.counters[0].identifier, "cpu") == 0);
 	assert(sample.counters[0].user == 1U);
