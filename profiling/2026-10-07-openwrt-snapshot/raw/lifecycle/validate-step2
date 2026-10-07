@@ -1,0 +1,1 @@
+ERROR: configuration error: download shaper rates must be whole bytes/s (multiples of 8 bit/s)

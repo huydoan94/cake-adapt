@@ -1,0 +1,3 @@
+Wed Oct  7 22:44:05 2026 daemon.err cake-adapt[4804]: ERROR: 1791413045.402370 configuration error: download rates must satisfy minimum <= base <= maximum
+Wed Oct  7 22:44:05 2026 daemon.err cake-adapt[4813]: ERROR: 1791413045.410952 configuration error: download shaper rates must be whole bytes/s (multiples of 8 bit/s)
+Wed Oct  7 22:44:05 2026 daemon.info cake-adapt[4713]: INFO: 1791413045.473458 Stopped cake-adapt with PID: 4713, config: /tmp/cake-adapt-config/main, section: main
