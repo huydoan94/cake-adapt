@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "platform/cpu.h"
+#include "common/helpers.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -50,22 +51,22 @@ static void test_cpu_usage_matches_cake_autorate(void)
 				.iowait = 10U,
 				.guest = 10U } },
 	};
-	unsigned int usage[CPU_MAX_COUNT];
+	struct cpu_busy usage[CPU_MAX_COUNT];
 
 	cpu_init(&monitor);
 	cpu_usage(&monitor, &sample, usage);
-	assert(usage[0] == 30U);
+	assert(fraction_to_ratio_e6(usage[0].busy_ticks, usage[0].total_ticks) == 300000U);
 	sample.counters[0].user = 30U;
 	sample.counters[0].idle = 110U;
 	sample.counters[0].iowait = 20U;
 	sample.counters[0].guest = 20U;
 	cpu_usage(&monitor, &sample, usage);
-	assert(usage[0] == 50U);
+	assert(fraction_to_ratio_e6(usage[0].busy_ticks, usage[0].total_ticks) == 500000U);
 	cpu_usage(&monitor, &sample, usage);
-	assert(usage[0] == 0U);
+	assert(fraction_to_ratio_e6(usage[0].busy_ticks, usage[0].total_ticks) == 0U);
 	sample.counters[0] = (struct cpu_counter){ .identifier = "cpu", .idle = 1U };
 	cpu_usage(&monitor, &sample, usage);
-	assert(usage[0] == 0U);
+	assert(fraction_to_ratio_e6(usage[0].busy_ticks, usage[0].total_ticks) == 0U);
 }
 
 int main(void)

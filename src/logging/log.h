@@ -96,7 +96,7 @@ void log_close(void);
 /* Rotation, buffering and export of the detailed log file; zero disables a limit. */
 struct log_file_settings {
 	uint64_t maximum_time_us;
-	uint64_t maximum_size_kilobytes;
+	uint64_t maximum_size_bytes;
 	uint64_t buffer_timeout_us;
 	bool compress_exports;
 };
@@ -156,7 +156,7 @@ void log_print_cpu_headers(
 	bool output_cpu_raw_stats
 );
 
-void log_cpu(const struct cpu_sample *sample, const unsigned int *usage);
+void log_cpu(const struct cpu_sample *sample, const struct cpu_busy *usage);
 
 void log_cpu_raw(const struct cpu_sample *sample);
 

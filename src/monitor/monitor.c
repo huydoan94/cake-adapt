@@ -168,7 +168,7 @@ static void handle_cpu_timer(struct uloop_interval *timer)
 {
 	struct monitor *monitor = __extension__ container_of(timer, struct monitor, cpu_timer);
 	struct cpu_sample sample;
-	unsigned int usage[CPU_MAX_COUNT];
+	struct cpu_busy usage[CPU_MAX_COUNT];
 
 	if (monitor->activity.state != CONTROLLER_RUNNING || !read_cpu(monitor, &sample))
 		return;

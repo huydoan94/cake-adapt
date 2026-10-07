@@ -25,10 +25,10 @@ int memory_read(const char *path, struct memory_sample *sample, char *error, siz
 		const char *name;
 		uint64_t *value;
 	} fields[] = {
-		{ FIELD_RSS, &sample->rss_kilobytes },
-		{ FIELD_PEAK_RSS, &sample->peak_rss_kilobytes },
-		{ FIELD_ANONYMOUS, &sample->anonymous_kilobytes },
-		{ FIELD_DATA, &sample->data_kilobytes },
+		{ FIELD_RSS, &sample->rss_bytes },
+		{ FIELD_PEAK_RSS, &sample->peak_rss_bytes },
+		{ FIELD_ANONYMOUS, &sample->anonymous_bytes },
+		{ FIELD_DATA, &sample->data_bytes },
 	};
 	unsigned int found = 0U;
 	char *line = NULL;
@@ -46,7 +46,7 @@ int memory_read(const char *path, struct memory_sample *sample, char *error, siz
 			continue;
 		for (size_t index = 0U; index < ARRAY_SIZE(fields); index++) {
 			if (strcmp(name, fields[index].name) == 0) {
-				*fields[index].value = value;
+				*fields[index].value = kbyte_to_byte(value);
 				found |= 1U << index;
 			}
 		}
