@@ -61,6 +61,7 @@ static const struct option_binding options[] = {
 	BOOLEAN_OPTION(OPTION_OUTPUT_CAKE_CHANGES, output_cake_changes),
 	BOOLEAN_OPTION(OPTION_OUTPUT_CPU_STATS, output_cpu_stats),
 	BOOLEAN_OPTION(OPTION_OUTPUT_CPU_RAW_STATS, output_cpu_raw_stats),
+	BOOLEAN_OPTION(OPTION_OUTPUT_MEMORY_STATS, output_memory_stats),
 	BOOLEAN_OPTION(OPTION_DEBUG, debug),
 	BOOLEAN_OPTION(OPTION_LOG_DEBUG_TO_SYSLOG, log_debug_messages_to_syslog),
 	BOOLEAN_OPTION(OPTION_LOG_TO_FILE, log_to_file),

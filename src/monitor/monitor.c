@@ -5,7 +5,9 @@
 
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "config/defaults.h"
 #include "logging/log.h"
+#include "platform/memory.h"
 
 #include <libubox/utils.h>
 
@@ -223,6 +225,44 @@ static void watch_cpu(struct monitor *monitor)
 	}
 }
 
+/* Sampled in every activity state: memory matters while idle too. */
+static void handle_memory_timer(struct uloop_interval *timer)
+{
+	struct monitor *monitor = __extension__ container_of(timer, struct monitor, memory_timer);
+	char error[ERROR_SIZE] = { 0 };
+	struct memory_sample sample;
+
+	if (memory_read(PROC_SELF_STATUS_PATH, &sample, error, sizeof(error)) != 0) {
+		if (!monitor->memory_observation_failed)
+			log_message(LOG_LEVEL_WARNING, "memory observation degraded: %s", error);
+		monitor->memory_observation_failed = true;
+		return;
+	}
+	if (monitor->memory_observation_failed) {
+		log_message(LOG_LEVEL_NOTICE, "memory observation recovered");
+		monitor->memory_observation_failed = false;
+	}
+	log_memory(&sample);
+}
+
+static void watch_memory(struct monitor *monitor)
+{
+	if (!monitor->config->output_memory_stats)
+		return;
+	/* The first record at start, then one per interval. */
+	handle_memory_timer(&monitor->memory_timer);
+	if (uloop_interval_set(
+		    &monitor->memory_timer,
+		    timer_milliseconds(MEMORY_SAMPLE_INTERVAL_MICROSECONDS)
+	    ) != 0) {
+		log_message(
+			LOG_LEVEL_WARNING,
+			"could not monitor memory timer: %s",
+			strerror(errno)
+		);
+	}
+}
+
 static void watch_log_maintenance(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
@@ -285,6 +325,7 @@ int monitor_run(const struct config *config)
 			   .qdisc_events = { .fd = -1 } },
 		.traffic_timer = { .cb = handle_traffic_timer },
 		.cpu_timer = { .cb = handle_cpu_timer },
+		.memory_timer = { .cb = handle_memory_timer },
 		.log_timer = { .cb = handle_log_timer },
 		.log_export_signal = { .cb = handle_log_export_signal, .signo = SIGUSR1 },
 		.log_reset_signal = { .cb = handle_log_reset_signal, .signo = SIGUSR2 },
@@ -355,6 +396,7 @@ int monitor_run(const struct config *config)
 	links_observe(&monitor);
 	links_apply_cadence(&monitor);
 	watch_cpu(&monitor);
+	watch_memory(&monitor);
 	watch_log_maintenance(&monitor);
 	(void)pingers_watch(&monitor);
 	run_status = uloop_run();
@@ -370,6 +412,7 @@ uloop_done:
 	(void)uloop_interval_cancel(&monitor.traffic_timer);
 	(void)uloop_interval_cancel(&monitor.reflectors.health_timer);
 	(void)uloop_interval_cancel(&monitor.cpu_timer);
+	(void)uloop_interval_cancel(&monitor.memory_timer);
 	(void)uloop_interval_cancel(&monitor.log_timer);
 	(void)uloop_signal_delete(&monitor.log_export_signal);
 	(void)uloop_signal_delete(&monitor.log_reset_signal);
