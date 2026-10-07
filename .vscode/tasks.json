@@ -19,6 +19,15 @@
             "problemMatcher": "$gcc"
         },
         {
+            "label": "Generate compile_commands.json (IntelliSense)",
+            "type": "shell",
+            "command": "sh tools/compile-commands.sh",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "Build cake-adapt (OpenWrt SDK x86)",
             "type": "shell",
             "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; make -C \"$sdk\" package/cake-adapt/clean V=s && make -C \"$sdk\" package/cake-adapt/compile V=s",
