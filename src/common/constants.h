@@ -140,6 +140,7 @@
 /* Proc, file, archive, and log-format constants. */
 #define CPU_PREFIX "cpu"
 #define PROC_STAT_PATH "/proc/stat"
+#define PROC_SELF_STATUS_PATH "/proc/self/status"
 #define FILE_MODE_READ "r"
 #define FILE_MODE_WRITE "w"
 #define FILE_MODE_APPEND_CLOEXEC "a+e"
@@ -160,6 +161,7 @@
 #define RECORD_ERROR "ERROR"
 #define RECORD_INFO "INFO"
 #define RECORD_LOAD "LOAD"
+#define RECORD_MEMORY "MEMORY"
 #define RECORD_REFLECTOR "REFLECTOR"
 #define RECORD_SHAPER "SHAPER"
 #define RECORD_SYSLOG "SYSLOG"
@@ -178,6 +180,7 @@
 #define OPTION_OUTPUT_CAKE_CHANGES "output_cake_changes"
 #define OPTION_OUTPUT_CPU_STATS "output_cpu_stats"
 #define OPTION_OUTPUT_CPU_RAW_STATS "output_cpu_raw_stats"
+#define OPTION_OUTPUT_MEMORY_STATS "output_memory_stats"
 #define OPTION_DEBUG "debug"
 #define OPTION_LOG_DEBUG_TO_SYSLOG "log_DEBUG_messages_to_syslog"
 #define OPTION_LOG_TO_FILE "log_to_file"

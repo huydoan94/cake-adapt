@@ -2,6 +2,7 @@
 #define LOG_H_INCLUDED
 
 #include "platform/cpu.h"
+#include "platform/memory.h"
 #include "common/constants.h"
 
 #include <stdbool.h>
@@ -123,6 +124,8 @@ struct log_records {
 	bool summary;
 	/* cake-adapt only: per-direction queues measured from TCP timestamps. */
 	bool tcp_queue;
+	/* cake-adapt only: the daemon's own memory use. */
+	bool memory;
 };
 
 void log_print_headers(const struct log_records *records);
@@ -136,6 +139,8 @@ struct log_tcp_queue_record {
 };
 
 void log_tcp_queue(const struct log_tcp_queue_record *record);
+
+void log_memory(const struct memory_sample *sample);
 
 void log_load(const struct log_load_record *record);
 

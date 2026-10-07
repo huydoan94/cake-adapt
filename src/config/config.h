@@ -31,6 +31,8 @@ struct config {
 	bool output_cake_changes;
 	bool output_cpu_stats;
 	bool output_cpu_raw_stats;
+	/* Not in cake-autorate: the daemon's own memory use. */
+	bool output_memory_stats;
 	bool debug;
 	bool log_debug_messages_to_syslog;
 	bool log_to_file;

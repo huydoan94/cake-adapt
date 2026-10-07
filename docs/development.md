@@ -45,7 +45,7 @@ src/
 │                       reflector health and selection (reflector.c)
 ├── latency/            pinger sessions, fping/IRTT backends, parsing, tracking
 ├── cake/               CAKE discovery, state decoding, and bandwidth updates
-├── platform/           rtnetlink transport, traffic rates, CPU sampling
+├── platform/           rtnetlink transport, traffic rates, CPU and memory sampling
 └── logging/            syslog, structured records, rotation, export, reset
 ```
 
