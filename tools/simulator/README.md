@@ -22,11 +22,14 @@ build/tools/simulator/simulate --owd --trace steady > steady.csv
 - **Pings:** 6 reflectors with base delays of 5–25 ms and up to 2 ms of jitter,
   one reply every 50 ms, each going through the real tracker and controller.
   `--owd` gives separate one-way delays (`fping-ts`, IRTT). The default reports
-  RTT/2 in both directions, as `fping` does.
+  RTT/2 in both directions, as `fping` does. Delays reach the tracker in
+  whole microseconds, rounded to the nearest, as the daemon's parsers deliver
+  them.
 - **Achieved rate:** sampled every 200 ms, as in the daemon.
 
-Scenarios, all with download bounds of 20/60/100 Mbit/s and upload bounds of
-5/12/20 Mbit/s (minimum/base/maximum):
+The first four scenarios have download bounds of 20/60/100 Mbit/s and upload
+bounds of 5/12/20 Mbit/s (minimum/base/maximum). The asymmetric ones, where
+upload is the narrow, bloated direction, have 50/150/250 down and 3/8/20 up:
 
 | Scenario | Capacity |
 | --- | --- |
@@ -34,6 +37,9 @@ Scenarios, all with download bounds of 20/60/100 Mbit/s and upload bounds of
 | `step-down` | download 80 → 35 at 60 s → 80 at 120 s; upload idle |
 | `sine` | 60 ± 25 down (60 s period), 12 ± 4 up (45 s period), both loaded |
 | `random-walk` | 30–90 down, 6–18 up, changing every 100 ms; 5 seeds |
+| `asym-steady` | 200 down / 10 up, both loaded |
+| `upload-step` | upload 15 → 6 at 60 s → 15 at 120 s; download idle |
+| `asym-walk` | 150–250 down, 4–12 up, changing every 100 ms; 5 seeds |
 
 ## Metrics
 
@@ -50,5 +56,8 @@ TCP is a fluid approximation: it fills whatever the shaper allows, and backs
 off only when the bottleneck buffer is full. There is no slow start, no
 per-flow behavior, and no CAKE-internal queueing. Results compare controller
 variants against each other; they are not predictions for a real line. A
+single-seed tail such as `step-down`'s p99 is sensitive to small input
+changes: rounding instead of truncating the simulated delays moves it between
+about 670 and 860 ms, because a cut lands at a different moment. A
 promising variant still needs confirmation on the VM with an emulated bloated
 link.
