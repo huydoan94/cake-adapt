@@ -3,6 +3,7 @@
 #include "latency/latency.h"
 #include "latency/pinger.h"
 #include "common/constants.h"
+#include "common/helpers.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -253,12 +254,12 @@ reap_stopped_child(struct latency *latency, size_t child_index, pid_t process_id
 	assert(error[0] == '\0');
 }
 
-static uint64_t monotonic_ms(void)
+static uint64_t monotonic_us(void)
 {
-	struct timespec now;
+	uint64_t now_us;
 
-	assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
-	return (uint64_t)now.tv_sec * 1000U + (uint64_t)now.tv_nsec / 1000000U;
+	assert(read_clock_us(CLOCK_MONOTONIC, &now_us));
+	return now_us;
 }
 
 static void open_long_running_child(struct latency *latency, const char *script)
@@ -280,13 +281,13 @@ static void test_close_signals_without_waiting(void)
 {
 	struct latency latency;
 	pid_t process_identifier;
-	uint64_t started;
+	uint64_t started_us;
 
 	open_long_running_child(&latency, "sleep 30");
 	process_identifier = latency_child_process(&latency, 0U);
-	started = monotonic_ms();
+	started_us = monotonic_us();
 	latency_close(&latency);
-	assert(monotonic_ms() - started < 100U);
+	assert(monotonic_us() - started_us < 100U * MILLISECOND);
 	assert(!latency_is_open(&latency));
 	assert(latency_stopping(&latency));
 	assert(latency_child_descriptor(&latency, 0U) == -1);

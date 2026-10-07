@@ -252,22 +252,22 @@ static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsval };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
-	__u64 now;
+	__u64 now_ns;
 
 	if (state != NULL && state->outgoing_tsval == tsval)
 		return;
-	now = bpf_ktime_get_ns();
+	now_ns = bpf_ktime_get_ns();
 	if (state == NULL) {
-		struct flow_state initial = { .outgoing_tsval = tsval, .departure_ns = now };
+		struct flow_state initial = { .outgoing_tsval = tsval, .departure_ns = now_ns };
 
 		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
 	} else {
 		state->outgoing_tsval = tsval;
-		if (now - state->departure_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
+		if (now_ns - state->departure_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
 			return;
-		state->departure_ns = now;
+		state->departure_ns = now_ns;
 	}
-	bpf_map_update_elem(&departures, &key, &now, BPF_NOEXIST);
+	bpf_map_update_elem(&departures, &key, &now_ns, BPF_NOEXIST);
 }
 
 static __always_inline struct tcpdelay_counters *counters_entry(void)
@@ -288,29 +288,29 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 	struct departure_key key = { .flow = *flow, .tsval = tsecr };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
 	struct tcpdelay_record *record;
-	__u64 *departure = NULL;
-	__u64 now = bpf_ktime_get_ns();
+	__u64 *departure_ns = NULL;
+	__u64 now_ns = bpf_ktime_get_ns();
 
 	if (state == NULL) {
 		struct flow_state initial = {
 			.incoming_tsval = tsval,
 			.incoming_tsecr = tsecr,
-			.sample_ns = now,
+			.sample_ns = now_ns,
 		};
 
 		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
 		if (tsecr != 0)
-			departure = bpf_map_lookup_elem(&departures, &key);
+			departure_ns = bpf_map_lookup_elem(&departures, &key);
 	} else {
 		if (state->incoming_tsval == tsval && state->incoming_tsecr == tsecr)
 			return;
 		if (state->incoming_tsecr != tsecr && tsecr != 0)
-			departure = bpf_map_lookup_elem(&departures, &key);
+			departure_ns = bpf_map_lookup_elem(&departures, &key);
 		state->incoming_tsval = tsval;
 		state->incoming_tsecr = tsecr;
-		if (departure == NULL && now - state->sample_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
+		if (departure_ns == NULL && now_ns - state->sample_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
 			return;
-		state->sample_ns = now;
+		state->sample_ns = now_ns;
 	}
 	record = bpf_ringbuf_reserve(&samples, sizeof(*record), 0);
 	if (record == NULL) {
@@ -320,8 +320,8 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 			totals->ring_full++;
 		return;
 	}
-	record->arrival_ns = now;
-	record->departure_ns = departure != NULL ? *departure : 0;
+	record->arrival_ns = now_ns;
+	record->departure_ns = departure_ns != NULL ? *departure_ns : 0;
 	record->flow = *flow;
 	record->tsval = tsval;
 	record->tsecr = tsecr;
@@ -334,7 +334,7 @@ int tcpdelay(struct __sk_buff *skb)
 {
 	/* Only outgoing packets are counted, so only they look the counters up. */
 	struct tcpdelay_counters *totals = NULL;
-	__u64 charge = 0;
+	__u64 charge_bytes = 0;
 	struct tcpdelay_record_flow flow = {};
 	__u8 options[TCP_OPTIONS_MAX] = {};
 	struct tcphdr tcp;
@@ -354,8 +354,8 @@ int tcpdelay(struct __sk_buff *skb)
 		/* For the verifier; the array's one entry exists from creation. */
 		if (totals == NULL)
 			return 0;
-		charge = outgoing_bytes(skb, totals);
-		totals->upload_bytes += charge;
+		charge_bytes = outgoing_bytes(skb, totals);
+		totals->upload_bytes += charge_bytes;
 	}
 	if (parse_ip(skb, &flow, &tcp_offset, &ip_payload) < 0 ||
 	    load(skb, tcp_offset, &tcp, sizeof(tcp)) < 0) {
@@ -364,7 +364,7 @@ int tcpdelay(struct __sk_buff *skb)
 	/* A pure ACK carries no data and none of SYN, FIN or RST. */
 	if (totals != NULL && ip_payload == tcp.doff * 4U && tcp.ack && !tcp.syn && !tcp.fin &&
 	    !tcp.rst) {
-		totals->ack_bytes += charge;
+		totals->ack_bytes += charge_bytes;
 	}
 	options_length = tcp.doff * 4U;
 	if (options_length < sizeof(tcp) + TCP_OPTION_TIMESTAMP_LENGTH)

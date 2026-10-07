@@ -20,7 +20,7 @@ static int64_t replies(const int64_t delays_ms[6], uint64_t time)
 			delays_ms[slot] * (int64_t)MILLISECOND,
 			time + slot * 50U * MILLISECOND
 		);
-	return reflectors_recent_delay(&monitor, time + SECOND / 2U);
+	return reflectors_recent_delay_us(&monitor, time + SECOND / 2U);
 }
 
 /* One slot keeps its largest delay over the current and previous second. */
@@ -57,7 +57,7 @@ static void median_across_slots(void)
 	const int64_t queue[6] = { 31, 30, 33, 30, 32, 30 };
 	const int64_t high_baseline[6] = { 0, 30, 31, 30, 32, 30 };
 
-	assert(reflectors_recent_delay(&monitor, 5U * SECOND) == -1);
+	assert(reflectors_recent_delay_us(&monitor, 5U * SECOND) == -1);
 	assert(replies(prompt, 10U * SECOND) == 3 * (int64_t)MILLISECOND);
 	assert(replies(one_slow, 11U * SECOND) == 3 * (int64_t)MILLISECOND);
 	/* A queue on the access link delays every reflector, so the bound rises. */
@@ -65,7 +65,7 @@ static void median_across_slots(void)
 	/* One reflector whose baseline sits too high does not hold the bound down. */
 	assert(replies(high_baseline, 30U * SECOND) == 30 * (int64_t)MILLISECOND);
 	/* Two seconds after the last replies, no slot counts. */
-	assert(reflectors_recent_delay(&monitor, 32U * SECOND) == -1);
+	assert(reflectors_recent_delay_us(&monitor, 32U * SECOND) == -1);
 }
 
 int main(void)

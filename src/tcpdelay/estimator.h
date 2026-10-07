@@ -26,7 +26,7 @@ struct tcpdelay_sample {
  * only as far as the estimator's queue bound requires.
  */
 struct tcpdelay_floor {
-	int64_t value;
+	int64_t value_ns;
 	bool valid;
 };
 

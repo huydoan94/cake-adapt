@@ -71,9 +71,9 @@ void reflector_compare(
 	struct reflector_comparison *comparisons
 )
 {
-	int64_t minimum_baseline = INT64_MAX;
-	int64_t minimum_download_delta_ewma = INT64_MAX;
-	int64_t minimum_upload_delta_ewma = INT64_MAX;
+	int64_t minimum_baseline_us = INT64_MAX;
+	int64_t minimum_download_delta_ewma_us = INT64_MAX;
+	int64_t minimum_upload_delta_ewma_us = INT64_MAX;
 	size_t index;
 
 	/* Each reflector's own values first, then the minimums over all of them. */
@@ -85,29 +85,29 @@ void reflector_compare(
 			signed_sum(tracker->download.baseline_us, tracker->upload.baseline_us);
 		comparison->download_delta_ewma_us = tracker->download.delta_ewma_us;
 		comparison->upload_delta_ewma_us = tracker->upload.delta_ewma_us;
-		if (comparison->sum_owd_baselines_us < minimum_baseline)
-			minimum_baseline = comparison->sum_owd_baselines_us;
-		if (comparison->download_delta_ewma_us < minimum_download_delta_ewma)
-			minimum_download_delta_ewma = comparison->download_delta_ewma_us;
-		if (comparison->upload_delta_ewma_us < minimum_upload_delta_ewma)
-			minimum_upload_delta_ewma = comparison->upload_delta_ewma_us;
+		if (comparison->sum_owd_baselines_us < minimum_baseline_us)
+			minimum_baseline_us = comparison->sum_owd_baselines_us;
+		if (comparison->download_delta_ewma_us < minimum_download_delta_ewma_us)
+			minimum_download_delta_ewma_us = comparison->download_delta_ewma_us;
+		if (comparison->upload_delta_ewma_us < minimum_upload_delta_ewma_us)
+			minimum_upload_delta_ewma_us = comparison->upload_delta_ewma_us;
 	}
 
 	for (index = 0U; index < active_count; index++) {
 		struct reflector_comparison *comparison = &comparisons[index];
 
-		comparison->minimum_sum_owd_baselines_us = minimum_baseline;
+		comparison->minimum_sum_owd_baselines_us = minimum_baseline_us;
 		comparison->sum_owd_baselines_delta_us =
-			absolute_difference(comparison->sum_owd_baselines_us, minimum_baseline);
-		comparison->minimum_download_delta_ewma_us = minimum_download_delta_ewma;
+			absolute_difference(comparison->sum_owd_baselines_us, minimum_baseline_us);
+		comparison->minimum_download_delta_ewma_us = minimum_download_delta_ewma_us;
 		comparison->download_delta_ewma_delta_us = signed_difference(
 			comparison->download_delta_ewma_us,
-			minimum_download_delta_ewma
+			minimum_download_delta_ewma_us
 		);
-		comparison->minimum_upload_delta_ewma_us = minimum_upload_delta_ewma;
+		comparison->minimum_upload_delta_ewma_us = minimum_upload_delta_ewma_us;
 		comparison->upload_delta_ewma_delta_us = signed_difference(
 			comparison->upload_delta_ewma_us,
-			minimum_upload_delta_ewma
+			minimum_upload_delta_ewma_us
 		);
 	}
 }

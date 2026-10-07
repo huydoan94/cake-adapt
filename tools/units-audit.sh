@@ -13,8 +13,8 @@ set -eu
 
 source_dir=${1:-src}
 
-suffixes='e6|E6|us|US|bps|kbps|byte_ps|per_million|per_thousand|whole_hundred|whole_thousand|whole_million|ratio|minutes|sec|ms|ns|percent|kilobytes|bytes|bits'
-conversions='KILOBIT|MEGABIT|THOUSAND|MILLION|KILOBYTE|BITS_PER_BYTE|PER_THOUSAND|PER_MILLION|US_PER|NANOSECONDS_PER'
+suffixes='e6|E6|us|US|bps|kbps|byte_ps|per_million|per_thousand|whole_hundred|whole_thousand|whole_million|ratio|minutes|sec|ms|ns|percent|kilobytes|bytes|bits|ticks'
+conversions='KILOBIT|MEGABIT|THOUSAND|MILLION|KILOBYTE|BITS_PER_BYTE|PER_THOUSAND|PER_MILLION|MICROSECONDS_PER|NANOSECONDS_PER'
 
 find "$source_dir" -name '*.[ch]' | sort | while read -r file; do
 	identifiers=$(grep -oE "\\b[a-z_]*_($suffixes)\\b" "$file" | sort | uniq -c |

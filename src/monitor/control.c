@@ -154,10 +154,10 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
 	char download_condition[LOAD_CONDITION_SIZE];
 	char upload_condition[LOAD_CONDITION_SIZE];
-	uint64_t download_rate = download_output->rate_bps;
-	uint64_t upload_rate = upload_output->rate_bps;
-	uint64_t download_achieved = download_input->traffic_rate_bps;
-	uint64_t upload_achieved = upload_input->traffic_rate_bps;
+	uint64_t download_rate_bps = download_output->rate_bps;
+	uint64_t upload_rate_bps = upload_output->rate_bps;
+	uint64_t download_achieved_bps = download_input->traffic_rate_bps;
+	uint64_t upload_achieved_bps = upload_input->traffic_rate_bps;
 	uint64_t download_load_e6;
 	uint64_t upload_load_e6;
 
@@ -187,8 +187,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 		 * estimate in its separate download and upload OWD columns.
 		 */
 		const struct log_data_record record = {
-			.download_achieved_rate_bps = download_achieved,
-			.upload_achieved_rate_bps = upload_achieved,
+			.download_achieved_rate_bps = download_achieved_bps,
+			.upload_achieved_rate_bps = upload_achieved_bps,
 			.download_load_ratio_e6 = download_load_e6,
 			.upload_load_ratio_e6 = upload_load_e6,
 			.icmp_timestamp = sample->timestamp_text,
@@ -219,8 +219,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 				upload_effective->average_delay_maximum_adjust_down_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
-			.cake_download_rate_bps = download_rate,
-			.cake_upload_rate_bps = upload_rate,
+			.cake_download_rate_bps = download_rate_bps,
+			.cake_upload_rate_bps = upload_rate_bps,
 		};
 
 		log_data(&record);
@@ -228,16 +228,16 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 
 	if (config->output_summary_stats) {
 		const struct log_summary_record record = {
-			.download_achieved_rate_bps = download_achieved,
-			.upload_achieved_rate_bps = upload_achieved,
+			.download_achieved_rate_bps = download_achieved_bps,
+			.upload_achieved_rate_bps = upload_achieved_bps,
 			.download_sum_delays = download_output->delayed_sample_count,
 			.upload_sum_delays = upload_output->delayed_sample_count,
 			.download_average_owd_delta_us = download_output->average_delay_us,
 			.upload_average_owd_delta_us = upload_output->average_delay_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
-			.cake_download_rate_bps = download_rate,
-			.cake_upload_rate_bps = upload_rate,
+			.cake_download_rate_bps = download_rate_bps,
+			.cake_upload_rate_bps = upload_rate_bps,
 		};
 
 		log_summary(&record);
@@ -247,7 +247,7 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 static void apply_bandwidth(
 	struct monitor *monitor,
 	struct monitor_direction *direction,
-	uint64_t desired_rate,
+	uint64_t desired_rate_bps,
 	enum controller_rate_reason reason
 )
 {
@@ -257,12 +257,12 @@ static void apply_bandwidth(
 	char error[ERROR_SIZE] = { 0 };
 
 	if (monitor->config->output_cake_changes)
-		log_shaper(direction->interface, desired_rate);
+		log_shaper(direction->interface, desired_rate_bps);
 
 	if (cake_set_bandwidth(
 		    &monitor->netlink,
 		    &direction->cake,
-		    desired_rate,
+		    desired_rate_bps,
 		    error,
 		    sizeof(error)
 	    ) != 0) {
@@ -273,7 +273,7 @@ static void apply_bandwidth(
 			direction->name,
 			direction->interface,
 			direction->cake.bandwidth_bps,
-			desired_rate,
+			desired_rate_bps,
 			rate_reason_names[reason],
 			error
 		);
@@ -282,14 +282,14 @@ static void apply_bandwidth(
 
 	cake_read(&monitor->netlink, &readback, 1U);
 	if (readback.result != CAKE_READ_FOUND || !verified.has_bandwidth ||
-	    verified.bandwidth_bps != desired_rate) {
+	    verified.bandwidth_bps != desired_rate_bps) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"CAKE bandwidth verification failed: direction=%s interface=%s"
 			" desired_rate=%" PRIu64 " bit/s result=%s",
 			direction->name,
 			direction->interface,
-			desired_rate,
+			desired_rate_bps,
 			readback.result == CAKE_READ_ERROR ? readback.error : READBACK_MISMATCH
 		);
 		return;
