@@ -4,6 +4,7 @@
 
 #include "common/constants.h"
 #include "common/error.h"
+#include "common/helpers.h"
 #include "common/utils.h"
 #include "config/defaults.h"
 #include "logging/log.h"
@@ -166,15 +167,6 @@ measure_queues(struct monitor *monitor, uint64_t timestamp_us, struct controller
 }
 
 /* elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_US, so never zero. */
-static uint64_t rate_since(uint64_t bytes, uint64_t previous_bytes, uint64_t elapsed)
-{
-	return mul_div(
-		saturating_mul(bytes - previous_bytes, BITS_PER_BYTE),
-		US_PER_SECOND,
-		elapsed
-	);
-}
-
 static void ack_accounting_state(struct monitor *monitor, bool degraded)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
@@ -217,9 +209,9 @@ measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controll
 		tcp->ack_rate_valid = false;
 		if (tcp->ack_sampled && !degraded) {
 			tcp->ack_rate_bits_per_second =
-				rate_since(counters.ack_bytes, tcp->ack_bytes, elapsed);
+				bits_per_second(counters.ack_bytes - tcp->ack_bytes, elapsed);
 			tcp->upload_rate_bits_per_second =
-				rate_since(counters.upload_bytes, tcp->upload_bytes, elapsed);
+				bits_per_second(counters.upload_bytes - tcp->upload_bytes, elapsed);
 			tcp->ack_rate_valid = true;
 		}
 		/* A baseline alone cannot establish recovery after unavailable counters. */

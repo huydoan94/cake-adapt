@@ -56,10 +56,10 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 			LOG_LEVEL_DEBUG,
 			"load check is: (( %" PRIu64 " kbps > %" PRIu64
 			" kbps for download && %" PRIu64 " kbps > %" PRIu64 " kbps for upload ))",
-			download->traffic_rate_bits_per_second / KILOBIT,
-			config->connection_stall_threshold_bits_per_second / KILOBIT,
-			upload->traffic_rate_bits_per_second / KILOBIT,
-			config->connection_stall_threshold_bits_per_second / KILOBIT
+			bit_to_kbit(download->traffic_rate_bits_per_second),
+			bit_to_kbit(config->connection_stall_threshold_bits_per_second),
+			bit_to_kbit(upload->traffic_rate_bits_per_second),
+			bit_to_kbit(config->connection_stall_threshold_bits_per_second)
 		);
 		if (activity->state == CONTROLLER_RUNNING) {
 			log_message(

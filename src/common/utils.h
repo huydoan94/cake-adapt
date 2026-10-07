@@ -113,6 +113,31 @@ static inline int64_t signed_rounded_divide(int64_t value, int64_t divisor)
 	return quotient;
 }
 
+/*
+ * Unit conversions, used only where a value enters or leaves the daemon. The
+ * base units are bits and bytes, microseconds and ratios per million.
+ */
+static inline uint64_t byte_to_bit(uint64_t bytes)
+{
+	return saturating_mul(bytes, BITS_PER_BYTE);
+}
+
+static inline uint64_t bit_to_byte(uint64_t bits)
+{
+	return bits / BITS_PER_BYTE;
+}
+
+/* Whole kilobits, truncated; a kilobit is 1,000 bits. */
+static inline uint64_t bit_to_kbit(uint64_t bits)
+{
+	return bits / KILOBIT;
+}
+
+static inline uint64_t kbit_to_bit(uint64_t kilobits)
+{
+	return saturating_mul(kilobits, KILOBIT);
+}
+
 /* Whole milliseconds for uloop: rounded up so a timer never wakes early, and saturated. */
 static inline unsigned int us_to_millisec(uint64_t us)
 {

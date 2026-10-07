@@ -22,15 +22,15 @@ enum log_level {
 };
 
 struct log_load_record {
-	uint64_t download_achieved_rate_kbps;
-	uint64_t upload_achieved_rate_kbps;
-	uint64_t cake_download_rate_kbps;
-	uint64_t cake_upload_rate_kbps;
+	uint64_t download_achieved_rate_bits_per_second;
+	uint64_t upload_achieved_rate_bits_per_second;
+	uint64_t cake_download_rate_bits_per_second;
+	uint64_t cake_upload_rate_bits_per_second;
 };
 
 struct log_data_record {
-	uint64_t download_achieved_rate_kbps;
-	uint64_t upload_achieved_rate_kbps;
+	uint64_t download_achieved_rate_bits_per_second;
+	uint64_t upload_achieved_rate_bits_per_second;
 	unsigned int download_load_percent;
 	unsigned int upload_load_percent;
 	/* The pinger's timestamp token, verbatim. */
@@ -57,21 +57,21 @@ struct log_data_record {
 	uint64_t upload_maximum_adjust_down_threshold_us;
 	const char *download_load_condition;
 	const char *upload_load_condition;
-	uint64_t cake_download_rate_kbps;
-	uint64_t cake_upload_rate_kbps;
+	uint64_t cake_download_rate_bits_per_second;
+	uint64_t cake_upload_rate_bits_per_second;
 };
 
 struct log_summary_record {
-	uint64_t download_achieved_rate_kbps;
-	uint64_t upload_achieved_rate_kbps;
+	uint64_t download_achieved_rate_bits_per_second;
+	uint64_t upload_achieved_rate_bits_per_second;
 	unsigned int download_sum_delays;
 	unsigned int upload_sum_delays;
 	int64_t download_average_owd_delta_us;
 	int64_t upload_average_owd_delta_us;
 	const char *download_load_condition;
 	const char *upload_load_condition;
-	uint64_t cake_download_rate_kbps;
-	uint64_t cake_upload_rate_kbps;
+	uint64_t cake_download_rate_bits_per_second;
+	uint64_t cake_upload_rate_bits_per_second;
 };
 
 struct log_reflector_record {
@@ -160,7 +160,7 @@ void log_cpu(const struct cpu_sample *sample, const unsigned int *usage);
 
 void log_cpu_raw(const struct cpu_sample *sample);
 
-void log_shaper(const char *interface, uint64_t rate_kbps);
+void log_shaper(const char *interface, uint64_t rate_bits_per_second);
 
 void log_system_message(const char *format, ...) __attribute__((format(printf, 1, 2)));
 

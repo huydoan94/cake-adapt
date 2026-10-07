@@ -93,8 +93,13 @@ static void test_saturating_unsigned_arithmetic(void)
 	assert(mul_div(UINT64_MAX, 3U, 4U) == UINT64_MAX / 4U * 3U + 2U);
 }
 
-static void test_seconds_conversion(void)
+static void test_data_conversions(void)
 {
+	assert(byte_to_bit(125U) == 1000U);
+	assert(byte_to_bit(UINT64_MAX) == UINT64_MAX);
+	assert(bit_to_byte(1007U) == 125U);
+	assert(bit_to_kbit(1999U) == 1U);
+	assert(kbit_to_bit(2U) == 2000U);
 	assert(us_to_sec(1500000U) == 1.5);
 }
 
@@ -155,15 +160,18 @@ static void test_clock_failure_preserves_output(void)
 	assert(timestamp > 0U);
 }
 
-static void test_rate_conversion_boundaries(void)
+static void test_rate_from_counters(void)
 {
 	assert(bits_per_second(1U, 0U) == UINT64_MAX);
 	assert(bits_per_second(0U, 1U) == 0U);
-	assert(bits_per_second(1U, 3U) == 2666U);
-	assert(bits_per_second(125000000U, 1000U) == 1000000000U);
-	assert(bits_per_second(UINT64_MAX / 8000U, 1U) == UINT64_MAX / 8000U * 8000U);
-	assert(bits_per_second(UINT64_MAX / 8000U + 1U, 1U) == UINT64_MAX);
-	assert(bits_per_second(UINT64_MAX, UINT64_MAX) == 8000U);
+	/* 8 bits over 3 us. */
+	assert(bits_per_second(1U, 3U) == 2666666U);
+	assert(bits_per_second(125000000U, SECOND) == 1000000000U);
+	/* 2,500 bytes over 200.7 ms: 99,651 bit/s. */
+	assert(bits_per_second(2500U, 200700U) == 99651U);
+	assert(bits_per_second(UINT64_MAX / 8000000U, 1U) == UINT64_MAX / 8000000U * 8000000U);
+	assert(bits_per_second(UINT64_MAX / 8000000U + 1U, 1U) == UINT64_MAX);
+	assert(bits_per_second(UINT64_MAX, UINT64_MAX) == 8000000U);
 }
 
 static void test_serialization_us(void)
@@ -246,13 +254,13 @@ int main(void)
 	test_unsigned_decimal_spans();
 	test_saturating_signed_arithmetic();
 	test_saturating_unsigned_arithmetic();
-	test_seconds_conversion();
+	test_data_conversions();
 	test_timespec_us();
 	test_timer_milliseconds();
 	test_elapsed_interval_boundaries();
 	test_load_rounding_and_limits();
 	test_clock_failure_preserves_output();
-	test_rate_conversion_boundaries();
+	test_rate_from_counters();
 	test_serialization_us();
 	test_random_selection_and_shuffle();
 	test_response_timestamp_boundaries();

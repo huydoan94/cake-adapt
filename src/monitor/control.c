@@ -154,10 +154,10 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
 	char download_condition[LOAD_CONDITION_SIZE];
 	char upload_condition[LOAD_CONDITION_SIZE];
-	uint64_t download_rate = download_output->rate_bits_per_second / KILOBIT;
-	uint64_t upload_rate = upload_output->rate_bits_per_second / KILOBIT;
-	uint64_t download_achieved = download_input->traffic_rate_bits_per_second / KILOBIT;
-	uint64_t upload_achieved = upload_input->traffic_rate_bits_per_second / KILOBIT;
+	uint64_t download_rate = download_output->rate_bits_per_second;
+	uint64_t upload_rate = upload_output->rate_bits_per_second;
+	uint64_t download_achieved = download_input->traffic_rate_bits_per_second;
+	uint64_t upload_achieved = upload_input->traffic_rate_bits_per_second;
 	unsigned int download_load;
 	unsigned int upload_load;
 
@@ -200,8 +200,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 		 * estimate in its separate download and upload OWD columns.
 		 */
 		const struct log_data_record record = {
-			.download_achieved_rate_kbps = download_achieved,
-			.upload_achieved_rate_kbps = upload_achieved,
+			.download_achieved_rate_bits_per_second = download_achieved,
+			.upload_achieved_rate_bits_per_second = upload_achieved,
 			.download_load_percent = download_load,
 			.upload_load_percent = upload_load,
 			.icmp_timestamp = sample->timestamp_text,
@@ -232,8 +232,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 				upload_effective->average_delay_maximum_adjust_down_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
-			.cake_download_rate_kbps = download_rate,
-			.cake_upload_rate_kbps = upload_rate,
+			.cake_download_rate_bits_per_second = download_rate,
+			.cake_upload_rate_bits_per_second = upload_rate,
 		};
 
 		log_data(&record);
@@ -241,16 +241,16 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 
 	if (config->output_summary_stats) {
 		const struct log_summary_record record = {
-			.download_achieved_rate_kbps = download_achieved,
-			.upload_achieved_rate_kbps = upload_achieved,
+			.download_achieved_rate_bits_per_second = download_achieved,
+			.upload_achieved_rate_bits_per_second = upload_achieved,
 			.download_sum_delays = download_output->delayed_sample_count,
 			.upload_sum_delays = upload_output->delayed_sample_count,
 			.download_average_owd_delta_us = download_output->average_delay_us,
 			.upload_average_owd_delta_us = upload_output->average_delay_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
-			.cake_download_rate_kbps = download_rate,
-			.cake_upload_rate_kbps = upload_rate,
+			.cake_download_rate_bits_per_second = download_rate,
+			.cake_upload_rate_bits_per_second = upload_rate,
 		};
 
 		log_summary(&record);
@@ -270,7 +270,7 @@ static void apply_bandwidth(
 	char error[ERROR_SIZE] = { 0 };
 
 	if (monitor->config->output_cake_changes)
-		log_shaper(direction->interface, desired_rate / KILOBIT);
+		log_shaper(direction->interface, desired_rate);
 
 	if (cake_set_bandwidth(
 		    &monitor->netlink,
@@ -385,6 +385,8 @@ void control_update(
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
 		struct monitor_direction *direction = directions[index].direction;
 		const struct controller_direction_output *decision = directions[index].output;
+		const struct controller_direction *controlled = directions[index].controller;
+		const struct controller_direction_config *limits = &controlled->config;
 
 		if (decision->state_changed)
 			log_line_state(direction->name, decision->state, directions[index].input);
@@ -419,13 +421,9 @@ void control_update(
 		else if (decision->ack_share_changed)
 			log_message(LOG_LEVEL_DEBUG, "ACK share released %s", direction->name);
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
-		if (!control->initial_shaper_reported &&
-		    !directions[index].controller->config.adjust && config->output_cake_changes) {
-			log_shaper(
-				direction->interface,
-				directions[index].controller->config.base_rate_bits_per_second /
-					KILOBIT
-			);
+		if (!control->initial_shaper_reported && !limits->adjust &&
+		    config->output_cake_changes) {
+			log_shaper(direction->interface, limits->base_rate_bits_per_second);
 			log_message(
 				LOG_LEVEL_DEBUG,
 				"adjust_%s_shaper_rate set to 0 in config, so skipping the corresponding tc qdisc change call.",
@@ -460,14 +458,15 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_us)
 
 	controller_set_minimum_rates(controller, timestamp_us);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
-		const struct controller_direction_config *config =
-			&directions[index].controller->config;
+		const struct controller_direction *controlled = directions[index].controller;
+		const struct controller_direction_config *config = &controlled->config;
+		struct monitor_direction *link = directions[index].link;
 
-		if (!config->adjust || !directions[index].link->cake_valid)
+		if (!config->adjust || !link->cake_valid)
 			continue;
 		apply_bandwidth(
 			monitor,
-			directions[index].link,
+			link,
 			config->minimum_rate_bits_per_second,
 			CONTROLLER_RATE_RECONCILE
 		);

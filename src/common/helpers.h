@@ -37,14 +37,8 @@ bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_
 
 bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp);
 
-bool elapsed_milliseconds(
-	const struct timespec *previous,
-	const struct timespec *current,
-	uint64_t *elapsed
-);
-
-/* Positive elapsed milliseconds; overflow is saturated at UINT64_MAX. */
-uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_ms);
+/* A counter delta over a positive duration, in bit/s; saturated at UINT64_MAX. */
+uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_us);
 
 /* Autorate load is calculated from whole kbit/s, saturated at UINT_MAX. */
 unsigned int load_percent(uint64_t traffic_rate, uint64_t shaper_rate);
