@@ -114,13 +114,13 @@ static void test_data_conversions(void)
 	assert(us_to_sec(1500000U) == 1.5);
 }
 
-static void test_timer_milliseconds(void)
+static void test_timer_ms(void)
 {
-	assert(us_to_millisec(0U) == 0U);
-	assert(us_to_millisec(1U) == 1U);
-	assert(us_to_millisec(1000U) == 1U);
-	assert(us_to_millisec(1001U) == 2U);
-	assert(us_to_millisec(UINT64_MAX) == UINT_MAX);
+	assert(us_to_ms(0U) == 0U);
+	assert(us_to_ms(1U) == 1U);
+	assert(us_to_ms(1000U) == 1U);
+	assert(us_to_ms(1001U) == 2U);
+	assert(us_to_ms(UINT64_MAX) == UINT_MAX);
 }
 
 static void test_timespec_us(void)
@@ -129,10 +129,10 @@ static void test_timespec_us(void)
 
 	assert(timespec_to_us(&value) == 12345679U);
 	/* Half a microsecond or more rounds up; the carry reaches the seconds. */
-	assert(nanosec_to_us(1499U) == 1U);
-	assert(nanosec_to_us(1500U) == 2U);
-	assert(signed_nanosec_to_us(-1499) == -1);
-	assert(signed_nanosec_to_us(-1500) == -2);
+	assert(ns_to_us(1499U) == 1U);
+	assert(ns_to_us(1500U) == 2U);
+	assert(signed_ns_to_us(-1499) == -1);
+	assert(signed_ns_to_us(-1500) == -2);
 	assert(signed_rounded_divide(5, 2) == 3);
 	assert(signed_rounded_divide(-5, 2) == -3);
 	assert(signed_rounded_divide(4, 3) == 1);
@@ -180,16 +180,16 @@ static void test_clock_failure_preserves_output(void)
 
 static void test_rate_from_counters(void)
 {
-	assert(bits_per_second(1U, 0U) == UINT64_MAX);
-	assert(bits_per_second(0U, 1U) == 0U);
+	assert(bps(1U, 0U) == UINT64_MAX);
+	assert(bps(0U, 1U) == 0U);
 	/* 8 bits over 3 us. */
-	assert(bits_per_second(1U, 3U) == 2666666U);
-	assert(bits_per_second(125000000U, SECOND) == 1000000000U);
+	assert(bps(1U, 3U) == 2666666U);
+	assert(bps(125000000U, SECOND) == 1000000000U);
 	/* 2,500 bytes over 200.7 ms: 99,651 bit/s. */
-	assert(bits_per_second(2500U, 200700U) == 99651U);
-	assert(bits_per_second(UINT64_MAX / 8000000U, 1U) == UINT64_MAX / 8000000U * 8000000U);
-	assert(bits_per_second(UINT64_MAX / 8000000U + 1U, 1U) == UINT64_MAX);
-	assert(bits_per_second(UINT64_MAX, UINT64_MAX) == 8000000U);
+	assert(bps(2500U, 200700U) == 99651U);
+	assert(bps(UINT64_MAX / 8000000U, 1U) == UINT64_MAX / 8000000U * 8000000U);
+	assert(bps(UINT64_MAX / 8000000U + 1U, 1U) == UINT64_MAX);
+	assert(bps(UINT64_MAX, UINT64_MAX) == 8000000U);
 }
 
 static void test_serialization_us(void)
@@ -274,7 +274,7 @@ int main(void)
 	test_saturating_unsigned_arithmetic();
 	test_data_conversions();
 	test_timespec_us();
-	test_timer_milliseconds();
+	test_timer_ms();
 	test_elapsed_interval_boundaries();
 	test_load_rounding_and_limits();
 	test_clock_failure_preserves_output();

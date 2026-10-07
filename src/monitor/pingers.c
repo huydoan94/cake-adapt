@@ -208,10 +208,7 @@ void pingers_close(struct monitor *monitor)
 	latency_close(&pingers->latency);
 	/* uloop reaps the children; escalate once if SIGTERM is ignored. */
 	if (latency_stopping(&pingers->latency) && !pingers->stop_timer.pending)
-		(void)uloop_timeout_set(
-			&pingers->stop_timer,
-			(int)us_to_millisec(CHILD_STOP_TIMEOUT_US)
-		);
+		(void)uloop_timeout_set(&pingers->stop_timer, (int)us_to_ms(CHILD_STOP_TIMEOUT_US));
 }
 
 /* The event loop has stopped, so pingers are stopped and reaped synchronously. */
@@ -241,7 +238,7 @@ static void handle_pinger_stop_timeout(struct uloop_timeout *timer)
 		LOG_LEVEL_WARNING,
 		"%s did not stop within %u ms of SIGTERM; sending SIGKILL",
 		monitor->config->pinger_method,
-		us_to_millisec(CHILD_STOP_TIMEOUT_US)
+		us_to_ms(CHILD_STOP_TIMEOUT_US)
 	);
 	latency_kill_stopping(&monitor->pingers.latency);
 }
@@ -387,7 +384,7 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 	char error[ERROR_SIZE] = { 0 };
 	uint64_t timestamp_us;
 	uint64_t next_start_us;
-	uint64_t delay_milliseconds;
+	uint64_t delay_ms;
 
 	if (!latency_irtt_start_pending(latency)) {
 		(void)uloop_timeout_cancel(&pingers->start_timer);
@@ -410,9 +407,8 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 
 	next_start_us = latency_irtt_next_start_us(latency);
 	/* uloop timeouts take a signed int of milliseconds. */
-	delay_milliseconds =
-		min_u64(us_to_millisec(saturating_sub(next_start_us, timestamp_us)), INT_MAX);
-	if (uloop_timeout_set(&pingers->start_timer, (int)delay_milliseconds) != 0) {
+	delay_ms = min_u64(us_to_ms(saturating_sub(next_start_us, timestamp_us)), INT_MAX);
+	if (uloop_timeout_set(&pingers->start_timer, (int)delay_ms) != 0) {
 		report_latency_failure(
 			monitor,
 			"could not schedule IRTT start: %s",

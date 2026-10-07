@@ -20,9 +20,9 @@ static int validate_rate_range(
 	size_t error_size
 )
 {
-	uint64_t minimum = rates->minimum_rate_bits_per_second;
-	uint64_t base = rates->base_rate_bits_per_second;
-	uint64_t maximum = rates->maximum_rate_bits_per_second;
+	uint64_t minimum = rates->minimum_rate_bps;
+	uint64_t base = rates->base_rate_bps;
+	uint64_t maximum = rates->maximum_rate_bps;
 
 	if (!rates->adjust && minimum == 0U && base == 0U && maximum == 0U)
 		return 0;
@@ -43,9 +43,8 @@ static int validate_rate_range(
 		);
 	}
 	/* CAKE holds whole bytes/s. */
-	if (minimum % SHAPER_RATE_STEP_BITS_PER_SECOND != 0U ||
-	    base % SHAPER_RATE_STEP_BITS_PER_SECOND != 0U ||
-	    maximum % SHAPER_RATE_STEP_BITS_PER_SECOND != 0U) {
+	if (minimum % SHAPER_RATE_STEP_BPS != 0U || base % SHAPER_RATE_STEP_BPS != 0U ||
+	    maximum % SHAPER_RATE_STEP_BPS != 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -253,10 +252,8 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 		return error_set(error, error_size, "logging or pinger intervals are too large");
 	}
 	if (config->enable_sleep_function &&
-	    (config->connection_active_threshold_bits_per_second >
-		     config->download.minimum_rate_bits_per_second ||
-	     config->connection_active_threshold_bits_per_second >
-		     config->upload.minimum_rate_bits_per_second)) {
+	    (config->connection_active_threshold_bps > config->download.minimum_rate_bps ||
+	     config->connection_active_threshold_bps > config->upload.minimum_rate_bps)) {
 		return error_set(
 			error,
 			error_size,

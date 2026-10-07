@@ -50,11 +50,10 @@ static int64_t half_round_trip(uint64_t round_trip_ns)
 static bool parse_round_trip(const char *text, const char **end, uint64_t *round_trip_ns)
 {
 	const char *cursor = text + strspn(text, DECIMAL_DIGITS);
-	uint64_t milliseconds;
+	uint64_t ms;
 	uint64_t fraction = 0U;
 
-	if (!parse_unsigned(text, cursor, &milliseconds) ||
-	    milliseconds >= UINT64_MAX / NANOSECONDS_PER_MILLISECOND)
+	if (!parse_unsigned(text, cursor, &ms) || ms >= UINT64_MAX / NANOSECONDS_PER_MILLISECOND)
 		return false;
 	if (*cursor == '.') {
 		const char *digits = cursor + 1;
@@ -69,7 +68,7 @@ static bool parse_round_trip(const char *text, const char **end, uint64_t *round
 			fraction++;
 		cursor = digits + count;
 	}
-	*round_trip_ns = milliseconds * NANOSECONDS_PER_MILLISECOND + fraction;
+	*round_trip_ns = ms * NANOSECONDS_PER_MILLISECOND + fraction;
 	*end = cursor;
 	return true;
 }
@@ -83,7 +82,7 @@ static bool parse_timestamp(const char *line, const char **remainder, uint64_t *
 	const char *decimal_point;
 	char fraction_digits[sizeof(FRACTION_ZEROES)] = FRACTION_ZEROES;
 	uint64_t fraction;
-	uint64_t seconds;
+	uint64_t sec;
 	size_t digit_count;
 
 	if (line[0] != '[')
@@ -92,7 +91,7 @@ static bool parse_timestamp(const char *line, const char **remainder, uint64_t *
 	if (closing_bracket == NULL || closing_bracket[1] != ' ')
 		return false;
 	decimal_point = memchr(line + 1, '.', (size_t)(closing_bracket - (line + 1)));
-	if (decimal_point == NULL || !parse_unsigned(line + 1, decimal_point, &seconds))
+	if (decimal_point == NULL || !parse_unsigned(line + 1, decimal_point, &sec))
 		return false;
 
 	digit_count = strspn(decimal_point + 1, DECIMAL_DIGITS);
@@ -106,15 +105,15 @@ static bool parse_timestamp(const char *line, const char **remainder, uint64_t *
 	if (digit_count > FRACTION_DIGITS && decimal_point[1 + FRACTION_DIGITS] >= '5')
 		fraction++;
 
-	if (seconds > (UINT64_MAX - fraction) / US_PER_SECOND)
+	if (sec > (UINT64_MAX - fraction) / US_PER_SECOND)
 		return false;
-	*timestamp_us = seconds * US_PER_SECOND + fraction;
+	*timestamp_us = sec * US_PER_SECOND + fraction;
 	*remainder = closing_bracket + 2;
 	return true;
 }
 
 /* Reads "<name><milliseconds>" and the separating space, if any. */
-static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t *milliseconds)
+static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t *ms)
 {
 	const char *digits = *cursor;
 	const char *end;
@@ -122,10 +121,8 @@ static bool parse_icmp_timestamp(const char **cursor, const char *name, uint64_t
 	if (!skip_prefix(&digits, name))
 		return false;
 	end = digits + strspn(digits, DECIMAL_DIGITS);
-	if (!parse_unsigned(digits, end, milliseconds) || *milliseconds > UINT32_MAX ||
-	    (*end != '\0' && *end != ' ')) {
+	if (!parse_unsigned(digits, end, ms) || *ms > UINT32_MAX || (*end != '\0' && *end != ' '))
 		return false;
-	}
 	*cursor = *end == ' ' ? end + 1 : end;
 	return true;
 }
@@ -212,8 +209,7 @@ static enum latency_fping_line_result parse_fping_reply(
 	cursor = end;
 	if (!skip_prefix(&cursor, FPING_BYTES_SEPARATOR))
 		return LATENCY_FPING_LINE_INVALID;
-	if (!parse_round_trip(cursor, tail, round_trip_ns) ||
-	    !skip_prefix(tail, FPING_MILLISECONDS_SUFFIX))
+	if (!parse_round_trip(cursor, tail, round_trip_ns) || !skip_prefix(tail, FPING_MS_SUFFIX))
 		return LATENCY_FPING_LINE_INVALID;
 	return LATENCY_FPING_LINE_SAMPLE;
 }
@@ -263,14 +259,13 @@ static bool parse_irtt_duration(const char *value, int64_t *us)
 	parsed = strtod(value, &unit);
 	if (errno == ERANGE || unit == value || !isfinite(parsed) || parsed < 0.0)
 		return false;
-	if (token_has_unit(unit, IRTT_UNIT_NANOSECONDS))
+	if (token_has_unit(unit, IRTT_UNIT_NS))
 		scale = 1.0 / (double)THOUSAND;
-	else if (token_has_unit(unit, IRTT_UNIT_MICROSECONDS) ||
-		 token_has_unit(unit, IRTT_UNIT_MICROSECONDS_SIGN))
+	else if (token_has_unit(unit, IRTT_UNIT_US) || token_has_unit(unit, IRTT_UNIT_US_SIGN))
 		scale = (double)US;
-	else if (token_has_unit(unit, IRTT_UNIT_MILLISECONDS))
+	else if (token_has_unit(unit, IRTT_UNIT_MS))
 		scale = (double)MILLISECOND;
-	else if (token_has_unit(unit, IRTT_UNIT_SECONDS))
+	else if (token_has_unit(unit, IRTT_UNIT_SEC))
 		scale = (double)SECOND;
 	else
 		return false;

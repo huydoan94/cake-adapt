@@ -253,7 +253,7 @@ reap_stopped_child(struct latency *latency, size_t child_index, pid_t process_id
 	assert(error[0] == '\0');
 }
 
-static uint64_t monotonic_milliseconds(void)
+static uint64_t monotonic_ms(void)
 {
 	struct timespec now;
 
@@ -284,9 +284,9 @@ static void test_close_signals_without_waiting(void)
 
 	open_long_running_child(&latency, "sleep 30");
 	process_identifier = latency_child_process(&latency, 0U);
-	started = monotonic_milliseconds();
+	started = monotonic_ms();
 	latency_close(&latency);
-	assert(monotonic_milliseconds() - started < 100U);
+	assert(monotonic_ms() - started < 100U);
 	assert(!latency_is_open(&latency));
 	assert(latency_stopping(&latency));
 	assert(latency_child_descriptor(&latency, 0U) == -1);
