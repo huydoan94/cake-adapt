@@ -120,7 +120,7 @@ static int fping_open(
 	pinger_command_add(&command, FPING_INTERVAL);
 	pinger_command_add(&command, response_interval);
 	pinger_command_add(&command, FPING_TIMEOUT);
-	pinger_command_add(&command, DEFAULT_FPING_TIMEOUT_MILLISECONDS);
+	pinger_command_add(&command, DEFAULT_FPING_TIMEOUT_MS);
 	if (latency->ops == &fping_ts_ops)
 		pinger_command_add(&command, FPING_ICMP_TIMESTAMP);
 	for (index = 0U; index < target_count; index++)

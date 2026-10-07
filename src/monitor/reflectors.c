@@ -43,28 +43,28 @@ size_t reflectors_find(const struct monitor *monitor, const char *target)
 	return SIZE_MAX;
 }
 
-/* The largest of a slot's replies within a second; the second before it is kept. */
+/* The largest of a slot's replies within a sec; the sec before it is kept. */
 static void
 recent_delay_add(struct reflector_recent_delay *recent, int64_t delay_us, uint64_t timestamp_us)
 {
-	uint64_t second = timestamp_us / SECOND;
+	uint64_t sec = timestamp_us / SECOND;
 
-	if (second != recent->second) {
-		recent->previous_us = second == recent->second + 1U ? recent->current_us : 0;
+	if (sec != recent->sec) {
+		recent->previous_us = sec == recent->sec + 1U ? recent->current_us : 0;
 		recent->current_us = delay_us;
-		recent->second = second;
+		recent->sec = sec;
 	} else {
 		recent->current_us = max_i64(recent->current_us, delay_us);
 	}
 }
 
-/* A slot's largest added delay over the current and previous second, if it replied in them. */
+/* A slot's largest added delay over the current and previous sec, if it replied in them. */
 static bool
-recent_delay_value(const struct reflector_recent_delay *recent, uint64_t second, int64_t *delay_us)
+recent_delay_value(const struct reflector_recent_delay *recent, uint64_t sec, int64_t *delay_us)
 {
-	if (recent->second == second)
+	if (recent->sec == sec)
 		*delay_us = max_i64(recent->current_us, recent->previous_us);
-	else if (recent->second + 1U == second)
+	else if (recent->sec + 1U == sec)
 		*delay_us = recent->current_us;
 	else
 		return false;
@@ -75,7 +75,7 @@ int64_t reflectors_recent_delay(const struct monitor *monitor, uint64_t timestam
 {
 	const struct monitor_reflectors *reflectors = &monitor->reflectors;
 	const struct config *config = monitor->config;
-	uint64_t second = timestamp_us / SECOND;
+	uint64_t sec = timestamp_us / SECOND;
 	int64_t values[CONFIG_MAX_REFLECTORS];
 	size_t count = 0U;
 
@@ -84,7 +84,7 @@ int64_t reflectors_recent_delay(const struct monitor *monitor, uint64_t timestam
 		int64_t value;
 		size_t position;
 
-		if (!recent_delay_value(&reflectors->recent[slot], second, &value))
+		if (!recent_delay_value(&reflectors->recent[slot], sec, &value))
 			continue;
 		for (position = count; position > 0U && values[position - 1U] > value; position--)
 			values[position] = values[position - 1U];

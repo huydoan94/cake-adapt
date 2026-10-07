@@ -70,22 +70,22 @@ bool shuffle(size_t *items, size_t count, random_u32_source source, void *contex
 	return true;
 }
 
-uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bits_per_second)
+uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bps)
 {
 	uint64_t whole;
 	uint64_t remainder;
 	uint64_t fractional;
 
-	if (rate_bits_per_second == 0U)
+	if (rate_bps == 0U)
 		return 0U;
-	whole = wire_packet_bits / rate_bits_per_second;
-	remainder = wire_packet_bits % rate_bits_per_second;
+	whole = wire_packet_bits / rate_bps;
+	remainder = wire_packet_bits % rate_bps;
 	if (whole > UINT64_MAX / US_PER_SECOND ||
 	    __builtin_mul_overflow(remainder, US_PER_SECOND, &fractional)) {
 		return UINT64_MAX;
 	}
 	whole *= US_PER_SECOND;
-	return saturating_add(whole, rounded_divide(fractional, rate_bits_per_second));
+	return saturating_add(whole, rounded_divide(fractional, rate_bps));
 }
 
 uint64_t response_monotonic_us(
@@ -142,7 +142,7 @@ uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole)
 	);
 }
 
-uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_us)
+uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us)
 {
 	const uint64_t scale = BITS_PER_BYTE * US_PER_SECOND;
 	uint64_t scaled;

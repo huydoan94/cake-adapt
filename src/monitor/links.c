@@ -23,7 +23,7 @@ static void observe_traffic(struct monitor_direction *direction, uint64_t timest
 	struct traffic_sample sample;
 	enum traffic_update_result update_result;
 
-	direction->traffic_rate_bits_per_second = 0U;
+	direction->traffic_rate_bps = 0U;
 	direction->traffic_valid = false;
 	if (!direction->cake_valid || !cake->has_basic_stats) {
 		if (direction->traffic_state != TRAFFIC_OBSERVATION_UNAVAILABLE)
@@ -50,11 +50,8 @@ static void observe_traffic(struct monitor_direction *direction, uint64_t timest
 	sample = (struct traffic_sample){ .bytes = cake->bytes,
 					  .qdisc = cake->qdisc,
 					  .timestamp_us = timestamp_us };
-	update_result = traffic_update(
-		&direction->traffic_monitor,
-		&sample,
-		&direction->traffic_rate_bits_per_second
-	);
+	update_result =
+		traffic_update(&direction->traffic_monitor, &sample, &direction->traffic_rate_bps);
 
 	switch (update_result) {
 	case TRAFFIC_UPDATE_BASELINE:
@@ -106,14 +103,14 @@ log_cake_discovery(const char *interface, const struct cake_observation *observa
 {
 	char bandwidth[BANDWIDTH_TEXT_SIZE];
 
-	if (!observation->has_bandwidth || observation->bandwidth_bits_per_second == 0U) {
+	if (!observation->has_bandwidth || observation->bandwidth_bps == 0U) {
 		(void)snprintf(bandwidth, sizeof(bandwidth), "%s", STATE_UNLIMITED);
 	} else {
 		(void)snprintf(
 			bandwidth,
 			sizeof(bandwidth),
 			"%" PRIu64 " bit/s",
-			observation->bandwidth_bits_per_second
+			observation->bandwidth_bps
 		);
 	}
 	if (recovered) {
@@ -220,7 +217,7 @@ void links_apply_cadence(struct monitor *monitor)
 
 	if (!links->cadence_initialized || links->cadence_applied)
 		return;
-	if (uloop_interval_set(&monitor->traffic_timer, us_to_millisec(links->cadence_us)) != 0) {
+	if (uloop_interval_set(&monitor->traffic_timer, us_to_ms(links->cadence_us)) != 0) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"could not apply compensated traffic cadence: %s",
@@ -256,10 +253,10 @@ log_load_stats(const struct monitor_direction *download, const struct monitor_di
 	const struct cake_observation *download_cake = &download->cake;
 	const struct cake_observation *upload_cake = &upload->cake;
 	const struct log_load_record record = {
-		.download_achieved_rate_bits_per_second = download->traffic_rate_bits_per_second,
-		.upload_achieved_rate_bits_per_second = upload->traffic_rate_bits_per_second,
-		.cake_download_rate_bits_per_second = download_cake->bandwidth_bits_per_second,
-		.cake_upload_rate_bits_per_second = upload_cake->bandwidth_bits_per_second,
+		.download_achieved_rate_bps = download->traffic_rate_bps,
+		.upload_achieved_rate_bps = upload->traffic_rate_bps,
+		.cake_download_rate_bps = download_cake->bandwidth_bps,
+		.cake_upload_rate_bps = upload_cake->bandwidth_bps,
 	};
 
 	log_load(&record);
@@ -306,11 +303,11 @@ void links_observe(struct monitor *monitor)
 			saturating_add(
 				serialization_us(
 					cake_max_wire_packet_bits(&download->cake),
-					config->download.base_rate_bits_per_second
+					config->download.base_rate_bps
 				),
 				serialization_us(
 					cake_max_wire_packet_bits(&upload->cake),
-					config->upload.base_rate_bits_per_second
+					config->upload.base_rate_bps
 				)
 			)
 		);
@@ -360,7 +357,7 @@ static void reset_traffic_observation(struct monitor_direction *direction)
 	/* Preserve the sample ID: the controller retains its last consumed ID. */
 	direction->traffic_valid = false;
 	direction->traffic_state = TRAFFIC_OBSERVATION_UNKNOWN;
-	direction->traffic_rate_bits_per_second = 0U;
+	direction->traffic_rate_bps = 0U;
 	traffic_init(&direction->traffic_monitor);
 }
 

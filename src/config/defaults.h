@@ -9,7 +9,7 @@ struct config;
 #define DEFAULT_CONFIG_PATH "/etc/config/" UCI_PACKAGE
 #define DEFAULT_LOG_DIRECTORY "/var/log"
 #define DEFAULT_LOG_FILE_BASE PROGRAM_NAME
-#define DEFAULT_FPING_TIMEOUT_MILLISECONDS "10000"
+#define DEFAULT_FPING_TIMEOUT_MS "10000"
 
 /* Fixed operational defaults, separate from configurable UCI values. */
 #define CHILD_STOP_ATTEMPTS 50U
@@ -23,7 +23,7 @@ struct config;
 #define SATURATION_CONFIRMATION_SAMPLES 3U
 #define RECOVERY_CONFIRMATION_SAMPLES 3U
 /* CAKE holds its rate in whole bytes/s. */
-#define SHAPER_RATE_STEP_BITS_PER_SECOND BITS_PER_BYTE
+#define SHAPER_RATE_STEP_BPS BITS_PER_BYTE
 /* At or above this share of the shaper rate, the bottleneck is not limiting. */
 #define FULL_DELIVERY_RATIO_E6 (98U * RATIO_PERCENT_E6)
 /* Measured queues smaller than this in total cannot explain bufferbloat. */

@@ -166,11 +166,11 @@ static inline uint64_t kbyte_to_byte(uint64_t kilobytes)
 }
 
 /* Whole milliseconds for uloop: rounded up so a timer never wakes early, and saturated. */
-static inline unsigned int us_to_millisec(uint64_t us)
+static inline unsigned int us_to_ms(uint64_t us)
 {
-	uint64_t milliseconds = us / US_PER_MILLISECOND + (us % US_PER_MILLISECOND != 0U ? 1U : 0U);
+	uint64_t ms = us / US_PER_MILLISECOND + (us % US_PER_MILLISECOND != 0U ? 1U : 0U);
 
-	return milliseconds > UINT_MAX ? UINT_MAX : (unsigned int)milliseconds;
+	return ms > UINT_MAX ? UINT_MAX : (unsigned int)ms;
 }
 
 /* For messages that print a duration in seconds. */
@@ -180,20 +180,20 @@ static inline double us_to_sec(uint64_t us)
 }
 
 /* Kernel nanoseconds as microseconds, half a microsecond or more rounding up. */
-static inline uint64_t nanosec_to_us(uint64_t nanoseconds)
+static inline uint64_t ns_to_us(uint64_t ns)
 {
-	return rounded_divide(nanoseconds, NANOSECONDS_PER_US);
+	return rounded_divide(ns, NANOSECONDS_PER_US);
 }
 
-static inline int64_t signed_nanosec_to_us(int64_t nanoseconds)
+static inline int64_t signed_ns_to_us(int64_t ns)
 {
-	return signed_rounded_divide(nanoseconds, (int64_t)NANOSECONDS_PER_US);
+	return signed_rounded_divide(ns, (int64_t)NANOSECONDS_PER_US);
 }
 
 /* A nonnegative clock reading in microseconds, rounded. */
 static inline uint64_t timespec_to_us(const struct timespec *value)
 {
-	return (uint64_t)value->tv_sec * US_PER_SECOND + nanosec_to_us((uint64_t)value->tv_nsec);
+	return (uint64_t)value->tv_sec * US_PER_SECOND + ns_to_us((uint64_t)value->tv_nsec);
 }
 
 /* Strict boundary: equality and backwards timestamps have not elapsed. */

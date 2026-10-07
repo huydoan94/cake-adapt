@@ -208,10 +208,9 @@ measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controll
 						 counters.upload_bytes < tcp->upload_bytes));
 		tcp->ack_rate_valid = false;
 		if (tcp->ack_sampled && !degraded) {
-			tcp->ack_rate_bits_per_second =
-				bits_per_second(counters.ack_bytes - tcp->ack_bytes, elapsed);
-			tcp->upload_rate_bits_per_second =
-				bits_per_second(counters.upload_bytes - tcp->upload_bytes, elapsed);
+			tcp->ack_rate_bps = bps(counters.ack_bytes - tcp->ack_bytes, elapsed);
+			tcp->upload_rate_bps =
+				bps(counters.upload_bytes - tcp->upload_bytes, elapsed);
 			tcp->ack_rate_valid = true;
 		}
 		/* A baseline alone cannot establish recovery after unavailable counters. */
@@ -225,8 +224,8 @@ measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controll
 	}
 result:
 	acks->valid = tcp->ack_rate_valid;
-	acks->upload_ack_rate_bits_per_second = tcp->ack_rate_bits_per_second;
-	acks->upload_rate_bits_per_second = tcp->upload_rate_bits_per_second;
+	acks->upload_ack_rate_bps = tcp->ack_rate_bps;
+	acks->upload_rate_bps = tcp->upload_rate_bps;
 }
 
 /*
