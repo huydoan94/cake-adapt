@@ -43,6 +43,66 @@ size_t reflectors_find(const struct monitor *monitor, const char *target)
 	return SIZE_MAX;
 }
 
+/* The largest of a slot's replies within a second; the second before it is kept. */
+static void recent_delay_add(
+	struct reflector_recent_delay *recent,
+	int64_t delay_microseconds,
+	uint64_t timestamp_microseconds
+)
+{
+	uint64_t second = timestamp_microseconds / SECOND;
+
+	if (second != recent->second) {
+		recent->previous_microseconds =
+			second == recent->second + 1U ? recent->current_microseconds : 0;
+		recent->current_microseconds = delay_microseconds;
+		recent->second = second;
+	} else {
+		recent->current_microseconds =
+			max_i64(recent->current_microseconds, delay_microseconds);
+	}
+}
+
+/* A slot's largest added delay over the current and previous second, if it replied in them. */
+static bool recent_delay_value(
+	const struct reflector_recent_delay *recent,
+	uint64_t second,
+	int64_t *delay_microseconds
+)
+{
+	if (recent->second == second)
+		*delay_microseconds =
+			max_i64(recent->current_microseconds, recent->previous_microseconds);
+	else if (recent->second + 1U == second)
+		*delay_microseconds = recent->current_microseconds;
+	else
+		return false;
+	return true;
+}
+
+int64_t reflectors_recent_delay(const struct monitor *monitor, uint64_t timestamp_microseconds)
+{
+	const struct monitor_reflectors *reflectors = &monitor->reflectors;
+	const struct config *config = monitor->config;
+	uint64_t second = timestamp_microseconds / SECOND;
+	int64_t values[CONFIG_MAX_REFLECTORS];
+	size_t count = 0U;
+
+	/* Insertion sort: there are only a few pinger slots. */
+	for (size_t slot = 0U; slot < (size_t)config->no_pingers; slot++) {
+		int64_t value;
+		size_t position;
+
+		if (!recent_delay_value(&reflectors->recent[slot], second, &value))
+			continue;
+		for (position = count; position > 0U && values[position - 1U] > value; position--)
+			values[position] = values[position - 1U];
+		values[position] = value;
+		count++;
+	}
+	return count == 0U ? -1 : values[(count - 1U) / 2U];
+}
+
 void reflectors_record(
 	struct monitor *monitor,
 	size_t slot,
@@ -56,6 +116,13 @@ void reflectors_record(
 
 	tracker_update(tracker, sample, observation);
 	tracker_update_delta_ewma(tracker, control_low_load(monitor), observation);
+	recent_delay_add(
+		&reflectors->recent[slot],
+		max_i64(observation->download_owd_delta_microseconds +
+				observation->upload_owd_delta_microseconds,
+			0),
+		response_microseconds
+	);
 	health_record_response(&reflectors->health[slot], response_microseconds);
 }
 

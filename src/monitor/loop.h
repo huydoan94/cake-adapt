@@ -97,6 +97,13 @@ struct monitor_pingers {
 };
 
 /* reflectors.c: per-reflector latency trackers, active order and health. */
+/* A pinger slot's largest added round-trip delay in the current and previous second. */
+struct reflector_recent_delay {
+	uint64_t second;
+	int64_t current_microseconds;
+	int64_t previous_microseconds;
+};
+
 struct monitor_reflectors {
 	/* Shared by every tracker and health record below. */
 	struct latency_tracker_config tracker_config;
@@ -104,6 +111,7 @@ struct monitor_reflectors {
 	struct latency_tracker trackers[CONFIG_MAX_REFLECTORS];
 	/* Indexed by pinger slot; order maps a slot to its reflector. */
 	struct reflector_health health[CONFIG_MAX_REFLECTORS];
+	struct reflector_recent_delay recent[CONFIG_MAX_REFLECTORS];
 	size_t order[CONFIG_MAX_REFLECTORS];
 	struct uloop_interval health_timer;
 	bool clock_failed;
@@ -119,10 +127,6 @@ struct monitor_tcp {
 	struct qdisc_id qdisc;
 	/* Upload interface whose capture failed; retried once it is recreated. */
 	unsigned int failed_index;
-	/* fping's largest added round-trip delay in the current and previous second. */
-	uint64_t bound_second;
-	int64_t bound_current_ns;
-	int64_t bound_previous_ns;
 	uint64_t dropped_records;
 	uint64_t next_counter_check_microseconds;
 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
@@ -261,6 +265,16 @@ void reflectors_record(
 );
 
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds);
+
+/*
+ * fping's recent added round-trip delay on the access link, or -1 when no
+ * pinger slot replied in the current or previous second. A queue on the link
+ * delays every reflector's replies, while a slow reflector delays only its own:
+ * this is the lower median across slots of each slot's largest added delay over
+ * those two seconds. One slow reflector cannot raise it, and one whose baseline
+ * sits too high cannot hold it down.
+ */
+int64_t reflectors_recent_delay(const struct monitor *monitor, uint64_t timestamp_microseconds);
 
 /* monitor.c */
 
