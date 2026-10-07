@@ -6,20 +6,24 @@
 /* Unit conversions and fixed-point scales shared across modules. */
 #define THOUSAND UINT64_C(1000)
 #define MILLION (THOUSAND * THOUSAND)
+#define PERCENT UINT64_C(100)
+/* Ratios are integers per million: RATIO_ONE_E6 is 100%. */
+#define RATIO_ONE_E6 MILLION
+#define RATIO_PERCENT_E6 (RATIO_ONE_E6 / PERCENT)
 
 /* Data and rates, in bits. A kilobit is 1,000 bits, as CAKE and tc count them. */
 #define KILOBIT THOUSAND
 #define MEGABIT (THOUSAND * KILOBIT)
 #define BITS_PER_BYTE UINT64_C(8)
 
+/* Sizes. */
+#define KIBIBYTE UINT64_C(1024)
+
 /* Durations. */
 #define US UINT64_C(1)
 #define MILLISECOND (THOUSAND * US)
 #define SECOND (THOUSAND * MILLISECOND)
 #define MINUTE (UINT64_C(60) * SECOND)
-#define KIBIBYTE UINT64_C(1024)
-#define PERCENT UINT64_C(100)
-#define FACTOR_PER_PERCENT (MILLION / PERCENT)
 #define US_PER_MILLISECOND (MILLISECOND / US)
 #define US_PER_SECOND SECOND
 #define US_PER_MINUTE MINUTE

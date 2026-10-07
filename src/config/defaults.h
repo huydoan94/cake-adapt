@@ -18,18 +18,20 @@ struct config;
 #define CHILD_STOP_TIMEOUT_US (CHILD_STOP_ATTEMPTS * CHILD_STOP_INTERVAL_US)
 #define INITIAL_ONE_WAY_BASELINE_US (100U * MILLISECOND)
 #define NETLINK_RESPONSE_TIMEOUT_US SECOND
-#define SATURATION_ENTER_PERCENT 90U
-#define SATURATION_EXIT_PERCENT 80U
+#define SATURATION_ENTER_RATIO_E6 (90U * RATIO_PERCENT_E6)
+#define SATURATION_EXIT_RATIO_E6 (80U * RATIO_PERCENT_E6)
 #define SATURATION_CONFIRMATION_SAMPLES 3U
 #define RECOVERY_CONFIRMATION_SAMPLES 3U
+/* CAKE holds its rate in whole bytes/s. */
+#define SHAPER_RATE_STEP_BITS_PER_SECOND BITS_PER_BYTE
 /* At or above this share of the shaper rate, the bottleneck is not limiting. */
-#define FULL_DELIVERY_PERCENT 98U
+#define FULL_DELIVERY_RATIO_E6 (98U * RATIO_PERCENT_E6)
 /* Measured queues smaller than this in total cannot explain bufferbloat. */
 #define QUEUE_ATTRIBUTION_MINIMUM_US (5 * (int64_t)MILLISECOND)
-/* A direction holding at least 1/4 of the measured queue shares the blame. */
-#define QUEUE_SHARE_DIVISOR 4
-/* Upload kept free beyond other traffic's use, so its growth shows (percent). */
-#define UPLOAD_ACK_HEADROOM_PERCENT 5U
+/* A direction holding at least this share of the measured queue shares the blame. */
+#define QUEUE_SHARE_RATIO_E6 (25U * RATIO_PERCENT_E6)
+/* Upload kept free beyond other traffic's use, so its growth shows. */
+#define UPLOAD_ACK_HEADROOM_RATIO_E6 (5U * RATIO_PERCENT_E6)
 /* MEMORY records: a week is about 60,000 lines, and a leak shows within minutes. */
 #define MEMORY_SAMPLE_INTERVAL_US (10U * SECOND)
 

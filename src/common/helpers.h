@@ -40,7 +40,14 @@ bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp);
 /* A counter delta over a positive duration, in bit/s; saturated at UINT64_MAX. */
 uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_us);
 
-/* Autorate load is calculated from whole kbit/s, saturated at UINT_MAX. */
-unsigned int load_percent(uint64_t traffic_rate, uint64_t shaper_rate);
+/* part / whole as a ratio per million, truncated and saturated; zero for an empty whole. */
+uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole);
+
+/* traffic / shaper rate as a ratio; an unknown (zero) shaper rate gives no load. */
+static inline uint64_t
+load_ratio_e6(uint64_t traffic_bits_per_second, uint64_t shaper_bits_per_second)
+{
+	return fraction_to_ratio_e6(traffic_bits_per_second, shaper_bits_per_second);
+}
 
 #endif

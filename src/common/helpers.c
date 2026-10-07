@@ -122,24 +122,24 @@ bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp)
 	return true;
 }
 
-unsigned int load_percent(uint64_t traffic_rate, uint64_t shaper_rate)
+uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole)
 {
-	uint64_t traffic_kbps = traffic_rate / KILOBIT;
-	uint64_t shaper_kbps = shaper_rate / KILOBIT;
-	uint64_t quotient;
-	uint64_t remainder;
-	uint64_t percentage;
-
-	if (shaper_kbps == 0U)
+	/*
+	 * The remainder below is multiplied by RATIO_ONE_E6, so it must stay under
+	 * UINT64_MAX / RATIO_ONE_E6: 18 Tbit/s, or 213 days in microseconds. A larger
+	 * whole gives up its last six digits, which no real value has.
+	 */
+	if (whole > UINT64_MAX / RATIO_ONE_E6) {
+		part /= RATIO_ONE_E6;
+		whole /= RATIO_ONE_E6;
+	}
+	if (whole == 0U)
 		return 0U;
-	quotient = traffic_kbps / shaper_kbps;
-	if (quotient > UINT_MAX / PERCENT)
-		return UINT_MAX;
-	remainder = traffic_kbps % shaper_kbps;
-	percentage = quotient * PERCENT;
-	/* Whole kbit/s bounds remainder by UINT64_MAX / KILOBIT. */
-	percentage += remainder * PERCENT / shaper_kbps;
-	return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
+	/* part / whole = quotient + remainder / whole, each scaled on its own. */
+	return saturating_add(
+		saturating_mul(part / whole, RATIO_ONE_E6),
+		part % whole * RATIO_ONE_E6 / whole
+	);
 }
 
 uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_us)

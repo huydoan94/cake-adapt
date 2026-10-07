@@ -10,9 +10,9 @@
 #include <string.h>
 
 static const struct latency_tracker_config default_tracker_config = {
-	.alpha_baseline_increase_per_million = 1000U,
-	.alpha_baseline_decrease_per_million = 900000U,
-	.alpha_delta_ewma_per_million = 95000U,
+	.alpha_baseline_increase_ratio_e6 = 1000U,
+	.alpha_baseline_decrease_ratio_e6 = 900000U,
+	.alpha_delta_ewma_ratio_e6 = 95000U,
 };
 
 static void init_tracker(struct latency_tracker *tracker)
@@ -51,9 +51,9 @@ static void test_first_sample_updates_initialized_baseline(void)
 static void test_configured_alpha_values_are_used(void)
 {
 	const struct latency_tracker_config config = {
-		.alpha_baseline_increase_per_million = 200000U,
-		.alpha_baseline_decrease_per_million = 500000U,
-		.alpha_delta_ewma_per_million = 500000U,
+		.alpha_baseline_increase_ratio_e6 = 200000U,
+		.alpha_baseline_decrease_ratio_e6 = 500000U,
+		.alpha_delta_ewma_ratio_e6 = 500000U,
 	};
 	struct latency_tracker tracker;
 	struct latency_observation observation;

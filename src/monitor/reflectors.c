@@ -361,13 +361,13 @@ int reflectors_start(struct monitor *monitor, uint64_t start_us)
 {
 	const struct config *config = monitor->config;
 	struct monitor_reflectors *reflectors = &monitor->reflectors;
+	const struct latency_tracker_config tracker_config = {
+		.alpha_baseline_increase_ratio_e6 = config->alpha_baseline_increase_ratio_e6,
+		.alpha_baseline_decrease_ratio_e6 = config->alpha_baseline_decrease_ratio_e6,
+		.alpha_delta_ewma_ratio_e6 = config->alpha_delta_ewma_ratio_e6,
+	};
 	size_t index;
 
-	reflectors->tracker_config = (struct latency_tracker_config){
-		.alpha_baseline_increase_per_million = config->alpha_baseline_increase_per_million,
-		.alpha_baseline_decrease_per_million = config->alpha_baseline_decrease_per_million,
-		.alpha_delta_ewma_per_million = config->alpha_delta_ewma_per_million,
-	};
 	reflectors->health_config = (struct reflector_health_config){
 		.response_deadline_us = config->reflector_response_deadline_us,
 		.detection_window = (size_t)config->reflector_misbehaving_detection_window,
@@ -377,7 +377,7 @@ int reflectors_start(struct monitor *monitor, uint64_t start_us)
 	reflectors->last_replacement_us = start_us;
 	reflectors->last_comparison_us = start_us;
 	for (index = 0U; index < (size_t)config->reflector_count; index++) {
-		tracker_init(&reflectors->trackers[index], &reflectors->tracker_config);
+		tracker_init(&reflectors->trackers[index], &tracker_config);
 		reflectors->order[index] = index;
 	}
 	log_message(LOG_LEVEL_DEBUG, "Randomizing reflectors.");

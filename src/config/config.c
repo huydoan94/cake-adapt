@@ -48,8 +48,10 @@ struct option_binding {
 #define STRING_OPTION(name, member) \
 	{ name, TYPE_STRING, CONFIG_OFFSET(member), CONFIG_SIZE(member), 0U }
 #define SCALED_OPTION(name, member, scale) { name, TYPE_SCALED, CONFIG_OFFSET(member), 0U, scale }
+/* A ratio with up to six decimal places, stored per million. */
+#define RATIO_OPTION(name, member) SCALED_OPTION(name, member, RATIO_ONE_E6)
 
-/* Booleans, then strings, then scaled decimals: the order -L lists and loading applies. */
+/* Booleans, then strings, then decimals: the order -L lists and loading applies. */
 static const struct option_binding options[] = {
 	BOOLEAN_OPTION(OPTION_ENABLED, enabled),
 	BOOLEAN_OPTION(OPTION_ADJUST_DOWNLOAD, download.adjust),
@@ -140,37 +142,23 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_CPU_MONITOR_INTERVAL, monitor_cpu_usage_interval_us, MILLISECOND),
 	SCALED_OPTION(OPTION_BUFFERBLOAT_WINDOW, bufferbloat_detection_window, 1U),
 	SCALED_OPTION(OPTION_BUFFERBLOAT_THRESHOLD, bufferbloat_detection_threshold, 1U),
-	SCALED_OPTION(OPTION_ALPHA_BASELINE_INCREASE, alpha_baseline_increase_per_million, MILLION),
-	SCALED_OPTION(OPTION_ALPHA_BASELINE_DECREASE, alpha_baseline_decrease_per_million, MILLION),
-	SCALED_OPTION(OPTION_ALPHA_DELTA_EWMA, alpha_delta_ewma_per_million, MILLION),
-	SCALED_OPTION(
+	RATIO_OPTION(OPTION_ALPHA_BASELINE_INCREASE, alpha_baseline_increase_ratio_e6),
+	RATIO_OPTION(OPTION_ALPHA_BASELINE_DECREASE, alpha_baseline_decrease_ratio_e6),
+	RATIO_OPTION(OPTION_ALPHA_DELTA_EWMA, alpha_delta_ewma_ratio_e6),
+	RATIO_OPTION(
 		OPTION_RATE_MIN_DOWN_BUFFERBLOAT,
-		shaper_rate_minimum_adjust_down_bufferbloat_per_million,
-		MILLION
+		shaper_rate_minimum_adjust_down_bufferbloat_ratio_e6
 	),
-	SCALED_OPTION(
+	RATIO_OPTION(
 		OPTION_RATE_MAX_DOWN_BUFFERBLOAT,
-		shaper_rate_maximum_adjust_down_bufferbloat_per_million,
-		MILLION
+		shaper_rate_maximum_adjust_down_bufferbloat_ratio_e6
 	),
-	SCALED_OPTION(
-		OPTION_RATE_MIN_UP_HIGH_LOAD,
-		shaper_rate_minimum_adjust_up_load_high_per_million,
-		MILLION
-	),
-	SCALED_OPTION(
-		OPTION_RATE_MAX_UP_HIGH_LOAD,
-		shaper_rate_maximum_adjust_up_load_high_per_million,
-		MILLION
-	),
-	SCALED_OPTION(
-		OPTION_RATE_DOWN_LOW_LOAD,
-		shaper_rate_adjust_down_load_low_per_million,
-		MILLION
-	),
-	SCALED_OPTION(OPTION_RATE_UP_LOW_LOAD, shaper_rate_adjust_up_load_low_per_million, MILLION),
-	SCALED_OPTION(OPTION_HIGH_LOAD_THRESHOLD, high_load_threshold_per_million, MILLION),
-	SCALED_OPTION(OPTION_UL_CONGEST_ACK_SHARE, ul_congest_ack_share_per_million, MILLION),
+	RATIO_OPTION(OPTION_RATE_MIN_UP_HIGH_LOAD, shaper_rate_minimum_adjust_up_load_high_ratio_e6),
+	RATIO_OPTION(OPTION_RATE_MAX_UP_HIGH_LOAD, shaper_rate_maximum_adjust_up_load_high_ratio_e6),
+	RATIO_OPTION(OPTION_RATE_DOWN_LOW_LOAD, shaper_rate_adjust_down_load_low_ratio_e6),
+	RATIO_OPTION(OPTION_RATE_UP_LOW_LOAD, shaper_rate_adjust_up_load_low_ratio_e6),
+	RATIO_OPTION(OPTION_HIGH_LOAD_THRESHOLD, high_load_threshold_ratio_e6),
+	RATIO_OPTION(OPTION_UL_CONGEST_ACK_SHARE, ul_congest_ack_share_ratio_e6),
 	SCALED_OPTION(OPTION_BUFFERBLOAT_REFRACTORY, bufferbloat_refractory_period_us, MILLISECOND),
 	SCALED_OPTION(OPTION_DECAY_REFRACTORY, decay_refractory_period_us, MILLISECOND),
 	SCALED_OPTION(OPTION_REFLECTOR_HEALTH_INTERVAL, reflector_health_check_interval_us, SECOND),

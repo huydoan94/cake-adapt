@@ -376,8 +376,8 @@ static void test_cake_autorate_headers_and_record_format(void)
 	const struct log_data_record data_record = {
 		.download_achieved_rate_bits_per_second = 10U * KILOBIT,
 		.upload_achieved_rate_bits_per_second = 20U * KILOBIT,
-		.download_load_percent = 30U,
-		.upload_load_percent = 40U,
+		.download_load_ratio_e6 = 305000U,
+		.upload_load_ratio_e6 = 400000U,
 		.icmp_timestamp = "[50.00006]",
 		.reflector = "1.1.1.1",
 		.sequence = 70U,
