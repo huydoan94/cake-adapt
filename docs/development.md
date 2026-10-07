@@ -25,6 +25,17 @@ host tests, builds each architecture, and publishes packages as workflow
 artifacts. Tags beginning with `v` additionally publish the packages as GitHub
 release assets.
 
+## Editor setup
+
+Editors resolve includes through `compile_commands.json`, which
+`tools/compile-commands.sh` (or the VS Code task *Generate
+compile_commands.json (IntelliSense)*) writes from the x86 SDK beside the
+repository or `OPENWRT_SDK_X86`. It covers every C file under `src/`, `tests/`
+and `tools/`, including the socket filter with the SDK's BPF clang and the
+kernel headers, so libbpf's `<bpf/...>` and libnl-tiny resolve. The file holds
+absolute paths and is not committed; regenerate it after adding or moving a
+source file.
+
 ## Source layout
 
 ```text
