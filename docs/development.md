@@ -115,29 +115,47 @@ The router needs SSH key authentication; nothing is installed on it. Capture
 events (connect, disconnect, archive, stop) go to `cake-adapt.log.events`.
 
 By default the console shows a status screen that is redrawn in place every
-second:
+second (this one was captured from the test VM's emulated ISP under load):
 
 ```text
-Connection   connected since 2026-10-07 11:29:40 (40 s), reconnects 0
-Capture      0.3 MB this run, 0.01 MB/s, file 1.1 MB of 1024.0 MB, 0 archived
-Router       cake-adapt 0.3.8-r1 PID 2653, started 2026-10-07 11:27:26 (174 s ago)
-Last record  2026-10-07 11:30:20 (0 s ago)
+Connection   connected since 2026-10-07 11:50:10 (45 s), reconnects 0
+Throughput   download 22.5 Mbit/s (2.7 MB/s), upload 2.7 Mbit/s (328.4 KB/s)
+Log capture  450.6 KB this run at 11.9 KB/s; file 683.5 KB of 1.0 GB; 0 archived
+Router       cake-adapt 0.3.8-r1, PID 6388, started 2026-10-07 11:49:46 (1 min 9 s ago)
+Last record  2026-10-07 11:50:55 (0 s ago)
 
-                 achieved          shaper   load condition    avg delay  delayed  TCP queue
-Download     12.34 Mbit/s    70.00 Mbit/s    18% dl_low          2.6 ms      0/6     0.8 ms
-Upload        0.81 Mbit/s    14.00 Mbit/s     6% ul_idle         2.6 ms      0/6     2.0 ms
+                 achieved          shaper   load condition     avg delay  delayed  TCP queue
+Download      22.5 Mbit/s     25.2 Mbit/s    86% dl_high          1.6 ms      0/6     445 µs
+Upload         2.7 Mbit/s      3.0 Mbit/s    89% ul_high          2.8 ms      0/6     2.7 ms
 
-Bufferbloat  last 60 s: download 0 (0.0%), upload 0 (0.0%) of 845 samples; 3 shaper changes
-Daemon       RSS 2.1 MB, peak 2.1 MB, heap 0.2 MB; CPU 1%
+Bufferbloat  last 60 s: download 196 (16.4%), upload 203 (17.0%) of 1192 samples; 242 shaper changes
+Daemon       RSS 2.1 MB, peak 2.1 MB, heap 228.0 KB; router CPU 25%
 Warnings     0 seen; last -
 ```
 
-Sizes are in MB (1,048,576 bytes) and the capture's throughput in MB/s; link
-rates are in Mbit/s, as the shaper settings are; times are local date and
-time, and intervals whole seconds. Rates, loads, conditions and delays come
-from the router's latest `SUMMARY`, `DATA` and `TCP_QUEUE` records, memory and
-CPU from `MEMORY` and `CPU` records (shown only when the router's
-`output_memory_stats` and `output_cpu_stats` are on), and the bufferbloat count
-from the `SUMMARY` records of the last 60 s of router time. Warnings are
-counted over the last 3,000 lines of the file and everything after. The screen
-needs GNU awk (`gawk`); `-l` does not.
+Each value takes the largest unit in which it is at least 1.0: sizes from B to
+GB (1 KB is 1,024 bytes), link rates from bit/s to Gbit/s with their byte rate
+beside them, delays from µs to s. Times are local date and time, and
+intervals whole seconds, minutes, hours and days (`1 min 9 s`, `3 h 4 min`).
+
+- **Throughput** and the **achieved** and **shaper** columns come from the
+  router's latest `LOAD` record, written with every traffic sample, or from
+  `SUMMARY` when `LOAD` records are off.
+- **Load**, **condition**, **avg delay** and **delayed** come from the latest
+  `DATA` and `SUMMARY` records, and **TCP queue** from `TCP_QUEUE`. While the
+  line is idle the daemon stops pinging, so these keep their last values.
+- **Log capture** is the log data saved to the local file, not router traffic;
+  **archived** counts the files renamed and compressed at the size limit
+  during this run.
+- **Bufferbloat** counts the `SUMMARY` records of the last 60 s of router time
+  with a `_bb` condition, and the `SHAPER` records in the same minute.
+- **Daemon** memory comes from `MEMORY` records and the router's CPU use from
+  `CPU` records, shown only when `output_memory_stats` and `output_cpu_stats`
+  are on.
+- **Warnings** are counted over the last 3,000 lines of the file and
+  everything after.
+
+The screen reads the file's history once at start and then takes each line
+from the capture itself, so it keeps working when the local file is on a
+Windows drive (`/mnt/c`, `/mnt/d`), where following a growing file can fail.
+It needs GNU awk (`gawk`); `-l` does not.

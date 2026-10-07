@@ -12,10 +12,11 @@
 #   a new LOCAL_FILE;
 # - writes capture events (connect, disconnect, archive) to LOCAL_FILE.events;
 # - shows the connection and capture state and the router's latest rates,
-#   loads, delays, TCP queues, bufferbloat, memory, CPU and warnings. Sizes are
-#   in MB (1,048,576 bytes), the capture's throughput in MB/s, link rates in
-#   Mbit/s, times as date and time, and intervals in whole seconds. It needs
-#   GNU awk (gawk). With -l, the log lines and events are printed to the
+#   loads, delays, TCP queues, bufferbloat, memory, CPU and warnings. Each
+#   value takes the largest unit in which it is at least 1.0 (sizes in B to GB
+#   of 1,024, rates in bit/s to Gbit/s, delays in µs to s); times show as date
+#   and time and intervals in seconds, minutes, hours and days. It needs GNU
+#   awk (gawk). With -l, the log lines and events are printed to the
 #   console instead, as they arrive.
 #
 # HOST is anything ssh accepts (user@address or a Host from ~/.ssh/config) and
@@ -49,11 +50,17 @@ limit_bytes=$((limit_mb * 1024 * 1024))
 marker=@@cake-adapt-capture-replay-end@@
 remote_script=/tmp/cake-adapt-capture.sh
 
+# With the status screen, standard output is the screen's feed: log lines
+# prefixed "L ", events "E ".
 event() {
+	local text
+
+	text="$(date '+%F %T') $1"
+	printf '%s\n' "$text" >> "$events"
 	if [ "$print_lines" = 1 ]; then
-		printf '%s %s\n' "$(date '+%F %T')" "$1" | tee -a "$events" >&2
+		printf '%s\n' "$text" >&2
 	else
-		printf '%s %s\n' "$(date '+%F %T')" "$1" >> "$events"
+		printf 'E %s\n' "$text"
 	fi
 }
 
@@ -88,11 +95,17 @@ write() {
 		print last > last_file
 		close(last_file)
 		system("mv \"" file "\" \"" name "\" && (gzip \"" name "\" &)")
-		message = "echo \"$(date \"+%F %T\") archived " name ".gz\""
-		if (print_lines)
-			system(message " | tee -a \"" events "\" >&2")
-		else
-			system(message " >> \"" events "\"")
+		"date \"+%F %T\"" | getline stamp
+		close("date \"+%F %T\"")
+		message = stamp " archived " name ".gz"
+		print message >> events
+		close(events)
+		if (print_lines) {
+			print message > "/dev/stderr"
+		} else {
+			print "E " message
+			fflush()
+		}
 		size = 0
 		split("", header)
 	}
@@ -106,10 +119,8 @@ write() {
 		}
 		print line >> file
 		fflush(file)
-		if (print_lines) {
-			print line
-			fflush()
-		}
+		print (print_lines ? "" : "L ") line
+		fflush()
 		last = line
 		size += length(line) + 1
 		if (size >= limit)
@@ -133,28 +144,50 @@ write() {
 	{ emit($0) }'
 }
 
-# The status screen. It follows LOCAL_FILE (tail -F also follows a new file
-# after an archive) and the events file, and redraws once a second on a tick
-# that carries the time, the file size and the terminal width. Each source prefixes its lines (L:
-# log, E: event, T: tick); sed -u writes whole lines, so the sources never
-# interleave mid-line.
+# The status screen. It reads LOCAL_FILE's history once, then takes new lines
+# and events from the capture itself through the FIFO $feed rather than
+# following the file: reading a file on a Windows drive (/mnt/c, /mnt/d) while
+# it grows can fail with "No data available", which stops tail -F. It redraws
+# once a second on a tick that carries the time, the file size and the
+# terminal width. Lines are prefixed L (log), E (event) or T (tick), and every
+# writer writes whole lines, so they never interleave mid-line.
 dashboard() {
 	{
 		# The router's last start, which may lie far back in the file.
 		grep -a 'Starting cake-adapt' "$local_file" 2>/dev/null | tail -n 1 | sed 's/^/L /'
-		tail -n 3000 -F "$local_file" 2>/dev/null | sed -u 's/^/L /' &
-		tail -n 4 -F "$events" 2>/dev/null | sed -u 's/^/E /' &
+		tail -n 3000 "$local_file" 2>/dev/null | sed 's/^/L /'
+		tail -n 4 "$events" 2>/dev/null | sed 's/^/E /'
+		cat "$feed" &
 		while sleep 1; do
 			columns=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
 			echo "T $(date +%s) $(stat -c %s "$local_file" 2>/dev/null || echo 0) ${columns:-120}"
 		done
 	} | gawk -v host="$host" -v remote="$remote_log" -v file="$local_file" \
 		-v limit="$limit_bytes" '
-	function mb(bytes) { return sprintf("%.1f MB", bytes / 1048576) }
-	function mbit(kbps) { return sprintf("%.2f Mbit/s", kbps / 1000) }
-	function ms(us) { return sprintf("%.1f ms", us / 1000) }
+	# Each value takes the largest unit in which it is still at least 1.0.
+	function scaled(value, step, units,   n, unit, i) {
+		n = split(units, unit, " ")
+		for (i = 1; i < n && (value >= step || -value >= step); i++)
+			value /= step
+		return sprintf(i == 1 && value == int(value) ? "%d %s" : "%.1f %s", value, unit[i])
+	}
+	function size(bytes) { return scaled(bytes, 1024, "B KB MB GB TB") }
+	function byte_rate(bytes) { return scaled(bytes, 1024, "B/s KB/s MB/s GB/s") }
+	function rate(kbps) { return kbps == "" ? "-" : scaled(kbps * 1000, 1000, "bit/s Kbit/s Mbit/s Gbit/s Tbit/s") }
+	function delay_text(us) { return us == "" ? "-" : scaled(us, 1000, "µs ms s") }
+	# Whole seconds, minutes, hours and days, at most two units.
+	function duration(seconds) {
+		seconds = int(seconds)
+		if (seconds < 60)
+			return seconds " s"
+		if (seconds < 3600)
+			return int(seconds / 60) " min " seconds % 60 " s"
+		if (seconds < 86400)
+			return int(seconds / 3600) " h " int(seconds % 3600 / 60) " min"
+		return int(seconds / 86400) " d " int(seconds % 86400 / 3600) " h"
+	}
 	function when(t) { return t ? strftime("%Y-%m-%d %H:%M:%S", t) : "-" }
-	function ago(t) { return t ? sprintf("%d s", now - t) : "-" }
+	function ago(t) { return t ? duration(now - t) : "-" }
 	# Lines are cut at the terminal width, so the screen never wraps.
 	function line(text) { printf "%s\033[K\n", substr(text, 1, columns) }
 	function count_recent(flags,   i, n) {
@@ -173,10 +206,13 @@ dashboard() {
 	}
 	function share(n, total) { return total ? sprintf("%d (%.1f%%)", n, 100 * n / total) : "0" }
 	function direction(name, d,   queue) {
-		queue = queue_valid[d] ? ms(queue_us[d]) : "-"
-		line(sprintf("%-9s %15s %15s %6s %-12s %9s %8s %10s", name, mbit(achieved[d]),
-			mbit(shaper[d]), load[d] == "" ? "-" : load[d] "%", condition[d],
-			ms(delay[d]), delayed[d] "/6", queue))
+		queue = queue_valid[d] ? delay_text(queue_us[d]) : "-"
+		line(sprintf("%-9s %15s %15s %6s %-12s %10s %8s %10s", name, rate(achieved[d]),
+			rate(shaper[d]), load[d] == "" ? "-" : load[d] "%", condition[d],
+			delay_text(delay[d]), delayed[d] == "" ? "-" : delayed[d] "/6", queue))
+	}
+	function traffic(d) {
+		return achieved[d] == "" ? "-" : rate(achieved[d]) " (" byte_rate(achieved[d] * 1000 / 8) ")"
 	}
 	function draw(   i, samples, status_text) {
 		printf "\033[H"
@@ -189,14 +225,17 @@ dashboard() {
 		else if (status_at)
 			status_text = status " since " when(status_at) " (" ago(status_at) ")"
 		line(sprintf("%-12s %s, reconnects %d", "Connection", status_text, reconnects))
-		line(sprintf("%-12s %s this run, %.2f MB/s, file %s of %s, %d archived", "Capture",
-			mb(captured), rate / 1048576, mb(size), mb(limit), archives))
-		line(sprintf("%-12s %s %s, started %s (%s ago)", "Router",
-			version == "" ? "cake-adapt (start not seen)" : "cake-adapt " version,
-			pid == "" ? "" : "PID " pid, when(started), ago(started)))
+		line(sprintf("%-12s download %s, upload %s", "Throughput", traffic(1), traffic(2)))
+		line(sprintf("%-12s %s this run at %s; file %s of %s; %d archived", "Log capture",
+			size(captured), byte_rate(capture_rate), size(file_size), size(limit), archives))
+		if (version == "")
+			line(sprintf("%-12s cake-adapt; its start is not in the captured history", "Router"))
+		else
+			line(sprintf("%-12s cake-adapt %s, PID %s, started %s (%s ago)", "Router",
+				version, pid, when(started), ago(started)))
 		line(sprintf("%-12s %s (%s ago)", "Last record", when(record_time), ago(record_time)))
 		line("")
-		line(sprintf("%-9s %15s %15s %6s %-12s %9s %8s %10s", "", "achieved", "shaper", "load",
+		line(sprintf("%-9s %15s %15s %6s %-12s %10s %8s %10s", "", "achieved", "shaper", "load",
 			"condition", "avg delay", "delayed", "TCP queue"))
 		direction("Download", 1)
 		direction("Upload", 2)
@@ -205,10 +244,10 @@ dashboard() {
 		line(sprintf("%-12s last 60 s: download %s, upload %s of %d samples; %d shaper changes",
 			"Bufferbloat", share(count_recent("D"), samples), share(count_recent("U"), samples),
 			samples, shaper_changes()))
-		line(sprintf("%-12s RSS %s, peak %s, heap %s; CPU %s", "Daemon",
-			memory_rss == "" ? "-" : mb(memory_rss * 1024),
-			memory_peak == "" ? "-" : mb(memory_peak * 1024),
-			memory_anon == "" ? "-" : mb(memory_anon * 1024),
+		line(sprintf("%-12s RSS %s, peak %s, heap %s; router CPU %s", "Daemon",
+			memory_rss == "" ? "-" : size(memory_rss * 1024),
+			memory_peak == "" ? "-" : size(memory_peak * 1024),
+			memory_anon == "" ? "-" : size(memory_anon * 1024),
 			cpu == "" ? "-" : cpu "%"))
 		line(sprintf("%-12s %d seen; last %s", "Warnings", warnings,
 			last_warning == "" ? "-" : last_warning))
@@ -241,14 +280,15 @@ dashboard() {
 		columns = tick[4]
 		if (base_size == "")
 			base_size = tick[3]
-		else if (tick[3] < size)
-			carried += size
-		size = tick[3]
-		captured = carried + size - base_size
+		else if (tick[3] < file_size)
+			carried += file_size
+		file_size = tick[3]
+		captured = carried + file_size - base_size
 		history_time[++ticks] = now
 		history_bytes[ticks] = captured
 		old = ticks > 10 ? ticks - 10 : 1
-		rate = now > history_time[old] ? (captured - history_bytes[old]) / (now - history_time[old]) : 0
+		capture_rate = now > history_time[old] ?
+			(captured - history_bytes[old]) / (now - history_time[old]) : 0
 		delete history_time[ticks - 11]
 		delete history_bytes[ticks - 11]
 		draw()
@@ -292,12 +332,20 @@ dashboard() {
 		}
 		if (f[3] ~ /^[0-9]+\.[0-9]+$/)
 			record_time = int(f[3])
-		if (type == "SUMMARY" && n >= 13) {
-			achieved[1] = f[4]; achieved[2] = f[5]
+		# LOAD records come with every traffic sample, so they carry the
+		# freshest rates; SUMMARY repeats them when LOAD records are off.
+		if (type == "LOAD" && n >= 8) {
+			load_records = 1
+			achieved[1] = f[5]; achieved[2] = f[6]
+			shaper[1] = f[7]; shaper[2] = f[8]
+		} else if (type == "SUMMARY" && n >= 13) {
+			if (!load_records) {
+				achieved[1] = f[4]; achieved[2] = f[5]
+				shaper[1] = f[12]; shaper[2] = f[13]
+			}
 			delayed[1] = f[6]; delayed[2] = f[7]
 			delay[1] = f[8]; delay[2] = f[9]
 			condition[1] = f[10]; condition[2] = f[11]
-			shaper[1] = f[12]; shaper[2] = f[13]
 			flags = (f[10] ~ /_bb$/ ? "D" : "") (f[11] ~ /_bb$/ ? "U" : "")
 			bb_time[++bb_last] = record_time
 			bb_flags[bb_last] = flags
@@ -306,8 +354,8 @@ dashboard() {
 				delete bb_flags[bb_first]
 				bb_first++
 			}
-		} else if (type == "DATA" && n >= 7) {
-			load[1] = f[6]; load[2] = f[7]
+		} else if (type == "DATA" && n >= 8) {
+			load[1] = f[7]; load[2] = f[8]
 		} else if (type == "TCP_QUEUE" && n >= 8) {
 			queue_valid[1] = f[5]; queue_us[1] = f[6]
 			queue_valid[2] = f[7]; queue_us[2] = f[8]
@@ -330,6 +378,16 @@ dashboard() {
 	}'
 }
 
+# SSH's own errors, such as a refused connection, go to the screen as events;
+# with -l they stay on stderr.
+screen_errors() {
+	if [ "$print_lines" = 1 ]; then
+		cat >&2
+	else
+		sed -u 's/^/E ssh: /'
+	fi
+}
+
 # One line every 5 s for the router-side watchdog; it ends with the connection.
 heartbeat() {
 	while echo; do
@@ -343,19 +401,32 @@ stop() {
 	event "stopped"
 	[ -n "$ssh_pid" ] && kill "$ssh_pid" 2>/dev/null
 	if [ -n "$dashboard_pid" ]; then
-		# The screen's tails and ticker run in its own process group.
+		# The screen's reader and ticker run in its own process group.
 		kill -- -"$dashboard_pid" 2>/dev/null
-		printf '\033[?25h\n'
+		printf '\033[?25h\n' >&4
+		rm -f "$feed"
+		rmdir "$feed_directory"
 	fi
 	exit 0
 }
 trap stop INT TERM
 if [ "$print_lines" = 0 ]; then
+	if ! command -v gawk > /dev/null; then
+		echo "$0: the status screen needs gawk; install it or use -l" >&2
+		exit 2
+	fi
 	touch "$local_file" "$events"
+	feed_directory=$(mktemp -d)
+	feed=$feed_directory/feed
+	mkfifo "$feed"
 	set -m
 	dashboard &
 	dashboard_pid=$!
 	set +m
+	# Keep the terminal on descriptor 4 and send standard output, and with it
+	# every log line and event, into the screen's feed. Opening the FIFO waits
+	# until the screen has read the history and opened it.
+	exec 4>&1 3> "$feed" 1>&3
 fi
 
 event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
@@ -415,7 +486,7 @@ while true; do
 		"printf '%s\\n' '$follower' > $remote_script.\$\$ &&
 		mv -f $remote_script.\$\$ $remote_script &&
 		exec sh $remote_script '$remote_log' '$marker'" \
-		< <(heartbeat) > >(write) &
+		< <(heartbeat) > >(write) 2> >(screen_errors) &
 	ssh_pid=$!
 	wait "$ssh_pid"
 	status=$?
