@@ -117,6 +117,19 @@ static void test_irtt_reply_is_parsed_directionally(void)
 	assert(parse_irtt_line("seq=9 rd=1500ns sd=2s", "1.1.1.1", &sample));
 	assert(sample.download_owd_us == 2);
 	assert(sample.upload_owd_us == 2 * (int64_t)SECOND);
+	/* Exact decimal text: half a microsecond or more rounds up, less rounds down. */
+	assert(parse_irtt_line("seq=9 rd=1.2345678ms sd=0.0005ms", "1.1.1.1", &sample));
+	assert(sample.download_owd_us == 1235);
+	assert(sample.upload_owd_us == 1);
+	assert(parse_irtt_line("seq=9 rd=0.4999999us sd=1.5s", "1.1.1.1", &sample));
+	assert(sample.download_owd_us == 0);
+	assert(sample.upload_owd_us == 1500000);
+	assert(parse_irtt_line("seq=9 rd=499.9999999ns sd=500.1ns", "1.1.1.1", &sample));
+	assert(sample.download_owd_us == 0);
+	assert(sample.upload_owd_us == 1);
+	assert(!parse_irtt_line("seq=9 rd=1.ms sd=2ms", "1.1.1.1", &sample));
+	assert(!parse_irtt_line("seq=9 rd=1e3ms sd=2ms", "1.1.1.1", &sample));
+	assert(!parse_irtt_line("seq=9 rd=1h sd=2ms", "1.1.1.1", &sample));
 	assert(!parse_irtt_line("seq=9 rd=-1ms sd=2ms", "1.1.1.1", &sample));
 	assert(!parse_irtt_line("seq=9 rd=1ms", "1.1.1.1", &sample));
 }

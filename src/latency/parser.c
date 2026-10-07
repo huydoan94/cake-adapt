@@ -6,7 +6,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -251,31 +250,56 @@ static bool token_has_unit(const char *token, const char *unit)
 	return skip_prefix(&token, unit) && (*token == '\0' || isblank((unsigned char)*token));
 }
 
+/* Nanoseconds in one of IRTT's duration units, or zero for an unknown unit. */
+static uint64_t irtt_unit_ns(const char *unit)
+{
+	if (token_has_unit(unit, IRTT_UNIT_NS))
+		return 1U;
+	if (token_has_unit(unit, IRTT_UNIT_US) || token_has_unit(unit, IRTT_UNIT_US_SIGN))
+		return NANOSECONDS_PER_MICROSECOND;
+	if (token_has_unit(unit, IRTT_UNIT_MS))
+		return NANOSECONDS_PER_MILLISECOND;
+	if (token_has_unit(unit, IRTT_UNIT_SEC))
+		return NANOSECONDS_PER_SECOND;
+	return 0U;
+}
+
+/*
+ * Reads an IRTT duration such as "1.234ms" exactly, as decimal text. Digits
+ * below a nanosecond are dropped: truncated nanoseconds still round to the
+ * same microsecond.
+ */
 static bool parse_irtt_duration(const char *value, int64_t *duration_us)
 {
-	char *unit;
-	double parsed;
-	double scale;
-	double converted;
+	const char *whole_end = value + strspn(value, DECIMAL_DIGITS);
+	const char *fraction = whole_end;
+	size_t fraction_count = 0U;
+	uint64_t whole;
+	uint64_t unit_ns;
+	uint64_t duration_ns;
+	uint64_t us;
 
-	errno = 0;
-	parsed = strtod(value, &unit);
-	if (errno == ERANGE || unit == value || !isfinite(parsed) || parsed < 0.0)
+	if (!parse_unsigned(value, whole_end, &whole))
 		return false;
-	if (token_has_unit(unit, IRTT_UNIT_NS))
-		scale = 1.0 / (double)THOUSAND;
-	else if (token_has_unit(unit, IRTT_UNIT_US) || token_has_unit(unit, IRTT_UNIT_US_SIGN))
-		scale = (double)MICROSECOND;
-	else if (token_has_unit(unit, IRTT_UNIT_MS))
-		scale = (double)MILLISECOND;
-	else if (token_has_unit(unit, IRTT_UNIT_SEC))
-		scale = (double)SECOND;
-	else
+	if (*whole_end == '.') {
+		fraction = whole_end + 1;
+		fraction_count = strspn(fraction, DECIMAL_DIGITS);
+		if (fraction_count == 0U)
+			return false;
+	}
+	unit_ns = irtt_unit_ns(fraction + fraction_count);
+	if (unit_ns == 0U || whole > UINT64_MAX / unit_ns - 1U)
 		return false;
-	converted = parsed * scale;
-	if (!isfinite(converted) || converted >= (double)INT64_MAX)
+	duration_ns = whole * unit_ns;
+	/* The fraction adds less than one unit, so it cannot overflow. */
+	for (size_t index = 0U; index < fraction_count && unit_ns / 10U > 0U; index++) {
+		unit_ns /= 10U;
+		duration_ns += (uint64_t)(fraction[index] - '0') * unit_ns;
+	}
+	us = ns_to_us(duration_ns);
+	if (us > (uint64_t)INT64_MAX)
 		return false;
-	*duration_us = (int64_t)(converted + 0.5);
+	*duration_us = (int64_t)us;
 	return true;
 }
 
