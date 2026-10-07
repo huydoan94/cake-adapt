@@ -184,6 +184,33 @@ already removes.
 2. Only if L4S traffic turns out to be significant, prototype option A on the
    VM with real L4S senders, and compare it with stock CAKE.
 
+## TCP timestamp availability and alternatives (discussion, 2026-10-07)
+
+TCP timestamps are useful for passive RTT samples, but their availability is
+not guaranteed. Windows does not inherently refuse timestamps: its TCP setting
+`timestamps=enabled` negotiates outgoing and supported incoming timestamps,
+while `timestamps=allowed` (the default) permits incoming timestamps only
+([Microsoft documentation](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/netsh-interface)).
+This is documented behavior, not a reason to change client settings; no client
+configuration change is proposed here.
+
+| Signal | What it can provide | Limits |
+| --- | --- | --- |
+| TCP sequence and ACK matching | Record the end sequence of outgoing data and measure until an incoming cumulative ACK covers it. Uploads can yield repeated RTT samples. | Delayed ACKs add noise. Skip retransmitted or ambiguous ranges, following Karn's rule ([RFC 6298, section 3](https://www.rfc-editor.org/rfc/rfc6298.html)). This does not restore remote timestamp-based separation of upload and download delay. |
+| TCP or QUIC handshake timing | A passive RTT sample when a connection opens. | Samples are sparse and cannot monitor the middle of a long download. QUIC requires recognizing its handshake and matching packets to the same flow; arbitrary UDP packets cannot be paired as a handshake. |
+| QUIC spin bit | Ongoing passive RTT samples when the connection's endpoints provide usable spin behavior. | It is optional, so coverage cannot be assumed. QUIC ACK frames are otherwise encrypted ([RFC 9312, section 3.8](https://www.rfc-editor.org/rfc/rfc9312.html)). |
+| Active probes | ICMP with `fping` or UDP with IRTT can provide regular RTT samples regardless of client OS or traffic type. | A reflector must respond; UDP probing needs a cooperating server ([IRTT](https://github.com/heistp/irtt)). The IRTT backend remains experimental. |
+
+The proposed combination is TCP timestamps where available, sequence/ACK
+matching for uploads, a census of usable QUIC spin-bit coverage, and `fping`
+when passive coverage is insufficient. A long download without timestamps or
+spin-bit samples still needs another useful flow or active probes. These
+signals provide RTT or congestion evidence; they do not automatically produce
+separate upload and download queue estimates. ECN can supplement congestion
+evidence, but it does not replace delay measurement. All of these additions
+are proposals, not implemented behavior. The [eBPF latency plan](EBPF_LATENCY_PLAN.md)
+tracks the broader measurement coverage work.
+
 ## Testing
 
 The emulated testbed could cover:
