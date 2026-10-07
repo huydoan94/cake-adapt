@@ -1,0 +1,4 @@
+35bbaae2203a0c72b1054751758d7a45fd3d57fc8cf621460633fac783f45366  bin/packages/x86_64/base/cake-adapt-0.3.7-r1.apk
+toolchain: gcc 14.4.0 musl; BPF: llvm-bpf 22.1.3 (SDK openwrt-sdk-x86-64_gcc-14.4.0_musl, snapshot r36953-0ab51fb9c1)
+src-git --root=package base https://git.openwrt.org/openwrt/openwrt.git^0ab51fb9c13fd88d5eba565cd3fd22b7b9a18bbf
+built from b28b1ee (tcp-measurement)
