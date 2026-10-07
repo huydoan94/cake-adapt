@@ -175,7 +175,7 @@ static inline unsigned int us_to_ms(uint64_t us)
 }
 
 /* For messages that print a duration in seconds. */
-static inline double us_to_sec(uint64_t us)
+static inline double us_to_sec_decimal(uint64_t us)
 {
 	return (double)us / (double)MICROSECONDS_PER_SECOND;
 }

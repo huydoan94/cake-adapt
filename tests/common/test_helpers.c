@@ -111,7 +111,7 @@ static void test_data_conversions(void)
 	assert(kbit_to_bit(2U) == 2000U);
 	assert(byte_to_kbyte(2047U) == 1U);
 	assert(kbyte_to_byte(2U) == 2048U);
-	assert(us_to_sec(1500000U) == 1.5);
+	assert(us_to_sec_decimal(1500000U) == 1.5);
 }
 
 static void test_timer_ms(void)
