@@ -154,6 +154,17 @@ static inline uint64_t kbit_to_bit(uint64_t kilobits)
 	return saturating_mul(kilobits, KILOBIT);
 }
 
+/* Whole KB, truncated; a KB is 1,024 bytes. */
+static inline uint64_t byte_to_kbyte(uint64_t bytes)
+{
+	return bytes / KILOBYTE;
+}
+
+static inline uint64_t kbyte_to_byte(uint64_t kilobytes)
+{
+	return saturating_mul(kilobytes, KILOBYTE);
+}
+
 /* Whole milliseconds for uloop: rounded up so a timer never wakes early, and saturated. */
 static inline unsigned int us_to_millisec(uint64_t us)
 {

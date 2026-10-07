@@ -82,7 +82,7 @@ static const struct option_binding options[] = {
 	STRING_OPTION(OPTION_PING_EXTRA_ARGS, ping_extra_args),
 	STRING_OPTION(OPTION_PING_PREFIX_STRING, ping_prefix_string),
 	SCALED_OPTION(OPTION_LOG_FILE_MAX_TIME, log_file_max_time_us, MINUTE),
-	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_kilobytes, 1U),
+	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_bytes, KILOBYTE),
 	SCALED_OPTION(OPTION_NO_PINGERS, no_pingers, 1U),
 	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_us, SECOND),
 	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, download.minimum_rate_bits_per_second, KILOBIT),

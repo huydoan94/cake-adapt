@@ -3,7 +3,12 @@
 
 #include <stdint.h>
 
-/* Unit conversions and fixed-point scales shared across modules. */
+/*
+ * Base units: bits and bytes (rates in bit/s, sizes in bytes, a KB being 1,024
+ * bytes), microseconds for every time and duration, rounded to the nearest
+ * microsecond, and ratios as integers per million. Other units appear only
+ * where a value enters or leaves the daemon.
+ */
 #define THOUSAND UINT64_C(1000)
 #define MILLION (THOUSAND * THOUSAND)
 #define PERCENT UINT64_C(100)
@@ -16,8 +21,8 @@
 #define MEGABIT (THOUSAND * KILOBIT)
 #define BITS_PER_BYTE UINT64_C(8)
 
-/* Sizes. */
-#define KIBIBYTE UINT64_C(1024)
+/* Sizes. A KB is 1,024 bytes, as cake-autorate's log limit and /proc count them. */
+#define KILOBYTE UINT64_C(1024)
 
 /* Durations. */
 #define US UINT64_C(1)

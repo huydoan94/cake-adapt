@@ -109,6 +109,8 @@ static void test_data_conversions(void)
 	assert(bit_to_byte(1007U) == 125U);
 	assert(bit_to_kbit(1999U) == 1U);
 	assert(kbit_to_bit(2U) == 2000U);
+	assert(byte_to_kbyte(2047U) == 1U);
+	assert(kbyte_to_byte(2U) == 2048U);
 	assert(us_to_sec(1500000U) == 1.5);
 }
 

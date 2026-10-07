@@ -22,7 +22,7 @@ int main(void)
 	assert(config.log_file_export_compress);
 	assert(strcmp(config.pinger_method, "fping") == 0);
 	assert(config.log_file_max_time_us == 600000000U);
-	assert(config.log_file_max_size_kilobytes == 2000U);
+	assert(config.log_file_max_size_bytes == 2048000U);
 	assert(config.no_pingers == 6U);
 	assert(config.reflector_ping_interval_us == 300000U);
 	assert(config.download.minimum_rate_bits_per_second == 5000000U);

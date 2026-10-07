@@ -99,7 +99,7 @@ static int open_log_file(
 	bool named = strcmp(section_name, DEFAULT_SECTION) != 0;
 	const struct log_file_settings settings = {
 		.maximum_time_us = config->log_file_max_time_us,
-		.maximum_size_kilobytes = config->log_file_max_size_kilobytes,
+		.maximum_size_bytes = config->log_file_max_size_bytes,
 		.buffer_timeout_us = config->log_file_buffer_timeout_us,
 		.compress_exports = config->log_file_export_compress,
 	};

@@ -56,7 +56,7 @@ struct config {
 	char ping_prefix_string[CONFIG_STRING_SIZE];
 	uint64_t reflector_count;
 	uint64_t log_file_max_time_us;
-	uint64_t log_file_max_size_kilobytes;
+	uint64_t log_file_max_size_bytes;
 	uint64_t no_pingers;
 	uint64_t reflector_ping_interval_us;
 	struct config_direction download;

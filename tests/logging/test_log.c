@@ -19,9 +19,9 @@
 
 /* A log file without rotation, buffering or compression. */
 static const struct log_file_settings unlimited = { 0 };
-static const struct log_file_settings size_limited = { .maximum_size_kilobytes = 1U };
+static const struct log_file_settings size_limited = { .maximum_size_bytes = KILOBYTE };
 static const struct log_file_settings size_limited_compressed = {
-	.maximum_size_kilobytes = 1U,
+	.maximum_size_bytes = KILOBYTE,
 	.compress_exports = true,
 };
 static const struct log_file_settings buffered = { .buffer_timeout_us = 500000U };
@@ -524,7 +524,7 @@ static void test_cpu_schema_matches_cake_autorate(void)
 				.guest_nice = 10U },
 			      { .identifier = "cpu0", .idle = 50U } },
 	};
-	const unsigned int usage[] = { 40U, 50U };
+	const struct cpu_busy usage[] = { { 40U, 100U }, { 1U, 2U } };
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);
@@ -585,10 +585,10 @@ static void test_memory_record(void)
 	char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
 	char contents[4096];
 	const struct memory_sample sample = {
-		.rss_kilobytes = 2136U,
-		.peak_rss_kilobytes = 2200U,
-		.anonymous_kilobytes = 412U,
-		.data_kilobytes = 900U,
+		.rss_bytes = 2136U * KILOBYTE,
+		.peak_rss_bytes = 2200U * KILOBYTE,
+		.anonymous_bytes = 412U * KILOBYTE,
+		.data_bytes = 900U * KILOBYTE,
 	};
 	int descriptor = mkstemp(path);
 
@@ -668,7 +668,7 @@ static void test_cpu_log_allocation_failures(void)
 	char path[] = "/tmp/cake-adapt-log-memory-XXXXXX";
 	char contents[4096];
 	struct cpu_sample sample = { .count = 1U, .counters = { { .identifier = "cpu" } } };
-	const unsigned int usage[] = { 40U };
+	const struct cpu_busy usage[] = { { 40U, 100U } };
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);
@@ -860,7 +860,7 @@ static void test_existing_file_size_uses_strict_rotation_limit(void)
 	char path[] = "/tmp/cake-adapt-log-size-XXXXXX";
 	char previous_path[128];
 	char contents[2048];
-	char existing[KIBIBYTE];
+	char existing[KILOBYTE];
 	FILE *file;
 	int descriptor = mkstemp(path);
 

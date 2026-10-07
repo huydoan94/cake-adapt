@@ -27,6 +27,12 @@ struct cpu_sample {
 	struct cpu_counter counters[CPU_MAX_COUNT];
 };
 
+/* Ticks spent busy over all ticks since the previous sample, for one CPU. */
+struct cpu_busy {
+	uint64_t busy_ticks;
+	uint64_t total_ticks;
+};
+
 struct cpu_monitor {
 	uint64_t previous_sums[CPU_MAX_COUNT];
 	uint64_t previous_idle[CPU_MAX_COUNT];
@@ -39,7 +45,7 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 void cpu_usage(
 	struct cpu_monitor *monitor,
 	const struct cpu_sample *sample,
-	unsigned int usage[CPU_MAX_COUNT]
+	struct cpu_busy usage[CPU_MAX_COUNT]
 );
 
 #endif

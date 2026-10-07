@@ -248,8 +248,7 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 			UINT_MAX
 		);
 	}
-	if (config->log_file_max_size_kilobytes > UINT64_MAX / KIBIBYTE ||
-	    config->log_file_buffer_timeout_us / MILLISECOND > UINT_MAX ||
+	if (config->log_file_buffer_timeout_us / MILLISECOND > UINT_MAX ||
 	    config->reflector_ping_interval_us > UINT64_MAX / 2U) {
 		return error_set(error, error_size, "logging or pinger intervals are too large");
 	}
