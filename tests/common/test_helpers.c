@@ -190,6 +190,9 @@ static void test_rate_from_counters(void)
 	assert(bps(UINT64_MAX / 8000000U, 1U) == UINT64_MAX / 8000000U * 8000000U);
 	assert(bps(UINT64_MAX / 8000000U + 1U, 1U) == UINT64_MAX);
 	assert(bps(UINT64_MAX, UINT64_MAX) == 8000000U);
+	/* Exact without floating point, even where byte_delta * 8,000,000 overflows. */
+	assert(bps(UINT64_MAX / 8U, 1000000U) == UINT64_MAX / 8U * 8U);
+	assert(bps(UINT64_MAX / 3U, 7U) == UINT64_MAX);
 }
 
 static void test_serialization_us(void)

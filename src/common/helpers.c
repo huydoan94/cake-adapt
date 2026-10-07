@@ -144,17 +144,17 @@ uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole)
 
 uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us)
 {
-	const uint64_t scale = BITS_PER_BYTE * MICROSECONDS_PER_SECOND;
-	uint64_t scaled;
-	long double rate;
+	const uint64_t byte_per_us_to_bps = BITS_PER_BYTE * MICROSECONDS_PER_SECOND;
 
 	if (elapsed_us == 0U)
 		return UINT64_MAX;
-	/* Normal counters need only integer arithmetic, including on soft-float CPUs. */
-	if (!__builtin_mul_overflow(byte_delta, scale, &scaled))
-		return scaled / elapsed_us;
-	/* Keep the full-width fallback for exceptional counter jumps. */
-	rate = (long double)byte_delta * (long double)scale / (long double)elapsed_us;
-
-	return rate >= (long double)UINT64_MAX ? UINT64_MAX : (uint64_t)rate;
+	/*
+	 * byte_delta * 8,000,000 / elapsed_us, truncated to whole bit/s. Splitting
+	 * byte_delta by elapsed_us keeps the product of the remainder in range for
+	 * any interval below 26 days, so the result is exact without floating point.
+	 */
+	return saturating_add(
+		saturating_mul(byte_delta / elapsed_us, byte_per_us_to_bps),
+		saturating_mul(byte_delta % elapsed_us, byte_per_us_to_bps) / elapsed_us
+	);
 }
