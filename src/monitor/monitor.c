@@ -49,7 +49,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"Warning: no reflector response within: %.2f seconds. Checking loads.",
-			us_to_sec(activity_config->stall_timeout_us)
+			us_to_sec_decimal(activity_config->stall_timeout_us)
 		);
 		log_message(
 			LOG_LEVEL_DEBUG,
@@ -72,7 +72,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 			control_enforce_minimum(monitor, timestamp_us);
 		log_system_message(
 			"Warning: Configured global ping response timeout: %.3f seconds exceeded.",
-			us_to_sec(activity_config->global_timeout_us)
+			us_to_sec_decimal(activity_config->global_timeout_us)
 		);
 	}
 	if (output.state_changed) {
