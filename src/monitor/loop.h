@@ -105,8 +105,7 @@ struct reflector_recent_delay {
 };
 
 struct monitor_reflectors {
-	/* Shared by every tracker and health record below. */
-	struct latency_tracker_config tracker_config;
+	/* Shared by every health record below. */
 	struct reflector_health_config health_config;
 	struct latency_tracker trackers[CONFIG_MAX_REFLECTORS];
 	/* Indexed by pinger slot; order maps a slot to its reflector. */

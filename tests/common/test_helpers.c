@@ -46,11 +46,20 @@ static void test_unsigned_decimal_spans(void)
 
 static void test_percentages_and_rounding(void)
 {
-	assert(percentage_of(0U, 90U) == 0U);
-	assert(percentage_of(1U, 90U) == 1U);
-	assert(percentage_of(101U, 90U) == 91U);
-	assert(percentage_of(UINT64_MAX, 100U) == UINT64_MAX);
-	assert(percentage_of(UINT64_MAX, 1U) == UINT64_MAX / 100U + 1U);
+	assert(ratio_of_rounded_up(0U, 900000U) == 0U);
+	assert(ratio_of_rounded_up(1U, 900000U) == 1U);
+	assert(ratio_of_rounded_up(101U, 900000U) == 91U);
+	assert(ratio_of_rounded_up(8000000U, 900000U) == 7200000U);
+	assert(ratio_of_rounded_up(10000000U, 800000U) == 8000000U);
+	assert(ratio_of(101U, 900000U) == 90U);
+	assert(ratio_of(8000U, 50000U) == 400U);
+	assert(ratio_of(8000U, 450000U) == 3600U);
+	/* Exact where a double product rounds below a whole step on x87. */
+	assert(ratio_of(1000000U, 990000U) == 990000U);
+	assert(ratio_of(20000U, 350000U) == 7000U);
+	assert(ratio_of(8320000U, 1040000U) == 8652800U);
+	assert(ratio_of(UINT64_MAX, RATIO_ONE_E6) == UINT64_MAX);
+	assert(ratio_of_rounded_up(UINT64_MAX, RATIO_ONE_E6) == UINT64_MAX);
 	assert(rounded_divide(0U, 2U) == 0U);
 	assert(rounded_divide(4U, 3U) == 1U);
 	assert(rounded_divide(5U, 3U) == 2U);
@@ -140,13 +149,20 @@ static void test_elapsed_interval_boundaries(void)
 
 static void test_load_rounding_and_limits(void)
 {
-	assert(load_percent(0U, 0U) == 0U);
-	assert(load_percent(1000U, 999U) == 0U);
-	assert(load_percent(750999U, 1000000U) == 75U);
-	assert(load_percent(2000000U, 1000000U) == 200U);
-	assert(load_percent(UINT64_MAX, 1000U) == UINT_MAX);
-	assert(load_percent(UINT64_MAX, UINT64_MAX) == 100U);
-	assert(load_percent(UINT64_MAX - 1000U, UINT64_MAX) == 99U);
+	assert(fraction_to_ratio_e6(0U, 0U) == 0U);
+	assert(fraction_to_ratio_e6(29U, 100U) == 290000U);
+	assert(fraction_to_ratio_e6(1U, 3U) == 333333U);
+	assert(fraction_to_ratio_e6(3U, 2U) == 1500000U);
+	assert(fraction_to_ratio_e6(UINT64_MAX, 1U) == UINT64_MAX);
+	/* Beyond UINT64_MAX / RATIO_ONE_E6, the last six digits are dropped first. */
+	assert(fraction_to_ratio_e6(UINT64_MAX - 1U, UINT64_MAX) == RATIO_ONE_E6);
+	assert(fraction_to_ratio_e6(UINT64_MAX / 2U, UINT64_MAX) == 499999U);
+	assert(load_ratio_e6(0U, 0U) == 0U);
+	assert(load_ratio_e6(1000U, 0U) == 0U);
+	assert(load_ratio_e6(750000U, 1000000U) == 750000U);
+	assert(load_ratio_e6(2000000U, 1000000U) == 2000000U);
+	assert(load_ratio_e6(750999U, 1000000U) == 750999U);
+	assert(load_ratio_e6(1U, 3U) == 333333U);
 }
 
 static void test_clock_failure_preserves_output(void)

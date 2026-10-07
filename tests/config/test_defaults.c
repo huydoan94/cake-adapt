@@ -34,7 +34,7 @@ int main(void)
 	assert(config.connection_active_threshold_bits_per_second == 2000000U);
 	assert(config.monitor_achieved_rates_interval_us == 200000U);
 	assert(!config.tcp_delay_attribution);
-	assert(config.ul_congest_ack_share_per_million == 0U);
+	assert(config.ul_congest_ack_share_ratio_e6 == 0U);
 	assert(config.bufferbloat_detection_window == 6U);
 	assert(config.bufferbloat_detection_threshold == 3U);
 	assert(config.global_ping_response_timeout_us == 10000000U);

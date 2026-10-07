@@ -31,13 +31,13 @@ static struct controller_config default_config(void)
 			    .average_delay_maximum_adjust_down_us = 60000U, },
 		.bufferbloat_detection_window = 6U,
 		.bufferbloat_detection_threshold = 3U,
-		.rate_minimum_adjust_down_bufferbloat_per_thousand = 990U,
-		.rate_maximum_adjust_down_bufferbloat_per_thousand = 750U,
-		.rate_minimum_adjust_up_high_load_per_thousand = 1000U,
-		.rate_maximum_adjust_up_high_load_per_thousand = 1040U,
-		.rate_adjust_down_low_load_per_thousand = 990U,
-		.rate_adjust_up_low_load_per_thousand = 1010U,
-		.high_load_threshold_percent = 75U,
+		.rate_minimum_adjust_down_bufferbloat_ratio_e6 = 990000U,
+		.rate_maximum_adjust_down_bufferbloat_ratio_e6 = 750000U,
+		.rate_minimum_adjust_up_high_load_ratio_e6 = 1000000U,
+		.rate_maximum_adjust_up_high_load_ratio_e6 = 1040000U,
+		.rate_adjust_down_low_load_ratio_e6 = 990000U,
+		.rate_adjust_up_low_load_ratio_e6 = 1010000U,
+		.high_load_threshold_ratio_e6 = 750000U,
 		.bufferbloat_refractory_period_us = 300000U,
 		.decay_refractory_period_us = 1000000U
 	};
@@ -477,13 +477,13 @@ static void test_high_load_consumes_each_direction_sample_once(void)
 	}
 	input.download.traffic_sample_id++;
 	controller_update(&controller, &input, &output);
-	assert(output.download.rate_bits_per_second == 8652000U);
+	assert(output.download.rate_bits_per_second == 8652800U);
 	assert(!output.upload.rate_changed);
 	accept_rates(&input, &output);
 	input.upload.traffic_sample_id++;
 	controller_update(&controller, &input, &output);
 	assert(!output.download.rate_changed);
-	assert(output.upload.rate_bits_per_second == 8652000U);
+	assert(output.upload.rate_bits_per_second == 8652800U);
 	controller_close(&controller);
 }
 
@@ -525,14 +525,14 @@ static void test_noop_increase_consumes_sample(void)
 	struct controller_output output;
 
 	/* A factor of one and a maximum-rate clamp both consume the opportunity. */
-	config.rate_maximum_adjust_up_high_load_per_thousand = 1000U;
+	config.rate_maximum_adjust_up_high_load_ratio_e6 = 1000000U;
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	input.timestamp_us += 300001U;
 	controller_update(&controller, &input, &output);
 	assert(!output.download.rate_changed);
 	assert(controller.download.last_increase_sample_id == 1U);
-	controller.config.rate_maximum_adjust_up_high_load_per_thousand = 1040U;
+	controller.config.rate_maximum_adjust_up_high_load_ratio_e6 = 1040000U;
 	controller_update(&controller, &input, &output);
 	assert(!output.download.rate_changed);
 
@@ -591,8 +591,8 @@ static void test_configured_high_load_adjustment_is_used(void)
 		input_with_rates(4080000U, 8U * MEBABIT, 1U * MEBABIT, 8U * MEBABIT);
 	struct controller_output output;
 
-	config.high_load_threshold_percent = 50U;
-	config.rate_maximum_adjust_up_high_load_per_thousand = 1100U;
+	config.high_load_threshold_ratio_e6 = 500000U;
+	config.rate_maximum_adjust_up_high_load_ratio_e6 = 1100000U;
 	config.bufferbloat_refractory_period_us = 10U;
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
@@ -841,7 +841,7 @@ static void test_sustained_ack_wait_can_misdirect_shared_delay(void)
 
 /* Download after one update, with upload's shaper at 8 Mbit/s. */
 static struct controller_direction_output ack_capped_download(
-	uint64_t share_percent,
+	uint64_t share_ratio_e6,
 	uint64_t upload_achieved,
 	bool acks_valid,
 	uint64_t other_rate,
@@ -854,7 +854,7 @@ static struct controller_direction_output ack_capped_download(
 		input_with_rates(8U * MEBABIT, 8U * MEBABIT, upload_achieved, 8U * MEBABIT);
 	struct controller_output output;
 
-	config.ul_congest_ack_share_percent = share_percent;
+	config.ul_congest_ack_share_ratio_e6 = share_ratio_e6;
 	input.acks.valid = acks_valid;
 	input.acks.upload_ack_rate_bits_per_second = ack_rate;
 	input.acks.upload_rate_bits_per_second = other_rate + ack_rate;
@@ -879,33 +879,33 @@ static void test_ack_share_follows_other_traffic(void)
 	 * leaves, less 5% (400 kbit/s) headroom: with 100 kbit/s of other
 	 * traffic, 7.5 Mbit/s, so download is held at 8 * 7.5 / 7.8.
 	 */
-	download = ack_capped_download(45U, KBIT(7900U), true, KBIT(100U), KBIT(7800U));
-	assert(download.rate_bits_per_second == KBIT(7692U));
+	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(100U), KBIT(7800U));
+	assert(download.rate_bits_per_second == 7692304U);
 	assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);
 	assert(download.rate_changed);
 
 	/* Other traffic grows to 3 Mbit/s: ACKs get 4.6, download 8 * 4.6 / 4.9. */
-	download = ack_capped_download(45U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
-	assert(download.rate_bits_per_second == KBIT(7510U));
+	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
+	assert(download.rate_bits_per_second == 7510200U);
 
 	/* At 4.2 Mbit/s of other traffic ACKs reach their 45% minimum, 3.6. */
-	download = ack_capped_download(45U, KBIT(7900U), true, KBIT(4200U), KBIT(3700U));
-	assert(download.rate_bits_per_second == KBIT(7783U));
+	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(4200U), KBIT(3700U));
+	assert(download.rate_bits_per_second == 7783776U);
 
 	/* ACKs below their minimum are never held. */
-	download = ack_capped_download(45U, KBIT(7900U), true, KBIT(5000U), KBIT(2900U));
+	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(5000U), KBIT(2900U));
 	assert(download.rate_bits_per_second == KBIT(8320U));
 	assert(download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
 
 	/* The download minimum still wins (8 * 3.6 / 6 = 4.8 < 5 Mbit/s). */
-	download = ack_capped_download(45U, KBIT(7900U), true, KBIT(4200U), KBIT(6000U));
+	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(4200U), KBIT(6000U));
 	assert(download.rate_bits_per_second == 5U * MEBABIT);
 	assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);
 
 	/* No hold without high upload load, without a valid ACK rate, or when off. */
-	download = ack_capped_download(45U, KBIT(5000U), true, KBIT(3000U), KBIT(4900U));
+	download = ack_capped_download(450000U, KBIT(5000U), true, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bits_per_second == KBIT(8320U));
-	download = ack_capped_download(45U, KBIT(7900U), false, KBIT(3000U), KBIT(4900U));
+	download = ack_capped_download(450000U, KBIT(7900U), false, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bits_per_second == KBIT(8320U));
 	download = ack_capped_download(0U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bits_per_second == KBIT(8320U));
@@ -920,14 +920,14 @@ static void test_ack_share_changes_are_reported(void)
 		input_with_rates(8U * MEBABIT, 8U * MEBABIT, KBIT(7900U), 8U * MEBABIT);
 	struct controller_output output;
 
-	config.ul_congest_ack_share_percent = 45U;
+	config.ul_congest_ack_share_ratio_e6 = 450000U;
 	input.acks.valid = true;
 	input.acks.upload_ack_rate_bits_per_second = KBIT(4900U);
 	input.acks.upload_rate_bits_per_second = KBIT(7900U);
 	init_controller(&controller, &config);
 	controller_update(&controller, &input, &output);
 	assert(output.download.ack_share_active && output.download.ack_share_changed);
-	assert(output.download.ack_share_ceiling_bits_per_second == KBIT(7510U));
+	assert(output.download.ack_share_ceiling_bits_per_second == 7510200U);
 	assert(!output.upload.ack_share_active && !output.upload.ack_share_changed);
 
 	accept_rates(&input, &output);
@@ -1046,8 +1046,8 @@ static void test_configured_bufferbloat_adjustment_is_used(void)
 	config.download.delay_threshold_us = 10000U;
 	config.download.average_delay_maximum_adjust_down_us = 20000U;
 	config.download.minimum_rate_bits_per_second = 1U * MEBABIT;
-	config.rate_minimum_adjust_down_bufferbloat_per_thousand = 900U;
-	config.rate_maximum_adjust_down_bufferbloat_per_thousand = 500U;
+	config.rate_minimum_adjust_down_bufferbloat_ratio_e6 = 900000U;
+	config.rate_maximum_adjust_down_bufferbloat_ratio_e6 = 500000U;
 	config.bufferbloat_refractory_period_us = 10U;
 	set_latency_delta(&input, 20000);
 	init_controller(&controller, &config);
@@ -1123,7 +1123,7 @@ static void test_configured_low_load_adjustment_is_used(void)
 		input_with_rates(1U * MEBABIT, 10U * MEBABIT, 1U * MEBABIT, 8U * MEBABIT);
 	struct controller_output output;
 
-	config.rate_adjust_down_low_load_per_thousand = 950U;
+	config.rate_adjust_down_low_load_ratio_e6 = 950000U;
 	config.decay_refractory_period_us = 10U;
 	init_controller(&controller, &config);
 	controller.download.initial_rate_pending = false;
@@ -1213,7 +1213,7 @@ static void test_high_load_restarts_decay_refractory_period(void)
 
 	input.timestamp_us++;
 	controller_update(&controller, &input, &output);
-	assert(output.download.rate_bits_per_second == 8236000U);
+	assert(output.download.rate_bits_per_second == 8236800U);
 	assert(output.download.rate_reason == CONTROLLER_RATE_RETURN_TO_BASE);
 	controller_close(&controller);
 }

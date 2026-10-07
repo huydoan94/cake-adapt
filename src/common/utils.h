@@ -86,13 +86,6 @@ static inline uint64_t mul_div(uint64_t value, uint64_t numerator, uint64_t deno
 	return value / denominator * numerator + value % denominator * numerator / denominator;
 }
 
-/* percentage is 0..100; rounded upward without multiplying the full value. */
-static inline uint64_t percentage_of(uint64_t value, unsigned int percentage)
-{
-	return value / PERCENT * percentage +
-	       (value % PERCENT * percentage + PERCENT - 1U) / PERCENT;
-}
-
 /* Positive divisor; nearest integer, with ties rounded upward. */
 static inline uint64_t rounded_divide(uint64_t value, uint64_t divisor)
 {
@@ -111,6 +104,29 @@ static inline int64_t signed_rounded_divide(int64_t value, int64_t divisor)
 	if (remainder < 0 && -remainder >= divisor + remainder)
 		return quotient - 1;
 	return quotient;
+}
+
+/*
+ * Ratios are integers per million: RATIO_ONE_E6 is 100%, and a factor or a load
+ * may exceed it.
+ */
+
+/* value * ratio, truncated; exact while the ratio is at most UINT64_MAX / RATIO_ONE_E6. */
+static inline uint64_t ratio_of(uint64_t value, uint64_t ratio_e6)
+{
+	return saturating_add(
+		saturating_mul(value / RATIO_ONE_E6, ratio_e6),
+		value % RATIO_ONE_E6 * ratio_e6 / RATIO_ONE_E6
+	);
+}
+
+/* value * ratio, rounded upward; the same bound applies. */
+static inline uint64_t ratio_of_rounded_up(uint64_t value, uint64_t ratio_e6)
+{
+	return saturating_add(
+		saturating_mul(value / RATIO_ONE_E6, ratio_e6),
+		(value % RATIO_ONE_E6 * ratio_e6 + RATIO_ONE_E6 - 1U) / RATIO_ONE_E6
+	);
 }
 
 /*

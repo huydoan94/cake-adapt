@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -623,11 +624,17 @@ void log_load(const struct log_load_record *record)
 	);
 }
 
+/* cake-autorate prints a ratio as a whole percent, truncated. */
+static uint64_t whole_percent(uint64_t ratio_e6)
+{
+	return ratio_e6 / RATIO_PERCENT_E6;
+}
+
 void log_data(const struct log_data_record *record)
 {
 	write_timed_record(
 		RECORD_DATA,
-		"%" PRIu64 "; %" PRIu64 "; %u; %u;"
+		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 ";"
 		" %s; %s; %" PRIu64 ";"
 		" %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64 "; %" PRId64
 		"; %" PRId64 "; %" PRId64 ";"
@@ -635,8 +642,8 @@ void log_data(const struct log_data_record *record)
 		"; %" PRIu64 "; %" PRIu64 "; %s; %s; %" PRIu64 "; %" PRIu64,
 		bit_to_kbit(record->download_achieved_rate_bits_per_second),
 		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
-		record->download_load_percent,
-		record->upload_load_percent,
+		whole_percent(record->download_load_ratio_e6),
+		whole_percent(record->upload_load_ratio_e6),
 		record->icmp_timestamp,
 		record->reflector,
 		record->sequence,

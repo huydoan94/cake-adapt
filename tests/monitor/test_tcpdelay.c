@@ -81,7 +81,7 @@ void pingers_close(struct monitor *monitor)
 
 static void capture_lifecycle(struct monitor *monitor)
 {
-	struct config config = { .ul_congest_ack_share_per_million = 450000U };
+	struct config config = { .ul_congest_ack_share_ratio_e6 = 450000U };
 	struct monitor_direction *upload = &monitor->links.upload;
 	const struct cake_observation cake = {
 		.qdisc = { .interface_index = 10U, .handle = 0x10000U, .parent = TC_H_ROOT },

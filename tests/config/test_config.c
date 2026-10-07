@@ -1,5 +1,6 @@
 #include "config/config.c"
 #include "config/validate.c"
+#include "common/utils.h"
 
 #include <assert.h>
 
@@ -232,13 +233,27 @@ static void test_ul_congest_ack_share(void)
 	lookup_option = &option;
 	assert(load_options(&loader) == 0);
 	lookup_option = NULL;
-	assert(config.ul_congest_ack_share_per_million == 450000U);
+	assert(config.ul_congest_ack_share_ratio_e6 == 450000U);
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
-	config.ul_congest_ack_share_per_million = 1000000U;
+	config.ul_congest_ack_share_ratio_e6 = 1000000U;
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
-	config.ul_congest_ack_share_per_million = 1000001U;
+	config.ul_congest_ack_share_ratio_e6 = 1000001U;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 	assert(strcmp(error, "option 'ul_congest_ack_share' must be between 0 and 1") == 0);
+
+	/* A ratio is parsed exactly from its six decimal places. */
+	option.e.name = "alpha_baseline_increase";
+	option.v.string = "0.001";
+	lookup_option = &option;
+	assert(load_options(&loader) == 0);
+	assert(config.alpha_baseline_increase_ratio_e6 == 1000U);
+	option.v.string = "0.0000001";
+	assert(load_options(&loader) != 0);
+	assert(strcmp(
+		       error,
+		       "option 'alpha_baseline_increase' has more precision than cake-adapt stores"
+	       ) == 0);
+	lookup_option = NULL;
 }
 
 static void test_reflector_list_validation(void)
@@ -272,7 +287,7 @@ static void test_new_timer_and_limit_validation(void)
 	char error[256] = "";
 
 	/* Trackers and reflector health rely on these bounds. */
-	config.alpha_delta_ewma_per_million = 1000001U;
+	config.alpha_delta_ewma_ratio_e6 = 1000001U;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 	assert(strstr(error, "alpha options") != NULL);
 	config = valid_config();
@@ -355,9 +370,12 @@ int main(void)
 		.maximum_rate_bits_per_second = 80000000U,
 	};
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
-	rates.minimum_rate_bits_per_second = 5000001U;
+	/* 5000.125 kbit/s is 625,015.625 bytes/s; 5000.008 kbit/s is 625,001. */
+	rates.minimum_rate_bits_per_second = 5000125U;
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) != 0);
-	assert(strstr(error, "whole kbit/s") != NULL);
+	assert(strstr(error, "whole bytes/s") != NULL);
+	rates.minimum_rate_bits_per_second = 5000008U;
+	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
 
 	test_supported_pinger_methods();
 	test_ul_congest_ack_share();

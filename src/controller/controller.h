@@ -49,13 +49,14 @@ struct controller_config {
 	struct controller_direction_config upload;
 	unsigned int bufferbloat_detection_window;
 	unsigned int bufferbloat_detection_threshold;
-	uint64_t rate_minimum_adjust_down_bufferbloat_per_thousand;
-	uint64_t rate_maximum_adjust_down_bufferbloat_per_thousand;
-	uint64_t rate_minimum_adjust_up_high_load_per_thousand;
-	uint64_t rate_maximum_adjust_up_high_load_per_thousand;
-	uint64_t rate_adjust_down_low_load_per_thousand;
-	uint64_t rate_adjust_up_low_load_per_thousand;
-	uint64_t high_load_threshold_percent;
+	/* Rate factors and the high-load threshold, as ratios: RATIO_ONE_E6 is 100%. */
+	uint64_t rate_minimum_adjust_down_bufferbloat_ratio_e6;
+	uint64_t rate_maximum_adjust_down_bufferbloat_ratio_e6;
+	uint64_t rate_minimum_adjust_up_high_load_ratio_e6;
+	uint64_t rate_maximum_adjust_up_high_load_ratio_e6;
+	uint64_t rate_adjust_down_low_load_ratio_e6;
+	uint64_t rate_adjust_up_low_load_ratio_e6;
+	uint64_t high_load_threshold_ratio_e6;
 	uint64_t bufferbloat_refractory_period_us;
 	uint64_t decay_refractory_period_us;
 	/*
@@ -70,7 +71,7 @@ struct controller_config {
 	 * never below this share of the upload shaper rate. Not a reservation:
 	 * ACKs needing less leave the rest to other traffic. Zero disables it.
 	 */
-	uint64_t ul_congest_ack_share_percent;
+	uint64_t ul_congest_ack_share_ratio_e6;
 };
 
 struct controller_direction_input {
@@ -111,7 +112,7 @@ struct controller_input {
 	 * directions by their measured shares.
 	 */
 	struct controller_queue_input queue;
-	/* Used only with ul_congest_ack_share_percent. */
+	/* Used only with a positive ul_congest_ack_share_ratio_e6. */
 	struct controller_ack_input acks;
 	uint64_t timestamp_us;
 };

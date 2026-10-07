@@ -7,9 +7,9 @@
 #include <string.h>
 
 static const struct latency_tracker_config default_tracker_config = {
-	.alpha_baseline_increase_per_million = 1000U,
-	.alpha_baseline_decrease_per_million = 900000U,
-	.alpha_delta_ewma_per_million = 95000U,
+	.alpha_baseline_increase_ratio_e6 = 1000U,
+	.alpha_baseline_decrease_ratio_e6 = 900000U,
+	.alpha_delta_ewma_ratio_e6 = 95000U,
 };
 
 static void init_tracker(struct latency_tracker *tracker)

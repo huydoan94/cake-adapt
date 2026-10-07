@@ -5,8 +5,9 @@
  * it against every recorded decision. Delay counts and the bufferbloat flags
  * must match exactly. cake-adapt rounds the average delay to the nearest
  * microsecond where cake-autorate truncates it, so the averages may differ by
- * AVERAGE_TOLERANCE_US. The cuts the averages choose, and so the shaper rates,
- * may differ within RATE_TOLERANCE_PER_MILLION, and the serialization-compensated
+ * AVERAGE_TOLERANCE_US. cake-adapt does not truncate rates to
+ * whole kbit/s as cake-autorate's Bash integers do, so shaper rates may differ
+ * within RATE_TOLERANCE_PER_MILLION and the serialization-compensated
  * thresholds, which follow the rate, within THRESHOLD_TOLERANCE_US.
  */
 #include "controller/controller.h"
@@ -89,22 +90,20 @@ static struct controller_config upstream_config(void)
 		.average_delay_maximum_adjust_down_us = 60000U,
 	};
 
-	return (struct controller_config){
-		.download = direction,
-		.upload = direction,
-		.bufferbloat_detection_window = 6U,
-		.bufferbloat_detection_threshold = 3U,
-		.rate_minimum_adjust_down_bufferbloat_per_thousand = 990U,
-		.rate_maximum_adjust_down_bufferbloat_per_thousand = 750U,
-		.rate_minimum_adjust_up_high_load_per_thousand = 1000U,
-		.rate_maximum_adjust_up_high_load_per_thousand = 1040U,
-		.rate_adjust_down_low_load_per_thousand = 990U,
-		.rate_adjust_up_low_load_per_thousand = 1010U,
-		.high_load_threshold_percent = 75U,
-		.bufferbloat_refractory_period_us = 300000U,
-		.decay_refractory_period_us = 1000000U,
-		.shared_delay = false
-	};
+	return (struct controller_config){ .download = direction,
+					   .upload = direction,
+					   .bufferbloat_detection_window = 6U,
+					   .bufferbloat_detection_threshold = 3U,
+					   .rate_minimum_adjust_down_bufferbloat_ratio_e6 = 990000U,
+					   .rate_maximum_adjust_down_bufferbloat_ratio_e6 = 750000U,
+					   .rate_minimum_adjust_up_high_load_ratio_e6 = 1000000U,
+					   .rate_maximum_adjust_up_high_load_ratio_e6 = 1040000U,
+					   .rate_adjust_down_low_load_ratio_e6 = 990000U,
+					   .rate_adjust_up_low_load_ratio_e6 = 1010000U,
+					   .high_load_threshold_ratio_e6 = 750000U,
+					   .bufferbloat_refractory_period_us = 300000U,
+					   .decay_refractory_period_us = 1000000U,
+					   .shared_delay = false };
 }
 
 static bool parse_sample(const char *line, struct trace_sample *sample)

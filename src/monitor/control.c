@@ -158,16 +158,16 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	uint64_t upload_rate = upload_output->rate_bits_per_second;
 	uint64_t download_achieved = download_input->traffic_rate_bits_per_second;
 	uint64_t upload_achieved = upload_input->traffic_rate_bits_per_second;
-	unsigned int download_load;
-	unsigned int upload_load;
+	uint64_t download_load_e6;
+	uint64_t upload_load_e6;
 
 	if (!config->output_processing_stats && !config->output_summary_stats)
 		return;
-	download_load = load_percent(
+	download_load_e6 = load_ratio_e6(
 		download_input->traffic_rate_bits_per_second,
 		download_input->cake_rate_bits_per_second
 	);
-	upload_load = load_percent(
+	upload_load_e6 = load_ratio_e6(
 		upload_input->traffic_rate_bits_per_second,
 		upload_input->cake_rate_bits_per_second
 	);
@@ -202,8 +202,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 		const struct log_data_record record = {
 			.download_achieved_rate_bits_per_second = download_achieved,
 			.upload_achieved_rate_bits_per_second = upload_achieved,
-			.download_load_percent = download_load,
-			.upload_load_percent = upload_load,
+			.download_load_ratio_e6 = download_load_e6,
+			.upload_load_ratio_e6 = upload_load_e6,
 			.icmp_timestamp = sample->timestamp_text,
 			.reflector = sample->target,
 			.sequence = sample->sequence,
@@ -491,43 +491,29 @@ static struct controller_direction_config direction_config(const struct config_d
 int control_start(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
-	/* Match cake-autorate's startup rounding to per-thousand and percent. */
 	const struct controller_config controller_config = {
 		.download = direction_config(&config->download),
 		.upload = direction_config(&config->upload),
 		.bufferbloat_detection_window = (unsigned int)config->bufferbloat_detection_window,
 		.bufferbloat_detection_threshold =
 			(unsigned int)config->bufferbloat_detection_threshold,
-		.rate_minimum_adjust_down_bufferbloat_per_thousand = rounded_divide(
-			config->shaper_rate_minimum_adjust_down_bufferbloat_per_million,
-			THOUSAND
-		),
-		.rate_maximum_adjust_down_bufferbloat_per_thousand = rounded_divide(
-			config->shaper_rate_maximum_adjust_down_bufferbloat_per_million,
-			THOUSAND
-		),
-		.rate_minimum_adjust_up_high_load_per_thousand = rounded_divide(
-			config->shaper_rate_minimum_adjust_up_load_high_per_million,
-			THOUSAND
-		),
-		.rate_maximum_adjust_up_high_load_per_thousand = rounded_divide(
-			config->shaper_rate_maximum_adjust_up_load_high_per_million,
-			THOUSAND
-		),
-		.rate_adjust_down_low_load_per_thousand = rounded_divide(
-			config->shaper_rate_adjust_down_load_low_per_million,
-			THOUSAND
-		),
-		.rate_adjust_up_low_load_per_thousand =
-			rounded_divide(config->shaper_rate_adjust_up_load_low_per_million, THOUSAND),
-		.high_load_threshold_percent =
-			rounded_divide(config->high_load_threshold_per_million, FACTOR_PER_PERCENT),
+		.rate_minimum_adjust_down_bufferbloat_ratio_e6 =
+			config->shaper_rate_minimum_adjust_down_bufferbloat_ratio_e6,
+		.rate_maximum_adjust_down_bufferbloat_ratio_e6 =
+			config->shaper_rate_maximum_adjust_down_bufferbloat_ratio_e6,
+		.rate_minimum_adjust_up_high_load_ratio_e6 =
+			config->shaper_rate_minimum_adjust_up_load_high_ratio_e6,
+		.rate_maximum_adjust_up_high_load_ratio_e6 =
+			config->shaper_rate_maximum_adjust_up_load_high_ratio_e6,
+		.rate_adjust_down_low_load_ratio_e6 =
+			config->shaper_rate_adjust_down_load_low_ratio_e6,
+		.rate_adjust_up_low_load_ratio_e6 = config->shaper_rate_adjust_up_load_low_ratio_e6,
+		.high_load_threshold_ratio_e6 = config->high_load_threshold_ratio_e6,
 		.bufferbloat_refractory_period_us = config->bufferbloat_refractory_period_us,
 		.decay_refractory_period_us = config->decay_refractory_period_us,
 		/* Only fping reports one RTT/2 delay for both directions. */
 		.shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0,
-		.ul_congest_ack_share_percent =
-			rounded_divide(config->ul_congest_ack_share_per_million, FACTOR_PER_PERCENT),
+		.ul_congest_ack_share_ratio_e6 = config->ul_congest_ack_share_ratio_e6,
 	};
 
 	if (controller_init(&monitor->control.controller, &controller_config) != 0) {
