@@ -1,5 +1,16 @@
 # eBPF TCP-delay review
 
+**2026-10-06 (evening): bound is a median across reflectors.** Router logs
+showed the TCP upload estimate reaching 20-72 ms on idle lines, each time equal
+to the single slowest fping reply of the previous two seconds: one reflector
+answering late opened the bound, and delayed-ACK waits filled it. Each pinger
+slot now keeps its own largest added delay over those two seconds, and the
+bound is the lower median across slots that replied. A queue on the access
+link delays every reflector; a slow reflector delays only its own. On the VM,
+a reflector spiking 50 ms no longer moves the estimate (maximum 67.9 -> 13.5 ms),
+and eight controlled repetitions show unchanged control
+([evidence](profiling/2026-10-06-bound-median/README.md)).
+
 **2026-10-06: queue bound replaces HOLD/FOLLOW.** On the Filogic router the TCP
 upload estimate reached seconds (95th percentile 1.2 s, maximum 9.8 s, just
 under the 10 s plausibility reset) while download stayed near zero. The
