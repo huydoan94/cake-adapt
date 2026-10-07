@@ -40,7 +40,7 @@ uint64_t traffic_compensated_interval_us(
 enum traffic_update_result traffic_update(
 	struct traffic_monitor *monitor,
 	const struct traffic_sample *sample,
-	uint64_t *traffic_bits_per_second
+	uint64_t *traffic_bps
 );
 
 #endif

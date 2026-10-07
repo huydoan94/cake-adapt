@@ -135,8 +135,8 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, SECOND, &acks);
 	assert(acks.valid);
-	assert(acks.upload_ack_rate_bits_per_second == 8000U);
-	assert(acks.upload_rate_bits_per_second == 16000U);
+	assert(acks.upload_ack_rate_bps == 8000U);
+	assert(acks.upload_rate_bps == 16000U);
 
 	supplied.unaccounted_packets++;
 	measure_ack_rate(monitor, 1500U * MILLISECOND, &acks);
@@ -150,7 +150,7 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, 2500U * MILLISECOND, &acks);
 	assert(acks.valid && notices == 1U);
-	assert(acks.upload_ack_rate_bits_per_second == 8000U);
+	assert(acks.upload_ack_rate_bps == 8000U);
 
 	/* Reset all counters, then establish a clean rate from the new baseline. */
 	supplied = (struct tcpdelay_counters){ 0 };
@@ -173,7 +173,7 @@ int main(void)
 	supplied.upload_bytes += 1000U;
 	measure_ack_rate(monitor, 5U * SECOND, &acks);
 	assert(acks.valid && notices == 3U);
-	assert(bits_per_second(1U, 3U * SECOND) == 2U);
+	assert(bps(1U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
 	free(monitor);
 	puts("monitor ACK accounting tests passed");

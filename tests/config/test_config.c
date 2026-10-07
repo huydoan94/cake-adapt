@@ -165,13 +165,13 @@ static struct config valid_config(void)
 				.stall_detection_threshold = 5U,
 				.global_ping_response_timeout_us = 10000000U,
 				.interface_up_check_interval_us = 10000000U,
-				.download.minimum_rate_bits_per_second = 5000000U,
-				.download.base_rate_bits_per_second = 20000000U,
-				.download.maximum_rate_bits_per_second = 80000000U,
-				.upload.minimum_rate_bits_per_second = 5000000U,
-				.upload.base_rate_bits_per_second = 20000000U,
-				.upload.maximum_rate_bits_per_second = 35000000U,
-				.connection_active_threshold_bits_per_second = 2000000U };
+				.download.minimum_rate_bps = 5000000U,
+				.download.base_rate_bps = 20000000U,
+				.download.maximum_rate_bps = 80000000U,
+				.upload.minimum_rate_bps = 5000000U,
+				.upload.base_rate_bps = 20000000U,
+				.upload.maximum_rate_bps = 35000000U,
+				.connection_active_threshold_bps = 2000000U };
 }
 
 static void test_supported_pinger_methods(void)
@@ -313,7 +313,7 @@ static void test_new_timer_and_limit_validation(void)
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 	config = valid_config();
 	config.enable_sleep_function = true;
-	config.connection_active_threshold_bits_per_second = 5000001U;
+	config.connection_active_threshold_bps = 5000001U;
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 }
 static void test_option_copy_boundaries(void)
@@ -367,16 +367,16 @@ int main(void)
 
 	rates = (struct config_direction){
 		.adjust = true,
-		.minimum_rate_bits_per_second = 5000000U,
-		.base_rate_bits_per_second = 20000000U,
-		.maximum_rate_bits_per_second = 80000000U,
+		.minimum_rate_bps = 5000000U,
+		.base_rate_bps = 20000000U,
+		.maximum_rate_bps = 80000000U,
 	};
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
 	/* 5000.125 kbit/s is 625,015.625 bytes/s; 5000.008 kbit/s is 625,001. */
-	rates.minimum_rate_bits_per_second = 5000125U;
+	rates.minimum_rate_bps = 5000125U;
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) != 0);
 	assert(strstr(error, "whole bytes/s") != NULL);
-	rates.minimum_rate_bits_per_second = 5000008U;
+	rates.minimum_rate_bps = 5000008U;
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
 
 	test_supported_pinger_methods();

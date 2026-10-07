@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define MS MILLISECOND
+#define MILLISECOND MILLISECOND
 
 static struct config config = { .no_pingers = 6U };
 static struct monitor monitor = { .config = &config };
@@ -17,8 +17,8 @@ static int64_t replies(const int64_t delays_ms[6], uint64_t time)
 	for (size_t slot = 0U; slot < 6U; slot++)
 		recent_delay_add(
 			&reflectors->recent[slot],
-			delays_ms[slot] * (int64_t)MS,
-			time + slot * 50U * MS
+			delays_ms[slot] * (int64_t)MILLISECOND,
+			time + slot * 50U * MILLISECOND
 		);
 	return reflectors_recent_delay(&monitor, time + SECOND / 2U);
 }
@@ -29,21 +29,21 @@ static void one_slot_window(void)
 	struct reflector_recent_delay recent = { 0 };
 	int64_t value;
 
-	recent_delay_add(&recent, 30 * (int64_t)MS, 10U * SECOND);
+	recent_delay_add(&recent, 30 * (int64_t)MILLISECOND, 10U * SECOND);
 	/* A low reply in the same second leaves it. */
-	recent_delay_add(&recent, 5 * (int64_t)MS, 10U * SECOND + 500U * MS);
-	assert(recent_delay_value(&recent, 10U, &value) && value == 30 * (int64_t)MS);
+	recent_delay_add(&recent, 5 * (int64_t)MILLISECOND, 10U * SECOND + 500U * MILLISECOND);
+	assert(recent_delay_value(&recent, 10U, &value) && value == 30 * (int64_t)MILLISECOND);
 	/* The previous second still counts. */
-	recent_delay_add(&recent, 4 * (int64_t)MS, 11U * SECOND);
-	assert(recent_delay_value(&recent, 11U, &value) && value == 30 * (int64_t)MS);
+	recent_delay_add(&recent, 4 * (int64_t)MILLISECOND, 11U * SECOND);
+	assert(recent_delay_value(&recent, 11U, &value) && value == 30 * (int64_t)MILLISECOND);
 	/* Once the high second is two seconds old, it falls. */
-	recent_delay_add(&recent, 3 * (int64_t)MS, 12U * SECOND);
-	assert(recent_delay_value(&recent, 12U, &value) && value == 4 * (int64_t)MS);
+	recent_delay_add(&recent, 3 * (int64_t)MILLISECOND, 12U * SECOND);
+	assert(recent_delay_value(&recent, 12U, &value) && value == 4 * (int64_t)MILLISECOND);
 	/* A slot that did not reply in the current or previous second does not count. */
 	assert(!recent_delay_value(&recent, 14U, &value));
 	/* After a gap without replies, only the new second counts. */
-	recent_delay_add(&recent, 7 * (int64_t)MS, 20U * SECOND);
-	assert(recent_delay_value(&recent, 20U, &value) && value == 7 * (int64_t)MS);
+	recent_delay_add(&recent, 7 * (int64_t)MILLISECOND, 20U * SECOND);
+	assert(recent_delay_value(&recent, 20U, &value) && value == 7 * (int64_t)MILLISECOND);
 }
 
 /*
@@ -58,12 +58,12 @@ static void median_across_slots(void)
 	const int64_t high_baseline[6] = { 0, 30, 31, 30, 32, 30 };
 
 	assert(reflectors_recent_delay(&monitor, 5U * SECOND) == -1);
-	assert(replies(prompt, 10U * SECOND) == 3 * (int64_t)MS);
-	assert(replies(one_slow, 11U * SECOND) == 3 * (int64_t)MS);
+	assert(replies(prompt, 10U * SECOND) == 3 * (int64_t)MILLISECOND);
+	assert(replies(one_slow, 11U * SECOND) == 3 * (int64_t)MILLISECOND);
 	/* A queue on the access link delays every reflector, so the bound rises. */
-	assert(replies(queue, 20U * SECOND) == 30 * (int64_t)MS);
+	assert(replies(queue, 20U * SECOND) == 30 * (int64_t)MILLISECOND);
 	/* One reflector whose baseline sits too high does not hold the bound down. */
-	assert(replies(high_baseline, 30U * SECOND) == 30 * (int64_t)MS);
+	assert(replies(high_baseline, 30U * SECOND) == 30 * (int64_t)MILLISECOND);
 	/* Two seconds after the last replies, no slot counts. */
 	assert(reflectors_recent_delay(&monitor, 32U * SECOND) == -1);
 }

@@ -42,7 +42,7 @@ struct monitor_direction {
 	struct cake_observation cake;
 	enum cake_observation_state cake_state;
 	enum traffic_observation_state traffic_state;
-	uint64_t traffic_rate_bits_per_second;
+	uint64_t traffic_rate_bps;
 	uint64_t traffic_sample_id;
 	bool cake_valid;
 	bool traffic_valid;
@@ -99,7 +99,7 @@ struct monitor_pingers {
 /* reflectors.c: per-reflector latency trackers, active order and health. */
 /* A pinger slot's largest added round-trip delay in the current and previous second. */
 struct reflector_recent_delay {
-	uint64_t second;
+	uint64_t sec;
 	int64_t current_us;
 	int64_t previous_us;
 };
@@ -136,8 +136,8 @@ struct monitor_tcp {
 	uint64_t upload_bytes;
 	uint64_t unaccounted_packets;
 	uint64_t ack_sampled_us;
-	uint64_t ack_rate_bits_per_second;
-	uint64_t upload_rate_bits_per_second;
+	uint64_t ack_rate_bps;
+	uint64_t upload_rate_bps;
 };
 
 /* The whole daemon state; each part above belongs to the file named on it. */

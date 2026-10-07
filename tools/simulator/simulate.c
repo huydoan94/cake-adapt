@@ -38,7 +38,7 @@
 #define TRAFFIC_INTERVAL_US UINT64_C(200000)
 #define WIRE_PACKET_BITS UINT64_C(12000)
 #define IDLE_RATE_BPS (50.0 * 1000.0)
-#define BLOAT_SECONDS 0.5
+#define BLOAT_SEC 0.5
 #define METRIC_SPACING_US UINT64_C(10000)
 
 enum {
@@ -47,9 +47,9 @@ enum {
 };
 
 struct direction_profile {
-	double (*capacity_mbps)(double seconds, unsigned int seed);
-	double load_start_seconds;
-	double load_end_seconds;
+	double (*capacity_mbps)(double sec, unsigned int seed);
+	double load_start_sec;
+	double load_end_sec;
 	uint64_t minimum_mbps_x1000;
 	uint64_t base_mbps_x1000;
 	uint64_t maximum_mbps_x1000;
@@ -57,7 +57,7 @@ struct direction_profile {
 
 struct scenario {
 	const char *name;
-	double duration_seconds;
+	double duration_sec;
 	unsigned int seeds;
 	struct direction_profile direction[2];
 };
@@ -241,9 +241,9 @@ static const struct scenario scenarios[] = {
 };
 
 /* cake-autorate ac75f49 defaults, as cake-adapt ships them. */
-static uint64_t adjust_up_microseconds = 10000U;
-static uint64_t delay_threshold_microseconds = 30000U;
-static uint64_t adjust_down_microseconds = 60000U;
+static uint64_t adjust_up_us = 10000U;
+static uint64_t delay_threshold_us = 30000U;
+static uint64_t adjust_down_us = 60000U;
 static bool attribute_download;
 /* Measured idle OWD deltas (microseconds), replayed as measurement noise. */
 static double *noise_us;
@@ -294,8 +294,8 @@ static struct controller_config controller_config(const struct scenario *scenari
 		.rate_adjust_down_low_load_per_thousand = 990U,
 		.rate_adjust_up_low_load_per_thousand = 1010U,
 		.high_load_threshold_percent = 75U,
-		.bufferbloat_refractory_period_microseconds = 300000U,
-		.decay_refractory_period_microseconds = 1000000U,
+		.bufferbloat_refractory_period_us = 300000U,
+		.decay_refractory_period_us = 1000000U,
 		.shared_delay = attribute_download,
 	};
 	struct controller_direction_config *directions[2] = { &config.download, &config.upload };
@@ -306,12 +306,12 @@ static struct controller_config controller_config(const struct scenario *scenari
 
 		*directions[index] = (struct controller_direction_config){
 			.adjust = true,
-			.minimum_rate_bits_per_second = profile->minimum_mbps_x1000 * KILOBIT,
-			.base_rate_bits_per_second = profile->base_mbps_x1000 * KILOBIT,
-			.maximum_rate_bits_per_second = profile->maximum_mbps_x1000 * KILOBIT,
-			.average_delay_maximum_adjust_up_microseconds = adjust_up_microseconds,
-			.delay_threshold_microseconds = delay_threshold_microseconds,
-			.average_delay_maximum_adjust_down_microseconds = adjust_down_microseconds
+			.minimum_rate_bps = profile->minimum_mbps_x1000 * KILOBIT,
+			.base_rate_bps = profile->base_mbps_x1000 * KILOBIT,
+			.maximum_rate_bps = profile->maximum_mbps_x1000 * KILOBIT,
+			.average_delay_maximum_adjust_up_us = adjust_up_us,
+			.delay_threshold_us = delay_threshold_us,
+			.average_delay_maximum_adjust_down_us = adjust_down_us
 		};
 	}
 	return config;
@@ -356,9 +356,9 @@ static double share_above(const struct metrics *metrics, double limit_ms)
 	return 100.0 * (double)above / (double)metrics->count;
 }
 
-static bool loaded(const struct direction_profile *profile, double seconds)
+static bool loaded(const struct direction_profile *profile, double sec)
 {
-	return seconds >= profile->load_start_seconds && seconds < profile->load_end_seconds;
+	return sec >= profile->load_start_sec && sec < profile->load_end_sec;
 }
 
 static double queue_delay_ms(const struct bottleneck *link, double capacity_bps)
@@ -388,7 +388,7 @@ static void run_scenario(
 	uint64_t traffic_rate[2] = { 0U, 0U };
 	uint64_t sample_id = 0U;
 	uint64_t now;
-	uint64_t end = (uint64_t)(scenario->duration_seconds * 1e6);
+	uint64_t end = (uint64_t)(scenario->duration_sec * 1e6);
 	uint32_t state = 12345U + seed;
 	unsigned int reply = 0U;
 	unsigned int index;
@@ -406,18 +406,18 @@ static void run_scenario(
 		double peak = 0.0;
 		double t;
 
-		for (t = 0.0; t < scenario->duration_seconds; t += 0.1) {
+		for (t = 0.0; t < scenario->duration_sec; t += 0.1) {
 			double c = scenario->direction[index].capacity_mbps(t, seed);
 			peak = c > peak ? c : peak;
 		}
-		links[index].buffer_bytes = peak * 1e6 * BLOAT_SECONDS / 8.0;
+		links[index].buffer_bytes = peak * 1e6 * BLOAT_SEC / 8.0;
 	}
 	controller_set_serialization_compensation(
 		&controller,
 		WIRE_PACKET_BITS,
 		WIRE_PACKET_BITS,
-		config.download.base_rate_bits_per_second,
-		config.upload.base_rate_bits_per_second
+		config.download.base_rate_bps,
+		config.upload.base_rate_bps
 	);
 	if (trace) {
 		printf("seconds,dl_capacity_mbps,dl_shaper_mbps,dl_achieved_mbps,dl_queue_ms,"
@@ -425,7 +425,7 @@ static void run_scenario(
 	}
 
 	for (now = 0U; now < end; now += STEP_US) {
-		double seconds = (double)now / 1e6;
+		double sec = (double)now / 1e6;
 		double capacity[2];
 		double delay_ms[2];
 		const struct controller_direction *directions[2] = {
@@ -436,15 +436,14 @@ static void run_scenario(
 		for (index = 0U; index < 2U; index++) {
 			const struct direction_profile *profile = &scenario->direction[index];
 			struct bottleneck *link = &links[index];
-			double shaper =
-				(double)(directions[index]->shaper_rate_bits_per_second != 0U ?
-						 directions[index]->shaper_rate_bits_per_second :
-						 profile->base_mbps_x1000 * KILOBIT);
-			double offered = loaded(profile, seconds) ? shaper : IDLE_RATE_BPS;
+			double shaper = (double)(directions[index]->shaper_rate_bps != 0U ?
+							 directions[index]->shaper_rate_bps :
+							 profile->base_mbps_x1000 * KILOBIT);
+			double offered = loaded(profile, sec) ? shaper : IDLE_RATE_BPS;
 			double arrival;
 			double served;
 
-			capacity[index] = profile->capacity_mbps(seconds, seed) * 1e6;
+			capacity[index] = profile->capacity_mbps(sec, seed) * 1e6;
 			arrival = offered < shaper ? offered : shaper;
 			/* A full buffer drops; TCP then sends no faster than the bottleneck drains. */
 			if (link->queue_bytes >= link->buffer_bytes && arrival > capacity[index])
@@ -459,7 +458,7 @@ static void run_scenario(
 				link->cake_bytes += served - arrival * 1e-3 / 8.0;
 			}
 			delay_ms[index] = queue_delay_ms(link, capacity[index]);
-			if (loaded(profile, seconds)) {
+			if (loaded(profile, sec)) {
 				metrics[index].delivered_bits += served * 8.0;
 				metrics[index].capacity_bits += capacity[index] * 1e-3;
 				if (now % METRIC_SPACING_US == 0U)
@@ -491,59 +490,59 @@ static void run_scenario(
 
 			if (!one_way)
 				dl_ms = ul_ms = (dl_ms + ul_ms) / 2.0;
-			sample.download_owd_microseconds = (int64_t)(dl_ms * 1000.0);
-			sample.upload_owd_microseconds = (int64_t)(ul_ms * 1000.0);
-			sample.timestamp_microseconds = now;
+			sample.download_owd_us = (int64_t)(dl_ms * 1000.0);
+			sample.upload_owd_us = (int64_t)(ul_ms * 1000.0);
+			sample.timestamp_us = now;
 			tracker_update(&trackers[reflector], &sample, &observation);
 			input = (struct controller_input){
 				.download = { .valid = true,
 					      .traffic_sample_id = sample_id,
-					      .traffic_rate_bits_per_second = traffic_rate[DL],
-					      .cake_rate_bits_per_second =
+					      .traffic_rate_bps = traffic_rate[DL],
+					      .cake_rate_bps =
 						      controller.download
-								      .shaper_rate_bits_per_second ?
+								      .shaper_rate_bps ?
 							      controller.download
-								      .shaper_rate_bits_per_second :
+								      .shaper_rate_bps :
 							      config.download
-								      .base_rate_bits_per_second, },
+								      .base_rate_bps, },
 				.upload = { .valid = true,
 					    .traffic_sample_id = sample_id,
-					    .traffic_rate_bits_per_second = traffic_rate[UL],
-					    .cake_rate_bits_per_second =
-						    controller.upload.shaper_rate_bits_per_second ?
+					    .traffic_rate_bps = traffic_rate[UL],
+					    .cake_rate_bps =
+						    controller.upload.shaper_rate_bps ?
 							    controller.upload
-								    .shaper_rate_bits_per_second :
+								    .shaper_rate_bps :
 							    config.upload
-								    .base_rate_bits_per_second, },
+								    .base_rate_bps, },
 				.download_latency = { .valid = true,
-						      .owd_delta_microseconds =
+						      .owd_delta_us =
 							      observation
-								      .download_owd_delta_microseconds, },
+								      .download_owd_delta_us, },
 				.upload_latency = { .valid = true,
-						    .owd_delta_microseconds =
+						    .owd_delta_us =
 							    observation
-								    .upload_owd_delta_microseconds, },
-				.timestamp_microseconds = now
+								    .upload_owd_delta_us, },
+				.timestamp_us = now
 			};
 			controller_update(&controller, &input, &output);
 			controller_set_serialization_compensation(
 				&controller,
 				WIRE_PACKET_BITS,
 				WIRE_PACKET_BITS,
-				controller.download.shaper_rate_bits_per_second,
-				controller.upload.shaper_rate_bits_per_second
+				controller.download.shaper_rate_bps,
+				controller.upload.shaper_rate_bps
 			);
 		}
 
 		if (trace && now % 100000U == 0U) {
 			printf("%.1f,%.2f,%.2f,%.2f,%.1f,%.2f,%.2f,%.2f,%.1f\n",
-			       seconds,
+			       sec,
 			       capacity[DL] / 1e6,
-			       (double)controller.download.shaper_rate_bits_per_second / 1e6,
+			       (double)controller.download.shaper_rate_bps / 1e6,
 			       (double)traffic_rate[DL] / 1e6,
 			       delay_ms[DL],
 			       capacity[UL] / 1e6,
-			       (double)controller.upload.shaper_rate_bits_per_second / 1e6,
+			       (double)controller.upload.shaper_rate_bps / 1e6,
 			       (double)traffic_rate[UL] / 1e6,
 			       delay_ms[UL]);
 		}
@@ -563,11 +562,11 @@ int main(int argc, char **argv)
 		if (strcmp(argv[argument], "--owd") == 0) {
 			one_way = true;
 		} else if (strcmp(argv[argument], "--up-thr") == 0 && argument + 1 < argc) {
-			adjust_up_microseconds = strtoull(argv[++argument], NULL, 10) * 1000U;
+			adjust_up_us = strtoull(argv[++argument], NULL, 10) * 1000U;
 		} else if (strcmp(argv[argument], "--delay-thr") == 0 && argument + 1 < argc) {
-			delay_threshold_microseconds = strtoull(argv[++argument], NULL, 10) * 1000U;
+			delay_threshold_us = strtoull(argv[++argument], NULL, 10) * 1000U;
 		} else if (strcmp(argv[argument], "--down-thr") == 0 && argument + 1 < argc) {
-			adjust_down_microseconds = strtoull(argv[++argument], NULL, 10) * 1000U;
+			adjust_down_us = strtoull(argv[++argument], NULL, 10) * 1000U;
 		} else if (strcmp(argv[argument], "--noise") == 0 && argument + 1 < argc) {
 			load_noise(argv[++argument]);
 		} else if (strcmp(argv[argument], "--noise-scale") == 0 && argument + 1 < argc) {
@@ -587,7 +586,7 @@ int main(int argc, char **argv)
 	if (trace == NULL) {
 		printf("delay mode: %s; bottleneck buffer %.0f ms at peak capacity\n",
 		       one_way ? "one-way (fping-ts/irtt)" : "RTT/2 (fping)",
-		       BLOAT_SECONDS * 1000.0);
+		       BLOAT_SEC * 1000.0);
 		printf("%-12s %-8s %8s %8s %8s %8s %8s %8s %8s\n",
 		       "scenario",
 		       "dir",

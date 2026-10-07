@@ -244,8 +244,8 @@ void tcpdelay_estimator_result(
 		}
 		selected = flow;
 		estimate->download_valid = true;
-		estimate->download_queue_us = signed_nanosec_to_us(download_ns);
+		estimate->download_queue_us = signed_ns_to_us(download_ns);
 		estimate->upload_valid = upload_valid;
-		estimate->upload_queue_us = upload_valid ? signed_nanosec_to_us(upload_ns) : 0;
+		estimate->upload_queue_us = upload_valid ? signed_ns_to_us(upload_ns) : 0;
 	}
 }

@@ -36,10 +36,10 @@ static uint64_t difference(uint64_t first, uint64_t second)
 }
 
 /* Within tolerance; also records the worst difference seen. */
-static bool rate_close(uint64_t rate_bits_per_second, uint64_t expected_kbps)
+static bool rate_close(uint64_t rate_bps, uint64_t expected_kbps)
 {
 	uint64_t expected = expected_kbps * KILOBIT;
-	uint64_t per_million = difference(rate_bits_per_second, expected) * 1000000U / expected;
+	uint64_t per_million = difference(rate_bps, expected) * 1000000U / expected;
 
 	if (per_million > worst_rate_per_million)
 		worst_rate_per_million = per_million;
@@ -82,9 +82,9 @@ static struct controller_config upstream_config(void)
 {
 	const struct controller_direction_config direction = {
 		.adjust = true,
-		.minimum_rate_bits_per_second = 10000U * KILOBIT,
-		.base_rate_bits_per_second = 20000U * KILOBIT,
-		.maximum_rate_bits_per_second = 50000U * KILOBIT,
+		.minimum_rate_bps = 10000U * KILOBIT,
+		.base_rate_bps = 20000U * KILOBIT,
+		.maximum_rate_bps = 50000U * KILOBIT,
 		.average_delay_maximum_adjust_up_us = 10000U,
 		.delay_threshold_us = 30000U,
 		.average_delay_maximum_adjust_down_us = 60000U,
@@ -169,14 +169,14 @@ static unsigned int replay(const char *path)
 		input = (struct controller_input){
 			.download = { .valid = true,
 				      .traffic_sample_id = sample_id,
-				      .traffic_rate_bits_per_second =
+				      .traffic_rate_bps =
 					      sample.achieved_kbps[0] * KILOBIT,
-				      .cake_rate_bits_per_second = cake_kbps[0] * KILOBIT, },
+				      .cake_rate_bps = cake_kbps[0] * KILOBIT, },
 			.upload = { .valid = true,
 				    .traffic_sample_id = sample_id,
-				    .traffic_rate_bits_per_second =
+				    .traffic_rate_bps =
 					    sample.achieved_kbps[1] * KILOBIT,
-				    .cake_rate_bits_per_second = cake_kbps[1] * KILOBIT, },
+				    .cake_rate_bps = cake_kbps[1] * KILOBIT, },
 			.download_latency = { .valid = true,
 					      .owd_delta_us =
 						      sample.delta_us[0], },
@@ -199,12 +199,11 @@ static unsigned int replay(const char *path)
 			const struct controller_direction_output *decision = outputs[index];
 			const struct controller_direction_config *compensated =
 				&directions[index]->config;
-			uint64_t rate_kbps =
-				directions[index]->shaper_rate_bits_per_second / KILOBIT;
+			uint64_t rate_kbps = directions[index]->shaper_rate_bps / KILOBIT;
 			bool bufferbloat = decision->congestion == CONTROLLER_CONGESTION_DETECTED;
 
 			bool rate_matches = rate_close(
-				directions[index]->shaper_rate_bits_per_second,
+				directions[index]->shaper_rate_bps,
 				sample.rate_kbps[index]
 			);
 			bool thresholds_match =

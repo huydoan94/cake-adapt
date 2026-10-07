@@ -52,7 +52,7 @@ static void test_qdisc_message(void)
 	assert(observation.has_bandwidth);
 	assert(observation.raw);
 	assert(observation.mpu_bytes == 84U);
-	assert(observation.bandwidth_bits_per_second == 10000000U);
+	assert(observation.bandwidth_bps == 10000000U);
 	assert(observation.has_basic_stats);
 	assert(observation.bytes == bytes);
 

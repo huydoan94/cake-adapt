@@ -36,9 +36,9 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 	if (options == NULL || nla_parse_nested(attributes, TCA_CAKE_MAX, options, policy) < 0)
 		return;
 	if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
-		uint64_t bytes_per_second = nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]);
+		uint64_t byte_ps = nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]);
 
-		observation->bandwidth_bits_per_second = byte_to_bit(bytes_per_second);
+		observation->bandwidth_bps = byte_to_bit(byte_ps);
 		observation->has_bandwidth = true;
 	}
 	if (attributes[TCA_CAKE_ATM] != NULL)
@@ -274,21 +274,20 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 int cake_set_bandwidth(
 	struct netlink *netlink,
 	const struct cake_observation *observation,
-	uint64_t bandwidth_bits_per_second,
+	uint64_t bandwidth_bps,
 	char *error,
 	size_t error_size
 )
 {
-	uint64_t bandwidth_bytes_per_second = bit_to_byte(bandwidth_bits_per_second);
+	uint64_t bandwidth_byte_ps = bit_to_byte(bandwidth_bps);
 	const struct qdisc_option option = {
 		.kind = QDISC_KIND,
 		.type = TCA_CAKE_BASE_RATE64,
-		.data = &bandwidth_bytes_per_second,
-		.size = sizeof(bandwidth_bytes_per_second),
+		.data = &bandwidth_byte_ps,
+		.size = sizeof(bandwidth_byte_ps),
 	};
 
-	if (bandwidth_bits_per_second < BITS_PER_BYTE ||
-	    bandwidth_bits_per_second % BITS_PER_BYTE != 0U) {
+	if (bandwidth_bps < BITS_PER_BYTE || bandwidth_bps % BITS_PER_BYTE != 0U) {
 		return error_set(
 			error,
 			error_size,

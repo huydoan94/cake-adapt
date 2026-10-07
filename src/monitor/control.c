@@ -75,8 +75,8 @@ static void log_line_state(
 		" cake_rate=%" PRIu64 " bit/s",
 		direction,
 		line_state_names[state],
-		input->traffic_rate_bits_per_second,
-		input->cake_rate_bits_per_second
+		input->traffic_rate_bps,
+		input->cake_rate_bps
 	);
 }
 
@@ -154,42 +154,29 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
 	char download_condition[LOAD_CONDITION_SIZE];
 	char upload_condition[LOAD_CONDITION_SIZE];
-	uint64_t download_rate = download_output->rate_bits_per_second;
-	uint64_t upload_rate = upload_output->rate_bits_per_second;
-	uint64_t download_achieved = download_input->traffic_rate_bits_per_second;
-	uint64_t upload_achieved = upload_input->traffic_rate_bits_per_second;
+	uint64_t download_rate = download_output->rate_bps;
+	uint64_t upload_rate = upload_output->rate_bps;
+	uint64_t download_achieved = download_input->traffic_rate_bps;
+	uint64_t upload_achieved = upload_input->traffic_rate_bps;
 	uint64_t download_load_e6;
 	uint64_t upload_load_e6;
 
 	if (!config->output_processing_stats && !config->output_summary_stats)
 		return;
-	download_load_e6 = load_ratio_e6(
-		download_input->traffic_rate_bits_per_second,
-		download_input->cake_rate_bits_per_second
-	);
-	upload_load_e6 = load_ratio_e6(
-		upload_input->traffic_rate_bits_per_second,
-		upload_input->cake_rate_bits_per_second
-	);
+	download_load_e6 =
+		load_ratio_e6(download_input->traffic_rate_bps, download_input->cake_rate_bps);
+	upload_load_e6 = load_ratio_e6(upload_input->traffic_rate_bps, upload_input->cake_rate_bps);
 
 	load_condition(
 		download_condition,
 		DIRECTION_DOWNLOAD_SHORT,
-		controller_load(
-			controller,
-			download_input,
-			config->connection_active_threshold_bits_per_second
-		),
+		controller_load(controller, download_input, config->connection_active_threshold_bps),
 		download_output->congestion
 	);
 	load_condition(
 		upload_condition,
 		DIRECTION_UPLOAD_SHORT,
-		controller_load(
-			controller,
-			upload_input,
-			config->connection_active_threshold_bits_per_second
-		),
+		controller_load(controller, upload_input, config->connection_active_threshold_bps),
 		upload_output->congestion
 	);
 
@@ -200,8 +187,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 		 * estimate in its separate download and upload OWD columns.
 		 */
 		const struct log_data_record record = {
-			.download_achieved_rate_bits_per_second = download_achieved,
-			.upload_achieved_rate_bits_per_second = upload_achieved,
+			.download_achieved_rate_bps = download_achieved,
+			.upload_achieved_rate_bps = upload_achieved,
 			.download_load_ratio_e6 = download_load_e6,
 			.upload_load_ratio_e6 = upload_load_e6,
 			.icmp_timestamp = sample->timestamp_text,
@@ -232,8 +219,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 				upload_effective->average_delay_maximum_adjust_down_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
-			.cake_download_rate_bits_per_second = download_rate,
-			.cake_upload_rate_bits_per_second = upload_rate,
+			.cake_download_rate_bps = download_rate,
+			.cake_upload_rate_bps = upload_rate,
 		};
 
 		log_data(&record);
@@ -241,16 +228,16 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 
 	if (config->output_summary_stats) {
 		const struct log_summary_record record = {
-			.download_achieved_rate_bits_per_second = download_achieved,
-			.upload_achieved_rate_bits_per_second = upload_achieved,
+			.download_achieved_rate_bps = download_achieved,
+			.upload_achieved_rate_bps = upload_achieved,
 			.download_sum_delays = download_output->delayed_sample_count,
 			.upload_sum_delays = upload_output->delayed_sample_count,
 			.download_average_owd_delta_us = download_output->average_delay_us,
 			.upload_average_owd_delta_us = upload_output->average_delay_us,
 			.download_load_condition = download_condition,
 			.upload_load_condition = upload_condition,
-			.cake_download_rate_bits_per_second = download_rate,
-			.cake_upload_rate_bits_per_second = upload_rate,
+			.cake_download_rate_bps = download_rate,
+			.cake_upload_rate_bps = upload_rate,
 		};
 
 		log_summary(&record);
@@ -285,7 +272,7 @@ static void apply_bandwidth(
 			" old_rate=%" PRIu64 " bit/s desired_rate=%" PRIu64 " bit/s reason=%s: %s",
 			direction->name,
 			direction->interface,
-			direction->cake.bandwidth_bits_per_second,
+			direction->cake.bandwidth_bps,
 			desired_rate,
 			rate_reason_names[reason],
 			error
@@ -295,7 +282,7 @@ static void apply_bandwidth(
 
 	cake_read(&monitor->netlink, &readback, 1U);
 	if (readback.result != CAKE_READ_FOUND || !verified.has_bandwidth ||
-	    verified.bandwidth_bits_per_second != desired_rate) {
+	    verified.bandwidth_bps != desired_rate) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"CAKE bandwidth verification failed: direction=%s interface=%s"
@@ -317,10 +304,9 @@ static struct controller_direction_input direction_input(const struct monitor_di
 	const struct controller_direction_input input = {
 		.traffic_sample_id = direction->traffic_sample_id,
 		.valid = direction->traffic_valid && direction->cake_valid && cake->has_bandwidth &&
-			 cake->bandwidth_bits_per_second > 0U,
-		.traffic_rate_bits_per_second = direction->traffic_rate_bits_per_second,
-		.cake_rate_bits_per_second =
-			direction->cake_valid ? cake->bandwidth_bits_per_second : 0U,
+			 cake->bandwidth_bps > 0U,
+		.traffic_rate_bps = direction->traffic_rate_bps,
+		.cake_rate_bps = direction->cake_valid ? cake->bandwidth_bps : 0U,
 	};
 
 	return input;
@@ -413,17 +399,17 @@ void control_update(
 				" bit/s upload_rate=%" PRIu64 " bit/s upload_shaper_rate=%" PRIu64
 				" bit/s",
 				direction->name,
-				decision->ack_share_ceiling_bits_per_second,
-				step.input.acks.upload_ack_rate_bits_per_second,
-				step.input.acks.upload_rate_bits_per_second,
-				control->controller.upload.shaper_rate_bits_per_second
+				decision->ack_share_ceiling_bps,
+				step.input.acks.upload_ack_rate_bps,
+				step.input.acks.upload_rate_bps,
+				control->controller.upload.shaper_rate_bps
 			);
 		else if (decision->ack_share_changed)
 			log_message(LOG_LEVEL_DEBUG, "ACK share released %s", direction->name);
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
 		if (!control->initial_shaper_reported && !limits->adjust &&
 		    config->output_cake_changes) {
-			log_shaper(direction->interface, limits->base_rate_bits_per_second);
+			log_shaper(direction->interface, limits->base_rate_bps);
 			log_message(
 				LOG_LEVEL_DEBUG,
 				"adjust_%s_shaper_rate set to 0 in config, so skipping the corresponding tc qdisc change call.",
@@ -435,7 +421,7 @@ void control_update(
 			apply_bandwidth(
 				monitor,
 				direction,
-				decision->rate_bits_per_second,
+				decision->rate_bps,
 				decision->rate_reason
 			);
 		}
@@ -464,12 +450,7 @@ void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_us)
 
 		if (!config->adjust || !link->cake_valid)
 			continue;
-		apply_bandwidth(
-			monitor,
-			link,
-			config->minimum_rate_bits_per_second,
-			CONTROLLER_RATE_RECONCILE
-		);
+		apply_bandwidth(monitor, link, config->minimum_rate_bps, CONTROLLER_RATE_RECONCILE);
 	}
 }
 
@@ -477,9 +458,9 @@ static struct controller_direction_config direction_config(const struct config_d
 {
 	return (struct controller_direction_config){
 		.adjust = direction->adjust,
-		.minimum_rate_bits_per_second = direction->minimum_rate_bits_per_second,
-		.base_rate_bits_per_second = direction->base_rate_bits_per_second,
-		.maximum_rate_bits_per_second = direction->maximum_rate_bits_per_second,
+		.minimum_rate_bps = direction->minimum_rate_bps,
+		.base_rate_bps = direction->base_rate_bps,
+		.maximum_rate_bps = direction->maximum_rate_bps,
 		.average_delay_maximum_adjust_up_us =
 			direction->average_owd_delta_maximum_adjust_up_us,
 		.delay_threshold_us = direction->owd_delta_delay_threshold_us,

@@ -137,9 +137,9 @@ static void log_adjustment(const char *name, const struct config_direction *dire
 		"%s adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
 		" bit/s maximum=%" PRIu64 " bit/s",
 		name,
-		direction->minimum_rate_bits_per_second,
-		direction->base_rate_bits_per_second,
-		direction->maximum_rate_bits_per_second
+		direction->minimum_rate_bps,
+		direction->base_rate_bps,
+		direction->maximum_rate_bps
 	);
 }
 

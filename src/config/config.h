@@ -14,9 +14,9 @@
 /* One direction's shaper rates and the delay thresholds that adjust them. */
 struct config_direction {
 	bool adjust;
-	uint64_t minimum_rate_bits_per_second;
-	uint64_t base_rate_bits_per_second;
-	uint64_t maximum_rate_bits_per_second;
+	uint64_t minimum_rate_bps;
+	uint64_t base_rate_bps;
+	uint64_t maximum_rate_bps;
 	uint64_t average_owd_delta_maximum_adjust_up_us;
 	uint64_t owd_delta_delay_threshold_us;
 	uint64_t average_owd_delta_maximum_adjust_down_us;
@@ -61,7 +61,7 @@ struct config {
 	uint64_t reflector_ping_interval_us;
 	struct config_direction download;
 	struct config_direction upload;
-	uint64_t connection_active_threshold_bits_per_second;
+	uint64_t connection_active_threshold_bps;
 	uint64_t sustained_idle_sleep_threshold_us;
 	uint64_t log_file_buffer_timeout_us;
 	uint64_t irtt_session_duration_us;
@@ -93,7 +93,7 @@ struct config {
 	uint64_t reflector_sum_owd_baselines_delta_threshold_us;
 	uint64_t reflector_owd_delta_ewma_delta_threshold_us;
 	uint64_t stall_detection_threshold;
-	uint64_t connection_stall_threshold_bits_per_second;
+	uint64_t connection_stall_threshold_bps;
 	uint64_t global_ping_response_timeout_us;
 	uint64_t interface_up_check_interval_us;
 };

@@ -85,22 +85,14 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_bytes, KILOBYTE),
 	SCALED_OPTION(OPTION_NO_PINGERS, no_pingers, 1U),
 	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_us, SECOND),
-	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, download.minimum_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, download.base_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, download.maximum_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, upload.minimum_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, upload.base_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, upload.maximum_rate_bits_per_second, KILOBIT),
-	SCALED_OPTION(
-		OPTION_CONNECTION_ACTIVE_THRESHOLD,
-		connection_active_threshold_bits_per_second,
-		KILOBIT
-	),
-	SCALED_OPTION(
-		OPTION_CONNECTION_STALL_THRESHOLD,
-		connection_stall_threshold_bits_per_second,
-		KILOBIT
-	),
+	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, download.minimum_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, download.base_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, download.maximum_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, upload.minimum_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, upload.base_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, upload.maximum_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_CONNECTION_ACTIVE_THRESHOLD, connection_active_threshold_bps, KILOBIT),
+	SCALED_OPTION(OPTION_CONNECTION_STALL_THRESHOLD, connection_stall_threshold_bps, KILOBIT),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_UP,
 		download.average_owd_delta_maximum_adjust_up_us,

@@ -36,9 +36,9 @@ enum controller_rate_reason {
 
 struct controller_direction_config {
 	bool adjust;
-	uint64_t minimum_rate_bits_per_second;
-	uint64_t base_rate_bits_per_second;
-	uint64_t maximum_rate_bits_per_second;
+	uint64_t minimum_rate_bps;
+	uint64_t base_rate_bps;
+	uint64_t maximum_rate_bps;
 	uint64_t average_delay_maximum_adjust_up_us;
 	uint64_t delay_threshold_us;
 	uint64_t average_delay_maximum_adjust_down_us;
@@ -78,8 +78,8 @@ struct controller_direction_input {
 	bool valid;
 	/* Changes only after a new achieved-rate measurement; zero before the first. */
 	uint64_t traffic_sample_id;
-	uint64_t traffic_rate_bits_per_second;
-	uint64_t cake_rate_bits_per_second;
+	uint64_t traffic_rate_bps;
+	uint64_t cake_rate_bps;
 };
 
 struct controller_latency_input {
@@ -97,8 +97,8 @@ struct controller_queue_input {
 /* Upload split into pure ACKs and all traffic, over the same window, after the shaper. */
 struct controller_ack_input {
 	bool valid;
-	uint64_t upload_ack_rate_bits_per_second;
-	uint64_t upload_rate_bits_per_second;
+	uint64_t upload_ack_rate_bps;
+	uint64_t upload_rate_bps;
 };
 
 struct controller_input {
@@ -121,7 +121,7 @@ struct controller_direction_output {
 	enum controller_line_state state;
 	enum controller_congestion_state congestion;
 	enum controller_rate_reason rate_reason;
-	uint64_t rate_bits_per_second;
+	uint64_t rate_bps;
 	int64_t average_delay_us;
 	unsigned int delayed_sample_count;
 	/*
@@ -131,7 +131,7 @@ struct controller_direction_output {
 	bool bufferbloat_attributed;
 	/* Download only: the ACK share limits the rate to this ceiling. */
 	bool ack_share_active;
-	uint64_t ack_share_ceiling_bits_per_second;
+	uint64_t ack_share_ceiling_bps;
 	bool state_changed;
 	bool congestion_changed;
 	bool rate_changed;
@@ -152,8 +152,8 @@ enum controller_activity_state {
 
 struct controller_activity_config {
 	bool enable_sleep;
-	uint64_t active_threshold_bits_per_second;
-	uint64_t stall_threshold_bits_per_second;
+	uint64_t active_threshold_bps;
+	uint64_t stall_threshold_bps;
 	uint64_t sustained_idle_us;
 	uint64_t stall_timeout_us;
 	uint64_t global_timeout_us;
@@ -191,7 +191,7 @@ struct controller_direction {
 	int64_t delay_sum_us;
 	/* Over the detection window; zero while latency is unknown. */
 	int64_t average_delay_us;
-	uint64_t shaper_rate_bits_per_second;
+	uint64_t shaper_rate_bps;
 	unsigned int delay_next_sample;
 	unsigned int delayed_sample_count;
 	unsigned int saturation_samples;
@@ -237,7 +237,7 @@ void controller_set_minimum_rates(struct controller *controller, uint64_t timest
 enum controller_load controller_load(
 	const struct controller *controller,
 	const struct controller_direction_input *input,
-	uint64_t active_threshold_bits_per_second
+	uint64_t active_threshold_bps
 );
 
 /*

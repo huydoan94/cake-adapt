@@ -19,7 +19,7 @@ bool random_below(size_t count, random_u32_source source, void *context, size_t 
 bool shuffle(size_t *items, size_t count, random_u32_source source, void *context);
 
 /* Serialization time in microseconds, rounded; saturated on overflow. */
-uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bits_per_second);
+uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bps);
 
 /*
  * Map an epoch response timestamp into the monotonic clock domain, keeping
@@ -38,16 +38,15 @@ bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_
 bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp);
 
 /* A counter delta over a positive duration, in bit/s; saturated at UINT64_MAX. */
-uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_us);
+uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us);
 
 /* part / whole as a ratio per million, truncated and saturated; zero for an empty whole. */
 uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole);
 
 /* traffic / shaper rate as a ratio; an unknown (zero) shaper rate gives no load. */
-static inline uint64_t
-load_ratio_e6(uint64_t traffic_bits_per_second, uint64_t shaper_bits_per_second)
+static inline uint64_t load_ratio_e6(uint64_t traffic_bps, uint64_t shaper_bps)
 {
-	return fraction_to_ratio_e6(traffic_bits_per_second, shaper_bits_per_second);
+	return fraction_to_ratio_e6(traffic_bps, shaper_bps);
 }
 
 #endif

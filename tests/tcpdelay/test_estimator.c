@@ -75,7 +75,7 @@ static uint64_t send_span(
 	return end_ns;
 }
 
-static int64_t milliseconds(int64_t us)
+static int64_t ms(int64_t us)
 {
 	return (us + 500) / 1000;
 }
@@ -90,15 +90,15 @@ static void result_after(
 	tcpdelay_estimator_result(estimator, (ORIGIN_NS + sent_ns + PATH_NS) / US, estimate);
 }
 
-static void assert_close(int64_t us, int64_t expected_milliseconds)
+static void assert_close(int64_t us, int64_t expected_ms)
 {
-	int64_t difference = milliseconds(us) - expected_milliseconds;
+	int64_t difference = ms(us) - expected_ms;
 
 	if (difference < -2 || difference > 2) {
 		fprintf(stderr,
 			"queue %lld us, expected %lld ms\n",
 			(long long)us,
-			(long long)expected_milliseconds);
+			(long long)expected_ms);
 	}
 	assert(difference >= -2 && difference <= 2);
 }

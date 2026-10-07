@@ -33,10 +33,9 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 	const struct controller_activity_config *activity_config = &activity->config;
 	const struct controller_activity_input input = {
 		.download = { .valid = download->traffic_valid,
-			      .traffic_rate_bits_per_second =
-				      download->traffic_rate_bits_per_second },
+			      .traffic_rate_bps = download->traffic_rate_bps },
 		.upload = { .valid = upload->traffic_valid,
-			    .traffic_rate_bits_per_second = upload->traffic_rate_bits_per_second },
+			    .traffic_rate_bps = upload->traffic_rate_bps },
 		.timestamp_us = timestamp_us,
 		.last_response_us = pingers->last_response_us,
 		.last_pinger_start_us = pingers->last_restart_us,
@@ -56,10 +55,10 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 			LOG_LEVEL_DEBUG,
 			"load check is: (( %" PRIu64 " kbps > %" PRIu64
 			" kbps for download && %" PRIu64 " kbps > %" PRIu64 " kbps for upload ))",
-			bit_to_kbit(download->traffic_rate_bits_per_second),
-			bit_to_kbit(config->connection_stall_threshold_bits_per_second),
-			bit_to_kbit(upload->traffic_rate_bits_per_second),
-			bit_to_kbit(config->connection_stall_threshold_bits_per_second)
+			bit_to_kbit(download->traffic_rate_bps),
+			bit_to_kbit(config->connection_stall_threshold_bps),
+			bit_to_kbit(upload->traffic_rate_bps),
+			bit_to_kbit(config->connection_stall_threshold_bps)
 		);
 		if (activity->state == CONTROLLER_RUNNING) {
 			log_message(
@@ -219,7 +218,7 @@ static void watch_cpu(struct monitor *monitor)
 	(void)read_cpu(monitor, &sample);
 	if (uloop_interval_set(
 		    &monitor->cpu_timer,
-		    us_to_millisec(config->monitor_cpu_usage_interval_us)
+		    us_to_ms(config->monitor_cpu_usage_interval_us)
 	    ) != 0) {
 		log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
 	}
@@ -251,8 +250,7 @@ static void watch_memory(struct monitor *monitor)
 		return;
 	/* The first record at start, then one per interval. */
 	handle_memory_timer(&monitor->memory_timer);
-	if (uloop_interval_set(&monitor->memory_timer, us_to_millisec(MEMORY_SAMPLE_INTERVAL_US)) !=
-	    0) {
+	if (uloop_interval_set(&monitor->memory_timer, us_to_ms(MEMORY_SAMPLE_INTERVAL_US)) != 0) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"could not monitor memory timer: %s",
@@ -272,7 +270,7 @@ static void watch_log_maintenance(struct monitor *monitor)
 	if (log_timer_us == 0U && config->log_file_max_time_us > 0U)
 		log_timer_us = saturating_add(config->log_file_max_time_us, MILLISECOND);
 	if (log_timer_us > 0U &&
-	    uloop_interval_set(&monitor->log_timer, us_to_millisec(log_timer_us)) != 0) {
+	    uloop_interval_set(&monitor->log_timer, us_to_ms(log_timer_us)) != 0) {
 		log_message(LOG_LEVEL_WARNING, "log timer degraded: %s", strerror(errno));
 	}
 	if (uloop_signal_add(&monitor->log_export_signal) != 0)
@@ -286,10 +284,8 @@ static void start_activity(struct monitor *monitor)
 	const struct config *config = monitor->config;
 	const struct controller_activity_config activity_config = {
 		.enable_sleep = config->enable_sleep_function,
-		.active_threshold_bits_per_second =
-			config->connection_active_threshold_bits_per_second,
-		.stall_threshold_bits_per_second =
-			config->connection_stall_threshold_bits_per_second,
+		.active_threshold_bps = config->connection_active_threshold_bps,
+		.stall_threshold_bps = config->connection_stall_threshold_bps,
 		.sustained_idle_us = config->sustained_idle_sleep_threshold_us,
 		.stall_timeout_us =
 			config->stall_detection_threshold *
@@ -371,7 +367,7 @@ int monitor_run(const struct config *config)
 	for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
 		if (uloop_interval_set(
 			    required_timers[index].timer,
-			    us_to_millisec(required_timers[index].interval_us)
+			    us_to_ms(required_timers[index].interval_us)
 		    ) != 0) {
 			log_message(
 				LOG_LEVEL_ERROR,

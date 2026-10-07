@@ -52,12 +52,12 @@ static unsigned int local_time_conversions;
 
 FILE *__real_open_memstream(char **buffer, size_t *size);
 int __real_fclose(FILE *stream);
-struct tm *__real_localtime_r(const time_t *seconds, struct tm *result);
+struct tm *__real_localtime_r(const time_t *sec, struct tm *result);
 
-struct tm *__wrap_localtime_r(const time_t *seconds, struct tm *result)
+struct tm *__wrap_localtime_r(const time_t *sec, struct tm *result)
 {
 	local_time_conversions++;
-	return __real_localtime_r(seconds, result);
+	return __real_localtime_r(sec, result);
 }
 
 FILE *__wrap_open_memstream(char **buffer, size_t *size)
@@ -374,8 +374,8 @@ static void test_cake_autorate_headers_and_record_format(void)
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[8192];
 	const struct log_data_record data_record = {
-		.download_achieved_rate_bits_per_second = 10U * KILOBIT,
-		.upload_achieved_rate_bits_per_second = 20U * KILOBIT,
+		.download_achieved_rate_bps = 10U * KILOBIT,
+		.upload_achieved_rate_bps = 20U * KILOBIT,
 		.download_load_ratio_e6 = 305000U,
 		.upload_load_ratio_e6 = 400000U,
 		.icmp_timestamp = "[50.00006]",
@@ -401,26 +401,26 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.upload_maximum_adjust_down_threshold_us = 250U,
 		.download_load_condition = "dl_low",
 		.upload_load_condition = "ul_high_bb",
-		.cake_download_rate_bits_per_second = 260U * KILOBIT,
-		.cake_upload_rate_bits_per_second = 270U * KILOBIT,
+		.cake_download_rate_bps = 260U * KILOBIT,
+		.cake_upload_rate_bps = 270U * KILOBIT,
 	};
 	const struct log_load_record load_record = {
-		.download_achieved_rate_bits_per_second = 10U * KILOBIT,
-		.upload_achieved_rate_bits_per_second = 20U * KILOBIT,
-		.cake_download_rate_bits_per_second = 30U * KILOBIT,
-		.cake_upload_rate_bits_per_second = 40U * KILOBIT,
+		.download_achieved_rate_bps = 10U * KILOBIT,
+		.upload_achieved_rate_bps = 20U * KILOBIT,
+		.cake_download_rate_bps = 30U * KILOBIT,
+		.cake_upload_rate_bps = 40U * KILOBIT,
 	};
 	const struct log_summary_record summary_record = {
-		.download_achieved_rate_bits_per_second = 11U * KILOBIT,
-		.upload_achieved_rate_bits_per_second = 21U * KILOBIT,
+		.download_achieved_rate_bps = 11U * KILOBIT,
+		.upload_achieved_rate_bps = 21U * KILOBIT,
 		.download_sum_delays = 31U,
 		.upload_sum_delays = 41U,
 		.download_average_owd_delta_us = -51,
 		.upload_average_owd_delta_us = -61,
 		.download_load_condition = "dl_idle",
 		.upload_load_condition = "ul_low",
-		.cake_download_rate_bits_per_second = 71U * KILOBIT,
-		.cake_upload_rate_bits_per_second = 81U * KILOBIT,
+		.cake_download_rate_bps = 71U * KILOBIT,
+		.cake_upload_rate_bps = 81U * KILOBIT,
 	};
 	const struct log_reflector_record reflector_record = {
 		.reflector = "1.0.0.1",
@@ -752,19 +752,19 @@ static void test_buffer_timeout_and_time_rotation(void)
 	assert(unlink(previous_path) == 0);
 }
 
-static void test_local_time_is_converted_once_per_second(void)
+static void test_local_time_is_converted_once_per_sec(void)
 {
 	char path[] = "/tmp/cake-adapt-log-datetime-XXXXXX";
 	char contents[4096];
 	char expected[64];
 	struct tm local_time;
-	time_t seconds = 3000;
+	time_t sec = 3000;
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 	use_mock_time = true;
-	mock_time = (struct timespec){ .tv_sec = seconds };
+	mock_time = (struct timespec){ .tv_sec = sec };
 	log_init("cake-adapt-test", false);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, &unlimited) == 0);
@@ -779,7 +779,7 @@ static void test_local_time_is_converted_once_per_second(void)
 	assert(local_time_conversions == 2U);
 
 	read_log(path, contents, sizeof(contents));
-	assert(localtime_r(&seconds, &local_time) != NULL);
+	assert(localtime_r(&sec, &local_time) != NULL);
 	assert(strftime(
 		       expected,
 		       sizeof(expected),
@@ -787,8 +787,8 @@ static void test_local_time_is_converted_once_per_second(void)
 		       &local_time
 	       ) > 0U);
 	assert(strstr(contents, expected) != NULL);
-	seconds++;
-	assert(localtime_r(&seconds, &local_time) != NULL);
+	sec++;
+	assert(localtime_r(&sec, &local_time) != NULL);
 	assert(strftime(
 		       expected,
 		       sizeof(expected),
@@ -926,7 +926,7 @@ int main(void)
 	test_rotation_export_and_reset_preserve_live_inode(&size_limited);
 	test_rotation_export_and_reset_preserve_live_inode(&size_limited_compressed);
 	test_buffer_timeout_and_time_rotation();
-	test_local_time_is_converted_once_per_second();
+	test_local_time_is_converted_once_per_sec();
 	test_records_wait_for_buffer_timeout();
 	test_immediate_output_avoids_maintenance_clock();
 	test_existing_file_size_uses_strict_rotation_limit();

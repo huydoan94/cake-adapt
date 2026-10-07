@@ -49,7 +49,7 @@ static enum log_level minimum_log_level = LOG_LEVEL_INFO;
 /* Like cake-autorate, hold records until the buffer timer rather than per 1 KiB. */
 static char log_file_buffer[LOG_FILE_BUFFER_SIZE];
 static char datetime[LOG_DATETIME_SIZE];
-static time_t datetime_seconds;
+static time_t datetime_sec;
 static bool datetime_valid;
 
 /* cake-autorate 3.3.0-PRERELEASE (ac75f493) analyzer schemas. */
@@ -233,7 +233,7 @@ static int truncate_log_file(void)
 int log_export_file(char *export_path, size_t export_path_size)
 {
 	struct tm local_time;
-	time_t seconds = time(NULL);
+	time_t sec = time(NULL);
 	char stamp[LOG_DATETIME_SIZE];
 	size_t path_length = strlen(log_path);
 	const char *mode = log_compress_exports ? GZIP_MODE_COMPRESSED : GZIP_MODE_TRANSPARENT;
@@ -243,7 +243,7 @@ int log_export_file(char *export_path, size_t export_path_size)
 		errno = EBADF;
 		return -1;
 	}
-	if (localtime_r(&seconds, &local_time) == NULL ||
+	if (localtime_r(&sec, &local_time) == NULL ||
 	    strftime(stamp, sizeof(stamp), EXPORT_TIME_FORMAT, &local_time) == 0U) {
 		return -1;
 	}
@@ -354,18 +354,18 @@ static void write_line(const char *line)
  * arrive many times per second. Convert once per second instead; a time zone
  * change therefore applies from the next second.
  */
-static const char *local_datetime(time_t seconds)
+static const char *local_datetime(time_t sec)
 {
 	struct tm local_time;
 
-	if (datetime_valid && seconds == datetime_seconds)
+	if (datetime_valid && sec == datetime_sec)
 		return datetime;
-	datetime_valid = localtime_r(&seconds, &local_time) != NULL &&
+	datetime_valid = localtime_r(&sec, &local_time) != NULL &&
 			 strftime(datetime, sizeof(datetime), LOG_DATETIME_FORMAT, &local_time) !=
 				 0U;
 	if (!datetime_valid)
 		(void)snprintf(datetime, sizeof(datetime), LOG_DATETIME_FALLBACK);
-	datetime_seconds = seconds;
+	datetime_sec = sec;
 	return datetime;
 }
 
@@ -617,10 +617,10 @@ void log_load(const struct log_load_record *record)
 	write_timed_record(
 		RECORD_LOAD,
 		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-		bit_to_kbit(record->download_achieved_rate_bits_per_second),
-		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
-		bit_to_kbit(record->cake_download_rate_bits_per_second),
-		bit_to_kbit(record->cake_upload_rate_bits_per_second)
+		bit_to_kbit(record->download_achieved_rate_bps),
+		bit_to_kbit(record->upload_achieved_rate_bps),
+		bit_to_kbit(record->cake_download_rate_bps),
+		bit_to_kbit(record->cake_upload_rate_bps)
 	);
 }
 
@@ -640,8 +640,8 @@ void log_data(const struct log_data_record *record)
 		"; %" PRId64 "; %" PRId64 ";"
 		" %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %u; %" PRId64
 		"; %" PRIu64 "; %" PRIu64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		bit_to_kbit(record->download_achieved_rate_bits_per_second),
-		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
+		bit_to_kbit(record->download_achieved_rate_bps),
+		bit_to_kbit(record->upload_achieved_rate_bps),
 		whole_percent(record->download_load_ratio_e6),
 		whole_percent(record->upload_load_ratio_e6),
 		record->icmp_timestamp,
@@ -667,8 +667,8 @@ void log_data(const struct log_data_record *record)
 		record->upload_maximum_adjust_down_threshold_us,
 		record->download_load_condition,
 		record->upload_load_condition,
-		bit_to_kbit(record->cake_download_rate_bits_per_second),
-		bit_to_kbit(record->cake_upload_rate_bits_per_second)
+		bit_to_kbit(record->cake_download_rate_bps),
+		bit_to_kbit(record->cake_upload_rate_bps)
 	);
 }
 
@@ -678,16 +678,16 @@ void log_summary(const struct log_summary_record *record)
 		RECORD_SUMMARY,
 		"%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
 		" %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		bit_to_kbit(record->download_achieved_rate_bits_per_second),
-		bit_to_kbit(record->upload_achieved_rate_bits_per_second),
+		bit_to_kbit(record->download_achieved_rate_bps),
+		bit_to_kbit(record->upload_achieved_rate_bps),
 		record->download_sum_delays,
 		record->upload_sum_delays,
 		record->download_average_owd_delta_us,
 		record->upload_average_owd_delta_us,
 		record->download_load_condition,
 		record->upload_load_condition,
-		bit_to_kbit(record->cake_download_rate_bits_per_second),
-		bit_to_kbit(record->cake_upload_rate_bits_per_second)
+		bit_to_kbit(record->cake_download_rate_bps),
+		bit_to_kbit(record->cake_upload_rate_bps)
 	);
 }
 
@@ -771,13 +771,13 @@ void log_cpu_raw(const struct cpu_sample *sample)
 	}
 }
 
-void log_shaper(const char *interface, uint64_t rate_bits_per_second)
+void log_shaper(const char *interface, uint64_t rate_bps)
 {
 	write_formatted_record(
 		RECORD_SHAPER,
 		"tc qdisc change root dev %s cake bandwidth %" PRIu64 "Kbit",
 		interface,
-		bit_to_kbit(rate_bits_per_second)
+		bit_to_kbit(rate_bps)
 	);
 }
 
