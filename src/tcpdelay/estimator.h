@@ -73,16 +73,17 @@ struct tcpdelay_estimator {
 struct tcpdelay_estimate {
 	bool download_valid;
 	bool upload_valid;
-	int64_t download_queue_microseconds;
-	int64_t upload_queue_microseconds;
+	int64_t download_queue_us;
+	int64_t upload_queue_us;
 };
 
 /*
  * The largest queue any flow may show from now on, such as fping's round-trip
  * delay above its baseline: a queue on the access link delays both. A zero
  * bound re-zeroes every floor, absorbing remote clock drift and route changes.
+ * Kept in nanoseconds, the filter's clock.
  */
-void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns);
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_us);
 
 void tcpdelay_estimator_add(
 	struct tcpdelay_estimator *estimator,
@@ -92,7 +93,7 @@ void tcpdelay_estimator_add(
 /* Fresh queues from one flow, preferring a complete pair and the longest history. */
 void tcpdelay_estimator_result(
 	const struct tcpdelay_estimator *estimator,
-	uint64_t now_ns,
+	uint64_t now_us,
 	struct tcpdelay_estimate *estimate
 );
 

@@ -6,15 +6,12 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 
-uint64_t traffic_compensated_interval_microseconds(
-	uint64_t configured_interval_microseconds,
-	uint64_t round_trip_serialization_microseconds
+uint64_t traffic_compensated_interval_us(
+	uint64_t configured_interval_us,
+	uint64_t round_trip_serialization_us
 )
 {
-	return max_u64(
-		configured_interval_microseconds,
-		saturating_mul(round_trip_serialization_microseconds, 10U)
-	);
+	return max_u64(configured_interval_us, saturating_mul(round_trip_serialization_us, 10U));
 }
 
 void traffic_init(struct traffic_monitor *monitor)

@@ -99,32 +99,49 @@ static inline uint64_t rounded_divide(uint64_t value, uint64_t divisor)
 	return value / divisor + (value % divisor >= divisor / 2U + divisor % 2U ? 1U : 0U);
 }
 
-/* Whole milliseconds, rounded up so a timer or poll never wakes early. */
-static inline uint64_t milliseconds_rounded_up(uint64_t microseconds)
+/* Positive divisor; nearest integer, with ties rounded away from zero. */
+static inline int64_t signed_rounded_divide(int64_t value, int64_t divisor)
 {
-	return microseconds / MICROSECONDS_PER_MILLISECOND +
-	       (microseconds % MICROSECONDS_PER_MILLISECOND != 0U ? 1U : 0U);
+	int64_t quotient = value / divisor;
+	int64_t remainder = value % divisor;
+
+	/* At least half way when the remainder is no smaller than what is left. */
+	if (remainder > 0 && remainder >= divisor - remainder)
+		return quotient + 1;
+	if (remainder < 0 && -remainder >= divisor + remainder)
+		return quotient - 1;
+	return quotient;
 }
 
-/* uloop takes unsigned milliseconds: round upward and saturate. */
-static inline unsigned int timer_milliseconds(uint64_t microseconds)
+/* Whole milliseconds for uloop: rounded up so a timer never wakes early, and saturated. */
+static inline unsigned int us_to_millisec(uint64_t us)
 {
-	uint64_t milliseconds = milliseconds_rounded_up(microseconds);
+	uint64_t milliseconds = us / US_PER_MILLISECOND + (us % US_PER_MILLISECOND != 0U ? 1U : 0U);
 
 	return milliseconds > UINT_MAX ? UINT_MAX : (unsigned int)milliseconds;
 }
 
-/* For log messages that print a duration in seconds. */
-static inline double seconds_from_microseconds(uint64_t microseconds)
+/* For messages that print a duration in seconds. */
+static inline double us_to_sec(uint64_t us)
 {
-	return (double)microseconds / (double)MICROSECONDS_PER_SECOND;
+	return (double)us / (double)US_PER_SECOND;
 }
 
-/* A nonnegative clock reading in whole microseconds. */
-static inline uint64_t timespec_microseconds(const struct timespec *value)
+/* Kernel nanoseconds as microseconds, half a microsecond or more rounding up. */
+static inline uint64_t nanosec_to_us(uint64_t nanoseconds)
 {
-	return (uint64_t)value->tv_sec * MICROSECONDS_PER_SECOND +
-	       (uint64_t)value->tv_nsec / NANOSECONDS_PER_MICROSECOND;
+	return rounded_divide(nanoseconds, NANOSECONDS_PER_US);
+}
+
+static inline int64_t signed_nanosec_to_us(int64_t nanoseconds)
+{
+	return signed_rounded_divide(nanoseconds, (int64_t)NANOSECONDS_PER_US);
+}
+
+/* A nonnegative clock reading in microseconds, rounded. */
+static inline uint64_t timespec_to_us(const struct timespec *value)
+{
+	return (uint64_t)value->tv_sec * US_PER_SECOND + nanosec_to_us((uint64_t)value->tv_nsec);
 }
 
 /* Strict boundary: equality and backwards timestamps have not elapsed. */

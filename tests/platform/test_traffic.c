@@ -128,9 +128,9 @@ static void test_large_64_bit_counter_is_supported(void)
 static void test_compensated_interval_uses_startup_snapshot_formula(void)
 {
 	/* 1500-byte wire packets at 1 Mbit/s each way: 24 ms per round trip. */
-	assert(traffic_compensated_interval_microseconds(100000U, 24000U) == 240000U);
-	assert(traffic_compensated_interval_microseconds(300000U, 24000U) == 300000U);
-	assert(traffic_compensated_interval_microseconds(0U, UINT64_MAX) == UINT64_MAX);
+	assert(traffic_compensated_interval_us(100000U, 24000U) == 240000U);
+	assert(traffic_compensated_interval_us(300000U, 24000U) == 300000U);
+	assert(traffic_compensated_interval_us(0U, UINT64_MAX) == UINT64_MAX);
 }
 
 int main(void)

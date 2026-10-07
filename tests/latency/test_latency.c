@@ -43,8 +43,8 @@ static const struct latency_settings fping_settings = {
 	.interface = "lo",
 	.extra_arguments = "",
 	.prefix = "",
-	.reflector_ping_interval_microseconds = SECOND,
-	.irtt_session_duration_minutes = 10U,
+	.reflector_ping_interval_us = SECOND,
+	.irtt_session_duration_us = 10U * MINUTE,
 };
 
 /* Linux wait status encodings, as reported by waitpid() and uloop. */
@@ -113,8 +113,8 @@ static void test_fping_lines_are_handled(void)
 		       sizeof(error)
 	       ) == LATENCY_PROBE_SUCCESS);
 	assert(sample.sequence == 1U);
-	assert(sample.download_owd_microseconds == 1250U);
-	assert(sample.upload_owd_microseconds == 1250U);
+	assert(sample.download_owd_us == 1250U);
+	assert(sample.upload_owd_us == 1250U);
 	assert(latency_handle_line(
 		       &latency,
 		       0U,
@@ -139,8 +139,8 @@ static void test_fping_lines_are_handled(void)
 		       error,
 		       sizeof(error)
 	       ) == LATENCY_PROBE_SUCCESS);
-	assert(sample.download_owd_microseconds == 2000);
-	assert(sample.upload_owd_microseconds == 4000);
+	assert(sample.download_owd_us == 2000);
+	assert(sample.upload_owd_us == 4000);
 	assert(sample.timestamp_rollover_sensitive);
 	assert(latency_handle_line(
 		       &latency,
@@ -233,11 +233,11 @@ static void test_irtt_lines_ignore_non_samples(void)
 	       ) == LATENCY_PROBE_SUCCESS);
 	assert(strcmp(sample.target, "9.9.9.9") == 0);
 	assert(sample.sequence == 7U);
-	assert(sample.download_owd_microseconds == 1000);
-	assert(sample.upload_owd_microseconds == 2000);
-	assert(sample.timestamp_microseconds > 0U);
+	assert(sample.download_owd_us == 1000);
+	assert(sample.upload_owd_us == 2000);
+	assert(sample.timestamp_us > 0U);
 	/* Like cake-autorate's gawk wrapper: receive time in whole microseconds. */
-	assert(strtoull(sample.timestamp_text, NULL, 10) == sample.timestamp_microseconds);
+	assert(strtoull(sample.timestamp_text, NULL, 10) == sample.timestamp_us);
 }
 
 /* The test stands in for uloop: it reaps the child and reports the exit. */
@@ -456,7 +456,7 @@ static void check_fping_arguments(const char *pinger_method, const char *expecte
 	struct pollfd descriptor;
 
 	settings.pinger_method = pinger_method;
-	settings.reflector_ping_interval_microseconds = 300000U;
+	settings.reflector_ping_interval_us = 300000U;
 	settings.extra_arguments = "-I 'lo2' -k 768";
 	settings.prefix = "/usr/bin/printf '%s\\n'";
 	latency_init(&latency, &settings);
@@ -519,7 +519,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 
 	/* Opened at the slot origin, the first session starts one interval later. */
 	settings.pinger_method = PINGER_METHOD_IRTT;
-	settings.reflector_ping_interval_microseconds = 300U * MILLISECOND;
+	settings.reflector_ping_interval_us = 300U * MILLISECOND;
 	settings.extra_arguments = "--fill=rand";
 	settings.prefix = "/usr/bin/printf '%s\\n'";
 	latency_init(&latency, &settings);
@@ -535,7 +535,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 	assert(latency_start_irtt_children(&latency, 300000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 0U) >= 0);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
-	assert(latency_irtt_next_start_microseconds(&latency) == 450000U);
+	assert(latency_irtt_next_start_us(&latency) == 450000U);
 
 	descriptor =
 		(struct pollfd){ .fd = latency_child_descriptor(&latency, 0U), .events = POLLIN };
@@ -552,7 +552,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 	output[length] = '\0';
 	assert(strcmp(output,
 		      "/usr/bin/irtt\nclient\n--fill=rand\n-i\n0.300000s\n"
-		      "-d\n10m\n1.1.1.1\n") == 0);
+		      "-d\n600.000000s\n1.1.1.1\n") == 0);
 
 	assert(latency_start_irtt_children(&latency, 450000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 1U) >= 0);

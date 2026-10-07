@@ -39,9 +39,9 @@ struct controller_direction_config {
 	uint64_t minimum_rate_bits_per_second;
 	uint64_t base_rate_bits_per_second;
 	uint64_t maximum_rate_bits_per_second;
-	uint64_t average_delay_maximum_adjust_up_microseconds;
-	uint64_t delay_threshold_microseconds;
-	uint64_t average_delay_maximum_adjust_down_microseconds;
+	uint64_t average_delay_maximum_adjust_up_us;
+	uint64_t delay_threshold_us;
+	uint64_t average_delay_maximum_adjust_down_us;
 };
 
 struct controller_config {
@@ -56,8 +56,8 @@ struct controller_config {
 	uint64_t rate_adjust_down_low_load_per_thousand;
 	uint64_t rate_adjust_up_low_load_per_thousand;
 	uint64_t high_load_threshold_percent;
-	uint64_t bufferbloat_refractory_period_microseconds;
-	uint64_t decay_refractory_period_microseconds;
+	uint64_t bufferbloat_refractory_period_us;
+	uint64_t decay_refractory_period_us;
 	/*
 	 * Both directions report the same RTT/2 delay (fping), so a queue is
 	 * attributed using download, which is shaped after the bottleneck: its
@@ -83,14 +83,14 @@ struct controller_direction_input {
 
 struct controller_latency_input {
 	bool valid;
-	int64_t owd_delta_microseconds;
+	int64_t owd_delta_us;
 };
 
 /* Queueing delay in each direction measured separately, from TCP timestamps. */
 struct controller_queue_input {
 	bool valid;
-	int64_t download_microseconds;
-	int64_t upload_microseconds;
+	int64_t download_us;
+	int64_t upload_us;
 };
 
 /* Upload split into pure ACKs and all traffic, over the same window, after the shaper. */
@@ -113,7 +113,7 @@ struct controller_input {
 	struct controller_queue_input queue;
 	/* Used only with ul_congest_ack_share_percent. */
 	struct controller_ack_input acks;
-	uint64_t timestamp_microseconds;
+	uint64_t timestamp_us;
 };
 
 struct controller_direction_output {
@@ -121,7 +121,7 @@ struct controller_direction_output {
 	enum controller_congestion_state congestion;
 	enum controller_rate_reason rate_reason;
 	uint64_t rate_bits_per_second;
-	int64_t average_delay_microseconds;
+	int64_t average_delay_us;
 	unsigned int delayed_sample_count;
 	/*
 	 * Bufferbloat is blamed on this direction, so a detected bufferbloat may
@@ -153,24 +153,24 @@ struct controller_activity_config {
 	bool enable_sleep;
 	uint64_t active_threshold_bits_per_second;
 	uint64_t stall_threshold_bits_per_second;
-	uint64_t sustained_idle_microseconds;
-	uint64_t stall_timeout_microseconds;
-	uint64_t global_timeout_microseconds;
+	uint64_t sustained_idle_us;
+	uint64_t stall_timeout_us;
+	uint64_t global_timeout_us;
 };
 
 struct controller_activity_input {
 	struct controller_direction_input download;
 	struct controller_direction_input upload;
-	uint64_t timestamp_microseconds;
-	uint64_t last_response_microseconds;
-	uint64_t last_pinger_start_microseconds;
-	uint64_t grace_until_microseconds;
+	uint64_t timestamp_us;
+	uint64_t last_response_us;
+	uint64_t last_pinger_start_us;
+	uint64_t grace_until_us;
 };
 
 struct controller_activity {
 	struct controller_activity_config config;
 	enum controller_activity_state state;
-	uint64_t idle_started_microseconds;
+	uint64_t idle_started_us;
 	bool global_timeout_reported;
 };
 
@@ -187,16 +187,16 @@ struct controller_direction {
 	enum controller_congestion_state congestion;
 	int64_t *delay_samples;
 	unsigned char *delayed_samples;
-	int64_t delay_sum_microseconds;
+	int64_t delay_sum_us;
 	/* Over the detection window; zero while latency is unknown. */
-	int64_t average_delay_microseconds;
+	int64_t average_delay_us;
 	uint64_t shaper_rate_bits_per_second;
 	unsigned int delay_next_sample;
 	unsigned int delayed_sample_count;
 	unsigned int saturation_samples;
 	unsigned int recovery_samples;
-	uint64_t last_congestion_adjustment_microseconds;
-	uint64_t last_decay_adjustment_microseconds;
+	uint64_t last_congestion_adjustment_us;
+	uint64_t last_decay_adjustment_us;
 	uint64_t last_increase_sample_id;
 	bool initial_rate_pending;
 	/* The last decisions, for reporting changes. */
@@ -227,7 +227,7 @@ void controller_set_serialization_compensation(
 	uint64_t upload_wire_packet_bits
 );
 
-void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_microseconds);
+void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_us);
 
 /*
  * High above the high-load threshold; otherwise low while traffic exceeds the

@@ -7,14 +7,14 @@
 #include "latency/parser.h"
 
 struct latency_observation {
-	int64_t download_owd_microseconds;
-	int64_t download_owd_baseline_microseconds;
-	int64_t download_owd_delta_microseconds;
-	int64_t download_owd_delta_ewma_microseconds;
-	int64_t upload_owd_microseconds;
-	int64_t upload_owd_baseline_microseconds;
-	int64_t upload_owd_delta_microseconds;
-	int64_t upload_owd_delta_ewma_microseconds;
+	int64_t download_owd_us;
+	int64_t download_owd_baseline_us;
+	int64_t download_owd_delta_us;
+	int64_t download_owd_delta_ewma_us;
+	int64_t upload_owd_us;
+	int64_t upload_owd_baseline_us;
+	int64_t upload_owd_delta_us;
+	int64_t upload_owd_delta_ewma_us;
 };
 
 struct latency_tracker_config {
@@ -24,8 +24,8 @@ struct latency_tracker_config {
 };
 
 struct latency_direction_tracker {
-	int64_t baseline_microseconds;
-	int64_t delta_ewma_microseconds;
+	int64_t baseline_us;
+	int64_t delta_ewma_us;
 };
 
 struct latency_tracker {

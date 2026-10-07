@@ -34,7 +34,7 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 	size_t capacity = 0U;
 	int result = -1;
 
-	if (!read_clock_microseconds(CLOCK_REALTIME, &sample->timestamp_microseconds)) {
+	if (!read_clock_us(CLOCK_REALTIME, &sample->timestamp_us)) {
 		return error_set(
 			error,
 			error_size,

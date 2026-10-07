@@ -171,11 +171,11 @@ int netlink_receive_qdisc_events(struct netlink *netlink, char *error, size_t er
 
 /*
  * One deadline covers a whole multipart response and its interruptions; the
- * first wait sets it when *deadline_microseconds is zero.
+ * first wait sets it when *deadline_us is zero.
  */
 static int wait_for_response(
 	const struct netlink *netlink,
-	uint64_t *deadline_microseconds,
+	uint64_t *deadline_us,
 	char *error,
 	size_t error_size
 )
@@ -190,7 +190,7 @@ static int wait_for_response(
 	do {
 		uint64_t now;
 
-		if (!read_clock_microseconds(CLOCK_MONOTONIC, &now)) {
+		if (!read_clock_us(CLOCK_MONOTONIC, &now)) {
 			return error_set(
 				error,
 				error_size,
@@ -198,18 +198,15 @@ static int wait_for_response(
 				strerror(errno)
 			);
 		}
-		if (*deadline_microseconds == 0U) {
-			*deadline_microseconds = now + NETLINK_RESPONSE_TIMEOUT_MILLISECONDS *
-							       MICROSECONDS_PER_MILLISECOND;
-		}
-		if (now >= *deadline_microseconds)
+		if (*deadline_us == 0U)
+			*deadline_us = now + NETLINK_RESPONSE_TIMEOUT_US;
+		if (now >= *deadline_us)
 			return error_set(error, error_size, "rtnetlink response timed out");
-		result = poll(
-			&descriptor,
-			1U,
-			/* The remaining time is within NETLINK_RESPONSE_TIMEOUT_MILLISECONDS. */
-			(int)milliseconds_rounded_up(*deadline_microseconds - now)
-		);
+		result =
+			poll(&descriptor,
+			     1U,
+			     /* The remaining time is within NETLINK_RESPONSE_TIMEOUT_US. */
+			     (int)us_to_millisec(*deadline_us - now));
 		/* A poll timeout comes back to the deadline check above. */
 	} while ((result < 0 && errno == EINTR) || result == 0);
 
@@ -313,14 +310,14 @@ static int receive_response(
 	size_t error_size
 )
 {
-	uint64_t deadline_microseconds = 0U;
+	uint64_t deadline_us = 0U;
 	int result;
 
 	if (configure_response_callbacks(netlink->socket, context, error, error_size) != 0)
 		return -1;
 
 	while (!context->complete) {
-		if (wait_for_response(netlink, &deadline_microseconds, error, error_size) != 0)
+		if (wait_for_response(netlink, &deadline_us, error, error_size) != 0)
 			return -1;
 
 		result = nl_recvmsgs_default(netlink->socket);

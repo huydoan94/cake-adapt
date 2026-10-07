@@ -10,9 +10,9 @@
 
 struct latency_sample {
 	char target[LATENCY_TARGET_SIZE];
-	int64_t download_owd_microseconds;
-	int64_t upload_owd_microseconds;
-	uint64_t timestamp_microseconds;
+	int64_t download_owd_us;
+	int64_t upload_owd_us;
+	uint64_t timestamp_us;
 	/* fping's "[seconds.fraction]" token, or IRTT's receive time in whole microseconds. */
 	char timestamp_text[LATENCY_TIMESTAMP_TEXT_SIZE];
 	bool timestamp_rollover_sensitive;

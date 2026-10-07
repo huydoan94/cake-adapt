@@ -2,25 +2,67 @@
 
 /*
  * Replays a cake-autorate processing trace through the controller and checks
- * every recorded decision: shaper rates, delay counts and averages, bufferbloat
- * flags, and serialization-compensated thresholds.
+ * it against every recorded decision. Delay counts and the bufferbloat flags
+ * must match exactly. cake-adapt rounds the average delay to the nearest
+ * microsecond where cake-autorate truncates it, so the averages may differ by
+ * AVERAGE_TOLERANCE_US. The cuts the averages choose, and so the shaper rates,
+ * may differ within RATE_TOLERANCE_PER_MILLION, and the serialization-compensated
+ * thresholds, which follow the rate, within THRESHOLD_TOLERANCE_US.
  */
 #include "controller/controller.h"
+#include "common/utils.h"
 
 #include <assert.h>
 #include <inttypes.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#define KILOBIT 1000U
 #define WIRE_PACKET_BITS 12000U
 #define REPORT_LIMIT 10U
+/* Measured worst cases on both traces: 0.119% and 2 us. */
+#define RATE_TOLERANCE_PER_MILLION 5000U
+#define THRESHOLD_TOLERANCE_US 3U
+#define AVERAGE_TOLERANCE_US 1U
+
+static uint64_t worst_rate_per_million;
+static uint64_t worst_threshold_us;
+
+static uint64_t difference(uint64_t first, uint64_t second)
+{
+	return first > second ? first - second : second - first;
+}
+
+/* Within tolerance; also records the worst difference seen. */
+static bool rate_close(uint64_t rate_bits_per_second, uint64_t expected_kbps)
+{
+	uint64_t expected = expected_kbps * KILOBIT;
+	uint64_t per_million = difference(rate_bits_per_second, expected) * 1000000U / expected;
+
+	if (per_million > worst_rate_per_million)
+		worst_rate_per_million = per_million;
+	return per_million <= RATE_TOLERANCE_PER_MILLION;
+}
+
+static bool average_close(int64_t average, int64_t expected)
+{
+	return absolute_difference(average, expected) <= AVERAGE_TOLERANCE_US;
+}
+
+static bool threshold_close(uint64_t threshold, uint64_t expected)
+{
+	uint64_t gap = difference(threshold, expected);
+
+	if (gap > worst_threshold_us)
+		worst_threshold_us = gap;
+	return gap <= THRESHOLD_TOLERANCE_US;
+}
 
 struct trace_sample {
-	uint64_t processed_microseconds;
+	uint64_t processed_us;
 	uint64_t achieved_kbps[2];
-	int64_t delta_microseconds[2];
+	int64_t delta_us[2];
 	uint64_t delay_threshold[2];
 	uint64_t adjust_up_threshold[2];
 	uint64_t adjust_down_threshold[2];
@@ -42,9 +84,9 @@ static struct controller_config upstream_config(void)
 		.minimum_rate_bits_per_second = 10000U * KILOBIT,
 		.base_rate_bits_per_second = 20000U * KILOBIT,
 		.maximum_rate_bits_per_second = 50000U * KILOBIT,
-		.average_delay_maximum_adjust_up_microseconds = 10000U,
-		.delay_threshold_microseconds = 30000U,
-		.average_delay_maximum_adjust_down_microseconds = 60000U,
+		.average_delay_maximum_adjust_up_us = 10000U,
+		.delay_threshold_us = 30000U,
+		.average_delay_maximum_adjust_down_us = 60000U,
 	};
 
 	return (struct controller_config){
@@ -59,8 +101,8 @@ static struct controller_config upstream_config(void)
 		.rate_adjust_down_low_load_per_thousand = 990U,
 		.rate_adjust_up_low_load_per_thousand = 1010U,
 		.high_load_threshold_percent = 75U,
-		.bufferbloat_refractory_period_microseconds = 300000U,
-		.decay_refractory_period_microseconds = 1000000U,
+		.bufferbloat_refractory_period_us = 300000U,
+		.decay_refractory_period_us = 1000000U,
 		.shared_delay = false
 	};
 }
@@ -71,11 +113,11 @@ static bool parse_sample(const char *line, struct trace_sample *sample)
 		      "D %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNd64 " %" SCNd64 " %" SCNu64
 		      " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %" SCNu64 " %u %" SCNd64
 		      " %u %" SCNd64 " %d %d %" SCNu64 " %" SCNu64,
-		      &sample->processed_microseconds,
+		      &sample->processed_us,
 		      &sample->achieved_kbps[0],
 		      &sample->achieved_kbps[1],
-		      &sample->delta_microseconds[0],
-		      &sample->delta_microseconds[1],
+		      &sample->delta_us[0],
+		      &sample->delta_us[1],
 		      &sample->delay_threshold[0],
 		      &sample->adjust_up_threshold[0],
 		      &sample->adjust_down_threshold[0],
@@ -137,12 +179,12 @@ static unsigned int replay(const char *path)
 					    sample.achieved_kbps[1] * KILOBIT,
 				    .cake_rate_bits_per_second = cake_kbps[1] * KILOBIT, },
 			.download_latency = { .valid = true,
-					      .owd_delta_microseconds =
-						      sample.delta_microseconds[0], },
+					      .owd_delta_us =
+						      sample.delta_us[0], },
 			.upload_latency = { .valid = true,
-					    .owd_delta_microseconds =
-						    sample.delta_microseconds[1], },
-			.timestamp_microseconds = sample.processed_microseconds
+					    .owd_delta_us =
+						    sample.delta_us[1], },
+			.timestamp_us = sample.processed_us
 		};
 		controller_update(&controller, &input, &output);
 		controller_set_serialization_compensation(
@@ -162,16 +204,28 @@ static unsigned int replay(const char *path)
 				directions[index]->shaper_rate_bits_per_second / KILOBIT;
 			bool bufferbloat = decision->congestion == CONTROLLER_CONGESTION_DETECTED;
 
-			if (rate_kbps != sample.rate_kbps[index] ||
+			bool rate_matches = rate_close(
+				directions[index]->shaper_rate_bits_per_second,
+				sample.rate_kbps[index]
+			);
+			bool thresholds_match =
+				threshold_close(
+					compensated->delay_threshold_us,
+					sample.delay_threshold[index]
+				) &
+				threshold_close(
+					compensated->average_delay_maximum_adjust_up_us,
+					sample.adjust_up_threshold[index]
+				) &
+				threshold_close(
+					compensated->average_delay_maximum_adjust_down_us,
+					sample.adjust_down_threshold[index]
+				);
+
+			if (!rate_matches || !thresholds_match ||
 			    decision->delayed_sample_count != sample.sum_delays[index] ||
-			    decision->average_delay_microseconds != sample.average_delta[index] ||
-			    bufferbloat != (sample.bufferbloat[index] != 0) ||
-			    compensated->delay_threshold_microseconds !=
-				    sample.delay_threshold[index] ||
-			    compensated->average_delay_maximum_adjust_up_microseconds !=
-				    sample.adjust_up_threshold[index] ||
-			    compensated->average_delay_maximum_adjust_down_microseconds !=
-				    sample.adjust_down_threshold[index]) {
+			    !average_close(decision->average_delay_us, sample.average_delta[index]) ||
+			    bufferbloat != (sample.bufferbloat[index] != 0)) {
 				if (mismatches < REPORT_LIMIT) {
 					printf("%s sample %u %s: rate %" PRIu64 "/%" PRIu64
 					       " sum %u/%u avg %" PRId64 "/%" PRId64 " bb %d/%d"
@@ -185,17 +239,15 @@ static unsigned int replay(const char *path)
 					       sample.rate_kbps[index],
 					       decision->delayed_sample_count,
 					       sample.sum_delays[index],
-					       decision->average_delay_microseconds,
+					       decision->average_delay_us,
 					       sample.average_delta[index],
 					       bufferbloat,
 					       sample.bufferbloat[index],
-					       compensated->delay_threshold_microseconds,
+					       compensated->delay_threshold_us,
 					       sample.delay_threshold[index],
-					       compensated
-						       ->average_delay_maximum_adjust_up_microseconds,
+					       compensated->average_delay_maximum_adjust_up_us,
 					       sample.adjust_up_threshold[index],
-					       compensated
-						       ->average_delay_maximum_adjust_down_microseconds,
+					       compensated->average_delay_maximum_adjust_down_us,
 					       sample.adjust_down_threshold[index]);
 				}
 				mismatches++;
@@ -221,6 +273,10 @@ int main(void)
 
 	for (index = 0U; index < sizeof(traces) / sizeof(traces[0]); index++)
 		mismatches += replay(traces[index]);
+	printf("worst rate difference %" PRIu64 " per million, worst threshold difference %" PRIu64
+	       " us\n",
+	       worst_rate_per_million,
+	       worst_threshold_us);
 	assert(mismatches == 0U);
 	(void)puts("cake-autorate replay tests passed");
 	return 0;

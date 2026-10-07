@@ -4,12 +4,12 @@
 #define poll test_poll
 #define nl_recvmsgs_default test_receive
 #define nl_send_auto_complete test_send
-#define read_clock_microseconds test_clock
+#define read_clock_us test_clock
 #include "platform/netlink.c"
 #undef poll
 #undef nl_recvmsgs_default
 #undef nl_send_auto_complete
-#undef read_clock_microseconds
+#undef read_clock_us
 
 #include <assert.h>
 #include <linux/pkt_sched.h>
@@ -39,7 +39,7 @@ bool test_clock(clockid_t clock_identifier, uint64_t *timestamp)
 int test_poll(struct pollfd *descriptors, nfds_t count, int timeout)
 {
 	assert(count == 1U);
-	assert(timeout > 0 && timeout <= NETLINK_RESPONSE_TIMEOUT_MILLISECONDS);
+	assert(timeout > 0 && (uint64_t)timeout <= NETLINK_RESPONSE_TIMEOUT_US / MILLISECOND);
 	polls++;
 	now += 600000U;
 	/* Without the shared deadline, a partial reply used to reach this timeout
