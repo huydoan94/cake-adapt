@@ -4,7 +4,7 @@
 #
 # Usage: tools/units-audit.sh [SOURCE_DIR]   (default: src)
 #
-# Base units (UNITS_PLAN.md): bits and bytes (rates in bit/s, suffix _bps), microseconds
+# Base units (docs/design/UNITS_PLAN.md): bits and bytes (rates in bit/s, suffix _bps), microseconds
 # (suffix _us, sub-microsecond results rounded), and ratios as integers per
 # million (suffix _e6). Anything else printed here should be a conversion at a boundary
 # (configuration, kernel, pinger output, logs or timers) or one of
