@@ -73,7 +73,7 @@ rate-control defaults, own SQM setup, or implement a full TCP stack.
 
 ## Established evidence and rejected shortcuts
 
-- [Finding 2](../../../EBPF_REVIEW.md#3-finding-a-reused-tuple-inherits-an-old-timestamp-clock)
+- [Finding 2](../../../docs/design/EBPF_REVIEW.md#3-finding-a-reused-tuple-inherits-an-old-timestamp-clock)
   records the original reproduction and acceptance requirements.
 - The [deferred patch](../../2026-10-05-tcp-lifetime-deferred/README.md)
   introduced handshake pairing and generation-qualified measurement. Its
