@@ -1,6 +1,6 @@
 # TCP-delay review map (2026-10-04)
 
-[`index.html`](https://raw.githack.com/huydoan94/cake-adapt/further-integration/profiling/2026-10-04-review-map/index.html) is a one-page visual summary of
+[`index.html`](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-04-review-map/index.html) is a one-page visual summary of
 [`EBPF_REVIEW.md`](../../EBPF_REVIEW.md), checked against the working tree on
 2026-10-04 (Fix 1 committed, phase 1 for the tuple-reuse finding uncommitted).
 Open it in a browser; it needs no build step.
