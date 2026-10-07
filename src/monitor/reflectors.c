@@ -326,7 +326,7 @@ static void handle_health_timer(struct uloop_interval *timer)
 			"no ping response from reflector: %s within"
 			" reflector_response_deadline: %.3fs",
 			reflector,
-			us_to_sec(monitor->config->reflector_response_deadline_us)
+			us_to_sec_decimal(monitor->config->reflector_response_deadline_us)
 		);
 		log_message(
 			LOG_LEVEL_DEBUG,
