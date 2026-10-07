@@ -51,8 +51,8 @@ Since 2026-10-01 the goal is to minimize bufferbloat, not to port faithfully:
 cake-autorate is the origin of the design and the baseline to beat. Departures
 are allowed when they are opt-in (or a documented deliberate default), measured
 on the testbed against the upstream-identical behavior with raw evidence under
-`profiling/`, and documented in code and user-facing docs. The replay test must
-keep matching with every departure switched off. Judge a change by latency
+`profiling/`, and documented in code and user-facing docs. With every departure
+switched off, the replay test must keep matching within its tolerances. Judge a change by latency
 first (added delay percentiles, time bufferbloated) with bounded throughput
 loss (keep at least about 85% of capacity unless the user agrees otherwise).
 
@@ -134,12 +134,15 @@ in that directory and is not included from outside it.
     prose diagnostics, format strings, and module-owned record schemas local.
   - `utils.h`: trivial operations as `static inline` functions: saturating
     arithmetic (`saturating_add`, `saturating_sub`, `saturating_mul`,
-    `signed_sum`), `min_u64`, `max_u64`, `mul_div`, percentages, rounding,
-    clock and timer conversions (`timespec_microseconds`, `timer_milliseconds`,
-    `seconds_from_microseconds`), and `ARRAY_SIZE`. A module never keeps its
-    own copy of one.
+    `signed_sum`), `min_u64`, `max_u64`, `mul_div`, rounding
+    (`rounded_divide`, `signed_rounded_divide`), ratios per million
+    (`ratio_of`, `ratio_of_rounded_up`), unit conversions (`byte_to_bit`,
+    `bit_to_kbit`, `byte_to_kbyte`, `us_to_ms`, `ns_to_us`, `timespec_to_us`,
+    `us_to_sec_decimal`), and `ARRAY_SIZE`. A module never keeps its own copy
+    of one.
   - `helpers.c`: generic operations too large to inline, such as numeric
-    parsing, random selection, clocks, and rate conversions.
+    parsing, random selection, clocks (`read_clock_us`), rates from counters
+    (`bps`), and ratios (`fraction_to_ratio_e6`, `load_ratio_e6`).
   - `error.c`: shared error-buffer formatting.
 - `config/`
   - `config.c`: typed UCI loading and conversion through `libuci`, driven by
@@ -281,7 +284,7 @@ log_message();
 
 Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
 `cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
-Move generic names such as `read_u32()` or `percentage_of()` to
+Move generic names such as `read_u32()` or `fraction_to_ratio_e6()` to
 `common/helpers` when they are shared; keep module-specific helpers local and
 `static`.
 
@@ -308,6 +311,26 @@ conversions from the existing unit table instead of repeating numeric factors
 or inventing another scale. Distinguish a percentage from a ratio and from its
 fixed-point representation; preserve fractional values without integer
 truncation. Names, comments, configuration units, and calculations must agree.
+
+Every computation and comparison uses the base units, as integers:
+
+- data in bits and bytes (a KB is 1,024 bytes) and rates in bit/s;
+- time in microseconds, a fraction of a microsecond rounding to the nearest
+  (half or more up); the TCP filter and estimator keep kernel nanoseconds
+  internally and hand over rounded microseconds;
+- ratios as integers per million (`RATIO_ONE_E6` is 1.0, 0.01 is 10,000),
+  which may exceed one million.
+
+Convert only where a value enters or leaves the daemon (UCI, the kernel,
+uloop, pinger arguments and output, logs), through the named helpers. A name
+holding a quantity ends in its unit: `_us`, `_ns`, `_ms` (boundary only),
+`_sec`, `_bps`, `_kbps` (boundary only), `_byte_ps`, `_bytes`, `_bits`,
+`_ticks` or `_e6`. The unit constants in `constants.h` keep full names
+(`MICROSECOND`, `MILLISECOND`, `SECOND`, `MICROSECONDS_PER_SECOND`,
+`NANOSECONDS_PER_MICROSECOND`); durations use `SECOND`, conversions the
+`*_PER_*` constants. Do not copy upstream's integer truncations (whole kbit/s,
+per-thousand factors, whole-percent loads): exact math wins over matching
+cake-autorate digit for digit.
 
 Do not repeat the program name in every log message because the backend already
 identifies the service.
@@ -435,9 +458,12 @@ Test sources mirror the `src/` subsystem directories; move a test with the
 module it covers. Test objects and binaries are written below `build/tests/`.
 
 `tests/controller/test_replay.c` replays recorded cake-autorate `ac75f49`
-traces from `tests/controller/fixtures/` and requires every decision to match.
-Keep it passing; a controller change that alters a replayed decision is a
-divergence from upstream and needs an explicit decision and documentation.
+traces from `tests/controller/fixtures/`. Delay counts and bufferbloat flags
+must match exactly; because cake-adapt does not copy upstream's truncations,
+average delays may differ by 1 µs, rates by 0.5% and compensated thresholds by
+3 µs. Keep it passing; a controller change that alters a replayed decision
+beyond these tolerances is a divergence from upstream and needs an explicit
+decision and documentation.
 `extract-trace.py` and `scripted-fping.sh` reproduce the fixtures; the raw
 source logs are in `profiling/controller-comparison/`.
 
@@ -483,7 +509,8 @@ Before declaring work complete:
 ## Project status and deferred work
 
 The cake-autorate parity and refactor sequence is complete. The controller
-replays two recorded upstream traces with no mismatching decision, live
+replays two recorded upstream traces with no mismatching decision (within the
+replay's tolerances since the exact-math change of 2026-10-06), live
 side-by-side VM runs agree per phase, and the final end-to-end VM run and
 profiling are recorded under `profiling/` (`controller-comparison/` and
 `2026-09-30/`), as is the resource comparison with cake-autorate

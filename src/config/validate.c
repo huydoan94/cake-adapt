@@ -1,5 +1,6 @@
 #include "config/config.h"
 #include "common/constants.h"
+#include "config/defaults.h"
 #include "common/error.h"
 #include "latency/latency.h"
 
@@ -7,10 +8,10 @@
 #include <string.h>
 
 /* A uloop interval: a positive whole number of milliseconds that fits its unsigned argument. */
-static bool timer_interval_valid(uint64_t microseconds)
+static bool timer_interval_valid(uint64_t interval_us)
 {
-	return microseconds > 0U && microseconds % MILLISECOND == 0U &&
-	       microseconds / MILLISECOND <= UINT_MAX;
+	return interval_us > 0U && interval_us % MICROSECONDS_PER_MILLISECOND == 0U &&
+	       interval_us / MICROSECONDS_PER_MILLISECOND <= UINT_MAX;
 }
 
 static int validate_rate_range(
@@ -20,13 +21,13 @@ static int validate_rate_range(
 	size_t error_size
 )
 {
-	uint64_t minimum = rates->minimum_rate_bits_per_second;
-	uint64_t base = rates->base_rate_bits_per_second;
-	uint64_t maximum = rates->maximum_rate_bits_per_second;
+	uint64_t minimum_bps = rates->minimum_rate_bps;
+	uint64_t base_bps = rates->base_rate_bps;
+	uint64_t maximum_bps = rates->maximum_rate_bps;
 
-	if (!rates->adjust && minimum == 0U && base == 0U && maximum == 0U)
+	if (!rates->adjust && minimum_bps == 0U && base_bps == 0U && maximum_bps == 0U)
 		return 0;
-	if (minimum == 0U || base == 0U || maximum == 0U) {
+	if (minimum_bps == 0U || base_bps == 0U || maximum_bps == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -34,7 +35,7 @@ static int validate_rate_range(
 			direction
 		);
 	}
-	if (minimum > base || base > maximum) {
+	if (minimum_bps > base_bps || base_bps > maximum_bps) {
 		return error_set(
 			error,
 			error_size,
@@ -42,12 +43,13 @@ static int validate_rate_range(
 			direction
 		);
 	}
-	/* The controller works in whole kbit/s, which CAKE can represent exactly. */
-	if (minimum % KILOBIT != 0U || base % KILOBIT != 0U || maximum % KILOBIT != 0U) {
+	/* CAKE holds whole bytes/s. */
+	if (minimum_bps % SHAPER_RATE_STEP_BPS != 0U || base_bps % SHAPER_RATE_STEP_BPS != 0U ||
+	    maximum_bps % SHAPER_RATE_STEP_BPS != 0U) {
 		return error_set(
 			error,
 			error_size,
-			"%s shaper rates must be whole kbit/s",
+			"%s shaper rates must be whole bytes/s (multiples of 8 bit/s)",
 			direction
 		);
 	}
@@ -102,7 +104,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 		);
 	}
 	if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0 &&
-	    config->irtt_session_duration_minutes == 0U) {
+	    config->irtt_session_duration_us == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -136,7 +138,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 			"option 'tcp_delay_attribution' needs pinger_method 'fping'"
 		);
 	}
-	if (config->reflector_ping_interval_microseconds / config->no_pingers < MILLISECOND) {
+	if (config->reflector_ping_interval_us / config->no_pingers < MILLISECOND) {
 		return error_set(
 			error,
 			error_size,
@@ -149,7 +151,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 
 static int validate_detection(const struct config *config, char *error, size_t error_size)
 {
-	if (!timer_interval_valid(config->monitor_achieved_rates_interval_microseconds)) {
+	if (!timer_interval_valid(config->monitor_achieved_rates_interval_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -175,16 +177,16 @@ static int validate_detection(const struct config *config, char *error, size_t e
 			" 'bufferbloat_detection_window'"
 		);
 	}
-	if (config->ul_congest_ack_share_per_million > MILLION) {
+	if (config->ul_congest_ack_share_ratio_e6 > RATIO_ONE_E6) {
 		return error_set(
 			error,
 			error_size,
 			"option 'ul_congest_ack_share' must be between 0 and 1"
 		);
 	}
-	if (config->alpha_baseline_increase_per_million > MILLION ||
-	    config->alpha_baseline_decrease_per_million > MILLION ||
-	    config->alpha_delta_ewma_per_million > MILLION) {
+	if (config->alpha_baseline_increase_ratio_e6 > RATIO_ONE_E6 ||
+	    config->alpha_baseline_decrease_ratio_e6 > RATIO_ONE_E6 ||
+	    config->alpha_delta_ewma_ratio_e6 > RATIO_ONE_E6) {
 		return error_set(error, error_size, "alpha options must be between 0 and 1");
 	}
 	return 0;
@@ -192,15 +194,15 @@ static int validate_detection(const struct config *config, char *error, size_t e
 
 static int validate_reflector_policy(const struct config *config, char *error, size_t error_size)
 {
-	if (config->reflector_health_check_interval_microseconds == 0U ||
-	    config->reflector_response_deadline_microseconds == 0U) {
+	if (config->reflector_health_check_interval_us == 0U ||
+	    config->reflector_response_deadline_us == 0U) {
 		return error_set(
 			error,
 			error_size,
 			"reflector health interval and response deadline must be positive"
 		);
 	}
-	if (!timer_interval_valid(config->reflector_health_check_interval_microseconds)) {
+	if (!timer_interval_valid(config->reflector_health_check_interval_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -220,20 +222,11 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 			"reflector offence threshold must be between 1 and its window"
 		);
 	}
-	if (config->reflector_replacement_interval_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE ||
-	    config->reflector_comparison_interval_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE) {
-		return error_set(
-			error,
-			error_size,
-			"reflector replacement and comparison intervals are too large"
-		);
-	}
 	if (config->stall_detection_threshold == 0U ||
 	    config->stall_detection_threshold >
-		    UINT64_MAX /
-			    (config->reflector_ping_interval_microseconds / config->no_pingers) ||
-	    config->global_ping_response_timeout_microseconds == 0U ||
-	    config->interface_up_check_interval_microseconds == 0U) {
+		    UINT64_MAX / (config->reflector_ping_interval_us / config->no_pingers) ||
+	    config->global_ping_response_timeout_us == 0U ||
+	    config->interface_up_check_interval_us == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -247,7 +240,7 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 static int validate_monitoring(const struct config *config, char *error, size_t error_size)
 {
 	if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
-	    !timer_interval_valid(config->monitor_cpu_usage_interval_microseconds)) {
+	    !timer_interval_valid(config->monitor_cpu_usage_interval_us)) {
 		return error_set(
 			error,
 			error_size,
@@ -255,17 +248,13 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 			UINT_MAX
 		);
 	}
-	if (config->log_file_max_time_minutes > UINT64_MAX / MICROSECONDS_PER_MINUTE ||
-	    config->log_file_max_size_kilobytes > UINT64_MAX / KIBIBYTE ||
-	    config->log_file_buffer_timeout_microseconds / MILLISECOND > UINT_MAX ||
-	    config->reflector_ping_interval_microseconds > UINT64_MAX / 2U) {
+	if (config->log_file_buffer_timeout_us / MICROSECONDS_PER_MILLISECOND > UINT_MAX ||
+	    config->reflector_ping_interval_us > UINT64_MAX / 2U) {
 		return error_set(error, error_size, "logging or pinger intervals are too large");
 	}
 	if (config->enable_sleep_function &&
-	    (config->connection_active_threshold_bits_per_second >
-		     config->download.minimum_rate_bits_per_second ||
-	     config->connection_active_threshold_bits_per_second >
-		     config->upload.minimum_rate_bits_per_second)) {
+	    (config->connection_active_threshold_bps > config->download.minimum_rate_bps ||
+	     config->connection_active_threshold_bps > config->upload.minimum_rate_bps)) {
 		return error_set(
 			error,
 			error_size,

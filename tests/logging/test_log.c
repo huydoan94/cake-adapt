@@ -19,15 +19,15 @@
 
 /* A log file without rotation, buffering or compression. */
 static const struct log_file_settings unlimited = { 0 };
-static const struct log_file_settings size_limited = { .maximum_size_kilobytes = 1U };
+static const struct log_file_settings size_limited = { .maximum_size_bytes = KILOBYTE };
 static const struct log_file_settings size_limited_compressed = {
-	.maximum_size_kilobytes = 1U,
+	.maximum_size_bytes = KILOBYTE,
 	.compress_exports = true,
 };
-static const struct log_file_settings buffered = { .buffer_timeout_microseconds = 500000U };
+static const struct log_file_settings buffered = { .buffer_timeout_us = 500000U };
 static const struct log_file_settings aged_and_buffered = {
-	.maximum_time_minutes = 1U,
-	.buffer_timeout_microseconds = 500000U,
+	.maximum_time_us = MINUTE,
+	.buffer_timeout_us = 500000U,
 };
 static const struct log_records every_record = {
 	.data = true,
@@ -52,12 +52,12 @@ static unsigned int local_time_conversions;
 
 FILE *__real_open_memstream(char **buffer, size_t *size);
 int __real_fclose(FILE *stream);
-struct tm *__real_localtime_r(const time_t *seconds, struct tm *result);
+struct tm *__real_localtime_r(const time_t *sec, struct tm *result);
 
-struct tm *__wrap_localtime_r(const time_t *seconds, struct tm *result)
+struct tm *__wrap_localtime_r(const time_t *sec, struct tm *result)
 {
 	local_time_conversions++;
-	return __real_localtime_r(seconds, result);
+	return __real_localtime_r(sec, result);
 }
 
 FILE *__wrap_open_memstream(char **buffer, size_t *size)
@@ -374,67 +374,67 @@ static void test_cake_autorate_headers_and_record_format(void)
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[8192];
 	const struct log_data_record data_record = {
-		.download_achieved_rate_kbps = 10U,
-		.upload_achieved_rate_kbps = 20U,
-		.download_load_percent = 30U,
-		.upload_load_percent = 40U,
+		.download_achieved_rate_bps = 10U * KILOBIT,
+		.upload_achieved_rate_bps = 20U * KILOBIT,
+		.download_load_ratio_e6 = 305000U,
+		.upload_load_ratio_e6 = 400000U,
 		.icmp_timestamp = "[50.00006]",
 		.reflector = "1.1.1.1",
 		.sequence = 70U,
-		.download_owd_baseline_microseconds = -80,
-		.download_owd_microseconds = -90,
-		.download_owd_delta_ewma_microseconds = -100,
-		.download_owd_delta_microseconds = -110,
-		.download_adjust_delay_threshold_microseconds = 120U,
-		.upload_owd_baseline_microseconds = -130,
-		.upload_owd_microseconds = -140,
-		.upload_owd_delta_ewma_microseconds = -150,
-		.upload_owd_delta_microseconds = -160,
-		.upload_adjust_delay_threshold_microseconds = 170U,
+		.download_owd_baseline_us = -80,
+		.download_owd_us = -90,
+		.download_owd_delta_ewma_us = -100,
+		.download_owd_delta_us = -110,
+		.download_adjust_delay_threshold_us = 120U,
+		.upload_owd_baseline_us = -130,
+		.upload_owd_us = -140,
+		.upload_owd_delta_ewma_us = -150,
+		.upload_owd_delta_us = -160,
+		.upload_adjust_delay_threshold_us = 170U,
 		.download_sum_delays = 180U,
-		.download_average_owd_delta_microseconds = -190,
-		.download_maximum_adjust_up_threshold_microseconds = 200U,
-		.download_maximum_adjust_down_threshold_microseconds = 210U,
+		.download_average_owd_delta_us = -190,
+		.download_maximum_adjust_up_threshold_us = 200U,
+		.download_maximum_adjust_down_threshold_us = 210U,
 		.upload_sum_delays = 220U,
-		.upload_average_owd_delta_microseconds = -230,
-		.upload_maximum_adjust_up_threshold_microseconds = 240U,
-		.upload_maximum_adjust_down_threshold_microseconds = 250U,
+		.upload_average_owd_delta_us = -230,
+		.upload_maximum_adjust_up_threshold_us = 240U,
+		.upload_maximum_adjust_down_threshold_us = 250U,
 		.download_load_condition = "dl_low",
 		.upload_load_condition = "ul_high_bb",
-		.cake_download_rate_kbps = 260U,
-		.cake_upload_rate_kbps = 270U,
+		.cake_download_rate_bps = 260U * KILOBIT,
+		.cake_upload_rate_bps = 270U * KILOBIT,
 	};
 	const struct log_load_record load_record = {
-		.download_achieved_rate_kbps = 10U,
-		.upload_achieved_rate_kbps = 20U,
-		.cake_download_rate_kbps = 30U,
-		.cake_upload_rate_kbps = 40U,
+		.download_achieved_rate_bps = 10U * KILOBIT,
+		.upload_achieved_rate_bps = 20U * KILOBIT,
+		.cake_download_rate_bps = 30U * KILOBIT,
+		.cake_upload_rate_bps = 40U * KILOBIT,
 	};
 	const struct log_summary_record summary_record = {
-		.download_achieved_rate_kbps = 11U,
-		.upload_achieved_rate_kbps = 21U,
+		.download_achieved_rate_bps = 11U * KILOBIT,
+		.upload_achieved_rate_bps = 21U * KILOBIT,
 		.download_sum_delays = 31U,
 		.upload_sum_delays = 41U,
-		.download_average_owd_delta_microseconds = -51,
-		.upload_average_owd_delta_microseconds = -61,
+		.download_average_owd_delta_us = -51,
+		.upload_average_owd_delta_us = -61,
 		.download_load_condition = "dl_idle",
 		.upload_load_condition = "ul_low",
-		.cake_download_rate_kbps = 71U,
-		.cake_upload_rate_kbps = 81U,
+		.cake_download_rate_bps = 71U * KILOBIT,
+		.cake_upload_rate_bps = 81U * KILOBIT,
 	};
 	const struct log_reflector_record reflector_record = {
 		.reflector = "1.0.0.1",
-		.minimum_sum_owd_baselines_microseconds = -100,
-		.sum_owd_baselines_microseconds = -110,
-		.sum_owd_baselines_delta_microseconds = 10U,
-		.sum_owd_baselines_delta_threshold_microseconds = 20000U,
-		.minimum_download_delta_ewma_microseconds = -5,
-		.download_delta_ewma_microseconds = 7,
-		.download_delta_ewma_delta_microseconds = 12,
-		.delta_ewma_delta_threshold_microseconds = 10000U,
-		.minimum_upload_delta_ewma_microseconds = -6,
-		.upload_delta_ewma_microseconds = 8,
-		.upload_delta_ewma_delta_microseconds = 14,
+		.minimum_sum_owd_baselines_us = -100,
+		.sum_owd_baselines_us = -110,
+		.sum_owd_baselines_delta_us = 10U,
+		.sum_owd_baselines_delta_threshold_us = 20000U,
+		.minimum_download_delta_ewma_us = -5,
+		.download_delta_ewma_us = 7,
+		.download_delta_ewma_delta_us = 12,
+		.delta_ewma_delta_threshold_us = 10000U,
+		.minimum_upload_delta_ewma_us = -6,
+		.upload_delta_ewma_us = 8,
+		.upload_delta_ewma_delta_us = 14,
 	};
 	const char *field_end;
 	const char *field_start;
@@ -453,7 +453,7 @@ static void test_cake_autorate_headers_and_record_format(void)
 	log_data(&data_record);
 	log_summary(&summary_record);
 	log_reflector(&reflector_record);
-	log_shaper("eth1", 28000U);
+	log_shaper("eth1", 28000U * KILOBIT);
 	log_system_message("Started test process");
 	log_close();
 
@@ -509,22 +509,22 @@ static void test_cpu_schema_matches_cake_autorate(void)
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[4096];
 	const struct cpu_sample sample = {
-		.timestamp_microseconds = 1234567U,
+		.timestamp_us = 1234567U,
 		.count = 2U,
 		.counters = { { .identifier = "cpu",
-				.user = 1U,
-				.nice = 2U,
-				.system = 3U,
-				.idle = 4U,
-				.iowait = 5U,
-				.irq = 6U,
-				.softirq = 7U,
-				.steal = 8U,
-				.guest = 9U,
-				.guest_nice = 10U },
-			      { .identifier = "cpu0", .idle = 50U } },
+				.user_ticks = 1U,
+				.nice_ticks = 2U,
+				.system_ticks = 3U,
+				.idle_ticks = 4U,
+				.iowait_ticks = 5U,
+				.irq_ticks = 6U,
+				.softirq_ticks = 7U,
+				.steal_ticks = 8U,
+				.guest_ticks = 9U,
+				.guest_nice_ticks = 10U },
+			      { .identifier = "cpu0", .idle_ticks = 50U } },
 	};
-	const unsigned int usage[] = { 40U, 50U };
+	const struct cpu_busy usage[] = { { 40U, 100U }, { 1U, 2U } };
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);
@@ -558,8 +558,8 @@ static void test_tcp_queue_record(void)
 	const struct log_tcp_queue_record record = {
 		.download_valid = true,
 		.upload_valid = false,
-		.download_queue_microseconds = 1500,
-		.upload_queue_microseconds = -20,
+		.download_queue_us = 1500,
+		.upload_queue_us = -20,
 	};
 	int descriptor = mkstemp(path);
 
@@ -585,10 +585,10 @@ static void test_memory_record(void)
 	char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
 	char contents[4096];
 	const struct memory_sample sample = {
-		.rss_kilobytes = 2136U,
-		.peak_rss_kilobytes = 2200U,
-		.anonymous_kilobytes = 412U,
-		.data_kilobytes = 900U,
+		.rss_bytes = 2136U * KILOBYTE,
+		.peak_rss_bytes = 2200U * KILOBYTE,
+		.anonymous_bytes = 412U * KILOBYTE,
+		.data_bytes = 900U * KILOBYTE,
 	};
 	int descriptor = mkstemp(path);
 
@@ -668,7 +668,7 @@ static void test_cpu_log_allocation_failures(void)
 	char path[] = "/tmp/cake-adapt-log-memory-XXXXXX";
 	char contents[4096];
 	struct cpu_sample sample = { .count = 1U, .counters = { { .identifier = "cpu" } } };
-	const unsigned int usage[] = { 40U };
+	const struct cpu_busy usage[] = { { 40U, 100U } };
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);
@@ -752,19 +752,19 @@ static void test_buffer_timeout_and_time_rotation(void)
 	assert(unlink(previous_path) == 0);
 }
 
-static void test_local_time_is_converted_once_per_second(void)
+static void test_local_time_is_converted_once_per_sec(void)
 {
 	char path[] = "/tmp/cake-adapt-log-datetime-XXXXXX";
 	char contents[4096];
 	char expected[64];
 	struct tm local_time;
-	time_t seconds = 3000;
+	time_t sec = 3000;
 	int descriptor = mkstemp(path);
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 	use_mock_time = true;
-	mock_time = (struct timespec){ .tv_sec = seconds };
+	mock_time = (struct timespec){ .tv_sec = sec };
 	log_init("cake-adapt-test", false);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, &unlimited) == 0);
@@ -779,7 +779,7 @@ static void test_local_time_is_converted_once_per_second(void)
 	assert(local_time_conversions == 2U);
 
 	read_log(path, contents, sizeof(contents));
-	assert(localtime_r(&seconds, &local_time) != NULL);
+	assert(localtime_r(&sec, &local_time) != NULL);
 	assert(strftime(
 		       expected,
 		       sizeof(expected),
@@ -787,8 +787,8 @@ static void test_local_time_is_converted_once_per_second(void)
 		       &local_time
 	       ) > 0U);
 	assert(strstr(contents, expected) != NULL);
-	seconds++;
-	assert(localtime_r(&seconds, &local_time) != NULL);
+	sec++;
+	assert(localtime_r(&sec, &local_time) != NULL);
 	assert(strftime(
 		       expected,
 		       sizeof(expected),
@@ -860,7 +860,7 @@ static void test_existing_file_size_uses_strict_rotation_limit(void)
 	char path[] = "/tmp/cake-adapt-log-size-XXXXXX";
 	char previous_path[128];
 	char contents[2048];
-	char existing[KIBIBYTE];
+	char existing[KILOBYTE];
 	FILE *file;
 	int descriptor = mkstemp(path);
 
@@ -895,7 +895,7 @@ static void test_disabled_output_skips_formatting_clocks(void)
 	clock_reads = 0U;
 	syslog_count = 0U;
 	log_load(&load);
-	log_shaper("wan", 1000U);
+	log_shaper("wan", 1000U * KILOBIT);
 	log_message(LOG_LEVEL_DEBUG, "unused debug sample");
 	log_message(LOG_LEVEL_INFO, "unused information");
 	log_tick();
@@ -926,7 +926,7 @@ int main(void)
 	test_rotation_export_and_reset_preserve_live_inode(&size_limited);
 	test_rotation_export_and_reset_preserve_live_inode(&size_limited_compressed);
 	test_buffer_timeout_and_time_rotation();
-	test_local_time_is_converted_once_per_second();
+	test_local_time_is_converted_once_per_sec();
 	test_records_wait_for_buffer_timeout();
 	test_immediate_output_avoids_maintenance_clock();
 	test_existing_file_size_uses_strict_rotation_limit();

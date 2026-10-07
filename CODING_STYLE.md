@@ -84,8 +84,10 @@ log_message();
 - Add a prefix only to prevent a concrete collision or ambiguity.
 - Keep module-specific helpers local and `static`.
 - Put genuinely shared helpers in an existing generic helper module.
-- Prefer names that include the unit when it is not obvious, such as
-  `timeout_microseconds` or `rate_bits_per_second`.
+- End every name that holds a quantity with its unit, abbreviated, such as
+  `timeout_us`, `rate_bps`, `size_bytes` or `share_e6` (a ratio per million).
+  Keep the full unit names for the unit constants themselves, such as
+  `MICROSECOND` and `MICROSECONDS_PER_SECOND`.
 - Do not repeat the program name in every log message when the logging backend
   already identifies it.
 

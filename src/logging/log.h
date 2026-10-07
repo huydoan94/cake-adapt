@@ -22,71 +22,71 @@ enum log_level {
 };
 
 struct log_load_record {
-	uint64_t download_achieved_rate_kbps;
-	uint64_t upload_achieved_rate_kbps;
-	uint64_t cake_download_rate_kbps;
-	uint64_t cake_upload_rate_kbps;
+	uint64_t download_achieved_rate_bps;
+	uint64_t upload_achieved_rate_bps;
+	uint64_t cake_download_rate_bps;
+	uint64_t cake_upload_rate_bps;
 };
 
 struct log_data_record {
-	uint64_t download_achieved_rate_kbps;
-	uint64_t upload_achieved_rate_kbps;
-	unsigned int download_load_percent;
-	unsigned int upload_load_percent;
+	uint64_t download_achieved_rate_bps;
+	uint64_t upload_achieved_rate_bps;
+	uint64_t download_load_ratio_e6;
+	uint64_t upload_load_ratio_e6;
 	/* The pinger's timestamp token, verbatim. */
 	const char *icmp_timestamp;
 	const char *reflector;
 	uint64_t sequence;
-	int64_t download_owd_baseline_microseconds;
-	int64_t download_owd_microseconds;
-	int64_t download_owd_delta_ewma_microseconds;
-	int64_t download_owd_delta_microseconds;
-	uint64_t download_adjust_delay_threshold_microseconds;
-	int64_t upload_owd_baseline_microseconds;
-	int64_t upload_owd_microseconds;
-	int64_t upload_owd_delta_ewma_microseconds;
-	int64_t upload_owd_delta_microseconds;
-	uint64_t upload_adjust_delay_threshold_microseconds;
+	int64_t download_owd_baseline_us;
+	int64_t download_owd_us;
+	int64_t download_owd_delta_ewma_us;
+	int64_t download_owd_delta_us;
+	uint64_t download_adjust_delay_threshold_us;
+	int64_t upload_owd_baseline_us;
+	int64_t upload_owd_us;
+	int64_t upload_owd_delta_ewma_us;
+	int64_t upload_owd_delta_us;
+	uint64_t upload_adjust_delay_threshold_us;
 	unsigned int download_sum_delays;
-	int64_t download_average_owd_delta_microseconds;
-	uint64_t download_maximum_adjust_up_threshold_microseconds;
-	uint64_t download_maximum_adjust_down_threshold_microseconds;
+	int64_t download_average_owd_delta_us;
+	uint64_t download_maximum_adjust_up_threshold_us;
+	uint64_t download_maximum_adjust_down_threshold_us;
 	unsigned int upload_sum_delays;
-	int64_t upload_average_owd_delta_microseconds;
-	uint64_t upload_maximum_adjust_up_threshold_microseconds;
-	uint64_t upload_maximum_adjust_down_threshold_microseconds;
+	int64_t upload_average_owd_delta_us;
+	uint64_t upload_maximum_adjust_up_threshold_us;
+	uint64_t upload_maximum_adjust_down_threshold_us;
 	const char *download_load_condition;
 	const char *upload_load_condition;
-	uint64_t cake_download_rate_kbps;
-	uint64_t cake_upload_rate_kbps;
+	uint64_t cake_download_rate_bps;
+	uint64_t cake_upload_rate_bps;
 };
 
 struct log_summary_record {
-	uint64_t download_achieved_rate_kbps;
-	uint64_t upload_achieved_rate_kbps;
+	uint64_t download_achieved_rate_bps;
+	uint64_t upload_achieved_rate_bps;
 	unsigned int download_sum_delays;
 	unsigned int upload_sum_delays;
-	int64_t download_average_owd_delta_microseconds;
-	int64_t upload_average_owd_delta_microseconds;
+	int64_t download_average_owd_delta_us;
+	int64_t upload_average_owd_delta_us;
 	const char *download_load_condition;
 	const char *upload_load_condition;
-	uint64_t cake_download_rate_kbps;
-	uint64_t cake_upload_rate_kbps;
+	uint64_t cake_download_rate_bps;
+	uint64_t cake_upload_rate_bps;
 };
 
 struct log_reflector_record {
 	const char *reflector;
-	int64_t minimum_sum_owd_baselines_microseconds;
-	int64_t sum_owd_baselines_microseconds;
-	uint64_t sum_owd_baselines_delta_microseconds;
-	uint64_t sum_owd_baselines_delta_threshold_microseconds;
-	int64_t minimum_download_delta_ewma_microseconds;
-	int64_t download_delta_ewma_microseconds;
-	int64_t download_delta_ewma_delta_microseconds;
-	uint64_t delta_ewma_delta_threshold_microseconds;
-	int64_t minimum_upload_delta_ewma_microseconds;
-	int64_t upload_delta_ewma_microseconds;
-	int64_t upload_delta_ewma_delta_microseconds;
+	int64_t minimum_sum_owd_baselines_us;
+	int64_t sum_owd_baselines_us;
+	uint64_t sum_owd_baselines_delta_us;
+	uint64_t sum_owd_baselines_delta_threshold_us;
+	int64_t minimum_download_delta_ewma_us;
+	int64_t download_delta_ewma_us;
+	int64_t download_delta_ewma_delta_us;
+	uint64_t delta_ewma_delta_threshold_us;
+	int64_t minimum_upload_delta_ewma_us;
+	int64_t upload_delta_ewma_us;
+	int64_t upload_delta_ewma_delta_us;
 };
 
 void log_init(const char *identifier, bool foreground);
@@ -95,9 +95,9 @@ void log_close(void);
 
 /* Rotation, buffering and export of the detailed log file; zero disables a limit. */
 struct log_file_settings {
-	uint64_t maximum_time_minutes;
-	uint64_t maximum_size_kilobytes;
-	uint64_t buffer_timeout_microseconds;
+	uint64_t maximum_time_us;
+	uint64_t maximum_size_bytes;
+	uint64_t buffer_timeout_us;
 	bool compress_exports;
 };
 
@@ -134,8 +134,8 @@ void log_print_headers(const struct log_records *records);
 struct log_tcp_queue_record {
 	bool download_valid;
 	bool upload_valid;
-	int64_t download_queue_microseconds;
-	int64_t upload_queue_microseconds;
+	int64_t download_queue_us;
+	int64_t upload_queue_us;
 };
 
 void log_tcp_queue(const struct log_tcp_queue_record *record);
@@ -156,11 +156,11 @@ void log_print_cpu_headers(
 	bool output_cpu_raw_stats
 );
 
-void log_cpu(const struct cpu_sample *sample, const unsigned int *usage);
+void log_cpu(const struct cpu_sample *sample, const struct cpu_busy *usage);
 
 void log_cpu_raw(const struct cpu_sample *sample);
 
-void log_shaper(const char *interface, uint64_t rate_kbps);
+void log_shaper(const char *interface, uint64_t rate_bps);
 
 void log_system_message(const char *format, ...) __attribute__((format(printf, 1, 2)));
 

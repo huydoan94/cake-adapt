@@ -42,11 +42,11 @@ struct monitor_direction {
 	struct cake_observation cake;
 	enum cake_observation_state cake_state;
 	enum traffic_observation_state traffic_state;
-	uint64_t traffic_rate_bits_per_second;
+	uint64_t traffic_rate_bps;
 	uint64_t traffic_sample_id;
 	bool cake_valid;
 	bool traffic_valid;
-	uint64_t next_cake_observation_microseconds;
+	uint64_t next_cake_observation_us;
 };
 
 /* links.c: both directions' CAKE and traffic, and qdisc lifecycle events. */
@@ -59,7 +59,7 @@ struct monitor_links {
 	bool clock_failed;
 	bool cadence_initialized;
 	bool cadence_applied;
-	uint64_t cadence_microseconds;
+	uint64_t cadence_us;
 };
 
 /* control.c */
@@ -90,25 +90,32 @@ struct monitor_pingers {
 	bool response_clock_failed;
 	/* Stopped while CAKE was missing; restarted with setup grace. */
 	bool suspended;
-	uint64_t last_response_microseconds;
-	uint64_t last_restart_microseconds;
-	uint64_t next_attempt_microseconds;
-	uint64_t grace_until_microseconds;
+	uint64_t last_response_us;
+	uint64_t last_restart_us;
+	uint64_t next_attempt_us;
+	uint64_t grace_until_us;
 };
 
 /* reflectors.c: per-reflector latency trackers, active order and health. */
+/* A pinger slot's largest added round-trip delay in the current and previous second. */
+struct reflector_recent_delay {
+	uint64_t sec;
+	int64_t current_us;
+	int64_t previous_us;
+};
+
 struct monitor_reflectors {
-	/* Shared by every tracker and health record below. */
-	struct latency_tracker_config tracker_config;
+	/* Shared by every health record below. */
 	struct reflector_health_config health_config;
 	struct latency_tracker trackers[CONFIG_MAX_REFLECTORS];
 	/* Indexed by pinger slot; order maps a slot to its reflector. */
 	struct reflector_health health[CONFIG_MAX_REFLECTORS];
+	struct reflector_recent_delay recent[CONFIG_MAX_REFLECTORS];
 	size_t order[CONFIG_MAX_REFLECTORS];
 	struct uloop_interval health_timer;
 	bool clock_failed;
-	uint64_t last_replacement_microseconds;
-	uint64_t last_comparison_microseconds;
+	uint64_t last_replacement_us;
+	uint64_t last_comparison_us;
 };
 
 /* tcpdelay.c: the TCP queue estimate and the upload ACK rate. */
@@ -119,12 +126,8 @@ struct monitor_tcp {
 	struct qdisc_id qdisc;
 	/* Upload interface whose capture failed; retried once it is recreated. */
 	unsigned int failed_index;
-	/* fping's largest added round-trip delay in the current and previous second. */
-	uint64_t bound_second;
-	int64_t bound_current_ns;
-	int64_t bound_previous_ns;
 	uint64_t dropped_records;
-	uint64_t next_counter_check_microseconds;
+	uint64_t next_counter_check_us;
 	/* Pure-ACK and upload byte counters at the last rate sample, and the rates since. */
 	bool ack_sampled;
 	bool ack_rate_valid;
@@ -132,9 +135,9 @@ struct monitor_tcp {
 	uint64_t ack_bytes;
 	uint64_t upload_bytes;
 	uint64_t unaccounted_packets;
-	uint64_t ack_sampled_microseconds;
-	uint64_t ack_rate_bits_per_second;
-	uint64_t upload_rate_bits_per_second;
+	uint64_t ack_sampled_us;
+	uint64_t ack_rate_bps;
+	uint64_t upload_rate_bps;
 };
 
 /* The whole daemon state; each part above belongs to the file named on it. */
@@ -190,7 +193,7 @@ void control_update(
 	const struct latency_sample *sample
 );
 
-void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_microseconds);
+void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_us);
 
 /* tcpdelay.c */
 
@@ -215,7 +218,7 @@ void tcp_stop(struct monitor *monitor);
 
 /* pingers.c */
 
-void pingers_prepare(struct monitor *monitor, uint64_t start_microseconds);
+void pingers_prepare(struct monitor *monitor, uint64_t start_us);
 
 void pingers_close(struct monitor *monitor);
 
@@ -226,19 +229,19 @@ bool pingers_watch(struct monitor *monitor);
 /* CAKE is missing: stop the pingers until pingers_unsuspend(). */
 void pingers_suspend(struct monitor *monitor);
 
-void pingers_unsuspend(struct monitor *monitor, uint64_t timestamp_microseconds);
+void pingers_unsuspend(struct monitor *monitor, uint64_t timestamp_us);
 
 /* Leaving IDLE: start again with setup grace. */
-void pingers_resume(struct monitor *monitor, uint64_t timestamp_microseconds);
+void pingers_resume(struct monitor *monitor, uint64_t timestamp_us);
 
 /* Restart now with the current reflectors, as after a rotation. */
 void pingers_reopen(struct monitor *monitor);
 
-void pingers_restart(struct monitor *monitor, uint64_t timestamp_microseconds);
+void pingers_restart(struct monitor *monitor, uint64_t timestamp_us);
 
 /* reflectors.c */
 
-int reflectors_start(struct monitor *monitor, uint64_t start_microseconds);
+int reflectors_start(struct monitor *monitor, uint64_t start_us);
 
 void reflectors_stop(struct monitor *monitor);
 
@@ -256,11 +259,21 @@ void reflectors_record(
 	struct monitor *monitor,
 	size_t slot,
 	const struct latency_sample *sample,
-	uint64_t response_microseconds,
+	uint64_t response_us,
 	struct latency_observation *observation
 );
 
-void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_microseconds);
+void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_us);
+
+/*
+ * fping's recent added round-trip delay on the access link, or -1 when no
+ * pinger slot replied in the current or previous second. A queue on the link
+ * delays every reflector's replies, while a slow reflector delays only its own:
+ * this is the lower median across slots of each slot's largest added delay over
+ * those two seconds. One slow reflector cannot raise it, and one whose baseline
+ * sits too high cannot hold it down.
+ */
+int64_t reflectors_recent_delay_us(const struct monitor *monitor, uint64_t timestamp_us);
 
 /* monitor.c */
 

@@ -36,14 +36,15 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 		interval,
 		sizeof(interval),
 		"%" PRIu64 ".%06" PRIu64 "s",
-		settings->reflector_ping_interval_microseconds / SECOND,
-		settings->reflector_ping_interval_microseconds % SECOND
+		settings->reflector_ping_interval_us / MICROSECONDS_PER_SECOND,
+		settings->reflector_ping_interval_us % MICROSECONDS_PER_SECOND
 	);
 	(void)snprintf(
 		duration,
 		sizeof(duration),
-		"%" PRIu64 "m",
-		settings->irtt_session_duration_minutes
+		"%" PRIu64 ".%06" PRIu64 "s",
+		settings->irtt_session_duration_us / MICROSECONDS_PER_SECOND,
+		settings->irtt_session_duration_us % MICROSECONDS_PER_SECOND
 	);
 	if (strchr(child->target, ':') == NULL)
 		(void)strcpy(endpoint, child->target);
@@ -65,21 +66,21 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 	return ret;
 }
 
-/* Sessions start one per target, spread over the ping slot after timestamp_microseconds. */
+/* Sessions start one per target, spread over the ping slot after timestamp_us. */
 static int irtt_open(
 	struct latency *latency,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t timestamp_microseconds,
+	uint64_t timestamp_us,
 	char *error,
 	size_t error_size
 )
 {
 	const struct latency_settings *settings = &latency->settings;
-	uint64_t interval = settings->reflector_ping_interval_microseconds;
-	uint64_t elapsed = timestamp_microseconds - settings->slot_origin_microseconds;
-	uint64_t first_start_microseconds = timestamp_microseconds + interval - elapsed % interval;
-	uint64_t spacing = interval / target_count;
+	uint64_t interval_us = settings->reflector_ping_interval_us;
+	uint64_t elapsed_us = timestamp_us - settings->slot_origin_us;
+	uint64_t first_start_us = timestamp_us + interval_us - elapsed_us % interval_us;
+	uint64_t spacing_us = rounded_divide(interval_us, target_count);
 	struct pinger_command command;
 	size_t index;
 
@@ -92,7 +93,7 @@ static int irtt_open(
 		struct latency_child *child = &latency->children[index];
 
 		child->target = targets[index];
-		child->next_start_microseconds = first_start_microseconds + index * spacing;
+		child->next_start_us = first_start_us + index * spacing_us;
 	}
 	latency->active = true;
 	latency->child_count = target_count;
@@ -101,7 +102,7 @@ static int irtt_open(
 
 int latency_start_irtt_children(
 	struct latency *latency,
-	uint64_t timestamp_microseconds,
+	uint64_t timestamp_us,
 	char *error,
 	size_t error_size
 )
@@ -111,15 +112,13 @@ int latency_start_irtt_children(
 	for (index = 0U; index < latency->child_count; index++) {
 		struct latency_child *child = &latency->children[index];
 
-		if (child->output_descriptor >= 0 ||
-		    timestamp_microseconds < child->next_start_microseconds) {
+		if (child->output_descriptor >= 0 || timestamp_us < child->next_start_us)
 			continue;
-		}
 		if (spawn_irtt_child(latency, index, error, error_size) != 0) {
 			latency_close(latency);
 			return -1;
 		}
-		child->started_microseconds = timestamp_microseconds;
+		child->started_us = timestamp_us;
 	}
 	return 0;
 }
@@ -136,18 +135,18 @@ bool latency_irtt_start_pending(const struct latency *latency)
 	return false;
 }
 
-uint64_t latency_irtt_next_start_microseconds(const struct latency *latency)
+uint64_t latency_irtt_next_start_us(const struct latency *latency)
 {
-	uint64_t next = UINT64_MAX;
+	uint64_t next_us = UINT64_MAX;
 	size_t index;
 
 	for (index = 0U; index < latency->child_count; index++) {
 		const struct latency_child *child = &latency->children[index];
 
-		if (child->output_descriptor < 0 && child->next_start_microseconds < next)
-			next = child->next_start_microseconds;
+		if (child->output_descriptor < 0 && child->next_start_us < next_us)
+			next_us = child->next_start_us;
 	}
-	return next;
+	return next_us;
 }
 
 static enum latency_probe_result irtt_parse(
@@ -158,21 +157,18 @@ static enum latency_probe_result irtt_parse(
 	size_t error_size
 )
 {
-	uint64_t timestamp_microseconds;
+	uint64_t timestamp_us;
 
 	if (!parse_irtt_line(line, child->target, sample))
 		return LATENCY_PROBE_PENDING;
-	if (!read_clock_microseconds(CLOCK_REALTIME, &timestamp_microseconds)) {
+	if (!read_clock_us(CLOCK_REALTIME, &timestamp_us)) {
 		error_set(error, error_size, "could not timestamp irtt output: %s", strerror(errno));
 		return LATENCY_PROBE_ERROR;
 	}
-	sample->timestamp_microseconds = timestamp_microseconds;
-	(void)snprintf(
-		sample->timestamp_text,
-		sizeof(sample->timestamp_text),
-		"%" PRIu64,
-		timestamp_microseconds
-	);
+	sample->timestamp_us = timestamp_us;
+	(
+		void
+	)snprintf(sample->timestamp_text, sizeof(sample->timestamp_text), "%" PRIu64, timestamp_us);
 	return LATENCY_PROBE_SUCCESS;
 }
 
@@ -180,17 +176,17 @@ static enum latency_probe_result irtt_parse(
 static enum latency_probe_result
 irtt_exited(struct latency_child *child, char *error, size_t error_size)
 {
-	uint64_t timestamp_microseconds;
-	uint64_t runtime_microseconds;
+	uint64_t timestamp_us;
+	uint64_t runtime_us;
 
-	if (!read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
+	if (!read_clock_us(CLOCK_MONOTONIC, &timestamp_us)) {
 		error_set(error, error_size, "could not schedule irtt restart: %s", strerror(errno));
 		return LATENCY_PROBE_ERROR;
 	}
-	runtime_microseconds = saturating_sub(timestamp_microseconds, child->started_microseconds);
-	child->next_start_microseconds = timestamp_microseconds;
-	if (runtime_microseconds < IRTT_FAST_EXIT_THRESHOLD_MICROSECONDS)
-		child->next_start_microseconds += IRTT_FAST_EXIT_RETRY_MICROSECONDS;
+	runtime_us = saturating_sub(timestamp_us, child->started_us);
+	child->next_start_us = timestamp_us;
+	if (runtime_us < IRTT_FAST_EXIT_THRESHOLD_US)
+		child->next_start_us += IRTT_FAST_EXIT_RETRY_US;
 	return LATENCY_PROBE_RESTART;
 }
 

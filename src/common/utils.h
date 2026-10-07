@@ -86,45 +86,116 @@ static inline uint64_t mul_div(uint64_t value, uint64_t numerator, uint64_t deno
 	return value / denominator * numerator + value % denominator * numerator / denominator;
 }
 
-/* percentage is 0..100; rounded upward without multiplying the full value. */
-static inline uint64_t percentage_of(uint64_t value, unsigned int percentage)
-{
-	return value / PERCENT * percentage +
-	       (value % PERCENT * percentage + PERCENT - 1U) / PERCENT;
-}
-
 /* Positive divisor; nearest integer, with ties rounded upward. */
 static inline uint64_t rounded_divide(uint64_t value, uint64_t divisor)
 {
 	return value / divisor + (value % divisor >= divisor / 2U + divisor % 2U ? 1U : 0U);
 }
 
-/* Whole milliseconds, rounded up so a timer or poll never wakes early. */
-static inline uint64_t milliseconds_rounded_up(uint64_t microseconds)
+/* Positive divisor; nearest integer, with ties rounded away from zero. */
+static inline int64_t signed_rounded_divide(int64_t value, int64_t divisor)
 {
-	return microseconds / MICROSECONDS_PER_MILLISECOND +
-	       (microseconds % MICROSECONDS_PER_MILLISECOND != 0U ? 1U : 0U);
+	int64_t quotient = value / divisor;
+	int64_t remainder = value % divisor;
+
+	/* At least half way when the remainder is no smaller than what is left. */
+	if (remainder > 0 && remainder >= divisor - remainder)
+		return quotient + 1;
+	if (remainder < 0 && -remainder >= divisor + remainder)
+		return quotient - 1;
+	return quotient;
 }
 
-/* uloop takes unsigned milliseconds: round upward and saturate. */
-static inline unsigned int timer_milliseconds(uint64_t microseconds)
-{
-	uint64_t milliseconds = milliseconds_rounded_up(microseconds);
+/*
+ * Ratios are integers per million: RATIO_ONE_E6 is 100%, and a factor or a load
+ * may exceed it.
+ */
 
-	return milliseconds > UINT_MAX ? UINT_MAX : (unsigned int)milliseconds;
+/* value * ratio, truncated; exact while the ratio is at most UINT64_MAX / RATIO_ONE_E6. */
+static inline uint64_t ratio_of(uint64_t value, uint64_t ratio_e6)
+{
+	return saturating_add(
+		saturating_mul(value / RATIO_ONE_E6, ratio_e6),
+		value % RATIO_ONE_E6 * ratio_e6 / RATIO_ONE_E6
+	);
 }
 
-/* For log messages that print a duration in seconds. */
-static inline double seconds_from_microseconds(uint64_t microseconds)
+/* value * ratio, rounded upward; the same bound applies. */
+static inline uint64_t ratio_of_rounded_up(uint64_t value, uint64_t ratio_e6)
 {
-	return (double)microseconds / (double)MICROSECONDS_PER_SECOND;
+	return saturating_add(
+		saturating_mul(value / RATIO_ONE_E6, ratio_e6),
+		(value % RATIO_ONE_E6 * ratio_e6 + RATIO_ONE_E6 - 1U) / RATIO_ONE_E6
+	);
 }
 
-/* A nonnegative clock reading in whole microseconds. */
-static inline uint64_t timespec_microseconds(const struct timespec *value)
+/*
+ * Unit conversions, used only where a value enters or leaves the daemon. The
+ * base units are bits and bytes, microseconds and ratios per million.
+ */
+static inline uint64_t byte_to_bit(uint64_t bytes)
+{
+	return saturating_mul(bytes, BITS_PER_BYTE);
+}
+
+static inline uint64_t bit_to_byte(uint64_t bits)
+{
+	return bits / BITS_PER_BYTE;
+}
+
+/* Whole kilobits, truncated; a kilobit is 1,000 bits. */
+static inline uint64_t bit_to_kbit(uint64_t bits)
+{
+	return bits / KILOBIT;
+}
+
+static inline uint64_t kbit_to_bit(uint64_t kilobits)
+{
+	return saturating_mul(kilobits, KILOBIT);
+}
+
+/* Whole KB, truncated; a KB is 1,024 bytes. */
+static inline uint64_t byte_to_kbyte(uint64_t bytes)
+{
+	return bytes / KILOBYTE;
+}
+
+static inline uint64_t kbyte_to_byte(uint64_t kilobytes)
+{
+	return saturating_mul(kilobytes, KILOBYTE);
+}
+
+/* Whole milliseconds for uloop: rounded up so a timer never wakes early, and saturated. */
+static inline unsigned int us_to_ms(uint64_t us)
+{
+	uint64_t ms = us / MICROSECONDS_PER_MILLISECOND +
+		      (us % MICROSECONDS_PER_MILLISECOND != 0U ? 1U : 0U);
+
+	return ms > UINT_MAX ? UINT_MAX : (unsigned int)ms;
+}
+
+/* For messages that print a duration in seconds. */
+static inline double us_to_sec_decimal(uint64_t us)
+{
+	return (double)us / (double)MICROSECONDS_PER_SECOND;
+}
+
+/* Kernel nanoseconds as microseconds, half a microsecond or more rounding up. */
+static inline uint64_t ns_to_us(uint64_t ns)
+{
+	return rounded_divide(ns, NANOSECONDS_PER_MICROSECOND);
+}
+
+static inline int64_t signed_ns_to_us(int64_t ns)
+{
+	return signed_rounded_divide(ns, (int64_t)NANOSECONDS_PER_MICROSECOND);
+}
+
+/* A nonnegative clock reading in microseconds, rounded. */
+static inline uint64_t timespec_to_us(const struct timespec *value)
 {
 	return (uint64_t)value->tv_sec * MICROSECONDS_PER_SECOND +
-	       (uint64_t)value->tv_nsec / NANOSECONDS_PER_MICROSECOND;
+	       ns_to_us((uint64_t)value->tv_nsec);
 }
 
 /* Strict boundary: equality and backwards timestamps have not elapsed. */

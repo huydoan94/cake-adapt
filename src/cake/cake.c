@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "cake/cake.h"
+#include "cake/accounting.h"
 #include "common/constants.h"
 #include "common/error.h"
 #include "common/utils.h"
@@ -36,8 +37,9 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 	if (options == NULL || nla_parse_nested(attributes, TCA_CAKE_MAX, options, policy) < 0)
 		return;
 	if (attributes[TCA_CAKE_BASE_RATE64] != NULL) {
-		observation->bandwidth_bits_per_second =
-			saturating_mul(nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]), BITS_PER_BYTE);
+		uint64_t byte_ps = nla_get_u64(attributes[TCA_CAKE_BASE_RATE64]);
+
+		observation->bandwidth_bps = byte_to_bit(byte_ps);
 		observation->has_bandwidth = true;
 	}
 	if (attributes[TCA_CAKE_ATM] != NULL)
@@ -52,23 +54,23 @@ static void parse_options(struct nlattr *options, struct cake_observation *obser
 
 uint64_t cake_max_wire_packet_bits(const struct cake_observation *observation)
 {
-	uint64_t bits;
+	uint64_t wire_bytes;
 
 	if (!observation->has_mtu)
 		return 0U;
-	bits = saturating_mul(observation->mtu_bytes, BITS_PER_BYTE);
 	if (observation->raw || observation->overhead_bytes < 0 ||
 	    (observation->atm_mode != CAKE_ATM_NONE && observation->atm_mode != CAKE_ATM_ATM)) {
-		return bits;
+		return byte_to_bit(observation->mtu_bytes);
 	}
-	bits = saturating_mul(
-		saturating_add(observation->mtu_bytes, (uint64_t)observation->overhead_bytes),
-		BITS_PER_BYTE
-	);
+	wire_bytes = saturating_add(observation->mtu_bytes, (uint64_t)observation->overhead_bytes);
 	if (observation->atm_mode != CAKE_ATM_ATM)
-		return bits;
-	/* Whole 48-byte ATM cell payloads, each sent as a 53-byte cell. */
-	return saturating_mul(saturating_add(bits, UINT64_C(376)) / UINT64_C(384), UINT64_C(424));
+		return byte_to_bit(wire_bytes);
+	/* Whole ATM cell payloads, each sent as a full cell. */
+	return byte_to_bit(saturating_mul(
+		saturating_add(wire_bytes, CAKE_ATM_CELL_PAYLOAD_BYTES - 1U) /
+			CAKE_ATM_CELL_PAYLOAD_BYTES,
+		CAKE_ATM_CELL_BYTES
+	));
 }
 
 static void parse_stats(struct nlattr *stats, struct cake_observation *observation)
@@ -273,21 +275,20 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 int cake_set_bandwidth(
 	struct netlink *netlink,
 	const struct cake_observation *observation,
-	uint64_t bandwidth_bits_per_second,
+	uint64_t bandwidth_bps,
 	char *error,
 	size_t error_size
 )
 {
-	uint64_t bandwidth_bytes_per_second = bandwidth_bits_per_second / BITS_PER_BYTE;
+	uint64_t bandwidth_byte_ps = bit_to_byte(bandwidth_bps);
 	const struct qdisc_option option = {
 		.kind = QDISC_KIND,
 		.type = TCA_CAKE_BASE_RATE64,
-		.data = &bandwidth_bytes_per_second,
-		.size = sizeof(bandwidth_bytes_per_second),
+		.data = &bandwidth_byte_ps,
+		.size = sizeof(bandwidth_byte_ps),
 	};
 
-	if (bandwidth_bits_per_second < BITS_PER_BYTE ||
-	    bandwidth_bits_per_second % BITS_PER_BYTE != 0U) {
+	if (bandwidth_bps < BITS_PER_BYTE || bandwidth_bps % BITS_PER_BYTE != 0U) {
 		return error_set(
 			error,
 			error_size,

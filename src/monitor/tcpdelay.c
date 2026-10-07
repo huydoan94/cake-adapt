@@ -4,6 +4,7 @@
 
 #include "common/constants.h"
 #include "common/error.h"
+#include "common/helpers.h"
 #include "common/utils.h"
 #include "config/defaults.h"
 #include "logging/log.h"
@@ -25,7 +26,7 @@ static struct cake_accounting accounting_model(const struct cake_observation *ca
 /* Either TCP feature needs the capture. */
 static bool tcp_enabled(const struct config *config)
 {
-	return config->tcp_delay_attribution || config->ul_congest_ack_share_per_million != 0U;
+	return config->tcp_delay_attribution || config->ul_congest_ack_share_ratio_e6 != 0U;
 }
 
 void tcp_init(struct monitor *monitor)
@@ -49,7 +50,7 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	char error[ERROR_SIZE] = { 0 };
 	const struct cake_accounting model = accounting_model(cake);
 	const struct cake_accounting *accounting =
-		monitor->config->ul_congest_ack_share_per_million != 0U ? &model : NULL;
+		monitor->config->ul_congest_ack_share_ratio_e6 != 0U ? &model : NULL;
 
 	if (tcpdelay_capture_open(
 		    &tcp->capture,
@@ -66,7 +67,7 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	tcp->qdisc = cake->qdisc;
 	tcp->failed_index = 0U;
 	tcp->dropped_records = 0U;
-	tcp->next_counter_check_microseconds = 0U;
+	tcp->next_counter_check_us = 0U;
 	/* The counters restart with the new filter. */
 	tcp->ack_sampled = false;
 	tcp->ack_rate_valid = false;
@@ -76,15 +77,14 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	return true;
 }
 
-static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_microseconds)
+static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_us)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
 	struct tcpdelay_counters counters;
 
-	if (timestamp_microseconds < tcp->next_counter_check_microseconds)
+	if (timestamp_us < tcp->next_counter_check_us)
 		return;
-	tcp->next_counter_check_microseconds =
-		timestamp_microseconds + TCPDELAY_COUNTER_CHECK_MICROSECONDS;
+	tcp->next_counter_check_us = timestamp_us + TCPDELAY_COUNTER_CHECK_US;
 	if (tcpdelay_capture_counters(&tcp->capture, &counters) != 0)
 		return;
 	if (counters.ring_full > tcp->dropped_records) {
@@ -143,46 +143,30 @@ static bool capture_ready(struct monitor *monitor)
 	return tcp->failed_index != cake->qdisc.interface_index && open_capture(monitor, upload);
 }
 
-static void measure_queues(
-	struct monitor *monitor,
-	uint64_t timestamp_microseconds,
-	struct controller_queue_input *queue
-)
+static void
+measure_queues(struct monitor *monitor, uint64_t timestamp_us, struct controller_queue_input *queue)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_capture *capture = &tcp->capture;
 	struct tcpdelay_estimate estimate;
 
-	/* The filter timestamps with CLOCK_MONOTONIC, like the monitor. */
-	tcpdelay_estimator_result(
-		&tcp->capture.estimator,
-		timestamp_microseconds * NANOSECONDS_PER_MICROSECOND,
-		&estimate
-	);
+	tcpdelay_estimator_result(&capture->estimator, timestamp_us, &estimate);
 	if (monitor->config->output_processing_stats) {
 		const struct log_tcp_queue_record record = {
 			.download_valid = estimate.download_valid,
 			.upload_valid = estimate.upload_valid,
-			.download_queue_microseconds = estimate.download_queue_microseconds,
-			.upload_queue_microseconds = estimate.upload_queue_microseconds,
+			.download_queue_us = estimate.download_queue_us,
+			.upload_queue_us = estimate.upload_queue_us,
 		};
 
 		log_tcp_queue(&record);
 	}
 	queue->valid = estimate.download_valid && estimate.upload_valid;
-	queue->download_microseconds = estimate.download_queue_microseconds;
-	queue->upload_microseconds = estimate.upload_queue_microseconds;
+	queue->download_us = estimate.download_queue_us;
+	queue->upload_us = estimate.upload_queue_us;
 }
 
-/* elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_MICROSECONDS, so never zero. */
-static uint64_t rate_since(uint64_t bytes, uint64_t previous_bytes, uint64_t elapsed)
-{
-	return mul_div(
-		saturating_mul(bytes - previous_bytes, BITS_PER_BYTE),
-		MICROSECONDS_PER_SECOND,
-		elapsed
-	);
-}
-
+/* elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_US, so never zero. */
 static void ack_accounting_state(struct monitor *monitor, bool degraded)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
@@ -200,38 +184,33 @@ static void ack_accounting_state(struct monitor *monitor, bool degraded)
 }
 
 /* Pure-ACK and total upload rates from the filter's byte counters, over >= 500 ms. */
-static void measure_ack_rate(
-	struct monitor *monitor,
-	uint64_t timestamp_microseconds,
-	struct controller_ack_input *acks
-)
+static void
+measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controller_ack_input *acks)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
 	struct tcpdelay_counters counters;
-	uint64_t elapsed;
+	uint64_t elapsed_us;
 
-	if (timestamp_microseconds >=
-	    tcp->ack_sampled_microseconds + TCPDELAY_ACK_RATE_INTERVAL_MICROSECONDS) {
+	if (timestamp_us >= tcp->ack_sampled_us + TCPDELAY_ACK_RATE_INTERVAL_US) {
 		bool degraded;
 
 		if (tcpdelay_capture_counters(&tcp->capture, &counters) != 0) {
 			tcp->ack_rate_valid = false;
 			tcp->ack_sampled = false;
-			tcp->ack_sampled_microseconds = timestamp_microseconds;
+			tcp->ack_sampled_us = timestamp_us;
 			degraded = true;
 			ack_accounting_state(monitor, degraded);
 			goto result;
 		}
-		elapsed = timestamp_microseconds - tcp->ack_sampled_microseconds;
+		elapsed_us = timestamp_us - tcp->ack_sampled_us;
 		degraded = counters.unaccounted_packets != tcp->unaccounted_packets ||
 			   (tcp->ack_sampled && (counters.ack_bytes < tcp->ack_bytes ||
 						 counters.upload_bytes < tcp->upload_bytes));
 		tcp->ack_rate_valid = false;
 		if (tcp->ack_sampled && !degraded) {
-			tcp->ack_rate_bits_per_second =
-				rate_since(counters.ack_bytes, tcp->ack_bytes, elapsed);
-			tcp->upload_rate_bits_per_second =
-				rate_since(counters.upload_bytes, tcp->upload_bytes, elapsed);
+			tcp->ack_rate_bps = bps(counters.ack_bytes - tcp->ack_bytes, elapsed_us);
+			tcp->upload_rate_bps =
+				bps(counters.upload_bytes - tcp->upload_bytes, elapsed_us);
 			tcp->ack_rate_valid = true;
 		}
 		/* A baseline alone cannot establish recovery after unavailable counters. */
@@ -240,33 +219,13 @@ static void measure_ack_rate(
 		tcp->ack_bytes = counters.ack_bytes;
 		tcp->upload_bytes = counters.upload_bytes;
 		tcp->unaccounted_packets = counters.unaccounted_packets;
-		tcp->ack_sampled_microseconds = timestamp_microseconds;
+		tcp->ack_sampled_us = timestamp_us;
 		tcp->ack_sampled = true;
 	}
 result:
 	acks->valid = tcp->ack_rate_valid;
-	acks->upload_ack_rate_bits_per_second = tcp->ack_rate_bits_per_second;
-	acks->upload_rate_bits_per_second = tcp->upload_rate_bits_per_second;
-}
-
-/*
- * The largest added round-trip delay fping reported in the current and the
- * previous second. A single low reply cannot lower the bound, since a floor
- * that rises does not come back down.
- */
-static int64_t tcp_queue_bound(struct monitor_tcp *tcp, int64_t delay_ns, uint64_t timestamp_us)
-{
-	uint64_t second = timestamp_us / SECOND;
-
-	if (second != tcp->bound_second) {
-		tcp->bound_previous_ns = second == tcp->bound_second + 1U ? tcp->bound_current_ns :
-									    0;
-		tcp->bound_current_ns = delay_ns;
-		tcp->bound_second = second;
-	} else {
-		tcp->bound_current_ns = max_i64(tcp->bound_current_ns, delay_ns);
-	}
-	return max_i64(tcp->bound_current_ns, tcp->bound_previous_ns);
+	acks->upload_ack_rate_bps = tcp->ack_rate_bps;
+	acks->upload_rate_bps = tcp->upload_rate_bps;
 }
 
 /*
@@ -276,37 +235,32 @@ static int64_t tcp_queue_bound(struct monitor_tcp *tcp, int64_t delay_ns, uint64
  */
 void tcp_observe(struct monitor *monitor, struct controller_input *input)
 {
-	const struct controller_latency_input *download = &input->download_latency;
-	const struct controller_latency_input *upload = &input->upload_latency;
 	const struct config *config = monitor->config;
-	int64_t round_trip = download->owd_delta_microseconds + upload->owd_delta_microseconds;
+	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_capture *capture = &tcp->capture;
+	struct controller_queue_input *queue = &input->queue;
+	struct controller_ack_input *acks = &input->acks;
+	int64_t recent_delay_us = reflectors_recent_delay_us(monitor, input->timestamp_us);
 
-	input->queue.valid = false;
-	input->acks.valid = false;
+	queue->valid = false;
+	acks->valid = false;
 	if (!capture_ready(monitor))
 		return;
 	/*
-	 * A queue on the access link delays fping's round trip as well, so no TCP
+	 * A queue on the access link delays fping's round trips as well, so no TCP
 	 * queue may exceed fping's recent added delay. The bound stays until the
 	 * next reply, also for records the traffic tick drains.
 	 */
-	if (download->valid && upload->valid)
-		tcpdelay_estimator_set_bound(
-			&monitor->tcp.capture.estimator,
-			tcp_queue_bound(
-				&monitor->tcp,
-				max_i64(round_trip, 0) * (int64_t)NANOSECONDS_PER_MICROSECOND,
-				input->timestamp_microseconds
-			)
-		);
+	if (recent_delay_us >= 0)
+		tcpdelay_estimator_set_bound(&capture->estimator, recent_delay_us);
 	/* Records wait in the ring buffer until drained, even without attribution. */
 	if (!drain(monitor))
 		return;
-	report_dropped_records(monitor, input->timestamp_microseconds);
+	report_dropped_records(monitor, input->timestamp_us);
 	if (config->tcp_delay_attribution)
-		measure_queues(monitor, input->timestamp_microseconds, &input->queue);
-	if (config->ul_congest_ack_share_per_million != 0U)
-		measure_ack_rate(monitor, input->timestamp_microseconds, &input->acks);
+		measure_queues(monitor, input->timestamp_us, queue);
+	if (config->ul_congest_ack_share_ratio_e6 != 0U)
+		measure_ack_rate(monitor, input->timestamp_us, acks);
 }
 
 /*

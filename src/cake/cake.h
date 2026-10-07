@@ -11,7 +11,7 @@
 struct cake_observation {
 	/* Its interface index is cached while CAKE is found; zero resolves the name again. */
 	struct qdisc_id qdisc;
-	uint64_t bandwidth_bits_per_second;
+	uint64_t bandwidth_bps;
 	uint64_t bytes;
 	uint32_t mtu_bytes;
 	int32_t overhead_bytes;
@@ -48,7 +48,7 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count);
 int cake_set_bandwidth(
 	struct netlink *netlink,
 	const struct cake_observation *observation,
-	uint64_t bandwidth_bits_per_second,
+	uint64_t bandwidth_bps,
 	char *error,
 	size_t error_size
 );

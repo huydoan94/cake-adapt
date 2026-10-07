@@ -98,9 +98,9 @@ static int open_log_file(
 	/* cake-adapt.log for the main section, cake-adapt.<section>.log otherwise. */
 	bool named = strcmp(section_name, DEFAULT_SECTION) != 0;
 	const struct log_file_settings settings = {
-		.maximum_time_minutes = config->log_file_max_time_minutes,
-		.maximum_size_kilobytes = config->log_file_max_size_kilobytes,
-		.buffer_timeout_microseconds = config->log_file_buffer_timeout_microseconds,
+		.maximum_time_us = config->log_file_max_time_us,
+		.maximum_size_bytes = config->log_file_max_size_bytes,
+		.buffer_timeout_us = config->log_file_buffer_timeout_us,
 		.compress_exports = config->log_file_export_compress,
 	};
 	int length = snprintf(
@@ -137,9 +137,9 @@ static void log_adjustment(const char *name, const struct config_direction *dire
 		"%s adjustment configured: minimum=%" PRIu64 " bit/s base=%" PRIu64
 		" bit/s maximum=%" PRIu64 " bit/s",
 		name,
-		direction->minimum_rate_bits_per_second,
-		direction->base_rate_bits_per_second,
-		direction->maximum_rate_bits_per_second
+		direction->minimum_rate_bps,
+		direction->base_rate_bps,
+		direction->maximum_rate_bps
 	);
 }
 
@@ -178,8 +178,8 @@ static void log_configuration(const struct config *config, const char *log_path)
 		config->ingress_interface,
 		config->reflector_count,
 		config->no_pingers,
-		config->reflector_ping_interval_microseconds,
-		config->monitor_achieved_rates_interval_microseconds,
+		config->reflector_ping_interval_us,
+		config->monitor_achieved_rates_interval_us,
 		config->debug ? 1U : 0U,
 		config->log_to_file ? log_path : STATUS_DISABLED
 	);

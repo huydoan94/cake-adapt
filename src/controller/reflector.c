@@ -8,14 +8,14 @@
 int health_init(
 	struct reflector_health *health,
 	const struct reflector_health_config *config,
-	uint64_t start_microseconds
+	uint64_t start_us
 )
 {
 	health->offences = calloc(config->detection_window, sizeof(*health->offences));
 	if (health->offences == NULL)
 		return -1;
 	health->config = config;
-	health->last_response_microseconds = start_microseconds;
+	health->last_response_us = start_us;
 	health->offence_index = 0U;
 	health->offence_count = 0U;
 	return 0;
@@ -29,26 +29,25 @@ void health_cleanup(struct reflector_health *health)
 	health->offence_count = 0U;
 }
 
-void health_reset(struct reflector_health *health, uint64_t start_microseconds)
+void health_reset(struct reflector_health *health, uint64_t start_us)
 {
 	memset(health->offences, 0, health->config->detection_window * sizeof(*health->offences));
-	health->last_response_microseconds = start_microseconds;
+	health->last_response_us = start_us;
 	health->offence_index = 0U;
 	health->offence_count = 0U;
 }
 
-void health_record_response(struct reflector_health *health, uint64_t timestamp_microseconds)
+void health_record_response(struct reflector_health *health, uint64_t timestamp_us)
 {
-	health->last_response_microseconds = timestamp_microseconds;
+	health->last_response_us = timestamp_us;
 }
 
-enum reflector_health_result
-health_check(struct reflector_health *health, uint64_t timestamp_microseconds)
+enum reflector_health_result health_check(struct reflector_health *health, uint64_t timestamp_us)
 {
 	bool offence = interval_elapsed(
-		timestamp_microseconds,
-		health->last_response_microseconds,
-		health->config->response_deadline_microseconds
+		timestamp_us,
+		health->last_response_us,
+		health->config->response_deadline_us
 	);
 
 	if (health->offences[health->offence_index] != 0U)
@@ -72,9 +71,9 @@ void reflector_compare(
 	struct reflector_comparison *comparisons
 )
 {
-	int64_t minimum_baseline = INT64_MAX;
-	int64_t minimum_download_delta_ewma = INT64_MAX;
-	int64_t minimum_upload_delta_ewma = INT64_MAX;
+	int64_t minimum_baseline_us = INT64_MAX;
+	int64_t minimum_download_delta_ewma_us = INT64_MAX;
+	int64_t minimum_upload_delta_ewma_us = INT64_MAX;
 	size_t index;
 
 	/* Each reflector's own values first, then the minimums over all of them. */
@@ -82,39 +81,33 @@ void reflector_compare(
 		const struct latency_tracker *tracker = &trackers[reflector_order[index]];
 		struct reflector_comparison *comparison = &comparisons[index];
 
-		comparison->sum_owd_baselines_microseconds = signed_sum(
-			tracker->download.baseline_microseconds,
-			tracker->upload.baseline_microseconds
-		);
-		comparison->download_delta_ewma_microseconds =
-			tracker->download.delta_ewma_microseconds;
-		comparison->upload_delta_ewma_microseconds =
-			tracker->upload.delta_ewma_microseconds;
-		if (comparison->sum_owd_baselines_microseconds < minimum_baseline)
-			minimum_baseline = comparison->sum_owd_baselines_microseconds;
-		if (comparison->download_delta_ewma_microseconds < minimum_download_delta_ewma)
-			minimum_download_delta_ewma = comparison->download_delta_ewma_microseconds;
-		if (comparison->upload_delta_ewma_microseconds < minimum_upload_delta_ewma)
-			minimum_upload_delta_ewma = comparison->upload_delta_ewma_microseconds;
+		comparison->sum_owd_baselines_us =
+			signed_sum(tracker->download.baseline_us, tracker->upload.baseline_us);
+		comparison->download_delta_ewma_us = tracker->download.delta_ewma_us;
+		comparison->upload_delta_ewma_us = tracker->upload.delta_ewma_us;
+		if (comparison->sum_owd_baselines_us < minimum_baseline_us)
+			minimum_baseline_us = comparison->sum_owd_baselines_us;
+		if (comparison->download_delta_ewma_us < minimum_download_delta_ewma_us)
+			minimum_download_delta_ewma_us = comparison->download_delta_ewma_us;
+		if (comparison->upload_delta_ewma_us < minimum_upload_delta_ewma_us)
+			minimum_upload_delta_ewma_us = comparison->upload_delta_ewma_us;
 	}
 
 	for (index = 0U; index < active_count; index++) {
 		struct reflector_comparison *comparison = &comparisons[index];
 
-		comparison->minimum_sum_owd_baselines_microseconds = minimum_baseline;
-		comparison->sum_owd_baselines_delta_microseconds = absolute_difference(
-			comparison->sum_owd_baselines_microseconds,
-			minimum_baseline
+		comparison->minimum_sum_owd_baselines_us = minimum_baseline_us;
+		comparison->sum_owd_baselines_delta_us =
+			absolute_difference(comparison->sum_owd_baselines_us, minimum_baseline_us);
+		comparison->minimum_download_delta_ewma_us = minimum_download_delta_ewma_us;
+		comparison->download_delta_ewma_delta_us = signed_difference(
+			comparison->download_delta_ewma_us,
+			minimum_download_delta_ewma_us
 		);
-		comparison->minimum_download_delta_ewma_microseconds = minimum_download_delta_ewma;
-		comparison->download_delta_ewma_delta_microseconds = signed_difference(
-			comparison->download_delta_ewma_microseconds,
-			minimum_download_delta_ewma
-		);
-		comparison->minimum_upload_delta_ewma_microseconds = minimum_upload_delta_ewma;
-		comparison->upload_delta_ewma_delta_microseconds = signed_difference(
-			comparison->upload_delta_ewma_microseconds,
-			minimum_upload_delta_ewma
+		comparison->minimum_upload_delta_ewma_us = minimum_upload_delta_ewma_us;
+		comparison->upload_delta_ewma_delta_us = signed_difference(
+			comparison->upload_delta_ewma_us,
+			minimum_upload_delta_ewma_us
 		);
 	}
 }

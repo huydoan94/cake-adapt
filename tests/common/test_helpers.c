@@ -46,11 +46,20 @@ static void test_unsigned_decimal_spans(void)
 
 static void test_percentages_and_rounding(void)
 {
-	assert(percentage_of(0U, 90U) == 0U);
-	assert(percentage_of(1U, 90U) == 1U);
-	assert(percentage_of(101U, 90U) == 91U);
-	assert(percentage_of(UINT64_MAX, 100U) == UINT64_MAX);
-	assert(percentage_of(UINT64_MAX, 1U) == UINT64_MAX / 100U + 1U);
+	assert(ratio_of_rounded_up(0U, 900000U) == 0U);
+	assert(ratio_of_rounded_up(1U, 900000U) == 1U);
+	assert(ratio_of_rounded_up(101U, 900000U) == 91U);
+	assert(ratio_of_rounded_up(8000000U, 900000U) == 7200000U);
+	assert(ratio_of_rounded_up(10000000U, 800000U) == 8000000U);
+	assert(ratio_of(101U, 900000U) == 90U);
+	assert(ratio_of(8000U, 50000U) == 400U);
+	assert(ratio_of(8000U, 450000U) == 3600U);
+	/* Exact where a double product rounds below a whole step on x87. */
+	assert(ratio_of(1000000U, 990000U) == 990000U);
+	assert(ratio_of(20000U, 350000U) == 7000U);
+	assert(ratio_of(8320000U, 1040000U) == 8652800U);
+	assert(ratio_of(UINT64_MAX, RATIO_ONE_E6) == UINT64_MAX);
+	assert(ratio_of_rounded_up(UINT64_MAX, RATIO_ONE_E6) == UINT64_MAX);
 	assert(rounded_divide(0U, 2U) == 0U);
 	assert(rounded_divide(4U, 3U) == 1U);
 	assert(rounded_divide(5U, 3U) == 2U);
@@ -93,27 +102,42 @@ static void test_saturating_unsigned_arithmetic(void)
 	assert(mul_div(UINT64_MAX, 3U, 4U) == UINT64_MAX / 4U * 3U + 2U);
 }
 
-static void test_milliseconds_round_up(void)
+static void test_data_conversions(void)
 {
-	assert(milliseconds_rounded_up(0U) == 0U);
-	assert(milliseconds_rounded_up(1U) == 1U);
-	assert(milliseconds_rounded_up(1000U) == 1U);
-	assert(milliseconds_rounded_up(1001U) == 2U);
-	assert(milliseconds_rounded_up(UINT64_MAX) == UINT64_MAX / 1000U + 1U);
+	assert(byte_to_bit(125U) == 1000U);
+	assert(byte_to_bit(UINT64_MAX) == UINT64_MAX);
+	assert(bit_to_byte(1007U) == 125U);
+	assert(bit_to_kbit(1999U) == 1U);
+	assert(kbit_to_bit(2U) == 2000U);
+	assert(byte_to_kbyte(2047U) == 1U);
+	assert(kbyte_to_byte(2U) == 2048U);
+	assert(us_to_sec_decimal(1500000U) == 1.5);
 }
 
-static void test_timer_milliseconds(void)
+static void test_timer_ms(void)
 {
-	assert(timer_milliseconds(1000U) == 1U);
-	assert(timer_milliseconds(1001U) == 2U);
-	assert(timer_milliseconds(UINT64_MAX) == UINT_MAX);
+	assert(us_to_ms(0U) == 0U);
+	assert(us_to_ms(1U) == 1U);
+	assert(us_to_ms(1000U) == 1U);
+	assert(us_to_ms(1001U) == 2U);
+	assert(us_to_ms(UINT64_MAX) == UINT_MAX);
 }
 
-static void test_timespec_microseconds(void)
+static void test_timespec_us(void)
 {
 	const struct timespec value = { .tv_sec = 12, .tv_nsec = 345678999 };
 
-	assert(timespec_microseconds(&value) == 12345678U);
+	assert(timespec_to_us(&value) == 12345679U);
+	/* Half a microsecond or more rounds up; the carry reaches the seconds. */
+	assert(ns_to_us(1499U) == 1U);
+	assert(ns_to_us(1500U) == 2U);
+	assert(signed_ns_to_us(-1499) == -1);
+	assert(signed_ns_to_us(-1500) == -2);
+	assert(signed_rounded_divide(5, 2) == 3);
+	assert(signed_rounded_divide(-5, 2) == -3);
+	assert(signed_rounded_divide(4, 3) == 1);
+	assert(signed_rounded_divide(-4, 3) == -1);
+	assert(signed_rounded_divide(INT64_MIN, 2) == INT64_MIN / 2);
 }
 
 static void test_elapsed_interval_boundaries(void)
@@ -127,43 +151,60 @@ static void test_elapsed_interval_boundaries(void)
 
 static void test_load_rounding_and_limits(void)
 {
-	assert(load_percent(0U, 0U) == 0U);
-	assert(load_percent(1000U, 999U) == 0U);
-	assert(load_percent(750999U, 1000000U) == 75U);
-	assert(load_percent(2000000U, 1000000U) == 200U);
-	assert(load_percent(UINT64_MAX, 1000U) == UINT_MAX);
-	assert(load_percent(UINT64_MAX, UINT64_MAX) == 100U);
-	assert(load_percent(UINT64_MAX - 1000U, UINT64_MAX) == 99U);
+	assert(fraction_to_ratio_e6(0U, 0U) == 0U);
+	assert(fraction_to_ratio_e6(29U, 100U) == 290000U);
+	assert(fraction_to_ratio_e6(1U, 3U) == 333333U);
+	assert(fraction_to_ratio_e6(3U, 2U) == 1500000U);
+	assert(fraction_to_ratio_e6(UINT64_MAX, 1U) == UINT64_MAX);
+	/* Beyond UINT64_MAX / RATIO_ONE_E6, the last six digits are dropped first. */
+	assert(fraction_to_ratio_e6(UINT64_MAX - 1U, UINT64_MAX) == RATIO_ONE_E6);
+	assert(fraction_to_ratio_e6(UINT64_MAX / 2U, UINT64_MAX) == 499999U);
+	assert(load_ratio_e6(0U, 0U) == 0U);
+	assert(load_ratio_e6(1000U, 0U) == 0U);
+	assert(load_ratio_e6(750000U, 1000000U) == 750000U);
+	assert(load_ratio_e6(2000000U, 1000000U) == 2000000U);
+	assert(load_ratio_e6(750999U, 1000000U) == 750999U);
+	assert(load_ratio_e6(1U, 3U) == 333333U);
 }
 
 static void test_clock_failure_preserves_output(void)
 {
 	uint64_t timestamp = 123U;
 
-	assert(!read_clock_microseconds((clockid_t)-9999, &timestamp));
+	assert(!read_clock_us((clockid_t)-9999, &timestamp));
 	assert(errno == EINVAL);
 	assert(timestamp == 123U);
-	assert(read_clock_microseconds(CLOCK_MONOTONIC, &timestamp));
+	assert(read_clock_us(CLOCK_MONOTONIC, &timestamp));
 	assert(timestamp > 0U);
 }
 
-static void test_rate_conversion_boundaries(void)
+static void test_rate_from_counters(void)
 {
-	assert(bits_per_second(1U, 0U) == UINT64_MAX);
-	assert(bits_per_second(0U, 1U) == 0U);
-	assert(bits_per_second(1U, 3U) == 2666U);
-	assert(bits_per_second(125000000U, 1000U) == 1000000000U);
-	assert(bits_per_second(UINT64_MAX / 8000U, 1U) == UINT64_MAX / 8000U * 8000U);
-	assert(bits_per_second(UINT64_MAX / 8000U + 1U, 1U) == UINT64_MAX);
-	assert(bits_per_second(UINT64_MAX, UINT64_MAX) == 8000U);
+	assert(bps(1U, 0U) == UINT64_MAX);
+	assert(bps(0U, 1U) == 0U);
+	/* 8 bits over 3 us. */
+	assert(bps(1U, 3U) == 2666666U);
+	assert(bps(125000000U, SECOND) == 1000000000U);
+	/* 2,500 bytes over 200.7 ms: 99,651 bit/s. */
+	assert(bps(2500U, 200700U) == 99651U);
+	assert(bps(UINT64_MAX / 8000000U, 1U) == UINT64_MAX / 8000000U * 8000000U);
+	assert(bps(UINT64_MAX / 8000000U + 1U, 1U) == UINT64_MAX);
+	assert(bps(UINT64_MAX, UINT64_MAX) == 8000000U);
+	/* Exact without floating point, even where byte_delta * 8,000,000 overflows. */
+	assert(bps(UINT64_MAX / 8U, 1000000U) == UINT64_MAX / 8U * 8U);
+	assert(bps(UINT64_MAX / 3U, 7U) == UINT64_MAX);
 }
 
-static void test_serialization_microseconds(void)
+static void test_serialization_us(void)
 {
-	assert(serialization_microseconds(12000U, 1000000U) == 12000U);
-	assert(serialization_microseconds(UINT64_MAX - 1U, UINT64_MAX) == UINT64_MAX);
-	assert(serialization_microseconds(UINT64_MAX, 1U) == UINT64_MAX);
-	assert(serialization_microseconds(12000U, 0U) == 0U);
+	/* 12,000 bits at 1 Mbit/s: 12 ms. */
+	assert(serialization_us(12000U, 1000000U) == 12000U);
+	assert(serialization_us(12001U, 3000000U) == 4000U);
+	/* 1,500 bits at 1 Gbit/s is 1.5 us. */
+	assert(serialization_us(1500U, 1000000000U) == 2U);
+	assert(serialization_us(UINT64_MAX - 1U, UINT64_MAX) == UINT64_MAX);
+	assert(serialization_us(UINT64_MAX, 1U) == UINT64_MAX);
+	assert(serialization_us(12000U, 0U) == 0U);
 }
 
 static void test_random_selection_and_shuffle(void)
@@ -214,20 +255,18 @@ static void test_response_timestamp_boundaries(void)
 	const uint64_t monotonic = UINT64_C(3) * 1000000U;
 
 	assert(!response_stale(realtime, realtime - 499999U));
-	assert(response_monotonic_microseconds(realtime, monotonic, realtime - 499999U) ==
+	assert(response_monotonic_us(realtime, monotonic, realtime - 499999U) ==
 	       monotonic - 499999U);
 	assert(!response_stale(realtime, realtime - 500000U));
-	assert(response_monotonic_microseconds(realtime, monotonic, realtime - 500000U) ==
+	assert(response_monotonic_us(realtime, monotonic, realtime - 500000U) ==
 	       monotonic - 500000U);
 	assert(response_stale(realtime, realtime - 500001U));
-	assert(response_monotonic_microseconds(realtime, monotonic, realtime - 500001U) ==
+	assert(response_monotonic_us(realtime, monotonic, realtime - 500001U) ==
 	       monotonic - 500001U);
 	assert(!response_stale(realtime, realtime + 123U));
-	assert(response_monotonic_microseconds(realtime, monotonic, realtime + 123U) ==
-	       monotonic + 123U);
+	assert(response_monotonic_us(realtime, monotonic, realtime + 123U) == monotonic + 123U);
 	assert(!response_stale(UINT64_MAX - 1U, UINT64_MAX));
-	assert(response_monotonic_microseconds(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX) ==
-	       UINT64_MAX);
+	assert(response_monotonic_us(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX) == UINT64_MAX);
 }
 
 int main(void)
@@ -236,14 +275,14 @@ int main(void)
 	test_unsigned_decimal_spans();
 	test_saturating_signed_arithmetic();
 	test_saturating_unsigned_arithmetic();
-	test_milliseconds_round_up();
-	test_timespec_microseconds();
-	test_timer_milliseconds();
+	test_data_conversions();
+	test_timespec_us();
+	test_timer_ms();
 	test_elapsed_interval_boundaries();
 	test_load_rounding_and_limits();
 	test_clock_failure_preserves_output();
-	test_rate_conversion_boundaries();
-	test_serialization_microseconds();
+	test_rate_from_counters();
+	test_serialization_us();
 	test_random_selection_and_shuffle();
 	test_response_timestamp_boundaries();
 	(void)puts("helper tests passed");
