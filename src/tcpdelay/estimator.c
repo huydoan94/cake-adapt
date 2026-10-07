@@ -1,13 +1,13 @@
 #include "tcpdelay/estimator.h"
 #include "config/defaults.h"
+#include "common/utils.h"
 
 #include <string.h>
 
 /* Samples carry kernel nanoseconds; the defaults are in microseconds. */
-#define WINDOW_NS (TCPDELAY_WINDOW_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
-#define TICK_SPAN_NS (TCPDELAY_TICK_FIT_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
-#define IMPLAUSIBLE_QUEUE_NS \
-	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_MICROSECONDS * NANOSECONDS_PER_MICROSECOND))
+#define WINDOW_NS (TCPDELAY_WINDOW_US * NANOSECONDS_PER_US)
+#define TICK_SPAN_NS (TCPDELAY_TICK_FIT_US * NANOSECONDS_PER_US)
+#define IMPLAUSIBLE_QUEUE_NS ((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_US * NANOSECONDS_PER_US))
 
 /* Standard TCP timestamp clock periods (1 ms on Linux and the BSDs). */
 static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = {
@@ -167,10 +167,10 @@ static struct flow_queues flow_measure(
 	return queues;
 }
 
-void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns)
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_us)
 {
 	estimator->bounded = true;
-	estimator->queue_bound_ns = queue_bound_ns;
+	estimator->queue_bound_ns = queue_bound_us * (int64_t)NANOSECONDS_PER_US;
 }
 
 void tcpdelay_estimator_add(
@@ -210,10 +210,12 @@ void tcpdelay_estimator_add(
 
 void tcpdelay_estimator_result(
 	const struct tcpdelay_estimator *estimator,
-	uint64_t now_ns,
+	uint64_t now_us,
 	struct tcpdelay_estimate *estimate
 )
 {
+	/* The filter timestamps with CLOCK_MONOTONIC, like the monitor. */
+	uint64_t now_ns = now_us * NANOSECONDS_PER_US;
 	const struct tcpdelay_flow *selected = NULL;
 	size_t index;
 
@@ -242,10 +244,8 @@ void tcpdelay_estimator_result(
 		}
 		selected = flow;
 		estimate->download_valid = true;
-		estimate->download_queue_microseconds =
-			download_ns / (int64_t)NANOSECONDS_PER_MICROSECOND;
+		estimate->download_queue_us = signed_nanosec_to_us(download_ns);
 		estimate->upload_valid = upload_valid;
-		estimate->upload_queue_microseconds =
-			upload_valid ? upload_ns / (int64_t)NANOSECONDS_PER_MICROSECOND : 0;
+		estimate->upload_queue_us = upload_valid ? signed_nanosec_to_us(upload_ns) : 0;
 	}
 }

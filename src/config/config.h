@@ -17,9 +17,9 @@ struct config_direction {
 	uint64_t minimum_rate_bits_per_second;
 	uint64_t base_rate_bits_per_second;
 	uint64_t maximum_rate_bits_per_second;
-	uint64_t average_owd_delta_maximum_adjust_up_microseconds;
-	uint64_t owd_delta_delay_threshold_microseconds;
-	uint64_t average_owd_delta_maximum_adjust_down_microseconds;
+	uint64_t average_owd_delta_maximum_adjust_up_us;
+	uint64_t owd_delta_delay_threshold_us;
+	uint64_t average_owd_delta_maximum_adjust_down_us;
 };
 
 struct config {
@@ -55,18 +55,18 @@ struct config {
 	char ping_extra_args[CONFIG_STRING_SIZE];
 	char ping_prefix_string[CONFIG_STRING_SIZE];
 	uint64_t reflector_count;
-	uint64_t log_file_max_time_minutes;
+	uint64_t log_file_max_time_us;
 	uint64_t log_file_max_size_kilobytes;
 	uint64_t no_pingers;
-	uint64_t reflector_ping_interval_microseconds;
+	uint64_t reflector_ping_interval_us;
 	struct config_direction download;
 	struct config_direction upload;
 	uint64_t connection_active_threshold_bits_per_second;
-	uint64_t sustained_idle_sleep_threshold_microseconds;
-	uint64_t log_file_buffer_timeout_microseconds;
-	uint64_t irtt_session_duration_minutes;
-	uint64_t monitor_achieved_rates_interval_microseconds;
-	uint64_t monitor_cpu_usage_interval_microseconds;
+	uint64_t sustained_idle_sleep_threshold_us;
+	uint64_t log_file_buffer_timeout_us;
+	uint64_t irtt_session_duration_us;
+	uint64_t monitor_achieved_rates_interval_us;
+	uint64_t monitor_cpu_usage_interval_us;
 	uint64_t bufferbloat_detection_window;
 	uint64_t bufferbloat_detection_threshold;
 	uint64_t alpha_baseline_increase_per_million;
@@ -81,20 +81,20 @@ struct config {
 	uint64_t high_load_threshold_per_million;
 	/* cake-adapt only: ACKs' minimum share of upload; zero disables the hold. */
 	uint64_t ul_congest_ack_share_per_million;
-	uint64_t bufferbloat_refractory_period_microseconds;
-	uint64_t decay_refractory_period_microseconds;
-	uint64_t reflector_health_check_interval_microseconds;
-	uint64_t reflector_response_deadline_microseconds;
+	uint64_t bufferbloat_refractory_period_us;
+	uint64_t decay_refractory_period_us;
+	uint64_t reflector_health_check_interval_us;
+	uint64_t reflector_response_deadline_us;
 	uint64_t reflector_misbehaving_detection_window;
 	uint64_t reflector_misbehaving_detection_threshold;
-	uint64_t reflector_replacement_interval_minutes;
-	uint64_t reflector_comparison_interval_minutes;
-	uint64_t reflector_sum_owd_baselines_delta_threshold_microseconds;
-	uint64_t reflector_owd_delta_ewma_delta_threshold_microseconds;
+	uint64_t reflector_replacement_interval_us;
+	uint64_t reflector_comparison_interval_us;
+	uint64_t reflector_sum_owd_baselines_delta_threshold_us;
+	uint64_t reflector_owd_delta_ewma_delta_threshold_us;
 	uint64_t stall_detection_threshold;
 	uint64_t connection_stall_threshold_bits_per_second;
-	uint64_t global_ping_response_timeout_microseconds;
-	uint64_t interface_up_check_interval_microseconds;
+	uint64_t global_ping_response_timeout_us;
+	uint64_t interface_up_check_interval_us;
 };
 
 size_t config_option_count(void);

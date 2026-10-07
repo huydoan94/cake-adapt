@@ -17,7 +17,7 @@
 #include <signal.h>
 #include <string.h>
 
-static void update_activity(struct monitor *monitor, uint64_t timestamp_microseconds)
+static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 {
 	static const char *const names[] = {
 		STATE_RUNNING_UPPER,
@@ -37,10 +37,10 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 				      download->traffic_rate_bits_per_second },
 		.upload = { .valid = upload->traffic_valid,
 			    .traffic_rate_bits_per_second = upload->traffic_rate_bits_per_second },
-		.timestamp_microseconds = timestamp_microseconds,
-		.last_response_microseconds = pingers->last_response_microseconds,
-		.last_pinger_start_microseconds = pingers->last_restart_microseconds,
-		.grace_until_microseconds = pingers->grace_until_microseconds,
+		.timestamp_us = timestamp_us,
+		.last_response_us = pingers->last_response_us,
+		.last_pinger_start_us = pingers->last_restart_us,
+		.grace_until_us = pingers->grace_until_us,
 	};
 	enum controller_activity_state previous = activity->state;
 	struct controller_activity_output output;
@@ -50,7 +50,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"Warning: no reflector response within: %.2f seconds. Checking loads.",
-			seconds_from_microseconds(activity_config->stall_timeout_microseconds)
+			us_to_sec(activity_config->stall_timeout_us)
 		);
 		log_message(
 			LOG_LEVEL_DEBUG,
@@ -70,10 +70,10 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 	}
 	if (output.global_timeout_started) {
 		if (config->minimum_shaper_rates_enforcement)
-			control_enforce_minimum(monitor, timestamp_microseconds);
+			control_enforce_minimum(monitor, timestamp_us);
 		log_system_message(
 			"Warning: Configured global ping response timeout: %.3f seconds exceeded.",
-			seconds_from_microseconds(activity_config->global_timeout_microseconds)
+			us_to_sec(activity_config->global_timeout_us)
 		);
 	}
 	if (output.state_changed) {
@@ -95,23 +95,23 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_microsec
 			log_message(LOG_LEVEL_DEBUG, "Connection idle. Waiting for minimum load.");
 			if (config->minimum_shaper_rates_enforcement) {
 				log_message(LOG_LEVEL_DEBUG, "Enforcing minimum shaper rates.");
-				control_enforce_minimum(monitor, timestamp_microseconds);
+				control_enforce_minimum(monitor, timestamp_us);
 			}
 			pingers_close(monitor);
 		} else if (previous == CONTROLLER_IDLE) {
-			pingers_resume(monitor, timestamp_microseconds);
+			pingers_resume(monitor, timestamp_us);
 		}
 	}
 	if (output.restart_pingers) {
 		log_message(LOG_LEVEL_DEBUG, "Restarting pingers.");
-		pingers_restart(monitor, timestamp_microseconds);
+		pingers_restart(monitor, timestamp_us);
 	}
 }
 
 /* One traffic cycle: observe both links, update the activity state, keep pingers running. */
 void monitor_tick(struct monitor *monitor)
 {
-	uint64_t timestamp_microseconds;
+	uint64_t timestamp_us;
 
 	links_observe(monitor);
 	links_apply_cadence(monitor);
@@ -120,9 +120,9 @@ void monitor_tick(struct monitor *monitor)
 		pingers_suspend(monitor);
 		return;
 	}
-	if (read_clock_microseconds(CLOCK_MONOTONIC, &timestamp_microseconds)) {
-		pingers_unsuspend(monitor, timestamp_microseconds);
-		update_activity(monitor, timestamp_microseconds);
+	if (read_clock_us(CLOCK_MONOTONIC, &timestamp_us)) {
+		pingers_unsuspend(monitor, timestamp_us);
+		update_activity(monitor, timestamp_us);
 	}
 	if (monitor->activity.state != CONTROLLER_IDLE)
 		(void)pingers_watch(monitor);
@@ -219,7 +219,7 @@ static void watch_cpu(struct monitor *monitor)
 	(void)read_cpu(monitor, &sample);
 	if (uloop_interval_set(
 		    &monitor->cpu_timer,
-		    timer_milliseconds(config->monitor_cpu_usage_interval_microseconds)
+		    us_to_millisec(config->monitor_cpu_usage_interval_us)
 	    ) != 0) {
 		log_message(LOG_LEVEL_WARNING, "could not monitor CPU timer: %s", strerror(errno));
 	}
@@ -251,10 +251,8 @@ static void watch_memory(struct monitor *monitor)
 		return;
 	/* The first record at start, then one per interval. */
 	handle_memory_timer(&monitor->memory_timer);
-	if (uloop_interval_set(
-		    &monitor->memory_timer,
-		    timer_milliseconds(MEMORY_SAMPLE_INTERVAL_MICROSECONDS)
-	    ) != 0) {
+	if (uloop_interval_set(&monitor->memory_timer, us_to_millisec(MEMORY_SAMPLE_INTERVAL_US)) !=
+	    0) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"could not monitor memory timer: %s",
@@ -266,23 +264,15 @@ static void watch_memory(struct monitor *monitor)
 static void watch_log_maintenance(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
-	uint64_t log_timer_milliseconds;
+	uint64_t log_timer_us = config->log_file_buffer_timeout_us;
 
 	if (!config->log_to_file)
 		return;
-	log_timer_milliseconds =
-		milliseconds_rounded_up(config->log_file_buffer_timeout_microseconds);
-	/* Without a buffer timer, still wake up to rotate at the maximum age. */
-	if (log_timer_milliseconds == 0U && config->log_file_max_time_minutes > 0U) {
-		uint64_t maximum_age_milliseconds =
-			config->log_file_max_time_minutes * (MINUTE / MILLISECOND);
-
-		log_timer_milliseconds = maximum_age_milliseconds < UINT_MAX ?
-						 maximum_age_milliseconds + 1U :
-						 UINT_MAX;
-	}
-	if (log_timer_milliseconds > 0U &&
-	    uloop_interval_set(&monitor->log_timer, (unsigned int)log_timer_milliseconds) != 0) {
+	/* Without a buffer timer, still wake up to rotate just after the maximum age. */
+	if (log_timer_us == 0U && config->log_file_max_time_us > 0U)
+		log_timer_us = saturating_add(config->log_file_max_time_us, MILLISECOND);
+	if (log_timer_us > 0U &&
+	    uloop_interval_set(&monitor->log_timer, us_to_millisec(log_timer_us)) != 0) {
 		log_message(LOG_LEVEL_WARNING, "log timer degraded: %s", strerror(errno));
 	}
 	if (uloop_signal_add(&monitor->log_export_signal) != 0)
@@ -300,11 +290,11 @@ static void start_activity(struct monitor *monitor)
 			config->connection_active_threshold_bits_per_second,
 		.stall_threshold_bits_per_second =
 			config->connection_stall_threshold_bits_per_second,
-		.sustained_idle_microseconds = config->sustained_idle_sleep_threshold_microseconds,
-		.stall_timeout_microseconds =
+		.sustained_idle_us = config->sustained_idle_sleep_threshold_us,
+		.stall_timeout_us =
 			config->stall_detection_threshold *
-			(config->reflector_ping_interval_microseconds / config->no_pingers),
-		.global_timeout_microseconds = config->global_ping_response_timeout_microseconds,
+			rounded_divide(config->reflector_ping_interval_us, config->no_pingers),
+		.global_timeout_us = config->global_ping_response_timeout_us,
 	};
 
 	activity_init(&monitor->activity, &activity_config);
@@ -333,18 +323,18 @@ int monitor_run(const struct config *config)
 	};
 	const struct {
 		struct uloop_interval *timer;
-		uint64_t interval_microseconds;
+		uint64_t interval_us;
 		const char *name;
 	} required_timers[] = {
 		{ &monitor.traffic_timer,
-		  config->monitor_achieved_rates_interval_microseconds,
+		  config->monitor_achieved_rates_interval_us,
 		  TIMER_TRAFFIC },
 		{ &monitor.reflectors.health_timer,
-		  config->reflector_health_check_interval_microseconds,
+		  config->reflector_health_check_interval_us,
 		  TIMER_REFLECTOR_HEALTH },
 	};
 	int run_status;
-	uint64_t start_microseconds;
+	uint64_t start_us;
 	size_t index;
 
 	/* The aggregate initializer has zeroed the remaining monitor state. */
@@ -356,7 +346,7 @@ int monitor_run(const struct config *config)
 	 * start time and timers, so reflector health and pinger grace start after it.
 	 */
 	tcp_start(&monitor);
-	if (!read_clock_microseconds(CLOCK_MONOTONIC, &start_microseconds)) {
+	if (!read_clock_us(CLOCK_MONOTONIC, &start_us)) {
 		log_message(
 			LOG_LEVEL_ERROR,
 			"could not initialize reflector health clock: %s",
@@ -364,9 +354,9 @@ int monitor_run(const struct config *config)
 		);
 		goto done;
 	}
-	if (reflectors_start(&monitor, start_microseconds) != 0)
+	if (reflectors_start(&monitor, start_us) != 0)
 		goto done;
-	pingers_prepare(&monitor, start_microseconds);
+	pingers_prepare(&monitor, start_us);
 	start_activity(&monitor);
 
 	/* uloop reaps pinger children and reports each exit to pingers.c. */
@@ -381,7 +371,7 @@ int monitor_run(const struct config *config)
 	for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
 		if (uloop_interval_set(
 			    required_timers[index].timer,
-			    timer_milliseconds(required_timers[index].interval_microseconds)
+			    us_to_millisec(required_timers[index].interval_us)
 		    ) != 0) {
 			log_message(
 				LOG_LEVEL_ERROR,

@@ -22,7 +22,7 @@ struct cpu_counter {
 };
 
 struct cpu_sample {
-	uint64_t timestamp_microseconds;
+	uint64_t timestamp_us;
 	size_t count;
 	struct cpu_counter counters[CPU_MAX_COUNT];
 };

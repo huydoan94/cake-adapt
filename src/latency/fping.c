@@ -74,13 +74,13 @@ static int fping_open(
 	struct latency *latency,
 	const char *const *targets,
 	size_t target_count,
-	uint64_t timestamp_microseconds,
+	uint64_t timestamp_us,
 	char *error,
 	size_t error_size
 )
 {
 	const struct latency_settings *settings = &latency->settings;
-	uint64_t interval = settings->reflector_ping_interval_microseconds;
+	uint64_t interval = settings->reflector_ping_interval_us;
 	struct pinger_command command;
 	char period[PINGER_ARGUMENT_SIZE];
 	char response_interval[PINGER_ARGUMENT_SIZE];
@@ -88,18 +88,15 @@ static int fping_open(
 	size_t index;
 	int ret;
 
-	(void)timestamp_microseconds;
-	(void)snprintf(
-		period,
-		sizeof(period),
-		"%" PRIu64,
-		rounded_divide(interval, MICROSECONDS_PER_MILLISECOND)
-	);
+	(void)timestamp_us;
+	(
+		void
+	)snprintf(period, sizeof(period), "%" PRIu64, rounded_divide(interval, US_PER_MILLISECOND));
 	(void)snprintf(
 		response_interval,
 		sizeof(response_interval),
 		"%" PRIu64,
-		interval / target_count / MICROSECONDS_PER_MILLISECOND
+		rounded_divide(interval, target_count * US_PER_MILLISECOND)
 	);
 
 	/* Up to 13 fixed arguments besides the targets. */

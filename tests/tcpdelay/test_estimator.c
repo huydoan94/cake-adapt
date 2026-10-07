@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Times here are nanoseconds, the filter's clock; the estimator's interface takes microseconds. */
+#define US UINT64_C(1000)
 #define MILLISECOND UINT64_C(1000000)
 /* Fixed one-way path delays outside any queue. */
 #define PATH_NS (5U * MILLISECOND)
@@ -73,9 +75,9 @@ static uint64_t send_span(
 	return end_ns;
 }
 
-static int64_t milliseconds(int64_t microseconds)
+static int64_t milliseconds(int64_t us)
 {
-	return (microseconds + 500) / 1000;
+	return (us + 500) / 1000;
 }
 
 /* Result at the arrival time of the last packet sent before sent_ns. */
@@ -85,17 +87,17 @@ static void result_after(
 	struct tcpdelay_estimate *estimate
 )
 {
-	tcpdelay_estimator_result(estimator, ORIGIN_NS + sent_ns + PATH_NS, estimate);
+	tcpdelay_estimator_result(estimator, (ORIGIN_NS + sent_ns + PATH_NS) / US, estimate);
 }
 
-static void assert_close(int64_t microseconds, int64_t expected_milliseconds)
+static void assert_close(int64_t us, int64_t expected_milliseconds)
 {
-	int64_t difference = milliseconds(microseconds) - expected_milliseconds;
+	int64_t difference = milliseconds(us) - expected_milliseconds;
 
 	if (difference < -2 || difference > 2) {
 		fprintf(stderr,
 			"queue %lld us, expected %lld ms\n",
-			(long long)microseconds,
+			(long long)us,
 			(long long)expected_milliseconds);
 	}
 	assert(difference >= -2 && difference <= 2);
@@ -133,18 +135,18 @@ static void test_queue_attributed_to_its_direction(uint64_t tick_ns, uint32_t ts
 	assert(estimator.flows[0].tick_ns == tick_ns);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 
 	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 40U * MILLISECOND, 0U);
 	result_after(&estimator, now, &estimate);
-	assert_close(estimate.download_queue_microseconds, 40);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 40);
+	assert_close(estimate.upload_queue_us, 0);
 
 	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 0U, 80U * MILLISECOND);
 	result_after(&estimator, now, &estimate);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 80);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 80);
 
 	now = send_span(
 		&estimator,
@@ -155,8 +157,8 @@ static void test_queue_attributed_to_its_direction(uint64_t tick_ns, uint32_t ts
 		120U * MILLISECOND
 	);
 	result_after(&estimator, now, &estimate);
-	assert_close(estimate.download_queue_microseconds, 30);
-	assert_close(estimate.upload_queue_microseconds, 120);
+	assert_close(estimate.download_queue_us, 30);
+	assert_close(estimate.upload_queue_us, 120);
 }
 
 /* A queue that fills before the clock period is known still counts in full. */
@@ -179,8 +181,8 @@ static void test_queue_built_before_the_tick_is_known(void)
 	);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 20);
-	assert_close(estimate.upload_queue_microseconds, 150);
+	assert_close(estimate.download_queue_us, 20);
+	assert_close(estimate.upload_queue_us, 150);
 }
 
 /* Delayed ACKs only lengthen the upstream estimate; the window minimum removes them. */
@@ -206,8 +208,8 @@ static void test_delayed_acks_are_ignored(void)
 		);
 	}
 	result_after(&estimator, sent_ns, &estimate);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 60);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 60);
 }
 
 /* A changed receiver wait looks like upload queueing while no prompt echoes remain. */
@@ -222,17 +224,25 @@ static void test_sustained_ack_wait_change_and_recovery(void)
 	now = send_span(&estimator, &remote, 0U, 3000U * MILLISECOND, 0U, 0U);
 	for (; now < 4000U * MILLISECOND; now += MILLISECOND)
 		send_sample(&estimator, &remote, now, 0U, 0U, 40U * MILLISECOND);
-	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
+	tcpdelay_estimator_result(
+		&estimator,
+		(ORIGIN_NS + now - MILLISECOND + PATH_NS) / US,
+		&estimate
+	);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 40);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 40);
 
 	/* Confirm recovery after 300 ms; a prompt minimum may restore zero earlier. */
 	now = send_span(&estimator, &remote, now, now + 300U * MILLISECOND, 0U, 0U);
-	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
+	tcpdelay_estimator_result(
+		&estimator,
+		(ORIGIN_NS + now - MILLISECOND + PATH_NS) / US,
+		&estimate
+	);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 }
 
 /* A constant receiver wait present during calibration is absorbed by its floor. */
@@ -246,10 +256,14 @@ static void test_constant_ack_wait_is_baseline(void)
 	memset(&estimator, 0, sizeof(estimator));
 	for (now = 0U; now < 4000U * MILLISECOND; now += MILLISECOND)
 		send_sample(&estimator, &remote, now, 0U, 0U, 40U * MILLISECOND);
-	tcpdelay_estimator_result(&estimator, ORIGIN_NS + now - MILLISECOND + PATH_NS, &estimate);
+	tcpdelay_estimator_result(
+		&estimator,
+		(ORIGIN_NS + now - MILLISECOND + PATH_NS) / US,
+		&estimate
+	);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 }
 
 static void test_results_expire(void)
@@ -281,12 +295,12 @@ static void assert_queues(
 
 	tcpdelay_estimator_result(
 		estimator,
-		ORIGIN_NS + now - MILLISECOND + PATH_NS + download_queue_ns,
+		(ORIGIN_NS + now - MILLISECOND + PATH_NS + download_queue_ns) / US,
 		&estimate
 	);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, download_ms);
-	assert_close(estimate.upload_queue_microseconds, upload_ms);
+	assert_close(estimate.download_queue_us, download_ms);
+	assert_close(estimate.upload_queue_us, upload_ms);
 }
 
 /*
@@ -314,7 +328,7 @@ static void test_standing_queue_and_the_queue_bound(void)
 	assert_queues(&estimator, now, download_queue, 80, 20);
 
 	/* fping sees 50 ms added: neither direction may show more. */
-	tcpdelay_estimator_set_bound(&estimator, 50 * (int64_t)MILLISECOND);
+	tcpdelay_estimator_set_bound(&estimator, 50 * (int64_t)(MILLISECOND / US));
 	now = send_span(
 		&estimator,
 		&remote,
@@ -338,7 +352,7 @@ static void test_standing_queue_and_the_queue_bound(void)
 	assert_queues(&estimator, now, download_queue, 0, 0);
 
 	/* Congestion on top of the new floors shows up to the bound fping reports. */
-	tcpdelay_estimator_set_bound(&estimator, 100 * (int64_t)MILLISECOND);
+	tcpdelay_estimator_set_bound(&estimator, 100 * (int64_t)(MILLISECOND / US));
 	now = send_span(
 		&estimator,
 		&remote,
@@ -369,8 +383,8 @@ static void test_hold_preserves_standing_queue(uint64_t phase_ns)
 	);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 80);
-	assert_close(estimate.upload_queue_microseconds, 20);
+	assert_close(estimate.download_queue_us, 80);
+	assert_close(estimate.upload_queue_us, 20);
 
 	/* The original low-delay floor keeps the same standing queue visible. */
 	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 0U, 0U);
@@ -383,8 +397,8 @@ static void test_hold_preserves_standing_queue(uint64_t phase_ns)
 		20U * MILLISECOND
 	);
 	result_after(&estimator, now, &estimate);
-	assert_close(estimate.download_queue_microseconds, 80);
-	assert_close(estimate.upload_queue_microseconds, 20);
+	assert_close(estimate.download_queue_us, 80);
+	assert_close(estimate.upload_queue_us, 20);
 }
 
 static void test_floor_accepts_lower_raw_minimum(void)
@@ -442,8 +456,8 @@ static void test_floor_accepts_lower_raw_minimum(void)
 	);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 40);
-	assert_close(estimate.upload_queue_microseconds, 15);
+	assert_close(estimate.download_queue_us, 40);
+	assert_close(estimate.upload_queue_us, 15);
 }
 
 /* The floor follows new minimums down and rises only by what exceeds the bound. */
@@ -463,7 +477,7 @@ static void test_floor_follows_the_bound(void)
 	assert(floor->value == 0);
 
 	/* A 20 ms bound lifts it to 20 ms below the delay. */
-	tcpdelay_estimator_set_bound(&estimator, 20 * (int64_t)MILLISECOND);
+	tcpdelay_estimator_set_bound(&estimator, 20 * (int64_t)(MILLISECOND / US));
 	now = send_span(&estimator, &remote, now, now + 1000U * MILLISECOND, 140U * MILLISECOND, 0U);
 	assert(floor->value == (int64_t)(40U * MILLISECOND));
 
@@ -486,7 +500,7 @@ static void test_samples_without_departure(void)
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid);
 	assert(!estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 25);
+	assert_close(estimate.download_queue_us, 25);
 }
 
 /* A new flow's congested baseline cannot erase an established flow's queue. */
@@ -515,8 +529,8 @@ static void test_new_flow_keeps_established_queues(bool departures)
 	}
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 80);
-	assert_close(estimate.upload_queue_microseconds, 20);
+	assert_close(estimate.download_queue_us, 80);
+	assert_close(estimate.upload_queue_us, 20);
 
 	/* Once A stops, B may supply its own pair, but never A's stale upload. */
 	now = send_span(
@@ -530,8 +544,8 @@ static void test_new_flow_keeps_established_queues(bool departures)
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid);
 	assert(estimate.upload_valid == departures);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 }
 
 /* Never synthesize a pair from an older download-only flow and a newer upload. */
@@ -556,16 +570,16 @@ static void test_directional_pair_comes_from_one_flow(void)
 	}
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 40);
-	assert_close(estimate.upload_queue_microseconds, 80);
+	assert_close(estimate.download_queue_us, 40);
+	assert_close(estimate.upload_queue_us, 80);
 
 	/* The surviving partial flow remains available after the pair expires. */
 	now = send_span(&estimator, &download_only, now, 5000U * MILLISECOND, 0U, 0U);
 	result_after(&estimator, now, &estimate);
 	assert(estimate.download_valid);
 	assert(!estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 }
 
 static void test_reordered_packet_is_skipped(void)
@@ -584,8 +598,8 @@ static void test_reordered_packet_is_skipped(void)
 	assert(estimator.flows[0].ticks == ticks);
 	now = send_span(&estimator, &remote, now, now + 500U * MILLISECOND, 0U, 0U);
 	result_after(&estimator, now, &estimate);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 }
 
 static void test_later_arrival_with_older_timestamp_is_ignored(void)
@@ -758,8 +772,8 @@ static void test_remote_clock_drift_on_a_clear_path(void)
 		send_sample(&estimator, &remote, sent_ns, 0U, 0U, 0U);
 	result_after(&estimator, sent_ns, &estimate);
 	assert(estimate.download_valid && estimate.upload_valid);
-	assert_close(estimate.download_queue_microseconds, 0);
-	assert_close(estimate.upload_queue_microseconds, 0);
+	assert_close(estimate.download_queue_us, 0);
+	assert_close(estimate.upload_queue_us, 0);
 }
 
 int main(void)

@@ -33,12 +33,12 @@ static bool debug_to_syslog;
 static FILE *log_file;
 static char log_path[LOG_PATH_SIZE];
 static char previous_log_path[LOG_PATH_SIZE + sizeof(LOG_PREVIOUS_SUFFIX)];
-static uint64_t log_opened_microseconds;
-static uint64_t log_last_flush_microseconds;
-static uint64_t log_maximum_age_microseconds;
+static uint64_t log_opened_us;
+static uint64_t log_last_flush_us;
+static uint64_t log_maximum_age_us;
 static uint64_t log_maximum_size_bytes;
 static uint64_t log_size_bytes;
-static uint64_t log_buffer_timeout_microseconds;
+static uint64_t log_buffer_timeout_us;
 static bool log_compress_exports;
 static struct log_records headers;
 static char *cpu_header;
@@ -111,23 +111,23 @@ static const struct {
 	[LOG_LEVEL_DEBUG] = { RECORD_DEBUG, LOG_DEBUG },
 };
 
-static uint64_t clock_microseconds(clockid_t clock_identifier)
+static uint64_t clock_us(clockid_t clock_identifier)
 {
 	uint64_t timestamp = 0U;
 
-	(void)read_clock_microseconds(clock_identifier, &timestamp);
+	(void)read_clock_us(clock_identifier, &timestamp);
 	return timestamp;
 }
 
 /* "<seconds>.<microseconds>", the timestamp format of every record. */
-static const char *timestamp_text(char text[TIMESTAMP_SIZE], uint64_t microseconds)
+static const char *timestamp_text(char text[TIMESTAMP_SIZE], uint64_t us)
 {
 	(void)snprintf(
 		text,
 		TIMESTAMP_SIZE,
 		"%" PRIu64 ".%06" PRIu64,
-		microseconds / MICROSECONDS_PER_SECOND,
-		microseconds % MICROSECONDS_PER_SECOND
+		us / US_PER_SECOND,
+		us % US_PER_SECOND
 	);
 	return text;
 }
@@ -149,9 +149,9 @@ static void write_file_line(const char *line)
 	log_size_bytes = saturating_add(log_size_bytes, (uint64_t)written);
 }
 
-static uint64_t log_realtime_microseconds(void)
+static uint64_t log_realtime_us(void)
 {
-	return clock_microseconds(CLOCK_REALTIME);
+	return clock_us(CLOCK_REALTIME);
 }
 
 static void write_headers_to_file(void)
@@ -224,8 +224,8 @@ static int truncate_log_file(void)
 	log_size_bytes = 0U;
 	write_headers_to_file();
 	(void)fflush(log_file);
-	log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
-	log_last_flush_microseconds = log_opened_microseconds;
+	log_opened_us = clock_us(CLOCK_MONOTONIC);
+	log_last_flush_us = log_opened_us;
 	return 0;
 }
 
@@ -300,7 +300,7 @@ static void rotate_log_file(enum rotation_reason reason)
 			LOG_LEVEL_DEBUG,
 			"log file maximum time: %" PRIu64
 			" minutes has elapsed so flushing and rotating log file.",
-			log_maximum_age_microseconds / MICROSECONDS_PER_MINUTE
+			log_maximum_age_us / US_PER_MINUTE
 		);
 	} else {
 		log_message(
@@ -319,21 +319,18 @@ static void rotate_log_file(enum rotation_reason reason)
 
 void log_tick(void)
 {
-	uint64_t timestamp_microseconds;
+	uint64_t timestamp_us;
 
 	if (log_file == NULL || log_maintenance_active)
 		return;
-	timestamp_microseconds = clock_microseconds(CLOCK_MONOTONIC);
-	if (log_buffer_timeout_microseconds > 0U &&
-	    timestamp_microseconds - log_last_flush_microseconds >=
-		    log_buffer_timeout_microseconds) {
+	timestamp_us = clock_us(CLOCK_MONOTONIC);
+	if (log_buffer_timeout_us > 0U &&
+	    timestamp_us - log_last_flush_us >= log_buffer_timeout_us) {
 		(void)fflush(log_file);
-		log_last_flush_microseconds = timestamp_microseconds;
+		log_last_flush_us = timestamp_us;
 	}
-	if (log_maximum_age_microseconds > 0U &&
-	    timestamp_microseconds - log_opened_microseconds > log_maximum_age_microseconds) {
+	if (log_maximum_age_us > 0U && timestamp_us - log_opened_us > log_maximum_age_us)
 		rotate_log_file(ROTATE_MAXIMUM_AGE);
-	}
 }
 
 static void write_line(const char *line)
@@ -344,7 +341,7 @@ static void write_line(const char *line)
 	}
 	if (log_file != NULL) {
 		write_file_line(line);
-		if (log_buffer_timeout_microseconds == 0U)
+		if (log_buffer_timeout_us == 0U)
 			(void)fflush(log_file);
 		if (log_maximum_size_bytes > 0U && log_size_bytes > log_maximum_size_bytes)
 			rotate_log_file(ROTATE_MAXIMUM_SIZE);
@@ -371,7 +368,7 @@ static const char *local_datetime(time_t seconds)
 	return datetime;
 }
 
-static void write_record_at(const char *type, const char *message, uint64_t timestamp_microseconds)
+static void write_record_at(const char *type, const char *message, uint64_t timestamp_us)
 {
 	char line[LOG_MESSAGE_SIZE];
 	char stamp[TIMESTAMP_SIZE];
@@ -381,8 +378,8 @@ static void write_record_at(const char *type, const char *message, uint64_t time
 		sizeof(line),
 		"%s; %s; %s; %s",
 		type,
-		local_datetime((time_t)(timestamp_microseconds / MICROSECONDS_PER_SECOND)),
-		timestamp_text(stamp, timestamp_microseconds),
+		local_datetime((time_t)(timestamp_us / US_PER_SECOND)),
+		timestamp_text(stamp, timestamp_us),
 		message
 	);
 	write_line(line);
@@ -390,7 +387,7 @@ static void write_record_at(const char *type, const char *message, uint64_t time
 
 static void write_record(const char *type, const char *message)
 {
-	write_record_at(type, message, log_realtime_microseconds());
+	write_record_at(type, message, log_realtime_us());
 }
 
 void log_init(const char *identifier, bool foreground)
@@ -459,12 +456,12 @@ int log_set_file(const char *path, const struct log_file_settings *settings)
 		LOG_PREVIOUS_SUFFIX
 	);
 	log_file = file;
-	log_opened_microseconds = clock_microseconds(CLOCK_MONOTONIC);
-	log_last_flush_microseconds = log_opened_microseconds;
-	log_maximum_age_microseconds = settings->maximum_time_minutes * MICROSECONDS_PER_MINUTE;
+	log_opened_us = clock_us(CLOCK_MONOTONIC);
+	log_last_flush_us = log_opened_us;
+	log_maximum_age_us = settings->maximum_time_us;
 	log_maximum_size_bytes = settings->maximum_size_kilobytes * KIBIBYTE;
 	log_size_bytes = (uint64_t)file_status.st_size;
-	log_buffer_timeout_microseconds = settings->buffer_timeout_microseconds;
+	log_buffer_timeout_us = settings->buffer_timeout_us;
 	log_compress_exports = settings->compress_exports;
 
 	return 0;
@@ -586,12 +583,7 @@ static void write_timed_record(const char *type, const char *format, ...)
 	if (!log_to_stdout && log_file == NULL)
 		return;
 	va_start(arguments, format);
-	write_record_fields(
-		type,
-		timestamp_text(stamp, log_realtime_microseconds()),
-		format,
-		arguments
-	);
+	write_record_fields(type, timestamp_text(stamp, log_realtime_us()), format, arguments);
 	va_end(arguments);
 }
 
@@ -601,9 +593,9 @@ void log_tcp_queue(const struct log_tcp_queue_record *record)
 		RECORD_TCP_QUEUE,
 		"%d; %" PRId64 "; %d; %" PRId64,
 		record->download_valid ? 1 : 0,
-		record->download_queue_microseconds,
+		record->download_queue_us,
 		record->upload_valid ? 1 : 0,
-		record->upload_queue_microseconds
+		record->upload_queue_us
 	);
 }
 
@@ -648,24 +640,24 @@ void log_data(const struct log_data_record *record)
 		record->icmp_timestamp,
 		record->reflector,
 		record->sequence,
-		record->download_owd_baseline_microseconds,
-		record->download_owd_microseconds,
-		record->download_owd_delta_ewma_microseconds,
-		record->download_owd_delta_microseconds,
-		record->download_adjust_delay_threshold_microseconds,
-		record->upload_owd_baseline_microseconds,
-		record->upload_owd_microseconds,
-		record->upload_owd_delta_ewma_microseconds,
-		record->upload_owd_delta_microseconds,
-		record->upload_adjust_delay_threshold_microseconds,
+		record->download_owd_baseline_us,
+		record->download_owd_us,
+		record->download_owd_delta_ewma_us,
+		record->download_owd_delta_us,
+		record->download_adjust_delay_threshold_us,
+		record->upload_owd_baseline_us,
+		record->upload_owd_us,
+		record->upload_owd_delta_ewma_us,
+		record->upload_owd_delta_us,
+		record->upload_adjust_delay_threshold_us,
 		record->download_sum_delays,
-		record->download_average_owd_delta_microseconds,
-		record->download_maximum_adjust_up_threshold_microseconds,
-		record->download_maximum_adjust_down_threshold_microseconds,
+		record->download_average_owd_delta_us,
+		record->download_maximum_adjust_up_threshold_us,
+		record->download_maximum_adjust_down_threshold_us,
 		record->upload_sum_delays,
-		record->upload_average_owd_delta_microseconds,
-		record->upload_maximum_adjust_up_threshold_microseconds,
-		record->upload_maximum_adjust_down_threshold_microseconds,
+		record->upload_average_owd_delta_us,
+		record->upload_maximum_adjust_up_threshold_us,
+		record->upload_maximum_adjust_down_threshold_us,
 		record->download_load_condition,
 		record->upload_load_condition,
 		record->cake_download_rate_kbps,
@@ -683,8 +675,8 @@ void log_summary(const struct log_summary_record *record)
 		record->upload_achieved_rate_kbps,
 		record->download_sum_delays,
 		record->upload_sum_delays,
-		record->download_average_owd_delta_microseconds,
-		record->upload_average_owd_delta_microseconds,
+		record->download_average_owd_delta_us,
+		record->upload_average_owd_delta_us,
 		record->download_load_condition,
 		record->upload_load_condition,
 		record->cake_download_rate_kbps,
@@ -699,18 +691,18 @@ void log_reflector(const struct log_reflector_record *record)
 		"%s; %" PRId64 "; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %" PRId64 "; %" PRId64
 		"; %" PRId64 "; %" PRIu64 "; %" PRId64 "; %" PRId64 "; %" PRId64 "; %" PRIu64,
 		record->reflector,
-		record->minimum_sum_owd_baselines_microseconds,
-		record->sum_owd_baselines_microseconds,
-		record->sum_owd_baselines_delta_microseconds,
-		record->sum_owd_baselines_delta_threshold_microseconds,
-		record->minimum_download_delta_ewma_microseconds,
-		record->download_delta_ewma_microseconds,
-		record->download_delta_ewma_delta_microseconds,
-		record->delta_ewma_delta_threshold_microseconds,
-		record->minimum_upload_delta_ewma_microseconds,
-		record->upload_delta_ewma_microseconds,
-		record->upload_delta_ewma_delta_microseconds,
-		record->delta_ewma_delta_threshold_microseconds
+		record->minimum_sum_owd_baselines_us,
+		record->sum_owd_baselines_us,
+		record->sum_owd_baselines_delta_us,
+		record->sum_owd_baselines_delta_threshold_us,
+		record->minimum_download_delta_ewma_us,
+		record->download_delta_ewma_us,
+		record->download_delta_ewma_delta_us,
+		record->delta_ewma_delta_threshold_us,
+		record->minimum_upload_delta_ewma_us,
+		record->upload_delta_ewma_us,
+		record->upload_delta_ewma_delta_us,
+		record->delta_ewma_delta_threshold_us
 	);
 }
 
@@ -726,7 +718,7 @@ void log_cpu(const struct cpu_sample *sample, const unsigned int *usage)
 		log_message(LOG_LEVEL_WARNING, "could not allocate CPU log record");
 		return;
 	}
-	(void)fputs(timestamp_text(stamp, sample->timestamp_microseconds), stream);
+	(void)fputs(timestamp_text(stamp, sample->timestamp_us), stream);
 	for (index = 0U; index < sample->count; index++)
 		(void)fprintf(stream, "; %u", usage[index]);
 	if (!close_stream(stream))
@@ -741,7 +733,7 @@ void log_cpu_raw(const struct cpu_sample *sample)
 	char stamp[TIMESTAMP_SIZE];
 	size_t index;
 
-	(void)timestamp_text(stamp, sample->timestamp_microseconds);
+	(void)timestamp_text(stamp, sample->timestamp_us);
 	for (index = 0U; index < sample->count; index++) {
 		const struct cpu_counter *counter = &sample->counters[index];
 
@@ -777,37 +769,33 @@ void log_shaper(const char *interface, uint64_t rate_kbps)
 
 /* "<record>: <seconds>.<microseconds> <message>", as cake-autorate sends it. */
 static void
-write_syslog(int priority, const char *record, uint64_t timestamp_microseconds, const char *message)
+write_syslog(int priority, const char *record, uint64_t timestamp_us, const char *message)
 {
 	char stamp[TIMESTAMP_SIZE];
 
-	syslog(priority,
-	       "%s: %s %s",
-	       record,
-	       timestamp_text(stamp, timestamp_microseconds),
-	       message);
+	syslog(priority, "%s: %s %s", record, timestamp_text(stamp, timestamp_us), message);
 }
 
 void log_system_message(const char *format, ...)
 {
 	char message[LOG_MESSAGE_SIZE];
 	va_list arguments;
-	uint64_t timestamp_microseconds = log_realtime_microseconds();
+	uint64_t timestamp_us = log_realtime_us();
 
 	va_start(arguments, format);
 	(void)vsnprintf(message, sizeof(message), format, arguments);
 	va_end(arguments);
 
 	if (log_to_syslog)
-		write_syslog(LOG_INFO, RECORD_INFO, timestamp_microseconds, message);
-	write_record_at(RECORD_SYSLOG, message, timestamp_microseconds);
+		write_syslog(LOG_INFO, RECORD_INFO, timestamp_us, message);
+	write_record_at(RECORD_SYSLOG, message, timestamp_us);
 }
 
 void log_message(enum log_level level, const char *format, ...)
 {
 	char message[LOG_MESSAGE_SIZE];
 	va_list arguments;
-	uint64_t timestamp_microseconds;
+	uint64_t timestamp_us;
 	bool send_syslog;
 	bool send_stderr;
 
@@ -826,16 +814,11 @@ void log_message(enum log_level level, const char *format, ...)
 	(void)vsnprintf(message, sizeof(message), format, arguments);
 	va_end(arguments);
 
-	timestamp_microseconds = log_realtime_microseconds();
+	timestamp_us = log_realtime_us();
 	if (send_syslog)
-		write_syslog(
-			levels[level].priority,
-			levels[level].record,
-			timestamp_microseconds,
-			message
-		);
+		write_syslog(levels[level].priority, levels[level].record, timestamp_us, message);
 	if (send_stderr)
 		(void)fprintf(stderr, "%s: %s\n", levels[level].record, message);
 	if (log_to_stdout || log_file != NULL)
-		write_record_at(levels[level].record, message, timestamp_microseconds);
+		write_record_at(levels[level].record, message, timestamp_us);
 }

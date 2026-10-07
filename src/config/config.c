@@ -79,10 +79,10 @@ static const struct option_binding options[] = {
 	STRING_OPTION(OPTION_PINGER_METHOD, pinger_method),
 	STRING_OPTION(OPTION_PING_EXTRA_ARGS, ping_extra_args),
 	STRING_OPTION(OPTION_PING_PREFIX_STRING, ping_prefix_string),
-	SCALED_OPTION(OPTION_LOG_FILE_MAX_TIME, log_file_max_time_minutes, 1U),
+	SCALED_OPTION(OPTION_LOG_FILE_MAX_TIME, log_file_max_time_us, MINUTE),
 	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_kilobytes, 1U),
 	SCALED_OPTION(OPTION_NO_PINGERS, no_pingers, 1U),
-	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_microseconds, SECOND),
+	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_us, SECOND),
 	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, download.minimum_rate_bits_per_second, KILOBIT),
 	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, download.base_rate_bits_per_second, KILOBIT),
 	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, download.maximum_rate_bits_per_second, KILOBIT),
@@ -101,55 +101,43 @@ static const struct option_binding options[] = {
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_UP,
-		download.average_owd_delta_maximum_adjust_up_microseconds,
+		download.average_owd_delta_maximum_adjust_up_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_AVG_ADJUST_UP,
-		upload.average_owd_delta_maximum_adjust_up_microseconds,
+		upload.average_owd_delta_maximum_adjust_up_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_DELAY_THRESHOLD,
-		download.owd_delta_delay_threshold_microseconds,
+		download.owd_delta_delay_threshold_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_DELAY_THRESHOLD,
-		upload.owd_delta_delay_threshold_microseconds,
+		upload.owd_delta_delay_threshold_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_DOWN,
-		download.average_owd_delta_maximum_adjust_down_microseconds,
+		download.average_owd_delta_maximum_adjust_down_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_AVG_ADJUST_DOWN,
-		upload.average_owd_delta_maximum_adjust_down_microseconds,
+		upload.average_owd_delta_maximum_adjust_down_us,
 		MILLISECOND
 	),
-	SCALED_OPTION(
-		OPTION_SUSTAINED_IDLE_SLEEP,
-		sustained_idle_sleep_threshold_microseconds,
-		SECOND
-	),
-	SCALED_OPTION(
-		OPTION_LOG_FILE_BUFFER_TIMEOUT,
-		log_file_buffer_timeout_microseconds,
-		MILLISECOND
-	),
-	SCALED_OPTION(OPTION_IRTT_SESSION_DURATION, irtt_session_duration_minutes, 1U),
+	SCALED_OPTION(OPTION_SUSTAINED_IDLE_SLEEP, sustained_idle_sleep_threshold_us, SECOND),
+	SCALED_OPTION(OPTION_LOG_FILE_BUFFER_TIMEOUT, log_file_buffer_timeout_us, MILLISECOND),
+	SCALED_OPTION(OPTION_IRTT_SESSION_DURATION, irtt_session_duration_us, MINUTE),
 	SCALED_OPTION(
 		OPTION_TRAFFIC_MONITOR_INTERVAL,
-		monitor_achieved_rates_interval_microseconds,
+		monitor_achieved_rates_interval_us,
 		MILLISECOND
 	),
-	SCALED_OPTION(
-		OPTION_CPU_MONITOR_INTERVAL,
-		monitor_cpu_usage_interval_microseconds,
-		MILLISECOND
-	),
+	SCALED_OPTION(OPTION_CPU_MONITOR_INTERVAL, monitor_cpu_usage_interval_us, MILLISECOND),
 	SCALED_OPTION(OPTION_BUFFERBLOAT_WINDOW, bufferbloat_detection_window, 1U),
 	SCALED_OPTION(OPTION_BUFFERBLOAT_THRESHOLD, bufferbloat_detection_threshold, 1U),
 	SCALED_OPTION(OPTION_ALPHA_BASELINE_INCREASE, alpha_baseline_increase_per_million, MILLION),
@@ -183,22 +171,10 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_RATE_UP_LOW_LOAD, shaper_rate_adjust_up_load_low_per_million, MILLION),
 	SCALED_OPTION(OPTION_HIGH_LOAD_THRESHOLD, high_load_threshold_per_million, MILLION),
 	SCALED_OPTION(OPTION_UL_CONGEST_ACK_SHARE, ul_congest_ack_share_per_million, MILLION),
-	SCALED_OPTION(
-		OPTION_BUFFERBLOAT_REFRACTORY,
-		bufferbloat_refractory_period_microseconds,
-		MILLISECOND
-	),
-	SCALED_OPTION(OPTION_DECAY_REFRACTORY, decay_refractory_period_microseconds, MILLISECOND),
-	SCALED_OPTION(
-		OPTION_REFLECTOR_HEALTH_INTERVAL,
-		reflector_health_check_interval_microseconds,
-		SECOND
-	),
-	SCALED_OPTION(
-		OPTION_REFLECTOR_RESPONSE_DEADLINE,
-		reflector_response_deadline_microseconds,
-		SECOND
-	),
+	SCALED_OPTION(OPTION_BUFFERBLOAT_REFRACTORY, bufferbloat_refractory_period_us, MILLISECOND),
+	SCALED_OPTION(OPTION_DECAY_REFRACTORY, decay_refractory_period_us, MILLISECOND),
+	SCALED_OPTION(OPTION_REFLECTOR_HEALTH_INTERVAL, reflector_health_check_interval_us, SECOND),
+	SCALED_OPTION(OPTION_REFLECTOR_RESPONSE_DEADLINE, reflector_response_deadline_us, SECOND),
 	SCALED_OPTION(
 		OPTION_REFLECTOR_MISBEHAVING_WINDOW,
 		reflector_misbehaving_detection_window,
@@ -211,27 +187,23 @@ static const struct option_binding options[] = {
 	),
 	SCALED_OPTION(
 		OPTION_REFLECTOR_REPLACEMENT_INTERVAL,
-		reflector_replacement_interval_minutes,
-		1U
+		reflector_replacement_interval_us,
+		MINUTE
 	),
-	SCALED_OPTION(
-		OPTION_REFLECTOR_COMPARISON_INTERVAL,
-		reflector_comparison_interval_minutes,
-		1U
-	),
+	SCALED_OPTION(OPTION_REFLECTOR_COMPARISON_INTERVAL, reflector_comparison_interval_us, MINUTE),
 	SCALED_OPTION(
 		OPTION_REFLECTOR_BASELINE_DELTA,
-		reflector_sum_owd_baselines_delta_threshold_microseconds,
+		reflector_sum_owd_baselines_delta_threshold_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_REFLECTOR_EWMA_DELTA,
-		reflector_owd_delta_ewma_delta_threshold_microseconds,
+		reflector_owd_delta_ewma_delta_threshold_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(OPTION_STALL_DETECTION_THRESHOLD, stall_detection_threshold, 1U),
-	SCALED_OPTION(OPTION_GLOBAL_PING_TIMEOUT, global_ping_response_timeout_microseconds, SECOND),
-	SCALED_OPTION(OPTION_INTERFACE_UP_INTERVAL, interface_up_check_interval_microseconds, SECOND),
+	SCALED_OPTION(OPTION_GLOBAL_PING_TIMEOUT, global_ping_response_timeout_us, SECOND),
+	SCALED_OPTION(OPTION_INTERFACE_UP_INTERVAL, interface_up_check_interval_us, SECOND),
 };
 
 size_t config_option_count(void)
@@ -377,7 +349,8 @@ static int parse_scaled_decimal(
 		for (character++; *character != '\0'; character++) {
 			uint64_t digit = (uint64_t)(*character - '0');
 
-			if (fractional_place == 1U) {
+			/* The next place would not be a whole number of stored units. */
+			if (fractional_place % 10U != 0U) {
 				if (digit != 0U) {
 					return error_set(
 						loader->error,

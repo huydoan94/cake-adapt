@@ -24,10 +24,10 @@ static const struct log_file_settings size_limited_compressed = {
 	.maximum_size_kilobytes = 1U,
 	.compress_exports = true,
 };
-static const struct log_file_settings buffered = { .buffer_timeout_microseconds = 500000U };
+static const struct log_file_settings buffered = { .buffer_timeout_us = 500000U };
 static const struct log_file_settings aged_and_buffered = {
-	.maximum_time_minutes = 1U,
-	.buffer_timeout_microseconds = 500000U,
+	.maximum_time_us = MINUTE,
+	.buffer_timeout_us = 500000U,
 };
 static const struct log_records every_record = {
 	.data = true,
@@ -381,24 +381,24 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.icmp_timestamp = "[50.00006]",
 		.reflector = "1.1.1.1",
 		.sequence = 70U,
-		.download_owd_baseline_microseconds = -80,
-		.download_owd_microseconds = -90,
-		.download_owd_delta_ewma_microseconds = -100,
-		.download_owd_delta_microseconds = -110,
-		.download_adjust_delay_threshold_microseconds = 120U,
-		.upload_owd_baseline_microseconds = -130,
-		.upload_owd_microseconds = -140,
-		.upload_owd_delta_ewma_microseconds = -150,
-		.upload_owd_delta_microseconds = -160,
-		.upload_adjust_delay_threshold_microseconds = 170U,
+		.download_owd_baseline_us = -80,
+		.download_owd_us = -90,
+		.download_owd_delta_ewma_us = -100,
+		.download_owd_delta_us = -110,
+		.download_adjust_delay_threshold_us = 120U,
+		.upload_owd_baseline_us = -130,
+		.upload_owd_us = -140,
+		.upload_owd_delta_ewma_us = -150,
+		.upload_owd_delta_us = -160,
+		.upload_adjust_delay_threshold_us = 170U,
 		.download_sum_delays = 180U,
-		.download_average_owd_delta_microseconds = -190,
-		.download_maximum_adjust_up_threshold_microseconds = 200U,
-		.download_maximum_adjust_down_threshold_microseconds = 210U,
+		.download_average_owd_delta_us = -190,
+		.download_maximum_adjust_up_threshold_us = 200U,
+		.download_maximum_adjust_down_threshold_us = 210U,
 		.upload_sum_delays = 220U,
-		.upload_average_owd_delta_microseconds = -230,
-		.upload_maximum_adjust_up_threshold_microseconds = 240U,
-		.upload_maximum_adjust_down_threshold_microseconds = 250U,
+		.upload_average_owd_delta_us = -230,
+		.upload_maximum_adjust_up_threshold_us = 240U,
+		.upload_maximum_adjust_down_threshold_us = 250U,
 		.download_load_condition = "dl_low",
 		.upload_load_condition = "ul_high_bb",
 		.cake_download_rate_kbps = 260U,
@@ -415,8 +415,8 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.upload_achieved_rate_kbps = 21U,
 		.download_sum_delays = 31U,
 		.upload_sum_delays = 41U,
-		.download_average_owd_delta_microseconds = -51,
-		.upload_average_owd_delta_microseconds = -61,
+		.download_average_owd_delta_us = -51,
+		.upload_average_owd_delta_us = -61,
 		.download_load_condition = "dl_idle",
 		.upload_load_condition = "ul_low",
 		.cake_download_rate_kbps = 71U,
@@ -424,17 +424,17 @@ static void test_cake_autorate_headers_and_record_format(void)
 	};
 	const struct log_reflector_record reflector_record = {
 		.reflector = "1.0.0.1",
-		.minimum_sum_owd_baselines_microseconds = -100,
-		.sum_owd_baselines_microseconds = -110,
-		.sum_owd_baselines_delta_microseconds = 10U,
-		.sum_owd_baselines_delta_threshold_microseconds = 20000U,
-		.minimum_download_delta_ewma_microseconds = -5,
-		.download_delta_ewma_microseconds = 7,
-		.download_delta_ewma_delta_microseconds = 12,
-		.delta_ewma_delta_threshold_microseconds = 10000U,
-		.minimum_upload_delta_ewma_microseconds = -6,
-		.upload_delta_ewma_microseconds = 8,
-		.upload_delta_ewma_delta_microseconds = 14,
+		.minimum_sum_owd_baselines_us = -100,
+		.sum_owd_baselines_us = -110,
+		.sum_owd_baselines_delta_us = 10U,
+		.sum_owd_baselines_delta_threshold_us = 20000U,
+		.minimum_download_delta_ewma_us = -5,
+		.download_delta_ewma_us = 7,
+		.download_delta_ewma_delta_us = 12,
+		.delta_ewma_delta_threshold_us = 10000U,
+		.minimum_upload_delta_ewma_us = -6,
+		.upload_delta_ewma_us = 8,
+		.upload_delta_ewma_delta_us = 14,
 	};
 	const char *field_end;
 	const char *field_start;
@@ -509,7 +509,7 @@ static void test_cpu_schema_matches_cake_autorate(void)
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[4096];
 	const struct cpu_sample sample = {
-		.timestamp_microseconds = 1234567U,
+		.timestamp_us = 1234567U,
 		.count = 2U,
 		.counters = { { .identifier = "cpu",
 				.user = 1U,
@@ -558,8 +558,8 @@ static void test_tcp_queue_record(void)
 	const struct log_tcp_queue_record record = {
 		.download_valid = true,
 		.upload_valid = false,
-		.download_queue_microseconds = 1500,
-		.upload_queue_microseconds = -20,
+		.download_queue_us = 1500,
+		.upload_queue_us = -20,
 	};
 	int descriptor = mkstemp(path);
 
