@@ -3,35 +3,47 @@
 
 #include <stdint.h>
 
-/* Unit conversions and fixed-point scales shared across modules. */
+/*
+ * Base units: bits and bytes (rates in bit/s, sizes in bytes, a KB being 1,024
+ * bytes), microseconds for every time and duration, rounded to the nearest
+ * microsecond, and ratios as integers per million. Other units appear only
+ * where a value enters or leaves the daemon.
+ */
 #define THOUSAND UINT64_C(1000)
 #define MILLION (THOUSAND * THOUSAND)
+#define PERCENT UINT64_C(100)
+/* Ratios are integers per million: RATIO_ONE_E6 is 100%. */
+#define RATIO_ONE_E6 MILLION
+#define RATIO_PERCENT_E6 (RATIO_ONE_E6 / PERCENT)
+
+/* Data and rates, in bits. A kilobit is 1,000 bits, as CAKE and tc count them. */
 #define KILOBIT THOUSAND
 #define MEGABIT (THOUSAND * KILOBIT)
+#define BITS_PER_BYTE UINT64_C(8)
+
+/* Sizes. A KB is 1,024 bytes, as cake-autorate's log limit and /proc count them. */
+#define KILOBYTE UINT64_C(1024)
+
+/* Durations. */
 #define MICROSECOND UINT64_C(1)
 #define MILLISECOND (THOUSAND * MICROSECOND)
 #define SECOND (THOUSAND * MILLISECOND)
 #define MINUTE (UINT64_C(60) * SECOND)
-#define KIBIBYTE UINT64_C(1024)
-#define PERCENT UINT64_C(100)
-#define BITS_PER_BYTE UINT64_C(8)
-#define FACTOR_PER_PERCENT (MILLION / PERCENT)
-#define MILLISECONDS_PER_SECOND (SECOND / MILLISECOND)
 #define MICROSECONDS_PER_MILLISECOND (MILLISECOND / MICROSECOND)
 #define MICROSECONDS_PER_SECOND SECOND
 #define MICROSECONDS_PER_MINUTE MINUTE
 #define NANOSECONDS_PER_MICROSECOND THOUSAND
 #define NANOSECONDS_PER_MILLISECOND (THOUSAND * NANOSECONDS_PER_MICROSECOND)
-#define NANOSECONDS_PER_SECOND ((long)(THOUSAND * NANOSECONDS_PER_MILLISECOND))
+#define NANOSECONDS_PER_SECOND (THOUSAND * NANOSECONDS_PER_MILLISECOND)
 
 /* Shared application bounds. */
 #define CONFIG_MAX_REFLECTORS 64U
 
 /* Fixed latency-response compatibility thresholds. */
-#define IRTT_FAST_EXIT_RETRY_MICROSECONDS SECOND
-#define IRTT_FAST_EXIT_THRESHOLD_MICROSECONDS (UINT64_C(3) * SECOND)
-#define LATENCY_STALE_RESPONSE_MICROSECONDS (UINT64_C(500) * MILLISECOND)
-#define LATENCY_TIMESTAMP_ROLLOVER_DELTA_MICROSECONDS (UINT64_C(50) * MINUTE)
+#define IRTT_FAST_EXIT_RETRY_US SECOND
+#define IRTT_FAST_EXIT_THRESHOLD_US (UINT64_C(3) * SECOND)
+#define LATENCY_STALE_RESPONSE_US (UINT64_C(500) * MILLISECOND)
+#define LATENCY_TIMESTAMP_ROLLOVER_DELTA_US (UINT64_C(50) * MINUTE)
 
 /* Program identity and integration names. */
 #define CLI_OPTIONS "C:LfS:Vh"
@@ -111,7 +123,7 @@
 #define FPING_INTERVAL "--interval"
 #define FPING_LOCAL_RECEIVE "Localreceive="
 #define FPING_LOOP "--loop"
-#define FPING_MILLISECONDS_SUFFIX " ms"
+#define FPING_MS_SUFFIX " ms"
 #define FPING_ORIGINATE "Originate="
 #define FPING_PATH "/usr/bin/fping"
 #define FPING_PERIOD "--period"
@@ -129,11 +141,11 @@
 #define IRTT_RECEIVE_DELAY "rd"
 #define IRTT_SEND_DELAY "sd"
 #define IRTT_SEQUENCE "seq"
-#define IRTT_UNIT_NANOSECONDS "ns"
-#define IRTT_UNIT_MICROSECONDS "us"
-#define IRTT_UNIT_MICROSECONDS_SIGN "µs"
-#define IRTT_UNIT_MILLISECONDS "ms"
-#define IRTT_UNIT_SECONDS "s"
+#define IRTT_UNIT_NS "ns"
+#define IRTT_UNIT_US "us"
+#define IRTT_UNIT_US_SIGN "µs"
+#define IRTT_UNIT_MS "ms"
+#define IRTT_UNIT_SEC "s"
 #define NULL_DEVICE_PATH "/dev/null"
 #define TCPDELAY_OBJECT_PATH "/lib/bpf/cake-adapt-tcpdelay.o"
 

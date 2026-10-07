@@ -70,116 +70,91 @@ bool shuffle(size_t *items, size_t count, random_u32_source source, void *contex
 	return true;
 }
 
-uint64_t serialization_microseconds(uint64_t wire_packet_bits, uint64_t rate_bits_per_second)
+uint64_t serialization_us(uint64_t wire_packet_bits, uint64_t rate_bps)
 {
 	uint64_t whole;
 	uint64_t remainder;
 	uint64_t fractional;
 
-	if (rate_bits_per_second == 0U)
+	if (rate_bps == 0U)
 		return 0U;
-	whole = wire_packet_bits / rate_bits_per_second;
-	remainder = wire_packet_bits % rate_bits_per_second;
+	whole = wire_packet_bits / rate_bps;
+	remainder = wire_packet_bits % rate_bps;
 	if (whole > UINT64_MAX / MICROSECONDS_PER_SECOND ||
 	    __builtin_mul_overflow(remainder, MICROSECONDS_PER_SECOND, &fractional)) {
 		return UINT64_MAX;
 	}
 	whole *= MICROSECONDS_PER_SECOND;
-	fractional /= rate_bits_per_second;
-	return saturating_add(whole, fractional);
+	return saturating_add(whole, rounded_divide(fractional, rate_bps));
 }
 
-uint64_t response_monotonic_microseconds(
-	uint64_t processing_realtime_microseconds,
-	uint64_t processing_monotonic_microseconds,
-	uint64_t response_realtime_microseconds
+uint64_t response_monotonic_us(
+	uint64_t processing_realtime_us,
+	uint64_t processing_monotonic_us,
+	uint64_t response_realtime_us
 )
 {
-	if (response_realtime_microseconds > processing_realtime_microseconds) {
+	if (response_realtime_us > processing_realtime_us) {
 		return saturating_add(
-			processing_monotonic_microseconds,
-			response_realtime_microseconds - processing_realtime_microseconds
+			processing_monotonic_us,
+			response_realtime_us - processing_realtime_us
 		);
 	}
 	return saturating_sub(
-		processing_monotonic_microseconds,
-		processing_realtime_microseconds - response_realtime_microseconds
+		processing_monotonic_us,
+		processing_realtime_us - response_realtime_us
 	);
 }
 
-bool response_stale(
-	uint64_t processing_realtime_microseconds,
-	uint64_t response_realtime_microseconds
-)
+bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us)
 {
-	return saturating_sub(processing_realtime_microseconds, response_realtime_microseconds) >
-	       LATENCY_STALE_RESPONSE_MICROSECONDS;
+	return saturating_sub(processing_realtime_us, response_realtime_us) >
+	       LATENCY_STALE_RESPONSE_US;
 }
 
-bool read_clock_microseconds(clockid_t clock_identifier, uint64_t *timestamp)
+bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us)
 {
 	struct timespec value;
 
 	if (clock_gettime(clock_identifier, &value) != 0 || value.tv_sec < 0)
 		return false;
-	*timestamp = timespec_microseconds(&value);
+	*timestamp_us = timespec_to_us(&value);
 	return true;
 }
 
-unsigned int load_percent(uint64_t traffic_rate, uint64_t shaper_rate)
+uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole)
 {
-	uint64_t traffic_kbps = traffic_rate / KILOBIT;
-	uint64_t shaper_kbps = shaper_rate / KILOBIT;
-	uint64_t quotient;
-	uint64_t remainder;
-	uint64_t percentage;
-
-	if (shaper_kbps == 0U)
-		return 0U;
-	quotient = traffic_kbps / shaper_kbps;
-	if (quotient > UINT_MAX / PERCENT)
-		return UINT_MAX;
-	remainder = traffic_kbps % shaper_kbps;
-	percentage = quotient * PERCENT;
-	/* Whole kbit/s bounds remainder by UINT64_MAX / KILOBIT. */
-	percentage += remainder * PERCENT / shaper_kbps;
-	return percentage > UINT_MAX ? UINT_MAX : (unsigned int)percentage;
-}
-
-bool elapsed_milliseconds(
-	const struct timespec *previous,
-	const struct timespec *current,
-	uint64_t *elapsed
-)
-{
-	time_t seconds = current->tv_sec - previous->tv_sec;
-	long nanoseconds = current->tv_nsec - previous->tv_nsec;
-
-	if (nanoseconds < 0L) {
-		--seconds;
-		nanoseconds += NANOSECONDS_PER_SECOND;
+	/*
+	 * The remainder below is multiplied by RATIO_ONE_E6, so it must stay under
+	 * UINT64_MAX / RATIO_ONE_E6: 18 Tbit/s, or 213 days in microseconds. A larger
+	 * whole gives up its last six digits, which no real value has.
+	 */
+	if (whole > UINT64_MAX / RATIO_ONE_E6) {
+		part /= RATIO_ONE_E6;
+		whole /= RATIO_ONE_E6;
 	}
-	if (seconds < 0 || (uint64_t)seconds > UINT64_MAX / MILLISECONDS_PER_SECOND)
-		return false;
-	*elapsed = (uint64_t)seconds * MILLISECONDS_PER_SECOND +
-		   (uint64_t)nanoseconds / NANOSECONDS_PER_MILLISECOND;
-	return *elapsed > 0U;
+	if (whole == 0U)
+		return 0U;
+	/* part / whole = quotient + remainder / whole, each scaled on its own. */
+	return saturating_add(
+		saturating_mul(part / whole, RATIO_ONE_E6),
+		part % whole * RATIO_ONE_E6 / whole
+	);
 }
 
-uint64_t bits_per_second(uint64_t byte_delta, uint64_t elapsed_ms)
+uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us)
 {
-	const uint64_t scale = BITS_PER_BYTE * MILLISECONDS_PER_SECOND;
-	uint64_t scaled;
-	long double rate;
+	const uint64_t byte_per_us_to_bps = BITS_PER_BYTE * MICROSECONDS_PER_SECOND;
 
-	/* Preserve saturation for an interval that cannot represent a rate. */
-	if (elapsed_ms == 0U)
+	if (elapsed_us == 0U)
 		return UINT64_MAX;
-	/* Normal counters need only integer arithmetic, including on soft-float CPUs. */
-	if (!__builtin_mul_overflow(byte_delta, scale, &scaled))
-		return scaled / elapsed_ms;
-	/* Keep the full-width fallback for exceptional counter jumps. */
-	rate = (long double)byte_delta * (long double)scale / (long double)elapsed_ms;
-
-	return rate >= (long double)UINT64_MAX ? UINT64_MAX : (uint64_t)rate;
+	/*
+	 * byte_delta * 8,000,000 / elapsed_us, truncated to whole bit/s. Splitting
+	 * byte_delta by elapsed_us keeps the product of the remainder in range for
+	 * any interval below 26 days, so the result is exact without floating point.
+	 */
+	return saturating_add(
+		saturating_mul(byte_delta / elapsed_us, byte_per_us_to_bps),
+		saturating_mul(byte_delta % elapsed_us, byte_per_us_to_bps) / elapsed_us
+	);
 }

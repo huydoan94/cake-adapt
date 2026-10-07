@@ -83,7 +83,7 @@ for choosing them.
 | `pinger_method` | string | `fping` | `fping` measures round trips and gives each direction half. `fping-ts` uses ICMP timestamps for separate one-way delays; it accepts IPv4 reflectors only and is verified only on a test bench. `irtt` is experimental, has not been run against a real server, and needs the separate `irtt` package. |
 | `ping_extra_args` | string | *(empty)* | Extra arguments for the pinger. |
 | `ping_prefix_string` | string | *(empty)* | Command words placed before the pinger, for example a wrapper. |
-| `irtt_session_duration_m` | integer | `10` | Length of each IRTT session (`irtt` only). |
+| `irtt_session_duration_m` | decimal | `10` | Length of each IRTT session (`irtt` only). |
 
 Reflectors come only from this list; cake-autorate's remote reflector list is
 not supported. An instance whose pinger executable is missing does not start.
@@ -99,7 +99,7 @@ RAM, so the defaults never write to flash.
 | `log_to_file` | boolean | `1` | Write the log file. |
 | `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
-| `log_file_max_time_mins` | integer | `10` | Rotate after this time. |
+| `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
 | `log_file_buffer_timeout_ms` | integer | `500` | Longest time a record waits in the write buffer. |
 | `log_file_export_compress` | boolean | `1` | Compress the export written on `SIGUSR1`. |
 | `debug` | boolean | `1` | Include debug messages in the log file. |
@@ -184,8 +184,8 @@ The defaults are cake-autorate's and suit most lines.
 | `reflector_response_deadline_s` | decimal | `1.0` | A reflector silent for longer commits an offence. |
 | `reflector_misbehaving_detection_window` | integer | `60` | Health checks examined for offences. |
 | `reflector_misbehaving_detection_thr` | integer | `3` | Offences within the window that replace a reflector. |
-| `reflector_replacement_interval_mins` | integer | `60` | Interval for replacing a random reflector anyway. |
-| `reflector_comparison_interval_mins` | integer | `1` | Interval for comparing active reflectors. |
+| `reflector_replacement_interval_mins` | decimal | `60` | Interval for replacing a random reflector anyway. |
+| `reflector_comparison_interval_mins` | decimal | `1` | Interval for comparing active reflectors. |
 | `reflector_sum_owd_baselines_delta_thr_ms` | decimal | `20.0` | Baseline difference from the best reflector that replaces one. |
 | `reflector_owd_delta_ewma_delta_thr_ms` | decimal | `10.0` | Delay-increase difference from the best reflector that replaces one. |
 | `retain_reflector_stats` | boolean | `1` | Keep a replaced reflector's baseline for when it is used again. |

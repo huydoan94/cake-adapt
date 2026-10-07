@@ -1,35 +1,40 @@
 #include "tcpdelay/estimator.h"
 #include "config/defaults.h"
+#include "common/constants.h"
+#include "common/utils.h"
 
 #include <string.h>
 
 /* Samples carry kernel nanoseconds; the defaults are in microseconds. */
-#define WINDOW_NS (TCPDELAY_WINDOW_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
-#define TICK_SPAN_NS (TCPDELAY_TICK_FIT_MICROSECONDS * NANOSECONDS_PER_MICROSECOND)
+#define WINDOW_NS (TCPDELAY_WINDOW_US * NANOSECONDS_PER_MICROSECOND)
+#define TICK_SPAN_NS (TCPDELAY_TICK_FIT_US * NANOSECONDS_PER_MICROSECOND)
 #define IMPLAUSIBLE_QUEUE_NS \
-	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_MICROSECONDS * NANOSECONDS_PER_MICROSECOND))
+	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_US * NANOSECONDS_PER_MICROSECOND))
 
 /* Standard TCP timestamp clock periods (1 ms on Linux and the BSDs). */
 static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = {
-	UINT64_C(1000000),
-	UINT64_C(4000000),
-	UINT64_C(10000000),
-	UINT64_C(100000000),
+	1U * NANOSECONDS_PER_MILLISECOND,
+	4U * NANOSECONDS_PER_MILLISECOND,
+	10U * NANOSECONDS_PER_MILLISECOND,
+	100U * NANOSECONDS_PER_MILLISECOND,
 };
 
 /*
  * A new minimum lowers the floor; a value more than the bound above it raises
  * the floor to keep the queue at the bound. Returns the floor.
  */
-static int64_t
-floor_update(const struct tcpdelay_estimator *estimator, struct tcpdelay_floor *floor, int64_t value)
+static int64_t floor_update(
+	const struct tcpdelay_estimator *estimator,
+	struct tcpdelay_floor *floor,
+	int64_t value_ns
+)
 {
-	if (!floor->valid || value < floor->value)
-		floor->value = value;
-	else if (estimator->bounded && value - floor->value > estimator->queue_bound_ns)
-		floor->value = value - estimator->queue_bound_ns;
+	if (!floor->valid || value_ns < floor->value_ns)
+		floor->value_ns = value_ns;
+	else if (estimator->bounded && value_ns - floor->value_ns > estimator->queue_bound_ns)
+		floor->value_ns = value_ns - estimator->queue_bound_ns;
 	floor->valid = true;
-	return floor->value;
+	return floor->value_ns;
 }
 
 static void window_add(struct tcpdelay_window *window, int64_t queue_ns, uint64_t time_ns)
@@ -107,7 +112,10 @@ flow_for(struct tcpdelay_estimator *estimator, const struct tcpdelay_sample *sam
 	return oldest;
 }
 
-/* Adopts the remote clock period once it fits a standard one within 5%. */
+/* A fitted period may differ this much from the standard one it snaps to. */
+#define TICK_TOLERANCE_RATIO_E6 (5U * RATIO_PERCENT_E6)
+
+/* Adopts the remote clock period once it fits a standard one within the tolerance. */
 static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 {
 	uint64_t period_ns;
@@ -117,11 +125,12 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 		return;
 	period_ns = span_ns / flow->ticks;
 	for (index = 0U; index < TCPDELAY_TICKS; index++) {
-		uint64_t standard = standard_ticks_ns[index];
-		uint64_t error = period_ns > standard ? period_ns - standard : standard - period_ns;
+		uint64_t standard_ns = standard_ticks_ns[index];
+		uint64_t error_ns = period_ns > standard_ns ? period_ns - standard_ns :
+							      standard_ns - period_ns;
 
-		if (error * 20U <= standard) {
-			flow->tick_ns = standard;
+		if (error_ns <= ratio_of(standard_ns, TICK_TOLERANCE_RATIO_E6)) {
+			flow->tick_ns = standard_ns;
 			flow->tick_index = index;
 			return;
 		}
@@ -167,10 +176,10 @@ static struct flow_queues flow_measure(
 	return queues;
 }
 
-void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_ns)
+void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t queue_bound_us)
 {
 	estimator->bounded = true;
-	estimator->queue_bound_ns = queue_bound_ns;
+	estimator->queue_bound_ns = queue_bound_us * (int64_t)NANOSECONDS_PER_MICROSECOND;
 }
 
 void tcpdelay_estimator_add(
@@ -210,10 +219,12 @@ void tcpdelay_estimator_add(
 
 void tcpdelay_estimator_result(
 	const struct tcpdelay_estimator *estimator,
-	uint64_t now_ns,
+	uint64_t now_us,
 	struct tcpdelay_estimate *estimate
 )
 {
+	/* The filter timestamps with CLOCK_MONOTONIC, like the monitor. */
+	uint64_t now_ns = now_us * NANOSECONDS_PER_MICROSECOND;
 	const struct tcpdelay_flow *selected = NULL;
 	size_t index;
 
@@ -242,10 +253,8 @@ void tcpdelay_estimator_result(
 		}
 		selected = flow;
 		estimate->download_valid = true;
-		estimate->download_queue_microseconds =
-			download_ns / (int64_t)NANOSECONDS_PER_MICROSECOND;
+		estimate->download_queue_us = signed_ns_to_us(download_ns);
 		estimate->upload_valid = upload_valid;
-		estimate->upload_queue_microseconds =
-			upload_valid ? upload_ns / (int64_t)NANOSECONDS_PER_MICROSECOND : 0;
+		estimate->upload_queue_us = upload_valid ? signed_ns_to_us(upload_ns) : 0;
 	}
 }
