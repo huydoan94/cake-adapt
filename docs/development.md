@@ -97,3 +97,47 @@ make -C tests check check-netlink OBJECT_DIR=../build/sanitize \
 The production daemon itself is built with strict warnings, including
 `-Wall`, `-Wextra`, `-Wpedantic`, `-Wformat=2`, `-Wshadow`, `-Wconversion`, and
 `-Werror`.
+
+## Recording a router's log
+
+`tools/capture-log.sh` streams a router's cake-adapt log over SSH into a local
+file for long recordings. It follows the daemon's in-place rotation, reconnects
+after dropped connections or router reboots without losing or repeating lines,
+and archives the local file with gzip at a size limit (1024 MB by default):
+
+```sh
+tools/capture-log.sh root@router cake-adapt.log            # status screen
+tools/capture-log.sh -s 512 root@router cake-adapt.log     # archive at 512 MB
+tools/capture-log.sh -l root@router cake-adapt.log         # print lines instead
+```
+
+The router needs SSH key authentication; nothing is installed on it. Capture
+events (connect, disconnect, archive, stop) go to `cake-adapt.log.events`.
+
+By default the console shows a status screen that is redrawn in place every
+second:
+
+```text
+Connection   connected since 2026-10-07 11:29:40 (40 s), reconnects 0
+Capture      0.3 MB this run, 0.01 MB/s, file 1.1 MB of 1024.0 MB, 0 archived
+Router       cake-adapt 0.3.8-r1 PID 2653, started 2026-10-07 11:27:26 (174 s ago)
+Last record  2026-10-07 11:30:20 (0 s ago)
+
+                 achieved          shaper   load condition    avg delay  delayed  TCP queue
+Download     12.34 Mbit/s    70.00 Mbit/s    18% dl_low          2.6 ms      0/6     0.8 ms
+Upload        0.81 Mbit/s    14.00 Mbit/s     6% ul_idle         2.6 ms      0/6     2.0 ms
+
+Bufferbloat  last 60 s: download 0 (0.0%), upload 0 (0.0%) of 845 samples; 3 shaper changes
+Daemon       RSS 2.1 MB, peak 2.1 MB, heap 0.2 MB; CPU 1%
+Warnings     0 seen; last -
+```
+
+Sizes are in MB (1,048,576 bytes) and the capture's throughput in MB/s; link
+rates are in Mbit/s, as the shaper settings are; times are local date and
+time, and intervals whole seconds. Rates, loads, conditions and delays come
+from the router's latest `SUMMARY`, `DATA` and `TCP_QUEUE` records, memory and
+CPU from `MEMORY` and `CPU` records (shown only when the router's
+`output_memory_stats` and `output_cpu_stats` are on), and the bufferbloat count
+from the `SUMMARY` records of the last 60 s of router time. Warnings are
+counted over the last 3,000 lines of the file and everything after. The screen
+needs GNU awk (`gawk`); `-l` does not.
