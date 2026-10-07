@@ -175,6 +175,6 @@ A complete pair can outrank an older partial flow. Multiple remote paths may
 differ; this policy is not a universal path classifier. Once established
 samples expire, only new flows' relative baselines remain. Persistent queue
 absorption, tuple reuse, sustained receiver ACK delay, and CAKE byte-accounting
-differences are still separate findings in [`EBPF_REVIEW.md`](../../EBPF_REVIEW.md).
+differences are still separate findings in [`EBPF_REVIEW.md`](../../docs/design/EBPF_REVIEW.md).
 No claim about customer latency reduction or throughput retention follows
 from these synthetic tests or the short integration check.

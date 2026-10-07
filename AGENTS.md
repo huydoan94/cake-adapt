@@ -542,7 +542,7 @@ a cleanup pass removed duplication, dead code and hand-written arithmetic
 the current code has run in controlled x86 VM comparisons
 (`2026-10-05-gpt-work-check`), but not through a lifecycle run.
 
-The TCP-delay estimator is under review in `EBPF_REVIEW.md`, whose section 9 is
+The TCP-delay estimator is under review in `docs/design/EBPF_REVIEW.md`, whose section 9 is
 the working order. Findings and their state:
 
 - new flow hiding a queue: fixed, both directions come from one flow (`20cc841`,

@@ -190,7 +190,7 @@ warning that `interface` was overridden.
   [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/further-integration/profiling/2026-09-30/index.html).
 - [All profiling evidence](../profiling/README.md), including the superseded first
   capture.
-- [TCP-delay review](../EBPF_REVIEW.md) — the eBPF queue estimator's findings
+- [TCP-delay review](design/EBPF_REVIEW.md) — the eBPF queue estimator's findings
   and their state.
 
 ## Project direction
