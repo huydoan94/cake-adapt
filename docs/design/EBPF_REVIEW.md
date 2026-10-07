@@ -9,7 +9,7 @@ bound is the lower median across slots that replied. A queue on the access
 link delays every reflector; a slow reflector delays only its own. On the VM,
 a reflector spiking 50 ms no longer moves the estimate (maximum 67.9 -> 13.5 ms),
 and eight controlled repetitions show unchanged control
-([evidence](profiling/2026-10-06-bound-median/README.md)).
+([evidence](../../profiling/2026-10-06-bound-median/README.md)).
 
 **2026-10-06: queue bound replaces HOLD/FOLLOW.** On the Filogic router the TCP
 upload estimate reached seconds (95th percentile 1.2 s, maximum 9.8 s, just
@@ -31,14 +31,14 @@ floor buckets and the HOLD/FOLLOW policies are gone. In the VM's 70-second
 own baseline absorbed part of the delay (HOLD kept 80/20). Three controlled
 repetitions matched the previous build within noise, with equal throughput and
 equal or lower added-delay p95
-([evidence](profiling/2026-10-06-tcp-bound-check/README.md)). The TCP filter is also loaded once, before pingers
+([evidence](../../profiling/2026-10-06-tcp-bound-check/README.md)). The TCP filter is also loaded once, before pingers
 start, so a reopen only rebinds a socket (`84a13f3`). On the router, 0.3.4
 held the upload estimate to a 95th percentile of 3.6 ms and a maximum of 46 ms
 over six load runs, and download to 9.1 and 22 ms
-([evidence](profiling/2026-10-06-router-libreqos/README.md)).
+([evidence](../../profiling/2026-10-06-router-libreqos/README.md)).
 
 **2026-10-05 (evening): agreement guard and lifetime stream reverted.** A
-three-repetition VM check ([evidence](profiling/2026-10-05-gpt-work-check/README.md))
+three-repetition VM check ([evidence](../../profiling/2026-10-05-gpt-work-check/README.md))
 found that requiring TCP queue shares to agree with the delivery heuristic
 caused the failed ACK/control comparison: mixed-load download fell from about
 20 to 11-12 Mbit/s and upload-only p95 rose from about 64 to 97-101 ms, because
@@ -48,7 +48,7 @@ earlier results, so the controller is back to its `518df81` form. The
 tuple-lifetime stream (`885f7d9`) measured neutral at 49-64% more filter time
 per packet for a rare case (a reused tuple only removes that flow's estimate)
 and was reverted at the user's request; its design, tools and unfinished work
-are archived in [its evidence directory](profiling/2026-10-05-tcp-lifetime-stream/README.md).
+are archived in [its evidence directory](../../profiling/2026-10-05-tcp-lifetime-stream/README.md).
 The ACK accounting and the HOLD/FOLLOW floor policy remain.
 
 **2026-10-05: full tuple-lifetime implementation deferred and reverted.**
@@ -58,18 +58,18 @@ accepted-sample freshness fix remains. The candidate's atomic instructions are
 unsupported by the tested kernel's 32-bit x86 JIT; fixing that without losing
 concurrency guarantees would require a larger change. The implementation patch,
 diagnosis and links to all test evidence are preserved in the
-[deferral record](profiling/2026-10-05-tcp-lifetime-deferred/README.md).
+[deferral record](../../profiling/2026-10-05-tcp-lifetime-deferred/README.md).
 Issue 2 remains open; historical candidate test results do not describe the
 restored source or establish deployment readiness.
 
-The [bounded resumption analysis](profiling/2026-10-05-tcp-lifetime-resume/README.md)
+The [bounded resumption analysis](../../profiling/2026-10-05-tcp-lifetime-resume/README.md)
 also rejects a helper-mediated try-lock replacement: a contended replacement SYN
 can be discarded while later data still inherits the old generation. Kernel
 spin-lock helpers are unavailable to this socket-filter program type. Safely
 handling lost reset evidence requires a larger protocol change, so the existing
 scope stop condition was honored. No production changes or VM runs followed.
 
-The [tuple-lifetime work orders](profiling/2026-10-05-tcp-lifetime-stream/design/TUPLE_LIFETIME_WORK_ORDERS.md) now define the
+The [tuple-lifetime work orders](../../profiling/2026-10-05-tcp-lifetime-stream/design/TUPLE_LIFETIME_WORK_ORDERS.md) now define the
 problem, portable design requirements, dependent tasks and acceptance gates.
 They require common behavior across OpenWrt architectures, including 32/64-bit
 and both byte orders. They are planning work; no redesign is selected or started.
@@ -81,7 +81,7 @@ had to agree with delivery attribution before they split RTT; that guard was
 reverted the same evening (see the top of this document). Host and target
 regressions pass, and a bounded observation-only VM comparison verifies baseline
 retention and recovery. See the
-[before/after evidence](profiling/2026-10-05-tcp-confidence/README.md).
+[before/after evidence](../../profiling/2026-10-05-tcp-confidence/README.md).
 This does not identify receiver wait or establish throughput under rate control.
 
 **2026-10-05: ACK-accounting fix implemented within conservative coverage.**
@@ -97,7 +97,7 @@ options-off/previous-on/current-on control batch produced valid measurements,
 but current download goodput was 15.780 versus 22.805 Mbit/s before, and mixed
 added RTT p95 was 93.9 versus 65.2 ms. Current download retained 52.6% nominal
 capacity; this fails performance acceptance. No retuning or further experiment
-followed. See [bounded control evidence](profiling/2026-10-05-ack-control/README.md).
+followed. See [bounded control evidence](../../profiling/2026-10-05-ack-control/README.md).
 This does not establish causality or deployment readiness; finding 2 stays deferred.
 
 Review date: 2026-10-03. Source snapshot: `7b52801304cccb224cef2a08ef9ba31d3e4d23f8`.
@@ -105,13 +105,13 @@ The working tree was clean before this document was added.
 
 The original findings and reproductions below describe that snapshot. The first
 aggregation fix is now implemented and described under [Fix 1](#fix-1-2026-10-04),
-with [separate before/after evidence](profiling/2026-10-04-flow-pair/README.md).
+with [separate before/after evidence](../../profiling/2026-10-04-flow-pair/README.md).
 The remaining four findings have not been changed by that fix.
 
 ## Evidence status update (2026-10-04)
 
 The attempted VM run did **not** validate the eBPF estimator or any of the
-findings below. Its [`cake-adapt.log`](profiling/2026-10-04-ebpf-vm/raw/vm-ebpf/cake-adapt.log)
+findings below. Its [`cake-adapt.log`](../../profiling/2026-10-04-ebpf-vm/raw/vm-ebpf/cake-adapt.log)
 contains zero `TCP_QUEUE` records, 5,574 `DATA` records, and 1,119 `SHAPER`
 records. The earlier report mistakenly presented fping RTT/2 statistics as
 eBPF results. The reported correlations of 0.96 and 0.91 and 73.9% download
@@ -119,7 +119,7 @@ false-alarm rate are withdrawn; they do not validate estimator accuracy or an
 aggregation weakness. The phase marks also include interrupted and repeated
 runs, and the copied binary and filter object were not verified against the
 reviewed source or runtime attachment. See the
-[corrected VM run audit](profiling/2026-10-04-ebpf-vm/README.md) for the raw
+[corrected VM run audit](../../profiling/2026-10-04-ebpf-vm/README.md) for the raw
 record counts and remaining verification gaps.
 
 The first four findings below remain host-side synthetic estimator
@@ -220,18 +220,18 @@ WAN upload interface
 
 Relevant sources:
 
-- [`tcpdelay.bpf.c`](src/tcpdelay/tcpdelay.bpf.c): parsing, departure matching,
+- [`tcpdelay.bpf.c`](../../src/tcpdelay/tcpdelay.bpf.c): parsing, departure matching,
   counters, sampling, and ring-buffer submission.
-- [`record.h`](src/tcpdelay/record.h): shared layouts and filter limits.
-- [`capture.c`](src/tcpdelay/capture.c): libbpf loading, attachment, consumption,
+- [`record.h`](../../src/tcpdelay/record.h): shared layouts and filter limits.
+- [`capture.c`](../../src/tcpdelay/capture.c): libbpf loading, attachment, consumption,
   and cleanup.
-- [`estimator.c`](src/tcpdelay/estimator.c): flow lookup, tick fitting, floors,
+- [`estimator.c`](../../src/tcpdelay/estimator.c): flow lookup, tick fitting, floors,
   and measurement windows (per-flow after the first fix below).
-- [`monitor/tcpdelay.c`](src/monitor/tcpdelay.c): capture lifecycle and conversion
+- [`monitor/tcpdelay.c`](../../src/monitor/tcpdelay.c): capture lifecycle and conversion
   into controller inputs.
-- [`controller.c`](src/controller/controller.c): `controller_update()`,
+- [`controller.c`](../../src/controller/controller.c): `controller_update()`,
   `adjust_rate()`, and `download_ceiling()`.
-- [`defaults.h`](src/config/defaults.h): measurement windows and policy thresholds.
+- [`defaults.h`](../../src/config/defaults.h): measurement windows and policy thresholds.
 
 ### What is actually measured?
 
@@ -372,7 +372,7 @@ The exact synthetic 80/20-ms case now remains 80/20 ms when a new flow joins,
 whether it has only download observations or a complete pair. When established
 samples expire, the estimate switches to an eligible fresh flow; it does not
 keep the old upload alongside a new flow's download. See
-[raw before/after outputs and reproduction instructions](profiling/2026-10-04-flow-pair/README.md).
+[raw before/after outputs and reproduction instructions](../../profiling/2026-10-04-flow-pair/README.md).
 
 The full host suite, both upstream replays (4,703 decisions, no mismatch),
 ASan/UBSan with leak detection, x86 SDK build, and the focused 32-bit VM unit
@@ -706,12 +706,12 @@ was not independently reproduced here.
 Previously measured benefits and costs remain useful evidence within their
 tested conditions:
 
-- [Design history](profiling/2026-10-03-ebpf-design-history/README.md).
-- [Queue-split runtime comparison](profiling/2026-10-02-tcp-queue-split/README.md).
-- [ACK-share runtime comparison](profiling/2026-10-03-ack-share-dynamic/README.md).
-- [Filter cost](profiling/2026-10-03-ebpf-filter-cost/README.md).
-- [Sampling trade-off](profiling/2026-10-03-sample-thinning/README.md).
-- [Emulated arm64 functional verification](profiling/2026-10-03-arm64-vm/README.md).
+- [Design history](../../profiling/2026-10-03-ebpf-design-history/README.md).
+- [Queue-split runtime comparison](../../profiling/2026-10-02-tcp-queue-split/README.md).
+- [ACK-share runtime comparison](../../profiling/2026-10-03-ack-share-dynamic/README.md).
+- [Filter cost](../../profiling/2026-10-03-ebpf-filter-cost/README.md).
+- [Sampling trade-off](../../profiling/2026-10-03-sample-thinning/README.md).
+- [Emulated arm64 functional verification](../../profiling/2026-10-03-arm64-vm/README.md).
 
 Those successful runs do not invalidate the counterexamples. Conversely, the
 counterexamples do not establish that the option performs worse in every
@@ -726,7 +726,7 @@ first. At the review date, the extra cases only printed observations; fix 1
 has since added permanent assertions for the new-flow case. Running this
 harness against the changed source now retains 80/20 ms in that case. The
 historical output below is not the current expected result for fix 1; use its
-[separate probe and preserved before source](profiling/2026-10-04-flow-pair/README.md)
+[separate probe and preserved before source](../../profiling/2026-10-04-flow-pair/README.md)
 for an explicit before/after comparison.
 
 Save the following as a temporary `review.c`. From the repository root, compile

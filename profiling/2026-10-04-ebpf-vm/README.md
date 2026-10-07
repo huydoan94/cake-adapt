@@ -1,7 +1,7 @@
 # VM run audit: eBPF evidence not established (2026-10-04)
 
 This directory preserves a VM run attempted to validate
-[`EBPF_REVIEW.md`](../../EBPF_REVIEW.md). Auditing the raw records showed that
+[`EBPF_REVIEW.md`](../../docs/design/EBPF_REVIEW.md). Auditing the raw records showed that
 the run does not establish any live eBPF estimator result. The earlier version
 of this README incorrectly labeled fping RTT/2 results as TCP queue estimates.
 That conclusion is withdrawn.
