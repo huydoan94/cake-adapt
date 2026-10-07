@@ -88,6 +88,10 @@ static const char tcp_queue_header[] =
 	"TCP_QUEUE_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
 	" DL_QUEUE_VALID; DL_QUEUE_US; UL_QUEUE_VALID; UL_QUEUE_US";
 
+/* Not in cake-autorate: the daemon's own memory use, in kilobytes. */
+static const char memory_header[] = "MEMORY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
+				    " RSS_KB; PEAK_RSS_KB; RSS_ANON_KB; DATA_KB";
+
 /* Followed by one "<CPU>_USAGE" column per counter line of /proc/stat. */
 static const char cpu_header_prefix[] = "CPU_HEADER; LOG_DATETIME; LOG_TIMESTAMP; STATS_READ_TIME";
 
@@ -162,6 +166,8 @@ static void write_headers_to_file(void)
 		write_file_line(summary_header);
 	if (headers.tcp_queue)
 		write_file_line(tcp_queue_header);
+	if (headers.memory)
+		write_file_line(memory_header);
 	if (cpu_header != NULL)
 		write_file_line(cpu_header);
 	if (header_cpu_raw)
@@ -492,6 +498,8 @@ void log_print_headers(const struct log_records *records)
 		write_line(summary_header);
 	if (records->tcp_queue)
 		write_line(tcp_queue_header);
+	if (records->memory)
+		write_line(memory_header);
 }
 
 void log_print_cpu_headers(
@@ -596,6 +604,18 @@ void log_tcp_queue(const struct log_tcp_queue_record *record)
 		record->download_queue_microseconds,
 		record->upload_valid ? 1 : 0,
 		record->upload_queue_microseconds
+	);
+}
+
+void log_memory(const struct memory_sample *sample)
+{
+	write_timed_record(
+		RECORD_MEMORY,
+		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
+		sample->rss_kilobytes,
+		sample->peak_rss_kilobytes,
+		sample->anonymous_kilobytes,
+		sample->data_kilobytes
 	);
 }
 

@@ -50,6 +50,7 @@ SOURCES := \
 	monitor/reflectors.c \
 	monitor/tcpdelay.c \
 	platform/cpu.c \
+	platform/memory.c \
 	platform/netlink.c \
 	platform/traffic.c \
 	tcpdelay/capture.c \

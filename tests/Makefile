@@ -19,7 +19,7 @@ WARNINGS := \
 # Test sources mirror src/; objects and binaries stay below build/.
 OBJECT_DIR ?= ../build/tests
 BINARY_DIR := $(OBJECT_DIR)/bin
-TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_helpers test_defaults test_estimator test_accounting
+TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_memory test_helpers test_defaults test_estimator test_accounting
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 
 test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
@@ -32,6 +32,7 @@ test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/
 test_log_OBJECTS := logging/test_log.o src/logging/log.o src/common/helpers_log.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
+test_memory_OBJECTS := platform/test_memory.o src/platform/memory.o src/common/error.o
 test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
 test_defaults_OBJECTS := config/test_defaults.o src/config/defaults.o
 test_estimator_OBJECTS := tcpdelay/test_estimator.o src/tcpdelay/estimator.o
