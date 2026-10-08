@@ -430,9 +430,9 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 		}
 		return;
 	}
-	switch (tcpdelay_inject_classify_answer(handshake, echo == TCPDELAY_INJECT_MARKER)) {
+	switch (tcpdelay_inject_classify_answer(handshake, echo == TCPDELAY_INJECT_TSVAL)) {
 	case TCPDELAY_INJECT_ANSWER_ACCEPTED:
-		handshake->state = TCPDELAY_INJECT_ANSWERED;
+		handshake->state = TCPDELAY_INJECT_ACCEPTED;
 		totals->server_accepted++;
 		break;
 	case TCPDELAY_INJECT_ANSWER_DECLINED:
@@ -442,6 +442,10 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 	case TCPDELAY_INJECT_ANSWER_REJECTED:
 		inject_skip_server(flow, handshake);
 		totals->server_rejected++;
+		break;
+	case TCPDELAY_INJECT_ANSWER_STALLED:
+		inject_skip_server(flow, handshake);
+		totals->stalled++;
 		break;
 	case TCPDELAY_INJECT_ANSWER_NONE:
 		break;
@@ -570,13 +574,13 @@ inject_parse(struct __sk_buff *skb, __u32 network_offset, struct segment *segmen
 }
 
 /*
- * Appends NOP, NOP, TS(marker, 0) to a SYN without data and updates the
+ * Appends NOP, NOP, TS(TCPDELAY_INJECT_TSVAL, 0) to a SYN without data and updates the
  * lengths and checksums incrementally. The helpers keep a partial checksum
  * (a packet whose checksum the NIC completes) correct as well.
  */
 static __always_inline int append_timestamp(struct __sk_buff *skb, const struct segment *segment)
 {
-	__u32 added[3] = { bpf_htonl(0x0101080aU), bpf_htonl(TCPDELAY_INJECT_MARKER), 0 };
+	__u32 added[3] = { bpf_htonl(0x0101080aU), bpf_htonl(TCPDELAY_INJECT_TSVAL), 0 };
 	__u32 header_bytes = segment->tcp.doff * 4U;
 	__u32 end = segment->tcp_offset + header_bytes;
 	__u32 checksum = segment->tcp_offset + TCP_CHECKSUM_OFFSET;

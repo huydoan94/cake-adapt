@@ -170,6 +170,7 @@ int tcpdelay_injector_counters(
 		counters->server_rejected += value->server_rejected;
 		counters->retried += value->retried;
 		counters->failed += value->failed;
+		counters->stalled += value->stalled;
 	}
 	return 0;
 }
