@@ -12,7 +12,8 @@
 #   a new LOCAL_FILE;
 # - writes capture events (connect, disconnect, archive) to LOCAL_FILE.events;
 # - shows the connection and capture state and the router's latest rates,
-#   loads, delays, TCP queues, bufferbloat, memory, CPU and warnings. Each
+#   loads, delays, TCP queues, bufferbloat, memory, CPU and warnings; a
+#   direction's row turns yellow while it has bufferbloat. Each
 #   value takes the largest unit in which it is at least 1.0 (sizes in B to GB
 #   of 1,024, rates in bit/s to Gbit/s, delays in µs to s); times show as date
 #   and time and intervals in seconds, minutes, hours and days. It needs GNU
@@ -211,6 +212,18 @@ dashboard() {
 	function ago(t) { return t ? duration(now - t) : "-" }
 	# Lines are cut at the terminal width, so the screen never wraps.
 	function line(text) { printf "%s\033[K\n", substr(text, 1, columns) }
+	# The same, padded to the full width on a yellow background (black text).
+	function warning_line(text) {
+		printf "\033[30;43m%-*s\033[0m\033[K\n", columns, substr(text, 1, columns)
+	}
+	# Whether this direction (D or U) had bufferbloat in the last BLOAT_HOLD_S
+	# seconds; holding it keeps the row from flickering between redraws.
+	function bloated(flag,   i) {
+		for (i = bb_last; i >= bb_first && bb_time[i] >= record_time - BLOAT_HOLD_S; i--)
+			if (index(bb_flags[i], flag))
+				return 1
+		return 0
+	}
 	function count_recent(flags,   i, n) {
 		n = 0
 		for (i = bb_first; i <= bb_last; i++)
@@ -226,11 +239,15 @@ dashboard() {
 		return n
 	}
 	function share(n, total) { return total ? sprintf("%d (%.1f%%)", n, 100 * n / total) : "0" }
-	function direction(name, d,   queue) {
+	function direction(name, d,   queue, text) {
 		queue = queue_valid[d] ? delay_text(queue_us[d]) : "-"
-		line(sprintf("%-9s %15s %15s %6s %-12s %10s %8s %10s", name, rate(achieved[d]),
+		text = sprintf("%-9s %15s %15s %6s %-12s %10s %8s %10s", name, rate(achieved[d]),
 			rate(shaper[d]), load[d] == "" ? "-" : load[d] "%", condition[d],
-			delay_text(delay[d]), delayed[d] == "" ? "-" : delayed[d] "/6", queue))
+			delay_text(delay[d]), delayed[d] == "" ? "-" : delayed[d] "/6", queue)
+		if (bloated(d == 1 ? "D" : "U"))
+			warning_line(text)
+		else
+			line(text)
 	}
 	function traffic(d) {
 		return achieved[d] == "" ? "-" : rate(achieved[d]) " (" byte_rate(achieved[d] * 1000 / 8) ")"
@@ -339,6 +356,7 @@ dashboard() {
 	BEGIN {
 		FS = "; "
 		CLOCK_STEP_S = 5
+		BLOAT_HOLD_S = 2
 		status = "starting"
 		opened = systime()
 		bb_first = 1
