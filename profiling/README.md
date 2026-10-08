@@ -6,6 +6,7 @@ and the scripts that produced it.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-07-tcp-timestamp-injection`](2026-10-07-tcp-timestamp-injection/README.md) | Experiment, not in the product: a `tc` BPF program adds the timestamp option to Windows SYNs. On the user's real traffic, 775 of 775 SYNs rewritten and 715 servers enabled timestamps, with no failed connection or bad checksum. Windows then adopts timestamps itself (98.7% of its packets), so both directions gain estimates and the strip program is unnecessary. Not an accuracy or cost result. |
 | [`2026-10-07-openwrt-snapshot`](2026-10-07-openwrt-snapshot/README.md) | The current code on an OpenWrt snapshot (r36953, x86/64, kernel 6.18, LLVM 22): builds without warnings, the verifier accepts the TCP filter, 33 of 33 lifecycle checks pass, and a controlled run with TCP attribution matches 25.12 (queue correlation 0.77–0.92, false alarms ≤ 0.2%). One run; filter cost not measured. |
 | [`2026-10-06-tcp-bound-check`](2026-10-06-tcp-bound-check/README.md) | The fping queue bound (`cb348e4`) controls like the build before it over three alternating repetitions, with equal or lower added-delay p95, and cuts the largest download estimates under load from 45–90 ms to 33–46 ms. |
 | [`2026-10-06-bound-median`](2026-10-06-bound-median/README.md) | The TCP queue bound becomes the lower median of each pinger's largest added delay, so one slow reflector no longer opens it; on the user's routers, false 20–72 ms upload estimates had each matched the single slowest fping reply. |
