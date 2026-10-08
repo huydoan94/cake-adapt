@@ -44,8 +44,8 @@ log=$repo/build/sdk-$name.log
 status_file=$repo/build/sdk-$name.status
 echo "Building cake-adapt in $sdk (log: build/sdk-$name.log)"
 {
-	make -C "$sdk" package/cake-adapt/clean V=s &&
-		make -C "$sdk" package/cake-adapt/compile V=s
+	make -C "$sdk" package/cake-adapt/clean &&
+		make -C "$sdk" package/cake-adapt/compile
 	echo $? >"$status_file"
 } 2>&1 | tee "$log"
 status=$(cat "$status_file")
