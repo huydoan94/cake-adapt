@@ -10,6 +10,7 @@ shaper cuts per direction, the share of DATA samples flagged as
 bufferbloat per direction (DATA load conditions), and each iperf3 stream's
 throughput. Shaper rates come from the same DATA records.
 """
+import gzip
 import json
 import os
 import re
@@ -41,6 +42,10 @@ def percentile(values, fraction):
     return values[min(len(values) - 1, int(fraction * len(values)))] if values else float("nan")
 
 
+def open_text(path):
+    return gzip.open(path + ".gz", "rt") if os.path.exists(path + ".gz") else open(path)
+
+
 def mbit(path):
     try:
         return json.load(open(path))["end"]["sum_received"]["bits_per_second"] / 1e6
@@ -62,7 +67,7 @@ def run_summary(run):
             probe.append((float(match.group(1)), float(match.group(2))))
     base = min(rtt for _, rtt in probe)
     queues = []
-    for line in open(f"{run}/backlog"):
+    for line in open_text(f"{run}/backlog"):
         fields = line.split()
         if len(fields) != 9:
             continue
@@ -70,7 +75,7 @@ def run_summary(run):
         pairs = [(fields[i], fields[i + 1]) for i in (1, 3, 5, 7)]
         queues.append((t, [size_bytes(b) * 8 / rate_bits(r) * 1000 for r, b in pairs]))
     shapers, summaries = [], []
-    for line in open(f"{run}/cake-adapt.log", errors="replace"):
+    for line in open_text(f"{run}/cake-adapt.log"):
         fields = [field.strip() for field in line.split(";")]
         if fields[0] == "SHAPER" and len(fields) >= 4:
             words = fields[3].split()
