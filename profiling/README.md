@@ -47,7 +47,7 @@ Historical reports use `upload_ack_share_min`, now named
 name used when the measurements were collected.
 
 Open `index.html` locally, or use the
-[hosted index](https://raw.githack.com/huydoan94/cake-adapt/further-integration/profiling/index.html).
+[hosted index](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
 The hosted links read the `main` branch. They use raw.githack because GitHub's
 raw-file host disables the JavaScript inside FlameGraph SVGs that drives hover,
 search, and click-to-zoom.
