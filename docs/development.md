@@ -113,8 +113,9 @@ The production daemon itself is built with strict warnings, including
 
 `tools/capture-log.sh` streams a router's cake-adapt log over SSH into a local
 file for long recordings. It follows the daemon's in-place rotation, reconnects
-after dropped connections or router reboots without losing or repeating lines,
-and archives the local file with gzip at a size limit (1024 MB by default):
+after dropped connections or router reboots without losing lines (see the
+limitations below for repeats), and archives the local file with gzip at a
+size limit (1024 MB by default):
 
 ```sh
 tools/capture-log.sh root@router cake-adapt.log            # status screen
@@ -170,3 +171,22 @@ The screen reads the file's history once at start and then takes each line
 from the capture itself, so it keeps working when the local file is on a
 Windows drive (`/mnt/c`, `/mnt/d`), where following a growing file can fail.
 It needs GNU awk (`gawk`); `-l` does not.
+
+Known limitations, not yet fixed:
+
+- **Start time after a reboot.** A router without a battery-backed clock boots
+  with the time of the newest file in `/etc`, and cake-adapt may start before
+  NTP corrects it. Its start record then carries that old time, and **Router**
+  shows an uptime that is too long by the size of the clock step. In one
+  capture the start record said 13:09:34, and 10 s later the records jumped
+  24.5 minutes forward, from `02:09:45` to `02:34:17` in router time; the real
+  start was about 13:34. A forward jump between consecutive records shortly
+  after a start shows the step.
+- **Warning times** show the record's `LOG_DATETIME`, the router's local time,
+  while every other time on the screen is the PC's local time.
+- **Repeated history.** After a reconnect, the capture skips the replayed log
+  up to the last line it already has. If that line was cut off when the
+  connection dropped, nothing matches and the whole router log is written
+  again. One capture holds the same start record twice, 10,000 lines apart,
+  with identical timestamps; the cut-off line is the likely cause, not yet
+  confirmed.
