@@ -6,6 +6,8 @@
 #   [isp] netem 10 ms base delay + tbf bottleneck with a 500 ms buffer, each way
 #     | veth
 #   [inet] iperf3 servers, reflectors 10.99.0.11-16, probe target 10.99.0.20
+# IPv6 runs alongside on unique local addresses: cpe fd98::2, isp fd98::1 and
+# fd99::1, inet fd99::2 (servers), fd99::11-16 (reflectors) and fd99::20.
 set -e
 X() { ip netns exec "$@"; }
 
@@ -36,6 +38,15 @@ up)
     for host in 11 12 13 14 15 16 20; do X inet ip addr add 10.99.0.$host/24 dev inet0; done
     X inet ip link set inet0 up
     X inet ip route add default via 10.99.0.1
+    # IPv6: nodad makes the addresses usable at once.
+    X cpe ip -6 addr add fd98::2/64 dev cwan nodad
+    X cpe ip -6 route add default via fd98::1
+    X isp ip -6 addr add fd98::1/64 dev iwan nodad
+    X isp ip -6 addr add fd99::1/64 dev iinet nodad
+    X isp sysctl -qw net.ipv6.conf.all.forwarding=1
+    X inet ip -6 addr add fd99::2/64 dev inet0 nodad
+    for host in 11 12 13 14 15 16 20; do X inet ip -6 addr add fd99::$host/64 dev inet0 nodad; done
+    X inet ip -6 route add default via fd99::1
     # SQM-like CAKE in the cpe namespace.
     X cpe ip link add ifb4cwan type ifb
     X cpe ip link set ifb4cwan up
