@@ -179,6 +179,7 @@
 #define RECORD_SYSLOG "SYSLOG"
 #define RECORD_SUMMARY "SUMMARY"
 #define RECORD_TCP_QUEUE "TCP_QUEUE"
+#define RECORD_TCP_INJECT "TCP_INJECT"
 #define RECORD_WARNING "WARNING"
 
 /* UCI option names, grouped in the same order as the configuration model. */
@@ -248,6 +249,7 @@
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
 #define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
 #define OPTION_UL_CONGEST_ACK_SHARE "ul_congest_ack_share"
+#define OPTION_TCP_TIMESTAMP_INJECT "tcp_timestamp_inject"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW "reflector_misbehaving_detection_window"

@@ -43,6 +43,8 @@ struct config {
 	bool log_file_export_compress;
 	/* Attribute fping's shared delay with per-direction TCP-timestamp queues. */
 	bool tcp_delay_attribution;
+	/* Experimental: add TCP timestamps to SYNs without them, so they can be measured. */
+	bool tcp_timestamp_inject;
 	bool interface_overridden;
 	char interface[IF_NAMESIZE];
 	char ingress_interface[IF_NAMESIZE];

@@ -32,15 +32,82 @@ static bool tcp_enabled(const struct config *config)
 void tcp_init(struct monitor *monitor)
 {
 	tcpdelay_capture_init(&monitor->tcp.capture);
+	tcpdelay_injector_init(&monitor->tcp.injector);
 }
 
 void tcp_start(struct monitor *monitor)
 {
 	char error[ERROR_SIZE] = { 0 };
 
+	/* The injector shares the filter's object; validation requires attribution. */
+	if (monitor->config->tcp_timestamp_inject)
+		tcpdelay_capture_enable_injection(&monitor->tcp.capture);
 	if (tcp_enabled(monitor->config) &&
 	    tcpdelay_capture_load(&monitor->tcp.capture, error, sizeof(error)) != 0)
 		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: %s", error);
+}
+
+static struct log_tcp_inject_record inject_record(const struct tcpdelay_inject_counters *counters)
+{
+	return (struct log_tcp_inject_record){
+		.injected = counters->injected,
+		.skipped = counters->skipped,
+		.server_accepted = counters->server_accepted,
+		.server_declined = counters->server_declined,
+		.client_rejected = counters->client_rejected,
+		.server_rejected = counters->server_rejected,
+		.retried = counters->retried,
+		.failed = counters->failed,
+	};
+}
+
+/* Experimental: follows the capture onto the same interface. */
+static void attach_injector(struct monitor *monitor, const char *interface)
+{
+	char error[ERROR_SIZE] = { 0 };
+
+	if (!monitor->config->tcp_timestamp_inject)
+		return;
+	if (tcpdelay_injector_attach(
+		    &monitor->tcp.injector,
+		    &monitor->tcp.capture,
+		    interface,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
+		log_message(LOG_LEVEL_WARNING, "TCP timestamp injection disabled: %s", error);
+		return;
+	}
+	log_message(
+		LOG_LEVEL_NOTICE,
+		"TCP timestamp injection started (experimental): interface=%s",
+		interface
+	);
+}
+
+static void detach_injector(struct monitor *monitor)
+{
+	struct tcpdelay_injector *injector = &monitor->tcp.injector;
+	struct tcpdelay_inject_counters counters;
+
+	if (!tcpdelay_injector_attached(injector))
+		return;
+	if (tcpdelay_injector_counters(injector, &counters) == 0)
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"TCP timestamp injection stopped: injected=%" PRIu64
+			" server_accepted=%" PRIu64 " server_declined=%" PRIu64
+			" client_rejected=%" PRIu64 " server_rejected=%" PRIu64 " skipped=%" PRIu64
+			" failed=%" PRIu64,
+			(uint64_t)counters.injected,
+			(uint64_t)counters.server_accepted,
+			(uint64_t)counters.server_declined,
+			(uint64_t)counters.client_rejected,
+			(uint64_t)counters.server_rejected,
+			(uint64_t)counters.skipped,
+			(uint64_t)counters.failed
+		);
+	tcpdelay_injector_detach(injector);
 }
 
 static bool open_capture(struct monitor *monitor, const struct monitor_direction *upload)
@@ -74,6 +141,7 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	tcp->ack_degraded = false;
 	tcp->unaccounted_packets = 0U;
 	log_message(LOG_LEVEL_NOTICE, "TCP measurement started: interface=%s", upload->interface);
+	attach_injector(monitor, upload->interface);
 	return true;
 }
 
@@ -85,6 +153,16 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_u
 	if (timestamp_us < tcp->next_counter_check_us)
 		return;
 	tcp->next_counter_check_us = timestamp_us + TCPDELAY_COUNTER_CHECK_US;
+	if (monitor->config->output_processing_stats &&
+	    tcpdelay_injector_attached(&tcp->injector)) {
+		struct tcpdelay_inject_counters injected;
+
+		if (tcpdelay_injector_counters(&tcp->injector, &injected) == 0) {
+			const struct log_tcp_inject_record record = inject_record(&injected);
+
+			log_tcp_inject(&record);
+		}
+	}
 	if (tcpdelay_capture_counters(&tcp->capture, &counters) != 0)
 		return;
 	if (counters.ring_full > tcp->dropped_records) {
@@ -287,6 +365,7 @@ void tcp_close(struct monitor *monitor)
 
 	if (!tcp->open)
 		return;
+	detach_injector(monitor);
 	tcpdelay_capture_close(&tcp->capture);
 	tcp->open = false;
 	tcp->ack_sampled = false;
@@ -296,5 +375,6 @@ void tcp_close(struct monitor *monitor)
 void tcp_stop(struct monitor *monitor)
 {
 	tcp_close(monitor);
+	tcpdelay_injector_unload(&monitor->tcp.injector);
 	tcpdelay_capture_unload(&monitor->tcp.capture);
 }

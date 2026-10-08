@@ -89,6 +89,11 @@ static const char tcp_queue_header[] =
 	"TCP_QUEUE_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
 	" DL_QUEUE_VALID; DL_QUEUE_US; UL_QUEUE_VALID; UL_QUEUE_US";
 
+/* Not in cake-autorate: TCP timestamp injection counters since it was loaded. */
+static const char tcp_inject_header[] =
+	"TCP_INJECT_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; INJECTED; SKIPPED;"
+	" SERVER_ACCEPTED; SERVER_DECLINED; CLIENT_REJECTED; SERVER_REJECTED; RETRIED; FAILED";
+
 /* Not in cake-autorate: the daemon's own memory use, in kilobytes. */
 static const char memory_header[] = "MEMORY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
 				    " RSS_KB; PEAK_RSS_KB; RSS_ANON_KB; DATA_KB";
@@ -167,6 +172,8 @@ static void write_headers_to_file(void)
 		write_file_line(summary_header);
 	if (headers.tcp_queue)
 		write_file_line(tcp_queue_header);
+	if (headers.tcp_inject)
+		write_file_line(tcp_inject_header);
 	if (headers.memory)
 		write_file_line(memory_header);
 	if (cpu_header != NULL)
@@ -496,6 +503,8 @@ void log_print_headers(const struct log_records *records)
 		write_line(summary_header);
 	if (records->tcp_queue)
 		write_line(tcp_queue_header);
+	if (records->tcp_inject)
+		write_line(tcp_inject_header);
 	if (records->memory)
 		write_line(memory_header);
 }
@@ -597,6 +606,23 @@ void log_tcp_queue(const struct log_tcp_queue_record *record)
 		record->download_queue_us,
 		record->upload_valid ? 1 : 0,
 		record->upload_queue_us
+	);
+}
+
+void log_tcp_inject(const struct log_tcp_inject_record *record)
+{
+	write_timed_record(
+		RECORD_TCP_INJECT,
+		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
+		"; %" PRIu64 "; %" PRIu64,
+		record->injected,
+		record->skipped,
+		record->server_accepted,
+		record->server_declined,
+		record->client_rejected,
+		record->server_rejected,
+		record->retried,
+		record->failed
 	);
 }
 
