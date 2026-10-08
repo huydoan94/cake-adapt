@@ -11,6 +11,8 @@
  *       prints the requests made and their mean and largest response time.
  *       A connection that hangs is killed 5 s after SECONDS (SIGALRM).
  *
+ * ADDRESS is IPv4 or IPv6; the server listens on both.
+ *
  * The reply to a request echoes the request's TCP timestamp after the think
  * time, so a passive estimator that reads echo delay as upload queue sees the
  * think time unless it can tell the server was busy. A constant think time
@@ -90,12 +92,15 @@ static void serve(int fd, long think_ms, long think_max_ms, size_t response_byte
 
 static int server(int port, long think_ms, long think_max_ms, size_t response_bytes)
 {
-	struct sockaddr_in address = { .sin_family = AF_INET, .sin_port = htons((uint16_t)port) };
+	/* :: with IPV6_V6ONLY off takes IPv4 too, as ::ffff:a.b.c.d. */
+	struct sockaddr_in6 address = { .sin6_family = AF_INET6, .sin6_port = htons((uint16_t)port) };
 	int one = 1;
-	int listener = socket(AF_INET, SOCK_STREAM, 0);
+	int zero = 0;
+	int listener = socket(AF_INET6, SOCK_STREAM, 0);
 
 	signal(SIGCHLD, SIG_IGN);
 	if (listener < 0 || setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != 0 ||
+	    setsockopt(listener, IPPROTO_IPV6, IPV6_V6ONLY, &zero, sizeof(zero)) != 0 ||
 	    bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0 ||
 	    listen(listener, 16) != 0) {
 		perror("tcpthink server");
@@ -124,16 +129,31 @@ static int client(
 	size_t response_bytes
 )
 {
-	struct sockaddr_in address = { .sin_family = AF_INET, .sin_port = htons((uint16_t)port) };
-	int fd = socket(AF_INET, SOCK_STREAM, 0);
+	struct sockaddr_storage address = { 0 };
+	struct sockaddr_in *v4 = (struct sockaddr_in *)&address;
+	struct sockaddr_in6 *v6 = (struct sockaddr_in6 *)&address;
+	socklen_t length;
+	int fd;
 	int one = 1;
 	double end, total = 0, largest = 0;
 	long requests = 0;
 
 	/* A hung connection must not hang the test: the alarm ends the process. */
 	alarm((unsigned int)seconds + 5U);
-	if (fd < 0 || inet_pton(AF_INET, host, &address.sin_addr) != 1 ||
-	    connect(fd, (struct sockaddr *)&address, sizeof(address)) != 0) {
+	if (inet_pton(AF_INET, host, &v4->sin_addr) == 1) {
+		v4->sin_family = AF_INET;
+		v4->sin_port = htons((uint16_t)port);
+		length = sizeof(*v4);
+	} else if (inet_pton(AF_INET6, host, &v6->sin6_addr) == 1) {
+		v6->sin6_family = AF_INET6;
+		v6->sin6_port = htons((uint16_t)port);
+		length = sizeof(*v6);
+	} else {
+		fprintf(stderr, "tcpthink client: bad address %s\n", host);
+		return 1;
+	}
+	fd = socket(address.ss_family, SOCK_STREAM, 0);
+	if (fd < 0 || connect(fd, (struct sockaddr *)&address, length) != 0) {
 		perror("tcpthink client");
 		return 1;
 	}
