@@ -1,0 +1,32 @@
+qdisc cake 801a: root refcnt 2 bandwidth 45133Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 128926418 bytes 90066 pkt (dropped 35, overlimits 71541 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 403572b of 4Mb
+ capacity estimate: 30Mbit
+ min/max network layer size:           42 /    1514
+ min/max overhead-adjusted size:       42 /    1514
+ active queues:                         0
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh      45133Kbit
+  target            5ms
+  interval        100ms
+  pk_delay       1.87ms
+  av_delay         53us
+  sp_delay          5us
+  backlog            0b
+  pkts            90101
+  bytes       128979408
+  way_inds            0
+  way_miss           36
+  way_cols            0
+  drops              35
+  marks               0
+  ack_drop            0
+  sp_flows            5
+  bk_flows            1
+  un_flows            0
+  max_len         13626
+  quantum          1377
+

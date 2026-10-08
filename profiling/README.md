@@ -6,6 +6,7 @@ and the scripts that produced it.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-08-ebpf-ab-146a751`](2026-10-08-ebpf-ab-146a751/README.md) | A/B check of the injection fix (`146a751`) against the routers' previous build: verifier on 32- and 64-bit kernels, filter and injector cost (no regression), control, TCP queue accuracy, ACK accounting, injection scenarios over IPv4 and IPv6 (correct checksums with offload off) and client clocks all match, except the intended stall detection and pause. |
 | [`2026-10-08-tcp-inject-clock`](2026-10-08-tcp-inject-clock/README.md) | Timestamp injection against a Windows-like client whose clock looks older than the injected TSval: the old marker hung about half the connections silently with success counters; the fix (`146a751`, inject 1, count stalls, pause) cut failures to the first minute and then paused injection. Windows' timestamp clock is its uptime in ms. |
 | [`2026-10-08-remote-congestion`](2026-10-08-remote-congestion/README.md) | A queue beyond the ISP that only some flows cross does not mislead the daemon; with a local queue too, `tcp_delay_attribution` blamed the right direction, while without it download was cut for an upload queue. |
 | [`2026-10-08-tcp-echo-delay`](2026-10-08-tcp-echo-delay/README.md) | Servers that idle or think before answering did not inflate the TCP upload estimate (p99 under 12 ms, false alarms at most 0.3%); no echo-wait cap was built. |
