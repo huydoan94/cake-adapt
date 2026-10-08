@@ -127,8 +127,8 @@ in that directory and is not included from outside it.
     and per-reply latency processing.
   - `reflectors.c` (`reflectors`): latency trackers, reflector ordering,
     scheduled comparison and replacement, and health checks.
-  - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, and the upload
-    ACK rate.
+  - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
+    rate, and the timestamp injector's attachment and `TCP_INJECT` records.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
@@ -174,10 +174,18 @@ in that directory and is not included from outside it.
     sees packets after the root qdisc and before the ingress redirect). It
     counts upload and pure-ACK bytes, records departures and emits reply
     samples to a ring buffer, each at most once per flow per
-    `TCPDELAY_SAMPLE_INTERVAL_NS`, without wakeups.
+    `TCPDELAY_SAMPLE_INTERVAL_NS`, without wakeups. The same object holds the
+    experimental `tcp_timestamp_inject` program (`inject_egress`, tcx egress
+    on the upload interface), which only adds a timestamp option to outgoing
+    SYNs that lack one; the filter observes the SYN-ACKs and resets that
+    answer them.
   - `record.h`: layouts and limits shared by the filter and userspace.
+  - `inject.h`: the injection maps' layouts and its inject-or-skip policy
+    (a rejecting server is skipped for a day), unit-tested.
   - `capture.c`: loading and attaching the filter with libbpf, draining the
     ring buffer, and reading the counters.
+  - `injector.c`: attaching the capture's injection program with a tcx link
+    owned by the daemon, its network offset, and summing its counters.
   - `estimator.c`: per-flow one-way queue estimates (remote clock tick fit,
     floors, window minimums); platform-independent and unit-tested.
   The filter object is installed as `/lib/bpf/cake-adapt-tcpdelay.o`; a filter
