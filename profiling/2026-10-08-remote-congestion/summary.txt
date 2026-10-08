@@ -1,0 +1,29 @@
+added RTT in ms above the idle minimum; true queue p50 in ms at the ISP (up/down) and the
+remote bottleneck (up/down); mean shaper Mbit/s and cuts; % of samples flagged bufferbloat;
+throughput Mbit/s per stream
+
+run            phase                  rtt p50/p95/p99 | isp q up/dn remote up/dn | shaper ul/dl cuts ul/dl  bb% ul/dl |  Mbit up/dn
+remote-off-a   remote-upload                    3/5/6 |     0/0        218/0     |   6.0/30.0      4/0        0/0     |   3.8/nan  
+remote-off-a   remote-download                  2/5/7 |     0/0          0/244   |   6.0/30.0      0/0        0/0     |   nan/19.1 
+remote-off-a   local-dl-remote-ul           28/84/104 |     0/25       212/0     |   6.5/51.2     30/34      10/11    |   3.8/35.7 
+remote-off-a   local-ul-remote-dl          42/122/193 |    42/0          0/0     |   8.0/19.5     44/42      37/39    |   6.9/12.6 
+remote-off-a   local-bidirectional         54/158/220 |    50/0          0/0     |   7.7/13.8     44/44      46/47    |   7.0/8.9  
+
+remote-off-b   remote-upload                    2/5/6 |     0/0        254/0     |   6.1/30.0      8/0        0/0     |   3.8/nan  
+remote-off-b   remote-download                  1/5/7 |     0/0          0/236   |   6.0/30.0      0/0        0/0     |   nan/19.1 
+remote-off-b   local-dl-remote-ul           29/84/101 |     0/25       236/0     |   6.6/51.1     29/36      11/13    |   3.8/35.9 
+remote-off-b   local-ul-remote-dl          47/120/141 |    45/0          0/0     |   8.1/20.0     40/43      37/39    |   7.0/13.4 
+remote-off-b   local-bidirectional         38/110/147 |    38/0          0/0     |   8.2/13.4     44/36      36/36    |   7.1/8.9  
+
+remote-on-a    remote-upload                    2/5/7 |     0/0        212/0     |   6.0/30.0      0/0        0/0     |   3.8/nan  
+remote-on-a    remote-download                  2/5/7 |     0/0          0/253   |   6.0/30.0      0/0        0/0     |   nan/19.1 
+remote-on-a    local-dl-remote-ul            24/38/42 |     0/20       212/0     |   6.8/50.6     31/51       0/27    |   3.8/36.3 
+remote-on-a    local-ul-remote-dl            4/83/103 |     0/0          0/181   |   7.5/34.0     31/29      27/0     |   6.6/19.1 
+remote-on-a    local-bidirectional          31/80/111 |     0/4          0/0     |   7.7/49.1     37/28      33/8     |   6.7/29.6 
+
+remote-on-b    remote-upload                    2/5/7 |     0/0        248/0     |   6.0/30.0      4/0        0/0     |   3.8/nan  
+remote-on-b    remote-download                  2/5/7 |     0/0          0/242   |   6.0/30.0      0/0        0/0     |   nan/19.1 
+remote-on-b    local-dl-remote-ul            21/39/54 |     0/18       242/0     |   6.8/50.7     31/39       0/18    |   3.8/36.3 
+remote-on-b    local-ul-remote-dl            4/88/105 |     0/0          0/228   |   7.1/39.1     27/35      23/0     |   6.4/19.1 
+remote-on-b    local-bidirectional          28/84/107 |     0/6          0/0     |   7.6/46.4     32/29      28/12    |   6.6/29.4 
+
