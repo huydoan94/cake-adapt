@@ -1,0 +1,28 @@
+# Filogic router (Cortex-A53), OpenWrt 25.12, tools/bpfcost.sh 60 under the
+# user's own traffic. Pasted by the user from the router shell, 2026-10-08.
+
+# committed f2e68e1 (filter lists 9 map IDs)
+5: socket_filter  name tcpdelay  tag 884a301dbd1db089  gpl
+        loaded_at 2026-10-08T01:56:01-0600  uid 0
+        xlated 5984B  jited 3752B  memlock 8192B  map_ids 6,7,4,9,10,8,3,5,12
+        btf_id 11
+7: sched_cls  name inject_egress  tag 86535dcbfd2633af  gpl
+        loaded_at 2026-10-08T01:56:08-0600  uid 0
+        xlated 3768B  jited 2392B  memlock 4096B  map_ids 2,10,9,8,12
+        btf_id 11
+
+run 1, committed:
+filter      2018 ns/run  327590 runs
+injector     371 ns/run  116767 runs
+
+run 2, committed:
+filter      2004 ns/run  320736 runs
+injector     377 ns/run  114333 runs
+
+run 3, fast path (the user's uncommitted edit, installed and restarted before the run):
+filter      1817 ns/run  360183 runs
+injector     336 ns/run  129928 runs
+
+run 4, fast path:
+filter      1923 ns/run  297644 runs
+injector     346 ns/run  105668 runs
