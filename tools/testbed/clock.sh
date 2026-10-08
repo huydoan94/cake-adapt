@@ -11,9 +11,11 @@
 # half of the clock). Two rounds of one request to each of 20 servers
 # (tcpthink on 5320-5339, timestamps on), each ended by tcpthink's own alarm
 # 5 s after it should finish: the second round shows what the injector learned.
+# SERVER is the servers' address (10.99.0.2, or fd99::2 for IPv6).
 # Needs testbed.sh up, nftables and tcpthink.
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 MODE=$3
+: "${SERVER:=10.99.0.2}"
 R=$T/results/$NAME
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
@@ -76,7 +78,7 @@ DAEMON=$!
 sleep 20
 for round in 1 2; do
     for port in $(seq 5320 5339); do
-        if X cpe "$T/tcpthink" -c 10.99.0.2 "$port" 0.1 0 200 2000 >/dev/null 2>&1; then
+        if X cpe "$T/tcpthink" -c "$SERVER" "$port" 0.1 0 200 2000 >/dev/null 2>&1; then
             result=ok
         else
             result=failed

@@ -9,9 +9,12 @@
 # second shows what the injector learned (a rejected server is skipped, so its
 # second connection is not rewritten and works). Then the daemon is stopped, and
 # restarted and killed, and a SYN shows whether anything still rewrites it.
+# SERVER is the servers' address (10.99.0.2, or fd99::2 for IPv6) and RESULTS
+# the name of the results directory (inject).
 # Needs testbed.sh up, nftables, and the test-log rules of run.sh.
 T=/tmp/cake-adapt-test
-R=$T/results/inject
+: "${SERVER:=10.99.0.2}" "${RESULTS:=inject}"
+R=$T/results/$RESULTS
 BIN=${1:-/usr/sbin/cake-adapt}
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
@@ -72,7 +75,10 @@ ln -f "$LOG" "$T/logs-inject/cake-adapt.log"
 
 # Handshakes and resets on the WAN side of cpe, as the injector sees them.
 # Background processes start through ip netns exec directly, so $! is the real process.
-ip netns exec cpe tcpdump -n -l -v -i cwan 'tcp[tcpflags] & (tcp-syn|tcp-rst) != 0' > "$R/handshakes" 2>/dev/null &
+# tcp[] works for IPv4 only; IPv6 TCP flags are byte 53 without extension headers.
+ip netns exec cpe tcpdump -n -l -v -i cwan \
+    '(ip and tcp[tcpflags] & (tcp-syn|tcp-rst) != 0) or (ip6 and ip6[6] == 6 and ip6[53] & 0x06 != 0)' \
+    > "$R/handshakes" 2>/dev/null &
 DUMP=$!
 X cpe tc -s qdisc show dev ifb4cwan > "$R/ifb-before"
 ip netns exec cpe "$BIN" -C "$T/uci-inject" -S main </dev/null >/dev/null 2>&1 &
@@ -83,7 +89,7 @@ attempt() { # NAME PORT SECONDS [extra iperf3 arguments]
     name=$1 port=$2 seconds=$3
     shift 3
     start=$(date +%s)
-    X cpe iperf3 -c 10.99.0.2 -p "$port" -t "$seconds" --connect-timeout 4000 "$@" -J > "$R/$name.json" 2> "$R/$name.err"
+    X cpe iperf3 -c "$SERVER" -p "$port" -t "$seconds" --connect-timeout 4000 "$@" -J > "$R/$name.json" 2> "$R/$name.err"
     result=$?
     echo "$name port=$port exit=$result seconds=$(( $(date +%s) - start ))" | tee -a "$R/attempts"
 }
@@ -95,7 +101,7 @@ X cpe nft -f - <<'EOF'
 table inet inject_test {
     chain input {
         type filter hook input priority 0;
-        ip saddr 10.99.0.2 tcp sport 5201 tcp flags & (syn | ack) == syn | ack tcp option timestamp exists drop
+        tcp sport 5201 tcp flags & (syn | ack) == syn | ack tcp option timestamp exists drop
     }
 }
 EOF
