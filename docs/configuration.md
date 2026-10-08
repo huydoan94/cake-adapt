@@ -104,7 +104,7 @@ RAM, so the defaults never write to flash.
 | `log_file_export_compress` | boolean | `1` | Compress the export written on `SIGUSR1`. |
 | `debug` | boolean | `1` | Include debug messages in the log file. |
 | `log_DEBUG_messages_to_syslog` | boolean | `0` | Also send debug messages to syslog. |
-| `output_processing_stats` | boolean | `0` | Log a `DATA` record per ping reply (and `TCP_QUEUE` records with `tcp_delay_attribution`). |
+| `output_processing_stats` | boolean | `0` | Log a `DATA` record per ping reply (and `TCP_QUEUE` records with `tcp_delay_attribution`, and a `TCP_INJECT` record each minute with `tcp_timestamp_inject`). |
 | `output_load_stats` | boolean | `0` | Log a `LOAD` record per traffic sample. |
 | `output_reflector_stats` | boolean | `0` | Log `REFLECTOR` records at each reflector comparison. |
 | `output_summary_stats` | boolean | `0` | Log a `SUMMARY` record per ping reply. |
@@ -133,6 +133,33 @@ support the instance logs a warning and carries on without them.
 
 For a slow upload, CAKE's plain `ack-filter` on the upload qdisc also helps.
 Do not use `ack-filter-aggressive`.
+
+### TCP timestamp injection (experimental)
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `tcp_timestamp_inject` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Adds a TCP timestamp to clients' SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its connections are measured in both directions. |
+
+Windows opens TCP connections without timestamps, so the TCP filter cannot
+measure them. With `tcp_timestamp_inject`, a second program in the same eBPF
+object rewrites such a SYN on its way out of the upload interface: it gets a timestamp, the server answers with its own, and a
+client that accepts it (Windows does) then sends timestamps itself. Clients
+that already send timestamps are not touched.
+
+Adding that option to a SYN is the only change made to any packet. It
+remembers, per server address and port, a rejection for a day and leaves SYNs
+to that server alone meanwhile:
+
+- the client refused the server's timestamp: it resent its SYN after the
+  SYN-ACK, or reset the connection before sending anything;
+- the server reset the rewritten SYN, or answered only once the SYN was resent
+  without the timestamp.
+
+The connection that failed is not rescued; the next ones are. The programs are
+attached with tcx, so SQM's qdiscs are not affected, and the kernel removes
+them when cake-adapt stops, however it stops. It is opt-in because it changes
+clients' SYNs: the rewrite is the kind a router's MSS clamping already does,
+but adds an option instead of changing one.
 
 ## Idle, sleep and stall
 

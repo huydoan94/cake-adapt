@@ -124,6 +124,8 @@ struct log_records {
 	bool summary;
 	/* cake-adapt only: per-direction queues measured from TCP timestamps. */
 	bool tcp_queue;
+	/* cake-adapt only: the experimental TCP timestamp injection's counters. */
+	bool tcp_inject;
 	/* cake-adapt only: the daemon's own memory use. */
 	bool memory;
 };
@@ -139,6 +141,20 @@ struct log_tcp_queue_record {
 };
 
 void log_tcp_queue(const struct log_tcp_queue_record *record);
+
+/* cake-adapt only: TCP timestamp injection, cumulative since it was loaded. */
+struct log_tcp_inject_record {
+	uint64_t injected;
+	uint64_t skipped;
+	uint64_t server_accepted;
+	uint64_t server_declined;
+	uint64_t client_rejected;
+	uint64_t server_rejected;
+	uint64_t retried;
+	uint64_t failed;
+};
+
+void log_tcp_inject(const struct log_tcp_inject_record *record);
 
 void log_memory(const struct memory_sample *sample);
 

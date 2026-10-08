@@ -18,6 +18,8 @@ void defaults_apply(struct config *config)
 		.log_file_export_compress = true,
 		/* Not in cake-autorate; opt-in until verified on real lines. */
 		.tcp_delay_attribution = false,
+		/* Not in cake-autorate; experimental, it rewrites clients' SYNs. */
+		.tcp_timestamp_inject = false,
 		/* Not in cake-autorate; off until measured on real lines. */
 		.ul_congest_ack_share_ratio_e6 = 0U,
 		.log_file_max_time_us = 10U * MINUTE,
