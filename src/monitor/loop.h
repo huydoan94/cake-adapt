@@ -124,6 +124,8 @@ struct monitor_tcp {
 	struct tcpdelay_capture capture;
 	/* Attached while the capture is open, to the same interface. */
 	struct tcpdelay_injector injector;
+	/* Detaches the injector for a day when its handshakes stall repeatedly. */
+	struct tcpdelay_inject_breaker inject_breaker;
 	bool open;
 	/* The upload CAKE the capture was opened for; another one needs a new capture. */
 	struct qdisc_id qdisc;

@@ -153,9 +153,31 @@ to that server alone meanwhile:
 - the client refused the server's timestamp: it resent its SYN after the
   SYN-ACK, or reset the connection before sending anything;
 - the server reset the rewritten SYN, or answered only once the SYN was resent
-  without the timestamp.
+  without the timestamp;
+- the handshake stalled: the server took the timestamp, then sent its SYN-ACK
+  again because it never accepted the client's reply (counted as `STALLED`).
 
-The connection that failed is not rescued; the next ones are. The programs are
+The connection that failed is not rescued; the next ones are.
+
+**Client clocks.** The injected SYN carries the timestamp value 1, and a
+client that adopts timestamps then sends values from its own clock. Servers
+drop segments whose value looks older than the last one they saw (PAWS, RFC
+7323), comparing 32-bit values by their signed difference. Windows counts
+milliseconds since boot, so its timestamps follow 1 for up to 24.8 days of
+uptime (2^31 ms); Fast Startup keeps that uptime running across shutdowns. A
+client up longer would have every injected connection hang, and that is the
+stalled handshake above: its server is skipped, and when 3 handshakes stall
+within 10 minutes, cake-adapt stops injecting for 24 hours and logs a warning.
+Behind NAT the router cannot tell clients apart: the injector runs on the
+upload interface after masquerading, where every SYN carries the router's own
+address, and a WAN port belongs to one connection, not to one client. So it
+cannot learn each client's clock, and the pause applies to all of them.
+Learning per client would need a hook before masquerading (a program on the
+LAN bridge, or a firewall mark); that is not implemented. IPv6 without NAT
+does not have this limitation in principle, but the injector treats it the
+same way for now. Restarting such a PC fixes it; better still, a Windows PC you manage
+can send timestamps itself, which needs no injection at all (as administrator:
+`netsh int tcp set global timestamps=enabled`). The programs are
 attached with tcx, so SQM's qdiscs are not affected, and the kernel removes
 them when cake-adapt stops, however it stops. It is opt-in because it changes
 clients' SYNs: the rewrite is the kind a router's MSS clamping already does,

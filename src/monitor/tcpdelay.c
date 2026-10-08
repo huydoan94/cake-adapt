@@ -58,15 +58,16 @@ static struct log_tcp_inject_record inject_record(const struct tcpdelay_inject_c
 		.server_rejected = counters->server_rejected,
 		.retried = counters->retried,
 		.failed = counters->failed,
+		.stalled = counters->stalled,
 	};
 }
 
-/* Experimental: follows the capture onto the same interface. */
+/* Experimental: follows the capture onto the same interface, unless paused. */
 static void attach_injector(struct monitor *monitor, const char *interface)
 {
 	char error[ERROR_SIZE] = { 0 };
 
-	if (!monitor->config->tcp_timestamp_inject)
+	if (!monitor->config->tcp_timestamp_inject || monitor->tcp.inject_breaker.paused)
 		return;
 	if (tcpdelay_injector_attach(
 		    &monitor->tcp.injector,
@@ -98,14 +99,15 @@ static void detach_injector(struct monitor *monitor)
 			"TCP timestamp injection stopped: injected=%" PRIu64
 			" server_accepted=%" PRIu64 " server_declined=%" PRIu64
 			" client_rejected=%" PRIu64 " server_rejected=%" PRIu64 " skipped=%" PRIu64
-			" failed=%" PRIu64,
+			" failed=%" PRIu64 " stalled=%" PRIu64,
 			(uint64_t)counters.injected,
 			(uint64_t)counters.server_accepted,
 			(uint64_t)counters.server_declined,
 			(uint64_t)counters.client_rejected,
 			(uint64_t)counters.server_rejected,
 			(uint64_t)counters.skipped,
-			(uint64_t)counters.failed
+			(uint64_t)counters.failed,
+			(uint64_t)counters.stalled
 		);
 	tcpdelay_injector_detach(injector);
 }
@@ -145,6 +147,45 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	return true;
 }
 
+/*
+ * Once a minute: logs the injector's counters and pauses it for a day when
+ * its handshakes stall repeatedly, or attaches it again after the pause.
+ */
+static void check_injector(struct monitor *monitor, uint64_t timestamp_us)
+{
+	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_inject_counters counters;
+
+	if (tcpdelay_injector_counters(&tcp->injector, &counters) != 0)
+		return;
+	if (monitor->config->output_processing_stats &&
+	    tcpdelay_injector_attached(&tcp->injector)) {
+		const struct log_tcp_inject_record record = inject_record(&counters);
+
+		log_tcp_inject(&record);
+	}
+	switch (
+		tcpdelay_inject_breaker_check(&tcp->inject_breaker, counters.stalled, timestamp_us)
+	) {
+	case TCPDELAY_INJECT_BREAKER_PAUSE:
+		log_message(
+			LOG_LEVEL_WARNING,
+			"TCP timestamp injection paused for 24 hours: handshakes stalled=%" PRIu64
+			"; a client's TCP timestamp clock looks older than the injected one, as on"
+			" Windows up longer than 24.8 days; restart such PCs, or enable timestamps on"
+			" them (netsh int tcp set global timestamps=enabled)",
+			(uint64_t)counters.stalled
+		);
+		detach_injector(monitor);
+		break;
+	case TCPDELAY_INJECT_BREAKER_RESUME:
+		attach_injector(monitor, monitor->links.upload.interface);
+		break;
+	case TCPDELAY_INJECT_BREAKER_KEEP:
+		break;
+	}
+}
+
 static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_us)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
@@ -153,16 +194,8 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_u
 	if (timestamp_us < tcp->next_counter_check_us)
 		return;
 	tcp->next_counter_check_us = timestamp_us + TCPDELAY_COUNTER_CHECK_US;
-	if (monitor->config->output_processing_stats &&
-	    tcpdelay_injector_attached(&tcp->injector)) {
-		struct tcpdelay_inject_counters injected;
-
-		if (tcpdelay_injector_counters(&tcp->injector, &injected) == 0) {
-			const struct log_tcp_inject_record record = inject_record(&injected);
-
-			log_tcp_inject(&record);
-		}
-	}
+	if (tcpdelay_injector_attached(&tcp->injector) || tcp->inject_breaker.paused)
+		check_injector(monitor, timestamp_us);
 	if (tcpdelay_capture_counters(&tcp->capture, &counters) != 0)
 		return;
 	if (counters.ring_full > tcp->dropped_records) {
