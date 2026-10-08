@@ -1,0 +1,47 @@
+1 5320 ok
+1 5321 ok
+1 5322 ok
+1 5323 ok
+1 5324 ok
+1 5325 ok
+1 5326 ok
+1 5327 ok
+1 5328 ok
+1 5329 ok
+1 5330 ok
+1 5331 ok
+1 5332 ok
+1 5333 ok
+1 5334 ok
+1 5335 ok
+1 5336 ok
+1 5337 ok
+1 5338 ok
+1 5339 ok
+2 5320 ok
+2 5321 ok
+2 5322 ok
+2 5323 ok
+2 5324 ok
+2 5325 ok
+2 5326 ok
+2 5327 ok
+2 5328 ok
+2 5329 ok
+2 5330 ok
+2 5331 ok
+2 5332 ok
+2 5333 ok
+2 5334 ok
+2 5335 ok
+2 5336 ok
+2 5337 ok
+2 5338 ok
+2 5339 ok
+clock-B-ts2: daemon exit 0
+TCP_INJECT; 2026-10-08-20:04:24; 1791489864.877024; 1791489864.877015; 0; 0; 0; 0; 0; 0; 0; 0; 0
+TCP_INJECT; 2026-10-08-20:05:24; 1791489924.874723; 1791489924.874718; 40; 0; 40; 0; 0; 0; 0; 0; 0
+INFO; 2026-10-08-20:05:53; 1791489953.484460; TCP timestamp injection stopped: injected=40 server_accepted=40 server_declined=0 client_rejected=0 server_rejected=0 skipped=0 failed=0 stalled=0
+round 1 ok: 20
+round 2 ok: 20
+clock-B-ts2: leftover in cpe=[]
