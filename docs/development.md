@@ -175,13 +175,21 @@ It needs GNU awk (`gawk`); `-l` does not.
 Known limitations, not yet fixed:
 
 - **Start time after a reboot.** A router without a battery-backed clock boots
-  with the time of the newest file in `/etc`, and cake-adapt may start before
-  NTP corrects it. Its start record then carries that old time, and **Router**
-  shows an uptime that is too long by the size of the clock step. In one
-  capture the start record said 13:09:34, and 10 s later the records jumped
-  24.5 minutes forward, from `02:09:45` to `02:34:17` in router time; the real
-  start was about 13:34. A forward jump between consecutive records shortly
-  after a start shows the step.
+  with a restored time (saved at shutdown, or the newest file in `/etc`), and
+  cake-adapt may start before NTP corrects it, so its start record carries the
+  restored time. The status screen corrects **Router** for this, without
+  changing the log: a run is on a restored clock when it starts earlier than
+  the previous run's last record, or when its first forward jump crosses a
+  capture disconnect (the router was down then, yet its records before the
+  jump are stamped earlier). The start then moves by the jump and shows
+  "corrected from" the logged time. The real time between the last record
+  before the jump and the first after it is unknown, so the corrected start
+  can be late by up to that gap; and a reboot the capture did not see, with a
+  clock restored to just after the previous run, stays uncorrected. In one
+  capture the start record said 13:09:34 and 10 s later the records jumped
+  24.5 minutes forward; in another the start said 02:28:58, the capture had
+  lost the router at 02:29:12, and the clock jumped 66 s, so the start shows
+  as 02:30:04.
 - **Warning times** show the record's `LOG_DATETIME`, the router's local time,
   while every other time on the screen is the PC's local time.
 - **Repeated history.** After a reconnect, the capture skips the replayed log
