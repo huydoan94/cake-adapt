@@ -149,12 +149,33 @@ write() {
 # following the file: reading a file on a Windows drive (/mnt/c, /mnt/d) while
 # it grows can fail with "No data available", which stops tail -F. It redraws
 # once a second on a tick that carries the time, the file size and the
-# terminal width. Lines are prefixed L (log), E (event) or T (tick), and every
-# writer writes whole lines, so they never interleave mid-line.
+# terminal width. Lines are prefixed L (log), E (event), T (tick) or H (history
+# read only for the router's clock), and every writer writes whole lines, so
+# they never interleave mid-line.
+#
+# The router's start time is shown corrected for its clock: after a reboot the
+# router runs on a restored clock, saved at shutdown or taken from its files,
+# until NTP steps it. A run is on such a clock when it starts earlier than the
+# previous run's last record, or when its first forward jump of more than
+# CLOCK_STEP_S crosses a capture disconnect: the router went down at that
+# disconnect (this machine's clock), yet the run's records before the jump are
+# stamped earlier. The jump is the step, and the start moves by it; the real
+# gap inside the jump is unknown, so the corrected start may be a little late.
+# A run's first jump is checked only within its first 30 minutes. The log is
+# unchanged.
 dashboard() {
+	local start_line
+
 	{
-		# The router's last start, which may lie far back in the file.
-		grep -a 'Starting cake-adapt' "$local_file" 2>/dev/null | tail -n 1 | sed 's/^/L /'
+		# The router's last start, which may lie far back in the file, with the
+		# records before it and the first part of its run for the clock check.
+		start_line=$(grep -an 'Starting cake-adapt' "$local_file" 2>/dev/null | tail -n 1 | cut -d: -f1)
+		# Capture disconnects, as D <epoch> in this machine's clock.
+		sed -n 's/^\([0-9-]* [0-9:]*\) disconnected.*/D \1/p' "$events" 2>/dev/null
+		if [ -n "$start_line" ]; then
+			sed -n "$((start_line > 20 ? start_line - 20 : 1)),$((start_line + 50000))p; $((start_line + 50000))q" \
+				"$local_file" | sed 's/^/H /'
+		fi
 		tail -n 3000 "$local_file" 2>/dev/null | sed 's/^/L /'
 		tail -n 4 "$events" 2>/dev/null | sed 's/^/E /'
 		cat "$feed" &
@@ -231,8 +252,8 @@ dashboard() {
 		if (version == "")
 			line(sprintf("%-12s cake-adapt; its start is not in the captured history", "Router"))
 		else
-			line(sprintf("%-12s cake-adapt %s, PID %s, started %s (%s ago)", "Router",
-				version, pid, when(started), ago(started)))
+			line(sprintf("%-12s cake-adapt %s, PID %s, started %s (%s ago)%s", "Router",
+				version, pid, when(started), ago(started), clock_note()))
 		line(sprintf("%-12s %s (%s ago)", "Last record", when(record_time), ago(record_time)))
 		line("")
 		line(sprintf("%-9s %15s %15s %6s %-12s %10s %8s %10s", "", "achieved", "shaper", "load",
@@ -258,6 +279,54 @@ dashboard() {
 		printf "\033[J"
 		fflush()
 	}
+	# After a restored clock, the start as corrected; otherwise as logged.
+	function clock_note() {
+		if (clock_state == "restored")
+			return ", router clock not set yet"
+		if (clock_state == "corrected")
+			return ", corrected from " strftime("%H:%M:%S", started_logged)
+		return ""
+	}
+	# The latest capture disconnect after the record at a and up to b, or 0.
+	function reboot_between(a, b,   i, found) {
+		found = 0
+		for (i = 1; i <= disconnects; i++)
+			if (disconnect_at[i] > a && disconnect_at[i] <= b)
+				found = disconnect_at[i]
+		return found
+	}
+	# Tracks the router clock across starts, for H and L records alike; see
+	# the comment above dashboard(). A run is unchecked until its first jump or
+	# its first 30 minutes, restored when it started before the previous
+	# record, and corrected once its start has moved by the step.
+	function clock(t, starting, text,   words, start_pid) {
+		if (starting) {
+			split(text, words, " ")
+			start_pid = words[6]
+			sub(/,$/, "", start_pid)
+			# The same start again, from the history and then the tail.
+			if (start_pid == pid && t == started_logged)
+				return
+			version = words[3]
+			pid = start_pid
+			started = started_logged = t
+			clock_state = clock_last != "" && t < clock_last ? "restored" : "unchecked"
+			clock_last = t
+			return
+		}
+		if ((clock_state == "restored" || clock_state == "unchecked") && clock_last != "" &&
+		    t - clock_last > CLOCK_STEP_S) {
+			if (clock_state == "restored" || reboot_between(clock_last, t)) {
+				started += t - clock_last
+				clock_state = "corrected"
+			} else {
+				clock_state = "set"
+			}
+		}
+		if (clock_state == "unchecked" && t - started_logged > 1800)
+			clock_state = "set"
+		clock_last = t
+	}
 	function shaper_changes(   i, n) {
 		n = 0
 		for (i in shaper_time)
@@ -269,6 +338,7 @@ dashboard() {
 	}
 	BEGIN {
 		FS = "; "
+		CLOCK_STEP_S = 5
 		status = "starting"
 		opened = systime()
 		bb_first = 1
@@ -294,6 +364,12 @@ dashboard() {
 		draw()
 		next
 	}
+	/^D / {
+		stamp = substr($0, 3)
+		gsub(/[-:]/, " ", stamp)
+		disconnect_at[++disconnects] = mktime(stamp)
+		next
+	}
 	/^E / {
 		text = substr($0, 3)
 		for (i = 1; i < 4; i++)
@@ -314,6 +390,7 @@ dashboard() {
 		} else if (message ~ /^disconnected/) {
 			status = "disconnected"
 			status_at = t
+			disconnect_at[++disconnects] = t
 		} else if (message ~ /^archived/) {
 			archives++
 		} else if (message ~ /^stopped/) {
@@ -326,6 +403,16 @@ dashboard() {
 		record = substr($0, 3)
 		n = split(record, f, "; ")
 		type = f[1]
+		history = substr($0, 1, 1) == "H"
+		# The tail starts later than the history ends; no step between them.
+		if (!history && !tail_started) {
+			tail_started = 1
+			clock_last = ""
+		}
+		if (f[3] ~ /^[0-9]+\.[0-9]+$/)
+			clock(f[3] + 0, (type == "SYSLOG" || type == "INFO") && f[4] ~ /^Starting cake-adapt /, f[4])
+		if (history)
+			next
 		if (status == "connecting") {
 			status = "connected"
 			connected_at = now ? now : systime()
@@ -368,12 +455,6 @@ dashboard() {
 		} else if (type == "WARNING" || type == "ERROR") {
 			warnings++
 			last_warning = f[2] " " f[4]
-		} else if ((type == "SYSLOG" || type == "INFO") && f[4] ~ /^Starting cake-adapt /) {
-			split(f[4], words, " ")
-			version = words[3]
-			pid = words[6]
-			sub(/,$/, "", pid)
-			started = int(f[3])
 		}
 	}'
 }
