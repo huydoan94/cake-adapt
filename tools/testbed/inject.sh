@@ -9,11 +9,12 @@
 # second shows what the injector learned (a rejected server is skipped, so its
 # second connection is not rewritten and works). Then the daemon is stopped, and
 # restarted and killed, and a SYN shows whether anything still rewrites it.
-# SERVER is the servers' address (10.99.0.2, or fd99::2 for IPv6) and RESULTS
+# SERVER is the servers' address (fd99::2; 10.99.0.2 checks that IPv4 is left
+# alone, where nothing is injected) and RESULTS
 # the name of the results directory (inject).
 # Needs testbed.sh up, nftables, and the test-log rules of run.sh.
 T=/tmp/cake-adapt-test
-: "${SERVER:=10.99.0.2}" "${RESULTS:=inject}"
+: "${SERVER:=fd99::2}" "${RESULTS:=inject}"
 R=$T/results/$RESULTS
 BIN=${1:-/usr/sbin/cake-adapt}
 LOG=/tmp/sqm-mon-test.log
