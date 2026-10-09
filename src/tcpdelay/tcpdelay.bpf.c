@@ -65,6 +65,12 @@ struct flow_state {
 	 * injector).
 	 */
 	__u32 client_stamped;
+	/*
+	 * An injected handshake whose SYN-ACK echoed our timestamp, waiting for
+	 * the server to acknowledge the client's first data; its SYN's sequence.
+	 */
+	__u32 inject_waiting;
+	__u32 inject_sequence;
 };
 
 struct {
@@ -346,13 +352,36 @@ static __always_inline struct tcpdelay_counters *counters_entry(void)
 	return bpf_map_lookup_elem(&counters, &zero);
 }
 
+static __always_inline struct tcpdelay_inject_counters *inject_counters_entry(void)
+{
+	__u32 zero = 0;
+
+	return bpf_map_lookup_elem(&inject_counters, &zero);
+}
+
+/*
+ * A server packet on a connection whose injected handshake waits: once it
+ * acknowledges the client's first data, the handshake worked.
+ */
+static __always_inline void inject_check_data(struct flow_state *state, const struct tcphdr *tcp)
+{
+	struct tcpdelay_inject_counters *totals;
+
+	if (!tcpdelay_inject_data_acknowledged(bpf_ntohl(tcp->ack_seq), state->inject_sequence))
+		return;
+	state->inject_waiting = 0U;
+	totals = inject_counters_entry();
+	if (totals != NULL)
+		totals->accepted++;
+}
+
 /*
  * A reply whose new TSecr echoes a recorded departure is always sampled; any
  * other change of TSval or TSecr at most once per interval, which still feeds
  * the downstream estimate of flows that send no data.
  */
 static __always_inline void
-incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
+incoming(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp, __u32 tsval, __u32 tsecr)
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsecr };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
@@ -371,6 +400,9 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 		if (tsecr != 0)
 			departure_ns = bpf_map_lookup_elem(&departures, &key);
 	} else {
+		/* Rare: only an injected handshake waiting for its first acknowledged data. */
+		if (__builtin_expect(state->inject_waiting, 0))
+			inject_check_data(state, tcp);
 		if (state->incoming_tsval == tsval && state->incoming_tsecr == tsecr)
 			return;
 		if (state->incoming_tsecr != tsecr && tsecr != 0)
@@ -396,13 +428,6 @@ incoming(const struct tcpdelay_record_flow *flow, __u32 tsval, __u32 tsecr)
 	record->tsecr = tsecr;
 	/* Userspace drains the ring on each traffic tick and controller run. */
 	bpf_ringbuf_submit(record, BPF_RB_NO_WAKEUP);
-}
-
-static __always_inline struct tcpdelay_inject_counters *inject_counters_entry(void)
-{
-	__u32 zero = 0;
-
-	return bpf_map_lookup_elem(&inject_counters, &zero);
 }
 
 /* The server, for every client. */
@@ -441,7 +466,7 @@ static __always_inline void inject_learn(const struct tcpdelay_record_flow *flow
 	struct tcpdelay_inject_client_key key = {};
 	struct tcpdelay_inject_client client = { .tsval = tsval };
 
-	if (handshake == NULL || handshake->learned || handshake->state != TCPDELAY_INJECT_ACCEPTED)
+	if (handshake == NULL || handshake->learned || handshake->state != TCPDELAY_INJECT_ECHOED)
 		return;
 	handshake->learned = 1;
 	client.seen_ns = bpf_ktime_get_boot_ns();
@@ -480,6 +505,7 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 {
 	struct tcpdelay_inject_handshake *handshake = bpf_map_lookup_elem(&inject_handshakes, flow);
 	struct tcpdelay_inject_counters *totals;
+	struct flow_state *state;
 
 	if (handshake == NULL)
 		return;
@@ -492,12 +518,18 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 		return;
 	}
 	switch (tcpdelay_inject_classify_answer(handshake, echo == handshake->tsval)) {
-	case TCPDELAY_INJECT_ANSWER_ACCEPTED:
-		handshake->state = TCPDELAY_INJECT_ACCEPTED;
-		totals->accepted++;
+	case TCPDELAY_INJECT_ANSWER_ECHOED:
+		handshake->state = TCPDELAY_INJECT_ECHOED;
+		/* Counted as accepted once the server acknowledges the client's data. */
+		state = bpf_map_lookup_elem(&flows, flow);
+		if (state != NULL) {
+			state->inject_waiting = 1U;
+			state->inject_sequence = handshake->sequence;
+		}
 		break;
 	case TCPDELAY_INJECT_ANSWER_DECLINED:
-		handshake->state = TCPDELAY_INJECT_ANSWERED;
+		/* The server does not take timestamps: leave its SYNs alone. */
+		inject_skip_server(flow, handshake, totals);
 		break;
 	case TCPDELAY_INJECT_ANSWER_REJECTED:
 		inject_skip_server(flow, handshake, totals);
@@ -576,7 +608,7 @@ int tcpdelay(struct __sk_buff *skb)
 	if (answer)
 		inject_observe(&flow, &tcp, found ? tsecr : 0U);
 	if (found)
-		incoming(&flow, tsval, tsecr);
+		incoming(&flow, &tcp, tsval, tsecr);
 	return 0;
 }
 

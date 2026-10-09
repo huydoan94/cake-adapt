@@ -29,9 +29,7 @@ static void test_syn(void)
 	/* The same 4-tuple with another sequence is a new connection. */
 	assert(tcpdelay_inject_classify_syn(&handshake, 2000U) == TCPDELAY_INJECT_SYN_NEW);
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_RETRY);
-	handshake.state = TCPDELAY_INJECT_ANSWERED;
-	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_REJECTED);
-	handshake.state = TCPDELAY_INJECT_ACCEPTED;
+	handshake.state = TCPDELAY_INJECT_ECHOED;
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_REJECTED);
 	handshake.state = TCPDELAY_INJECT_RETRIED;
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_PASS);
@@ -47,7 +45,7 @@ static void test_resets(void)
 {
 	struct tcpdelay_inject_handshake handshake = {
 		.sequence = 0xffffffffU,
-		.state = TCPDELAY_INJECT_ANSWERED,
+		.state = TCPDELAY_INJECT_ECHOED,
 	};
 
 	assert(!tcpdelay_inject_client_reset_rejects(NULL, 0U));
@@ -55,7 +53,7 @@ static void test_resets(void)
 	assert(tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	/* After data: an ordinary close. */
 	assert(!tcpdelay_inject_client_reset_rejects(&handshake, 1738U));
-	handshake.state = TCPDELAY_INJECT_ACCEPTED;
+	handshake.state = TCPDELAY_INJECT_ECHOED;
 	assert(tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	assert(!tcpdelay_inject_server_reset_rejects(&handshake));
 	handshake.state = TCPDELAY_INJECT_SENT;
@@ -63,9 +61,22 @@ static void test_resets(void)
 	assert(tcpdelay_inject_server_reset_rejects(&handshake));
 	handshake.state = TCPDELAY_INJECT_RETRIED;
 	assert(tcpdelay_inject_server_reset_rejects(&handshake));
-	handshake.state = TCPDELAY_INJECT_ANSWERED;
+	handshake.state = TCPDELAY_INJECT_CLOSED;
+	assert(!tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	assert(!tcpdelay_inject_server_reset_rejects(&handshake));
 	assert(!tcpdelay_inject_server_reset_rejects(NULL));
+}
+
+/* Data acknowledged: past the SYN's sequence + 1, across the sequence wrap. */
+static void test_data_acknowledged(void)
+{
+	assert(!tcpdelay_inject_data_acknowledged(1001U, 1000U));
+	assert(tcpdelay_inject_data_acknowledged(1002U, 1000U));
+	assert(tcpdelay_inject_data_acknowledged(1449U, 1000U));
+	assert(!tcpdelay_inject_data_acknowledged(0U, 0xffffffffU));
+	assert(tcpdelay_inject_data_acknowledged(100U, 0xffffffffU));
+	/* An older acknowledgement does not count. */
+	assert(!tcpdelay_inject_data_acknowledged(900U, 1000U));
 }
 
 static void test_answer(void)
@@ -73,17 +84,13 @@ static void test_answer(void)
 	struct tcpdelay_inject_handshake handshake = { .state = TCPDELAY_INJECT_SENT };
 
 	assert(tcpdelay_inject_classify_answer(NULL, 1) == TCPDELAY_INJECT_ANSWER_NONE);
-	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_ACCEPTED);
+	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_ECHOED);
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_DECLINED);
 	handshake.state = TCPDELAY_INJECT_RETRIED;
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_REJECTED);
-	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_ACCEPTED);
-	/* Without timestamps a repeated SYN-ACK is not a new answer... */
-	handshake.state = TCPDELAY_INJECT_ANSWERED;
-	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_NONE);
-	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_NONE);
-	/* ...with ours, the server never took the client's ACK. */
-	handshake.state = TCPDELAY_INJECT_ACCEPTED;
+	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_ECHOED);
+	/* A SYN-ACK again after echoing ours: the server never took the client's ACK. */
+	handshake.state = TCPDELAY_INJECT_ECHOED;
 	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_STALLED);
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_STALLED);
 	handshake.state = TCPDELAY_INJECT_CLOSED;
@@ -139,6 +146,7 @@ int main(void)
 	test_syn();
 	test_resets();
 	test_answer();
+	test_data_acknowledged();
 	test_injected_tsval();
 	test_client_tsval();
 	puts("TCP timestamp injection policy tests passed");
