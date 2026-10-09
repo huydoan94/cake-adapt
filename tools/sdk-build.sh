@@ -11,8 +11,8 @@
 # build/sdk-<name>.log; the built package is copied to bin/ with -<name> before
 # its extension, for example bin/cake-adapt-0.3.9-r1-filogic.apk.
 #
-# Exit status: 0 built, 2 SDK missing or not set up, 3 dependencies missing,
-# 4 compile error, 1 any other failure.
+# Exit status: 0 built, 2 SDK missing or not set up, 3 libraries or headers
+# missing, 4 compile error, 1 any other failure.
 set -u
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -89,7 +89,7 @@ fi
 errors=$(grep -E '(error|Error):' "$log" | grep -v -E '^make(\[[0-9]+\])?: \*\*\*|^ERROR: package/' | head -n 20)
 [ -z "$errors" ] ||
 	fail 4 "compile errors:" "$errors"
-[ -z "$missing" ] ||
-	fail 3 "the SDK lacks packages cake-adapt depends on: $missing" \
-		"Install them with: (cd $sdk && ./scripts/feeds update -a && ./scripts/feeds install $missing)"
-fail 1 "make exited with status $status; see build/sdk-$name.log"
+# Missing runtime packages (fping, bash) only warn, so they do not explain a
+# failed build; without V=s the compiler's own errors are not in the log.
+fail 1 "make exited with status $status, and the log shows no compiler error" \
+	"See the compiler output with: make -C $sdk package/cake-adapt/compile V=s"
