@@ -1,0 +1,7 @@
+idle ticks=14 seconds=40 rss_kb=2128 hwm_kb=2128 fds=31 bpf_runs=1067 bpf_ns=1765443 inject_runs=534 inject_ns=480812
+download ticks=24 seconds=40 rss_kb=2128 hwm_kb=2128 fds=31 bpf_runs=93835 bpf_ns=304381054 inject_runs=43794 inject_ns=18555941
+upload ticks=24 seconds=40 rss_kb=2128 hwm_kb=2128 fds=31 bpf_runs=12670 bpf_ns=75449206 inject_runs=4509 inject_ns=3648627
+bidirectional ticks=44 seconds=40 rss_kb=2136 hwm_kb=2136 fds=31 bpf_runs=86332 bpf_ns=325281477 inject_runs=40952 inject_ns=17612827
+congested ticks=34 seconds=40 rss_kb=2136 hwm_kb=2136 fds=31 bpf_runs=69578 bpf_ns=244342523 inject_runs=33775 inject_ns=15882587
+download6 ticks=19 seconds=40 rss_kb=2136 hwm_kb=2136 fds=31 bpf_runs=96415 bpf_ns=254527391 inject_runs=45397 inject_ns=27848828
+bidirectional6 ticks=29 seconds=40 rss_kb=2132 hwm_kb=2132 fds=31 bpf_runs=81575 bpf_ns=249828082 inject_runs=38480 inject_ns=29833737
