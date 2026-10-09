@@ -29,6 +29,11 @@ void tcpdelay_injector_init(struct tcpdelay_injector *injector)
 	injector->counters_descriptor = -1;
 }
 
+void tcpdelay_injector_set_stall_window(struct tcpdelay_injector *injector, uint64_t window_us)
+{
+	injector->stall_window_us = window_us;
+}
+
 /* Where the IP header starts in the packets the program sees on interface. */
 static int network_offset(const char *interface, uint32_t *offset, char *error, size_t error_size)
 {
@@ -111,7 +116,9 @@ int tcpdelay_injector_attach(
 	size_t error_size
 )
 {
-	struct tcpdelay_inject_settings values = { 0 };
+	struct tcpdelay_inject_settings values = {
+		.stall_window_ns = injector->stall_window_us * NANOSECONDS_PER_MICROSECOND,
+	};
 	struct bpf_program *program = NULL;
 	unsigned int interface_index;
 	uint32_t key = 0U;
@@ -126,6 +133,7 @@ int tcpdelay_injector_attach(
 	 * a mismatch, such as an object from another build, would corrupt memory.
 	 */
 	if (!layout_matches(capture, INJECT_COUNTERS, sizeof(struct tcpdelay_inject_counters)) ||
+	    !layout_matches(capture, INJECT_SETTINGS, sizeof(struct tcpdelay_inject_settings)) ||
 	    !layout_matches(capture, INJECT_STATE, sizeof(struct tcpdelay_inject_state)))
 		return error_set(
 			error,

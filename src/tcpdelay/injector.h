@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #include "tcpdelay/capture.h"
 #include "tcpdelay/inject.h"
@@ -20,10 +21,15 @@ struct tcpdelay_injector {
 	/* One copy per possible CPU, for reading the per-CPU counters. */
 	struct tcpdelay_inject_counters *counter_values;
 	size_t cpu_count;
+	/* IPv4 stalls within this make a burst (inject.h). */
+	uint64_t stall_window_us;
 };
 
 /* The detached state, before the first attachment or after unloading. */
 void tcpdelay_injector_init(struct tcpdelay_injector *injector);
+
+/* The stall burst window, written to the program at each attachment. */
+void tcpdelay_injector_set_stall_window(struct tcpdelay_injector *injector, uint64_t window_us);
 
 /*
  * Attaches the capture's injector program to interface, after any earlier

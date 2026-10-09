@@ -33,6 +33,10 @@ void tcp_init(struct monitor *monitor)
 {
 	tcpdelay_capture_init(&monitor->tcp.capture);
 	tcpdelay_injector_init(&monitor->tcp.injector);
+	tcpdelay_injector_set_stall_window(
+		&monitor->tcp.injector,
+		monitor->config->tcp_ts_stall_window_us
+	);
 }
 
 void tcp_start(struct monitor *monitor)
