@@ -147,20 +147,21 @@ gets a timestamp, the server answers with its own, and a client that accepts it
 (Windows does) then sends timestamps itself. Clients that already send
 timestamps, and every IPv4 packet, are not touched.
 
-Adding that option to a SYN is the only change made to any packet. A
-timestamped handshake that is refused is remembered by the server's address
-and port for a day, and SYNs to that server are left alone meanwhile, from
-every client: the server reset the SYN, or answered only once the SYN was
-resent without the timestamp, or its answer never got through to the client
-(the client resent its SYN after the SYN-ACK, or reset the connection before
+Adding that option to a SYN is the only change made to any packet. A server
+that does not take the timestamp is remembered by its address and port for a
+day, and SYNs to it are left alone meanwhile, from every client: it answered
+without a timestamp, reset the SYN, or answered only once the SYN was resent
+without the timestamp, or its answer never got through to the client (the
+client resent its SYN after the SYN-ACK, or reset the connection before
 sending anything). Whatever refused it on the way, the router sees the same
 refused handshake. The connection that was refused is not rescued; the next
 ones are. A stall (below) is not a refusal and skips nothing.
 
 The `TCP_INJECT` record counts the SYNs injected (`INJECTED`), the refused
 handshakes and the SYNs left alone because their server is skipped
-(`SKIPPED`), the SYNs whose server took the timestamp (`ACCEPTED`), and the
-stalled handshakes (`STALLED`).
+(`SKIPPED`), the injected handshakes that worked (`ACCEPTED`: the server
+acknowledged the client's first data, which a stalled handshake never gets),
+and the stalled handshakes (`STALLED`).
 
 **Client clocks.** A client that adopts the timestamp then sends values from
 its own clock, and servers drop segments whose value looks older than the last

@@ -78,14 +78,12 @@ struct tcpdelay_inject_server {
 enum tcpdelay_inject_handshake_state {
 	/* The injected SYN left; no SYN-ACK yet. */
 	TCPDELAY_INJECT_SENT = 0,
-	/* The server answered without the timestamp. */
-	TCPDELAY_INJECT_ANSWERED = 1,
 	/* The SYN went unanswered and was resent without a timestamp. */
 	TCPDELAY_INJECT_RETRIED = 2,
-	/* A rejection or a stall was counted; resent SYNs pass unchanged. */
+	/* A refusal or a stall was counted; resent SYNs pass unchanged. */
 	TCPDELAY_INJECT_CLOSED = 3,
-	/* The server answered and echoed the timestamp. */
-	TCPDELAY_INJECT_ACCEPTED = 4,
+	/* The server's SYN-ACK echoed the timestamp; not yet known to work. */
+	TCPDELAY_INJECT_ECHOED = 4,
 };
 
 /*
@@ -127,7 +125,10 @@ struct tcpdelay_inject_counters {
 	__u64 injected;
 	/* Refused timestamped handshakes, and SYNs left alone as their server is skipped. */
 	__u64 skipped;
-	/* Injected SYNs whose SYN-ACK echoed the timestamp. */
+	/*
+	 * Injected handshakes that worked: the server acknowledged the client's
+	 * first data, which a stalled handshake never gets.
+	 */
 	__u64 accepted;
 	/*
 	 * Accepted handshakes whose SYN-ACK came again: the server never took
@@ -168,13 +169,6 @@ enum tcpdelay_inject_syn {
 	TCPDELAY_INJECT_SYN_PASS,
 };
 
-/* Whether the server has answered the injected SYN, with or without the timestamp. */
-INJECT_INLINE int tcpdelay_inject_answered(const struct tcpdelay_inject_handshake *handshake)
-{
-	return handshake->state == TCPDELAY_INJECT_ANSWERED ||
-	       handshake->state == TCPDELAY_INJECT_ACCEPTED;
-}
-
 /* A SYN without a timestamp, against the handshake of its 4-tuple, if any. */
 INJECT_INLINE enum tcpdelay_inject_syn
 tcpdelay_inject_classify_syn(const struct tcpdelay_inject_handshake *handshake, __u32 sequence)
@@ -183,7 +177,7 @@ tcpdelay_inject_classify_syn(const struct tcpdelay_inject_handshake *handshake, 
 		return TCPDELAY_INJECT_SYN_NEW;
 	if (handshake->state == TCPDELAY_INJECT_SENT)
 		return TCPDELAY_INJECT_SYN_RETRY;
-	if (tcpdelay_inject_answered(handshake))
+	if (handshake->state == TCPDELAY_INJECT_ECHOED)
 		return TCPDELAY_INJECT_SYN_REJECTED;
 	return TCPDELAY_INJECT_SYN_PASS;
 }
@@ -198,8 +192,17 @@ INJECT_INLINE int tcpdelay_inject_client_reset_rejects(
 	__u32 sequence
 )
 {
-	return handshake != 0 && tcpdelay_inject_answered(handshake) &&
+	return handshake != 0 && handshake->state == TCPDELAY_INJECT_ECHOED &&
 	       sequence == handshake->sequence + 1U;
+}
+
+/*
+ * Whether an acknowledgement number covers data after the SYN whose sequence
+ * is sequence: the server took the client's first data, with its timestamp.
+ */
+INJECT_INLINE int tcpdelay_inject_data_acknowledged(__u32 acknowledgement, __u32 sequence)
+{
+	return (__s32)(acknowledgement - (sequence + 1U)) > 0;
 }
 
 /* A server RST before any SYN-ACK: the server refused the injected SYN. */
@@ -213,8 +216,8 @@ tcpdelay_inject_server_reset_rejects(const struct tcpdelay_inject_handshake *han
 enum tcpdelay_inject_answer {
 	/* Not a first answer to an injected SYN. */
 	TCPDELAY_INJECT_ANSWER_NONE,
-	TCPDELAY_INJECT_ANSWER_ACCEPTED,
-	/* Answered without a timestamp: harmless, nothing to remember. */
+	TCPDELAY_INJECT_ANSWER_ECHOED,
+	/* Answered without a timestamp: the server does not take them. */
 	TCPDELAY_INJECT_ANSWER_DECLINED,
 	/* Answered only once resent without a timestamp: the server drops them. */
 	TCPDELAY_INJECT_ANSWER_REJECTED,
@@ -229,14 +232,14 @@ tcpdelay_inject_classify_answer(const struct tcpdelay_inject_handshake *handshak
 	if (handshake == 0)
 		return TCPDELAY_INJECT_ANSWER_NONE;
 	if (handshake->state == TCPDELAY_INJECT_SENT)
-		return echoes ? TCPDELAY_INJECT_ANSWER_ACCEPTED : TCPDELAY_INJECT_ANSWER_DECLINED;
+		return echoes ? TCPDELAY_INJECT_ANSWER_ECHOED : TCPDELAY_INJECT_ANSWER_DECLINED;
 	if (handshake->state == TCPDELAY_INJECT_RETRIED)
-		return echoes ? TCPDELAY_INJECT_ANSWER_ACCEPTED : TCPDELAY_INJECT_ANSWER_REJECTED;
+		return echoes ? TCPDELAY_INJECT_ANSWER_ECHOED : TCPDELAY_INJECT_ANSWER_REJECTED;
 	/*
 	 * Without timestamps nothing can be dropped as old, so only a handshake
 	 * that took ours stalls; a lost ACK looks the same and costs a day.
 	 */
-	if (handshake->state == TCPDELAY_INJECT_ACCEPTED)
+	if (handshake->state == TCPDELAY_INJECT_ECHOED)
 		return TCPDELAY_INJECT_ANSWER_STALLED;
 	return TCPDELAY_INJECT_ANSWER_NONE;
 }
