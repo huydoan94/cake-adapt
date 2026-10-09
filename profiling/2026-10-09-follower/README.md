@@ -2,13 +2,19 @@
 
 ## Result
 
-While `tools/capture-log.sh` follows the log, its follower on the router costs
+While `tools/capture-log.sh` followed the log, its follower on the router cost
 about twice what cake-adapt itself does: 0.33% of one core on the x86 VM for
 the follower and 0.11% for its SSH session, against 0.16% for the daemon. Almost
-all of it is starting three processes every second (`ls`, `cat` and `sleep`,
+all of it was starting three processes every second (`ls`, `cat` and `sleep`,
 each a fork and exec of BusyBox), about 13,700 system calls a minute. The
-POSIX rewrite of the follower's watchdog costs the same as the `read -t`
-version it replaces.
+POSIX rewrite of the follower's watchdog cost the same as the `read -t`
+version it replaced.
+
+The follower now starts only the `cat` that copies new lines: the PC's
+heartbeat, sent every second, is its clock instead of `sleep`, and `ls` runs
+only when `cat` found nothing. It costs 19 ticks in 180 s instead of 59 (68%
+less), with half the system calls, and captured the same lines across a
+rotation.
 
 ## Setup
 
@@ -37,13 +43,25 @@ version it replaces.
 | system calls per minute | 13,625 | 13,730 |
 | lines captured | 24,614 | 24,604 |
 
+| Over 180 s | one `cat` per second (`raw/one-cat/`) |
+| --- | ---: |
+| follower and its children | 19 ticks (0.11%) |
+| its dropbear session | 17 ticks (0.09%) |
+| cake-adapt, no follower / with follower | 28 / 26 ticks |
+| processes started per minute | 57, all `cat` |
+| system calls per minute | 6,655 |
+| lines captured; largest gap between timestamps | 24,539; 0.31 s, none out of order, across a rotation |
+
+The SSH session's figure moves by a few ticks between runs; the heartbeat is
+now one line a second instead of one every 5 s.
+
 The system calls are almost all process start and teardown (`mmap2`,
 `mprotect`, `open`, `close`, `rt_sigprocmask`, `wait4`), plus the `read`s and
 `poll`s of the copies. On this BusyBox, `sleep` runs as its own process. A
 slow router pays proportionally more per process start, so these figures
 understate its share there.
 
-`raw/committed-07ab249/` and `raw/posix/` hold each run's samples, both
+`raw/committed-07ab249/`, `raw/posix/` and `raw/one-cat/` hold each run's samples, both
 traces, the console and the capture's own events.
 
 ## The POSIX follower
@@ -59,6 +77,11 @@ after the heartbeats stop, nothing left), and over SSH on the VM (stopping
 the capture and killing the SSH client both remove the processes and the beat
 file within 3 s).
 
-The profiled POSIX version left its beat file behind when SSH ended the
+The one-`cat` follower adds a FIFO beside the beat file for the ticks, and
+was checked the same way: ShellCheck, dash and BusyBox ash locally (all lines
+across a rotation, exit at end of input, exit 62–64 s after silence, both files
+removed), and over SSH on the VM (stop and SSH kill clean within 3 s).
+
+The first profiled POSIX version left its beat file behind when SSH ended the
 session with SIGHUP; the follower now removes it on every exit, which is the
 version tested over SSH above.
