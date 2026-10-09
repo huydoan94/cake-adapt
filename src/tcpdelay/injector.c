@@ -21,17 +21,11 @@
 #define INJECT_PROGRAM "inject_egress"
 #define INJECT_COUNTERS "inject_counters"
 #define INJECT_SETTINGS "inject_settings"
-#define INJECT_STATE "inject_state"
 
 void tcpdelay_injector_init(struct tcpdelay_injector *injector)
 {
 	memset(injector, 0, sizeof(*injector));
 	injector->counters_descriptor = -1;
-}
-
-void tcpdelay_injector_set_stall_window(struct tcpdelay_injector *injector, uint64_t window_us)
-{
-	injector->stall_window_us = window_us;
 }
 
 /* Where the IP header starts in the packets the program sees on interface. */
@@ -116,9 +110,7 @@ int tcpdelay_injector_attach(
 	size_t error_size
 )
 {
-	struct tcpdelay_inject_settings values = {
-		.stall_window_ns = injector->stall_window_us * NANOSECONDS_PER_MICROSECOND,
-	};
+	struct tcpdelay_inject_settings values = { 0 };
 	struct bpf_program *program = NULL;
 	unsigned int interface_index;
 	uint32_t key = 0U;
@@ -133,8 +125,7 @@ int tcpdelay_injector_attach(
 	 * a mismatch, such as an object from another build, would corrupt memory.
 	 */
 	if (!layout_matches(capture, INJECT_COUNTERS, sizeof(struct tcpdelay_inject_counters)) ||
-	    !layout_matches(capture, INJECT_SETTINGS, sizeof(struct tcpdelay_inject_settings)) ||
-	    !layout_matches(capture, INJECT_STATE, sizeof(struct tcpdelay_inject_state)))
+	    !layout_matches(capture, INJECT_SETTINGS, sizeof(struct tcpdelay_inject_settings)))
 		return error_set(
 			error,
 			error_size,
@@ -192,48 +183,9 @@ int tcpdelay_injector_counters(
 
 		counters->injected += value->injected;
 		counters->skipped += value->skipped;
-		counters->server_accepted += value->server_accepted;
-		counters->server_declined += value->server_declined;
-		counters->client_rejected += value->client_rejected;
-		counters->server_rejected += value->server_rejected;
-		counters->retried += value->retried;
-		counters->failed += value->failed;
-		counters->stalled_ipv4 += value->stalled_ipv4;
-		counters->stalled_ipv6 += value->stalled_ipv6;
-		counters->paused += value->paused;
+		counters->accepted += value->accepted;
+		counters->stalled += value->stalled;
 	}
-	return 0;
-}
-
-int tcpdelay_injector_state(
-	const struct tcpdelay_capture *capture,
-	struct tcpdelay_inject_state *state
-)
-{
-	uint32_t key = 0U;
-	int descriptor;
-
-	if (capture->object == NULL)
-		return -1;
-	descriptor = bpf_object__find_map_fd_by_name(capture->object, INJECT_STATE);
-	if (descriptor < 0 || bpf_map_lookup_elem(descriptor, &key, state) != 0)
-		return -1;
-	return 0;
-}
-
-int tcpdelay_injector_set_state(
-	const struct tcpdelay_capture *capture,
-	const struct tcpdelay_inject_state *state
-)
-{
-	uint32_t key = 0U;
-	int descriptor;
-
-	if (capture->object == NULL)
-		return -1;
-	descriptor = bpf_object__find_map_fd_by_name(capture->object, INJECT_STATE);
-	if (descriptor < 0 || bpf_map_update_elem(descriptor, &key, state, BPF_ANY) != 0)
-		return -1;
 	return 0;
 }
 
