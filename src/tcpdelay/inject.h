@@ -53,9 +53,8 @@
 #define TCPDELAY_INJECT_CLIENTS 1024
 /* A skip, a pause and a learned clock each last a day. */
 #define TCPDELAY_INJECT_DAY_NS (24U * 60U * MINUTE * NANOSECONDS_PER_MICROSECOND)
-/* IPv4 injection changes after this many stalls within the window. */
+/* IPv4 injection changes after this many stalls within the configured window. */
 #define TCPDELAY_INJECT_STALL_BURST 5U
-#define TCPDELAY_INJECT_STALL_WINDOW_NS (10U * SECOND * NANOSECONDS_PER_MICROSECOND)
 /*
  * Client clocks are compared in milliseconds since our boot, the tick of
  * Windows timestamps. The youngest IPv4 clock replaces TSVAL only when it is
@@ -192,8 +191,11 @@ struct tcpdelay_inject_counters {
 	__u64 paused;
 };
 
-/* Written before attaching; the offset of the IP header in a packet. */
+/* Written before attaching. */
 struct tcpdelay_inject_settings {
+	/* TCPDELAY_INJECT_STALL_BURST IPv4 stalls within this make a burst. */
+	__u64 stall_window_ns;
+	/* The offset of the IP header in a packet. */
 	__u32 network_offset;
 	__u32 reserved;
 };
@@ -205,7 +207,7 @@ _Static_assert(sizeof(struct tcpdelay_inject_client_key) == 16, "client key layo
 _Static_assert(sizeof(struct tcpdelay_inject_client) == 16, "client layout");
 _Static_assert(sizeof(struct tcpdelay_inject_state) == 584, "state layout");
 _Static_assert(sizeof(struct tcpdelay_inject_counters) == 88, "counter layout");
-_Static_assert(sizeof(struct tcpdelay_inject_settings) == 8, "settings layout");
+_Static_assert(sizeof(struct tcpdelay_inject_settings) == 16, "settings layout");
 
 /* Whether to leave SYNs to this server alone: rejected within the last day. */
 INJECT_INLINE int
@@ -312,8 +314,9 @@ INJECT_INLINE __u32 tcpdelay_inject_ipv4_tsval(const struct tcpdelay_inject_stat
 	return TCPDELAY_INJECT_TSVAL;
 }
 
-/* Records an IPv4 stall; whether it completes a burst within the window. */
-INJECT_INLINE int tcpdelay_inject_stall_burst(struct tcpdelay_inject_state *state, __u64 now_ns)
+/* Records an IPv4 stall; whether it completes a burst within window_ns. */
+INJECT_INLINE int
+tcpdelay_inject_stall_burst(struct tcpdelay_inject_state *state, __u64 now_ns, __u64 window_ns)
 {
 	/*
 	 * Range checks, not a modulo: the verifier cannot bound x % 5, which
@@ -330,8 +333,7 @@ INJECT_INLINE int tcpdelay_inject_stall_burst(struct tcpdelay_inject_state *stat
 	state->stall_ns[slot] = now_ns;
 	state->next_stall = next;
 	/* After this one, the next slot holds the oldest of the last BURST stalls. */
-	return state->stall_ns[next] != 0U &&
-	       now_ns - state->stall_ns[next] <= TCPDELAY_INJECT_STALL_WINDOW_NS;
+	return state->stall_ns[next] != 0U && now_ns - state->stall_ns[next] <= window_ns;
 }
 
 /* Remembers an IPv4 client's clock; the filter's part, without division. */

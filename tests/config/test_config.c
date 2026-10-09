@@ -238,7 +238,18 @@ static void test_tcp_timestamp_inject(void)
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
 	assert(strcmp(error, "option 'tcp_timestamp_inject' needs tcp_delay_attribution") == 0);
 	config.tcp_delay_attribution = true;
+
+	/* The stall burst window, in seconds; a zero window would disable the breaker. */
+	option.e.name = "tcp_ts_stall_window_s";
+	option.v.string = "2.5";
+	lookup_option = &option;
+	assert(load_options(&loader) == 0);
+	lookup_option = NULL;
+	assert(config.tcp_ts_stall_window_us == 2500000U);
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+	config.tcp_ts_stall_window_us = 0U;
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strcmp(error, "option 'tcp_ts_stall_window_s' must be positive") == 0);
 }
 
 static void test_ul_congest_ack_share(void)
