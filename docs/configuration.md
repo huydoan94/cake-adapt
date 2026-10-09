@@ -138,27 +138,29 @@ Do not use `ack-filter-aggressive`.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `tcp_ts_request` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Renamed from `tcp_timestamp_inject`, which is no longer read: update existing UCI configurations. Adds a TCP timestamp to clients' SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its connections are measured in both directions. |
-| `tcp_ts_stall_window_s` | decimal | `40` | Not in cake-autorate. 5 IPv4 handshakes that stall within this many seconds switch IPv4 injection to a learned client clock or pause it (see below). Each stall delays one connection by a SYN retry; a longer window catches slowly repeating stalls sooner. |
+| `tcp_ts_request` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Renamed from `tcp_timestamp_inject`, which is no longer read: update existing UCI configurations. Adds a TCP timestamp to clients' IPv6 SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its IPv6 connections are measured in both directions. IPv4 is never changed. |
 
 Windows opens TCP connections without timestamps, so the TCP filter cannot
 measure them. With `tcp_ts_request`, a second program in the same eBPF
-object rewrites such a SYN on its way out of the upload interface: it gets a timestamp, the server answers with its own, and a
-client that accepts it (Windows does) then sends timestamps itself. Clients
-that already send timestamps are not touched.
+object rewrites such an IPv6 SYN on its way out of the upload interface: it
+gets a timestamp, the server answers with its own, and a client that accepts it
+(Windows does) then sends timestamps itself. Clients that already send
+timestamps, and every IPv4 packet, are not touched.
 
-Adding that option to a SYN is the only change made to any packet. It
-remembers, per server address and port, a rejection for a day and leaves SYNs
-to that server alone meanwhile:
+Adding that option to a SYN is the only change made to any packet. A
+timestamped handshake that is refused is remembered by the server's address
+and port for a day, and SYNs to that server are left alone meanwhile, from
+every client: the server reset the SYN, or answered only once the SYN was
+resent without the timestamp, or its answer never got through to the client
+(the client resent its SYN after the SYN-ACK, or reset the connection before
+sending anything). Whatever refused it on the way, the router sees the same
+refused handshake. The connection that was refused is not rescued; the next
+ones are. A stall (below) is not a refusal and skips nothing.
 
-- the client refused the server's timestamp: it resent its SYN after the
-  SYN-ACK, or reset the connection before sending anything;
-- the server reset the rewritten SYN, or answered only once the SYN was resent
-  without the timestamp;
-- the handshake stalled: the server took the timestamp, then sent its SYN-ACK
-  again because it never accepted the client's reply (counted as `STALLED`).
-
-The connection that failed is not rescued; the next ones are.
+The `TCP_INJECT` record counts the SYNs injected (`INJECTED`), the refused
+handshakes and the SYNs left alone because their server is skipped
+(`SKIPPED`), the SYNs whose server took the timestamp (`ACCEPTED`), and the
+stalled handshakes (`STALLED`).
 
 **Client clocks.** A client that adopts the timestamp then sends values from
 its own clock, and servers drop segments whose value looks older than the last
@@ -167,20 +169,21 @@ difference: one injected value suits only clocks within 2^31 ticks after it.
 Windows counts milliseconds since boot, and Fast Startup keeps that uptime
 running across shutdowns, so clocks of any age are common. A clock outside the
 window makes the server drop the client's handshake reply and send its SYN-ACK
-again: the handshake stalls, and its server is skipped for a day.
+again: the handshake stalls, and that connection fails.
 
-- **IPv6** clients keep their own address, so each client's clock is learned
-  from its first timestamped packets and injected back to it, which suits any
-  uptime; a stall skips that client and server only.
-- **IPv4** clients all share the router's address after NAT. They get the
-  value 1 (uptime up to 24.8 days). When 5 handshakes stall within
-  `tcp_ts_stall_window_s`, IPv4 SYNs are left alone at once and, within a
-  second, cake-adapt switches to the youngest client clock seen within a day
-  if it is at least a day old, else pauses IPv4 injection for a day; 5 more
-  stalls within the window after a switch also pause it. After a pause it
-  starts over with 1.
-  The `TCP_INJECT` record shows the stalls per family and the IPv4 mode.
-- **IPv6 behind NAT66 or NPTv6** is not handled; there, leave the option off.
+Each IPv6 client keeps its own address, so it gets its own value:
+
+1. 1 while nothing is known about it, which suits uptimes up to 24.8 days;
+2. 0x80000000 after a handshake with 1 stalled, which suits uptimes of 24.8
+   to 49.7 days;
+3. its own clock once learned, from the first connection it adopts our
+   timestamp on (usually the stalled one already), which suits any uptime.
+
+What is known about a client lasts a day. A stall skips no server. IPv4 is
+left alone: behind NAT every client shares the router's address, so one value
+would have to suit every client's clock, and the clients it does not suit stall
+their connections. IPv6 behind NAT66 or NPTv6 is not handled either; there,
+leave the option off.
 
 A Windows PC you manage can send timestamps itself, which needs no injection
 at all (as administrator: `netsh int tcp set global timestamps=enabled`). The programs are
