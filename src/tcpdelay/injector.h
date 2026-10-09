@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 #include "tcpdelay/capture.h"
 #include "tcpdelay/inject.h"
@@ -21,15 +20,10 @@ struct tcpdelay_injector {
 	/* One copy per possible CPU, for reading the per-CPU counters. */
 	struct tcpdelay_inject_counters *counter_values;
 	size_t cpu_count;
-	/* IPv4 stalls within this make a burst (inject.h). */
-	uint64_t stall_window_us;
 };
 
 /* The detached state, before the first attachment or after unloading. */
 void tcpdelay_injector_init(struct tcpdelay_injector *injector);
-
-/* The stall burst window, written to the program at each attachment. */
-void tcpdelay_injector_set_stall_window(struct tcpdelay_injector *injector, uint64_t window_us);
 
 /*
  * Attaches the capture's injector program to interface, after any earlier
@@ -50,21 +44,6 @@ bool tcpdelay_injector_attached(const struct tcpdelay_injector *injector);
 int tcpdelay_injector_counters(
 	const struct tcpdelay_injector *injector,
 	struct tcpdelay_inject_counters *counters
-);
-
-/* The shared IPv4 injection state (mode, TSval, pause), read from the capture's object. */
-int tcpdelay_injector_state(
-	const struct tcpdelay_capture *capture,
-	struct tcpdelay_inject_state *state
-);
-
-/*
- * Writes the IPv4 injection state back after tcpdelay_inject_resolve(); a stall
- * the filter records meanwhile may be lost, which only delays a burst.
- */
-int tcpdelay_injector_set_state(
-	const struct tcpdelay_capture *capture,
-	const struct tcpdelay_inject_state *state
 );
 
 /* Detaches the program; its maps and server cache stay with the capture. Repeatable. */

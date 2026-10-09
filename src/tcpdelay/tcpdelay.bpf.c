@@ -17,7 +17,7 @@
  * Experimental TCP timestamp injection (tcp_ts_request; inject.h has
  * the policy) lives here too, so both share their maps and incoming packets
  * are read once: the tcx egress program at the end appends a timestamp to
- * SYNs that lack one, before the root qdisc, and this filter settles each
+ * IPv6 SYNs that lack one, before the root qdisc, and this filter settles each
  * injected handshake from the server's SYN-ACK or reset. Appending that
  * option is the only change made to any packet.
  */
@@ -43,9 +43,6 @@
 #define TCP_HEADER_MAX_BYTES 60U
 #define TCP_FLAGS_OFFSET 12U
 #define TCP_CHECKSUM_OFFSET 16U
-#define IPV4_LENGTH_OFFSET 2U
-#define IPV4_CHECKSUM_OFFSET 10U
-#define IPV4_FRAGMENT_MASK 0x3fffU
 #define IPV6_LENGTH_OFFSET 4U
 /* NOP, NOP and a timestamp option, appended to a SYN. */
 #define INJECT_ADDED_BYTES 12U
@@ -118,21 +115,13 @@ struct {
 	__type(value, struct tcpdelay_inject_handshake);
 } inject_handshakes SEC(".maps");
 
-/* IPv6 clients' learned clocks, by client address. */
+/* Clients' learned clocks, by client address. */
 struct {
 	__uint(type, BPF_MAP_TYPE_LRU_HASH);
 	__uint(max_entries, TCPDELAY_INJECT_CLIENTS);
 	__type(key, struct tcpdelay_inject_client_key);
 	__type(value, struct tcpdelay_inject_client);
 } inject_clients SEC(".maps");
-
-/* IPv4 injection: stalls, learned clocks, the TSval and the pause. */
-struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, __u32);
-	__type(value, struct tcpdelay_inject_state);
-} inject_state SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
@@ -148,28 +137,16 @@ struct {
 	__type(value, struct tcpdelay_inject_settings);
 } inject_settings SEC(".maps");
 
-/* Packet taps push the Ethernet header back before running a RAW socket filter. */
-static __always_inline int network_offset(struct __sk_buff *skb, __u32 hardware_type, __u32 *offset)
+static __always_inline int ip_protocol(__be16 protocol)
 {
-	struct ethhdr ethernet;
-	__be16 protocol;
-
-	*offset = 0;
-	if (hardware_type == ARPHRD_NONE || hardware_type == ARPHRD_PPP ||
-	    hardware_type == ARPHRD_RAWIP) {
-		return skb->protocol == bpf_htons(ETH_P_IP) ||
-		       skb->protocol == bpf_htons(ETH_P_IPV6);
-	}
-	if (hardware_type != ARPHRD_ETHER ||
-	    bpf_skb_load_bytes(skb, 0, &ethernet, sizeof(ethernet)) < 0)
-		return 0;
-	*offset = sizeof(ethernet);
-	protocol = ethernet.h_proto;
-	return protocol == bpf_htons(ETH_P_IP) || protocol == bpf_htons(ETH_P_IPV6) ||
-	       protocol == bpf_htons(ETH_P_ARP);
+	return protocol == bpf_htons(ETH_P_IP) || protocol == bpf_htons(ETH_P_IPV6);
 }
 
-/* Both counters use this one charge. Unsupported traffic leaves timing available. */
+/*
+ * Both counters use this one charge. Unsupported traffic leaves timing
+ * available. Packet taps push the Ethernet header back before running a RAW
+ * socket filter, so the network header starts after it.
+ */
 static __always_inline __u64 outgoing_bytes(struct __sk_buff *skb, struct tcpdelay_counters *totals)
 {
 	__u32 zero = 0;
@@ -185,17 +162,26 @@ static __always_inline __u64 outgoing_bytes(struct __sk_buff *skb, struct tcpdel
 	    (config->cake.atm_mode != CAKE_ATM_NONE && config->cake.atm_mode != CAKE_ATM_ATM &&
 	     config->cake.atm_mode != CAKE_ATM_PTM))
 		goto unsupported;
-	/* Tagged Ethernet changes at offload boundaries; do not infer its charge. */
 	if (config->hardware_type == ARPHRD_ETHER) {
 		struct ethhdr ethernet;
 
+		/* Tagged Ethernet changes at offload boundaries; do not infer its charge. */
 		if (bpf_skb_load_bytes(skb, 0, &ethernet, sizeof(ethernet)) < 0 ||
 		    ethernet.h_proto == bpf_htons(ETH_P_8021Q) ||
 		    ethernet.h_proto == bpf_htons(ETH_P_8021AD))
 			goto unsupported;
-	}
-	if (!config->cake.raw && !network_offset(skb, config->hardware_type, &offset))
+		if (!config->cake.raw) {
+			if (!ip_protocol(ethernet.h_proto) &&
+			    ethernet.h_proto != bpf_htons(ETH_P_ARP))
+				goto unsupported;
+			offset = sizeof(ethernet);
+		}
+	} else if (!config->cake.raw &&
+		   ((config->hardware_type != ARPHRD_NONE && config->hardware_type != ARPHRD_PPP &&
+		     config->hardware_type != ARPHRD_RAWIP) ||
+		    !ip_protocol(skb->protocol))) {
 		goto unsupported;
+	}
 	if (offset > skb->len)
 		goto unsupported;
 	return cake_accounted_bytes(&config->cake, skb->len, offset);
@@ -419,95 +405,69 @@ static __always_inline struct tcpdelay_inject_counters *inject_counters_entry(vo
 	return bpf_map_lookup_elem(&inject_counters, &zero);
 }
 
-/* The server, with the client for IPv6; IPv4 clients are hidden by NAT. */
+/* The server, for every client. */
 static __always_inline struct tcpdelay_inject_server_key
-inject_server_key(const struct tcpdelay_record_flow *flow, int ipv6)
+inject_server_key(const struct tcpdelay_record_flow *flow)
 {
 	struct tcpdelay_inject_server_key key = { .port = flow->remote_port };
 
-	if (ipv6)
-		__builtin_memcpy(key.client, flow->local_address, sizeof(key.client));
 	__builtin_memcpy(key.address, flow->remote_address, sizeof(key.address));
 	return key;
 }
 
-/* A rejection from either side: SYNs to this server are left alone for a day. */
+/* A refused timestamped handshake: SYNs to its server are left alone for a day. */
 static __always_inline void inject_skip_server(
-	const struct tcpdelay_record_flow *flow,
-	struct tcpdelay_inject_handshake *handshake
-)
-{
-	struct tcpdelay_inject_server_key key = inject_server_key(flow, handshake->ipv6);
-	struct tcpdelay_inject_server value = { .rejected_ns = bpf_ktime_get_boot_ns() };
-
-	bpf_map_update_elem(&inject_servers, &key, &value, BPF_ANY);
-	handshake->state = TCPDELAY_INJECT_CLOSED;
-}
-
-static __always_inline struct tcpdelay_inject_state *inject_state_entry(void)
-{
-	__u32 zero = 0;
-
-	return bpf_map_lookup_elem(&inject_state, &zero);
-}
-
-/*
- * A stalled handshake: the server is skipped (with its client for IPv6). An
- * IPv4 stall may complete a burst: the injector then leaves IPv4 SYNs alone
- * until the daemon switches or pauses (tcpdelay_inject_resolve()).
- */
-static __always_inline void inject_stall(
 	const struct tcpdelay_record_flow *flow,
 	struct tcpdelay_inject_handshake *handshake,
 	struct tcpdelay_inject_counters *totals
 )
 {
-	__u32 zero = 0;
-	const struct tcpdelay_inject_settings *config;
-	struct tcpdelay_inject_state *state;
-	__u64 now_ns;
+	struct tcpdelay_inject_server_key key = inject_server_key(flow);
+	struct tcpdelay_inject_server value = { .rejected_ns = bpf_ktime_get_boot_ns() };
 
-	inject_skip_server(flow, handshake);
-	if (handshake->ipv6) {
-		totals->stalled_ipv6++;
-		return;
-	}
-	totals->stalled_ipv4++;
-	config = bpf_map_lookup_elem(&inject_settings, &zero);
-	state = inject_state_entry();
-	if (config == NULL || state == NULL)
-		return;
-	now_ns = bpf_ktime_get_boot_ns();
-	if (tcpdelay_inject_stall_burst(state, now_ns, config->stall_window_ns))
-		state->burst = 1U;
+	bpf_map_update_elem(&inject_servers, &key, &value, BPF_ANY);
+	handshake->state = TCPDELAY_INJECT_CLOSED;
+	totals->skipped++;
 }
 
 /*
  * The client's first timestamp on a connection we injected and the server
- * accepted: its clock, per client for IPv6 and as one of the clocks behind
- * NAT for IPv4. Called only for a flow's first outgoing timestamp.
+ * accepted: its clock, injected into its later SYNs. Called only for a flow's
+ * first outgoing timestamp.
  */
 static __always_inline void inject_learn(const struct tcpdelay_record_flow *flow, __u32 tsval)
 {
 	struct tcpdelay_inject_handshake *handshake = bpf_map_lookup_elem(&inject_handshakes, flow);
-	struct tcpdelay_inject_state *state;
-	__u64 now_ns;
+	struct tcpdelay_inject_client_key key = {};
+	struct tcpdelay_inject_client client = { .tsval = tsval };
 
 	if (handshake == NULL || handshake->learned || handshake->state != TCPDELAY_INJECT_ACCEPTED)
 		return;
 	handshake->learned = 1;
-	now_ns = bpf_ktime_get_boot_ns();
-	if (handshake->ipv6) {
-		struct tcpdelay_inject_client_key key = {};
-		struct tcpdelay_inject_client client = { .seen_ns = now_ns, .tsval = tsval };
+	client.seen_ns = bpf_ktime_get_boot_ns();
+	__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
+	bpf_map_update_elem(&inject_clients, &key, &client, BPF_ANY);
+}
 
-		__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
-		bpf_map_update_elem(&inject_clients, &key, &client, BPF_ANY);
+/*
+ * A stalled handshake: the client's clock looks older than the injected TSval.
+ * Its next SYNs get STALLED_TSVAL until its clock is learned, usually from this
+ * very connection, whose handshake reply carried it.
+ */
+static __always_inline void inject_stall(const struct tcpdelay_record_flow *flow)
+{
+	struct tcpdelay_inject_client_key key = {};
+	struct tcpdelay_inject_client *known;
+	struct tcpdelay_inject_client client = { .stalled = 1U };
+
+	__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
+	known = bpf_map_lookup_elem(&inject_clients, &key);
+	if (known != NULL) {
+		known->stalled = 1U;
 		return;
 	}
-	state = inject_state_entry();
-	if (state != NULL)
-		tcpdelay_inject_learn_clock(state, tsval, now_ns);
+	client.seen_ns = bpf_ktime_get_boot_ns();
+	bpf_map_update_elem(&inject_clients, &key, &client, BPF_ANY);
 }
 
 /*
@@ -527,27 +487,25 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 	if (totals == NULL)
 		return;
 	if (tcp->rst) {
-		if (tcpdelay_inject_server_reset_rejects(handshake)) {
-			inject_skip_server(flow, handshake);
-			totals->server_rejected++;
-		}
+		if (tcpdelay_inject_server_reset_rejects(handshake))
+			inject_skip_server(flow, handshake, totals);
 		return;
 	}
 	switch (tcpdelay_inject_classify_answer(handshake, echo == handshake->tsval)) {
 	case TCPDELAY_INJECT_ANSWER_ACCEPTED:
 		handshake->state = TCPDELAY_INJECT_ACCEPTED;
-		totals->server_accepted++;
+		totals->accepted++;
 		break;
 	case TCPDELAY_INJECT_ANSWER_DECLINED:
 		handshake->state = TCPDELAY_INJECT_ANSWERED;
-		totals->server_declined++;
 		break;
 	case TCPDELAY_INJECT_ANSWER_REJECTED:
-		inject_skip_server(flow, handshake);
-		totals->server_rejected++;
+		inject_skip_server(flow, handshake, totals);
 		break;
 	case TCPDELAY_INJECT_ANSWER_STALLED:
-		inject_stall(flow, handshake, totals);
+		handshake->state = TCPDELAY_INJECT_CLOSED;
+		inject_stall(flow);
+		totals->stalled++;
 		break;
 	case TCPDELAY_INJECT_ANSWER_NONE:
 		break;
@@ -573,6 +531,8 @@ int tcpdelay(struct __sk_buff *skb)
 	__u32 options_length;
 	__u32 tsval = 0;
 	__u32 tsecr = 0;
+	/* Only IPv6 connections are injected, so only they look a handshake up. */
+	int injectable = skb->protocol == bpf_htons(ETH_P_IPV6);
 	int found = 0;
 	int answer;
 
@@ -604,12 +564,12 @@ int tcpdelay(struct __sk_buff *skb)
 			find_timestamp(options, options_length, &tsval, &tsecr);
 	}
 	if (skb->pkt_type == PACKET_OUTGOING) {
-		if (found && outgoing(&flow, tsval, tcp.syn))
+		if (found && outgoing(&flow, tsval, tcp.syn) && injectable)
 			inject_learn(&flow, tsval);
 		return 0;
 	}
 	/* A SYN-ACK or reset may answer an injected SYN, with or without a timestamp. */
-	answer = tcp.rst || (tcp.syn && tcp.ack);
+	answer = injectable && (tcp.rst || (tcp.syn && tcp.ack));
 	if (!found && !answer)
 		return 0;
 	swap_flow(&flow);
@@ -629,42 +589,23 @@ struct segment {
 	/* The whole IP packet: header, TCP header and data. */
 	__u32 ip_bytes;
 	__u32 options_bytes;
-	int ipv6;
 };
 
-/* Fills the segment as (source, destination); -1 for anything but TCP. */
+/* Fills the segment as (source, destination); -1 for anything but TCP over IPv6. */
 static __always_inline int
 inject_parse(struct __sk_buff *skb, __u32 network_offset, struct segment *segment)
 {
+	struct ipv6hdr ip;
+
 	segment->network_offset = network_offset;
-	if (skb->protocol == bpf_htons(ETH_P_IP)) {
-		struct iphdr ip;
-
-		if (bpf_skb_load_bytes(skb, network_offset, &ip, sizeof(ip)) < 0 ||
-		    ip.protocol != IPPROTO_TCP || ip.ihl < 5 ||
-		    (ip.frag_off & bpf_htons(IPV4_FRAGMENT_MASK)) != 0)
-			return -1;
-		segment->flow.local_address[10] = 0xff;
-		segment->flow.local_address[11] = 0xff;
-		__builtin_memcpy(&segment->flow.local_address[12], &ip.saddr, sizeof(ip.saddr));
-		segment->flow.remote_address[10] = 0xff;
-		segment->flow.remote_address[11] = 0xff;
-		__builtin_memcpy(&segment->flow.remote_address[12], &ip.daddr, sizeof(ip.daddr));
-		segment->tcp_offset = network_offset + ip.ihl * 4U;
-		segment->ip_bytes = bpf_ntohs(ip.tot_len);
-	} else {
-		struct ipv6hdr ip;
-
-		/* Extension headers before TCP are rare enough to skip. */
-		if (bpf_skb_load_bytes(skb, network_offset, &ip, sizeof(ip)) < 0 ||
-		    ip.nexthdr != IPPROTO_TCP)
-			return -1;
-		__builtin_memcpy(segment->flow.local_address, &ip.saddr, sizeof(ip.saddr));
-		__builtin_memcpy(segment->flow.remote_address, &ip.daddr, sizeof(ip.daddr));
-		segment->tcp_offset = network_offset + sizeof(ip);
-		segment->ip_bytes = sizeof(ip) + bpf_ntohs(ip.payload_len);
-		segment->ipv6 = 1;
-	}
+	/* Extension headers before TCP are rare enough to skip. */
+	if (bpf_skb_load_bytes(skb, network_offset, &ip, sizeof(ip)) < 0 ||
+	    ip.nexthdr != IPPROTO_TCP)
+		return -1;
+	__builtin_memcpy(segment->flow.local_address, &ip.saddr, sizeof(ip.saddr));
+	__builtin_memcpy(segment->flow.remote_address, &ip.daddr, sizeof(ip.daddr));
+	segment->tcp_offset = network_offset + sizeof(ip);
+	segment->ip_bytes = sizeof(ip) + bpf_ntohs(ip.payload_len);
 	if (bpf_skb_load_bytes(skb, segment->tcp_offset, &segment->tcp, sizeof(segment->tcp)) < 0 ||
 	    segment->tcp.doff < 5)
 		return -1;
@@ -688,6 +629,7 @@ append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsv
 	__u32 checksum = segment->tcp_offset + TCP_CHECKSUM_OFFSET;
 	__u16 old_word;
 	__u16 new_word;
+	__be16 payload;
 	__s64 diff;
 
 	if (bpf_skb_change_tail(
@@ -726,60 +668,24 @@ append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsv
 	);
 	diff = bpf_csum_diff(NULL, 0, added, sizeof(added), 0);
 	bpf_l4_csum_replace(skb, checksum, 0, (__u32)diff, 0);
-	if (segment->ipv6) {
-		__be16 payload =
-			bpf_htons(segment->ip_bytes - sizeof(struct ipv6hdr) + INJECT_ADDED_BYTES);
-
-		return bpf_skb_store_bytes(
-			skb,
-			segment->network_offset + IPV6_LENGTH_OFFSET,
-			&payload,
-			sizeof(payload),
-			0
-		);
-	}
-	{
-		__be16 old_length = bpf_htons(segment->ip_bytes);
-		__be16 new_length = bpf_htons(segment->ip_bytes + INJECT_ADDED_BYTES);
-
-		bpf_l3_csum_replace(
-			skb,
-			segment->network_offset + IPV4_CHECKSUM_OFFSET,
-			old_length,
-			new_length,
-			2
-		);
-		return bpf_skb_store_bytes(
-			skb,
-			segment->network_offset + IPV4_LENGTH_OFFSET,
-			&new_length,
-			sizeof(new_length),
-			0
-		);
-	}
+	/* IPv6 has no header checksum; only its payload length grows. */
+	payload = bpf_htons(segment->ip_bytes - sizeof(struct ipv6hdr) + INJECT_ADDED_BYTES);
+	return bpf_skb_store_bytes(
+		skb,
+		segment->network_offset + IPV6_LENGTH_OFFSET,
+		&payload,
+		sizeof(payload),
+		0
+	);
 }
 
-/*
- * The TSval to inject: an IPv6 client's own learned clock, or the IPv4 one
- * (TSVAL, or the youngest learned clock after a stall burst); 0 while IPv4 is
- * paused or a burst waits for the daemon.
- */
-static __always_inline __u32
-inject_tsval(const struct tcpdelay_record_flow *flow, int ipv6, __u64 now_ns)
+/* The TSval to inject: tcpdelay_inject_client_tsval() for the SYN's client. */
+static __always_inline __u32 inject_tsval(const struct tcpdelay_record_flow *flow, __u64 now_ns)
 {
-	struct tcpdelay_inject_state *state;
+	struct tcpdelay_inject_client_key key = {};
 
-	if (ipv6) {
-		struct tcpdelay_inject_client_key key = {};
-
-		__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
-		return tcpdelay_inject_client_tsval(
-			bpf_map_lookup_elem(&inject_clients, &key),
-			now_ns
-		);
-	}
-	state = inject_state_entry();
-	return state != NULL ? tcpdelay_inject_ipv4_tsval(state) : TCPDELAY_INJECT_TSVAL;
+	__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
+	return tcpdelay_inject_client_tsval(bpf_map_lookup_elem(&inject_clients, &key), now_ns);
 }
 
 /*
@@ -842,16 +748,13 @@ static __always_inline void inject_new_syn(
 	handshake = bpf_map_lookup_elem(&inject_handshakes, &segment->flow);
 	switch (tcpdelay_inject_classify_syn(handshake, sequence)) {
 	case TCPDELAY_INJECT_SYN_RETRY:
-		if (handshake != NULL) {
+		if (handshake != NULL)
 			handshake->state = TCPDELAY_INJECT_RETRIED;
-			totals->retried++;
-		}
 		return;
 	case TCPDELAY_INJECT_SYN_REJECTED:
-		if (handshake != NULL) {
-			inject_skip_server(&segment->flow, handshake);
-			totals->client_rejected++;
-		}
+		/* The answer never reached the client's stack: skip the server. */
+		if (handshake != NULL)
+			inject_skip_server(&segment->flow, handshake, totals);
 		return;
 	case TCPDELAY_INJECT_SYN_PASS:
 		return;
@@ -859,24 +762,16 @@ static __always_inline void inject_new_syn(
 		break;
 	}
 	now_ns = bpf_ktime_get_boot_ns();
-	key = inject_server_key(&segment->flow, segment->ipv6);
+	key = inject_server_key(&segment->flow);
 	if (tcpdelay_inject_server_skipped(bpf_map_lookup_elem(&inject_servers, &key), now_ns)) {
 		totals->skipped++;
 		return;
 	}
-	tsval = inject_tsval(&segment->flow, segment->ipv6, now_ns);
-	if (tsval == 0U) {
-		totals->paused++;
+	tsval = inject_tsval(&segment->flow, now_ns);
+	if (append_timestamp(skb, segment, tsval) < 0)
 		return;
-	}
-	if (append_timestamp(skb, segment, tsval) < 0) {
-		totals->failed++;
-		return;
-	}
-	fresh.sent_ns = now_ns;
 	fresh.sequence = sequence;
 	fresh.tsval = tsval;
-	fresh.ipv6 = (__u8)segment->ipv6;
 	fresh.state = TCPDELAY_INJECT_SENT;
 	bpf_map_update_elem(&inject_handshakes, &segment->flow, &fresh, BPF_ANY);
 	totals->injected++;
@@ -891,56 +786,49 @@ static __always_inline void inject_outgoing(struct __sk_buff *skb, __u32 network
 
 	if (totals == NULL || inject_parse(skb, network_offset, &segment) < 0)
 		return;
-	if (segment.tcp.syn && !segment.tcp.ack && !segment.tcp.rst) {
-		if (inject_syn_eligible(skb, &segment))
-			inject_new_syn(skb, &segment, totals);
+	if (segment.tcp.rst) {
+		handshake = bpf_map_lookup_elem(&inject_handshakes, &segment.flow);
+		if (tcpdelay_inject_client_reset_rejects(handshake, bpf_ntohl(segment.tcp.seq)) &&
+		    handshake != NULL)
+			inject_skip_server(&segment.flow, handshake, totals);
 		return;
 	}
-	if (!segment.tcp.rst)
-		return;
-	handshake = bpf_map_lookup_elem(&inject_handshakes, &segment.flow);
-	if (tcpdelay_inject_client_reset_rejects(handshake, bpf_ntohl(segment.tcp.seq)) &&
-	    handshake != NULL) {
-		inject_skip_server(&segment.flow, handshake);
-		totals->client_rejected++;
-	}
+	if (inject_syn_eligible(skb, &segment))
+		inject_new_syn(skb, &segment, totals);
 }
 
 /*
  * tcx egress on the upload interface, before the root qdisc. Every packet is
- * checked in place, without copies or helper calls; only SYNs and resets go
- * on. Returns TCX_NEXT, so tc filters after it still run.
+ * checked in place, without copies or helper calls; only IPv6 SYNs and resets
+ * go on.
+ * Returns TCX_NEXT, so tc filters after it still run.
  */
 SEC("tcx/egress")
 int inject_egress(struct __sk_buff *skb)
 {
 	__u32 zero = 0;
-	const struct tcpdelay_inject_settings *config =
-		bpf_map_lookup_elem(&inject_settings, &zero);
+	const struct tcpdelay_inject_settings *config;
 	__u8 *data = (__u8 *)(long)skb->data;
 	__u8 *data_end = (__u8 *)(long)skb->data_end;
+	struct ipv6hdr *ip;
 	struct tcphdr *tcp;
 	__u32 network_offset;
 
+	/*
+	 * IPv4 is left alone, before any lookup: behind NAT, one TSval would have
+	 * to suit every client.
+	 */
+	if (skb->protocol != bpf_htons(ETH_P_IPV6))
+		return TCX_NEXT;
+	config = bpf_map_lookup_elem(&inject_settings, &zero);
 	if (config == NULL || config->network_offset > ETH_HLEN)
 		return TCX_NEXT;
 	network_offset = config->network_offset;
-	if (skb->protocol == bpf_htons(ETH_P_IP)) {
-		struct iphdr *ip = (struct iphdr *)(data + network_offset);
-
-		if ((__u8 *)(ip + 1) > data_end || ip->protocol != IPPROTO_TCP)
-			return TCX_NEXT;
-		tcp = (struct tcphdr *)((__u8 *)ip + ip->ihl * 4U);
-	} else if (skb->protocol == bpf_htons(ETH_P_IPV6)) {
-		struct ipv6hdr *ip = (struct ipv6hdr *)(data + network_offset);
-
-		if ((__u8 *)(ip + 1) > data_end || ip->nexthdr != IPPROTO_TCP)
-			return TCX_NEXT;
-		tcp = (struct tcphdr *)(ip + 1);
-	} else {
+	ip = (struct ipv6hdr *)(data + network_offset);
+	if ((__u8 *)(ip + 1) > data_end || ip->nexthdr != IPPROTO_TCP)
 		return TCX_NEXT;
-	}
-	if ((__u8 *)(tcp + 1) > data_end || (!tcp->syn && !tcp->rst))
+	tcp = (struct tcphdr *)(ip + 1);
+	if ((__u8 *)(tcp + 1) > data_end || (!tcp->rst && (!tcp->syn || tcp->ack)))
 		return TCX_NEXT;
 	inject_outgoing(skb, network_offset);
 	return TCX_NEXT;
