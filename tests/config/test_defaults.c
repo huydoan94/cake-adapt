@@ -35,6 +35,7 @@ int main(void)
 	assert(config.monitor_achieved_rates_interval_us == 200000U);
 	assert(!config.tcp_delay_attribution);
 	assert(!config.tcp_timestamp_inject);
+	assert(config.tcp_ts_stall_window_us == 40000000U);
 	assert(config.ul_congest_ack_share_ratio_e6 == 0U);
 	assert(config.bufferbloat_detection_window == 6U);
 	assert(config.bufferbloat_detection_threshold == 3U);

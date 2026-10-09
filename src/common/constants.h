@@ -254,6 +254,7 @@
 #define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
 #define OPTION_UL_CONGEST_ACK_SHARE "ul_congest_ack_share"
 #define OPTION_TCP_TIMESTAMP_INJECT "tcp_timestamp_inject"
+#define OPTION_TCP_TS_STALL_WINDOW "tcp_ts_stall_window_s"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW "reflector_misbehaving_detection_window"

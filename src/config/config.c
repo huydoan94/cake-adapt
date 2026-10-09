@@ -127,6 +127,7 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_SUSTAINED_IDLE_SLEEP, sustained_idle_sleep_threshold_us, SECOND),
 	SCALED_OPTION(OPTION_LOG_FILE_BUFFER_TIMEOUT, log_file_buffer_timeout_us, MILLISECOND),
 	SCALED_OPTION(OPTION_IRTT_SESSION_DURATION, irtt_session_duration_us, MINUTE),
+	SCALED_OPTION(OPTION_TCP_TS_STALL_WINDOW, tcp_ts_stall_window_us, SECOND),
 	SCALED_OPTION(
 		OPTION_TRAFFIC_MONITOR_INTERVAL,
 		monitor_achieved_rates_interval_us,

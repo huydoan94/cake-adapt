@@ -139,6 +139,7 @@ Do not use `ack-filter-aggressive`.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `tcp_timestamp_inject` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Adds a TCP timestamp to clients' SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its connections are measured in both directions. |
+| `tcp_ts_stall_window_s` | decimal | `40` | Not in cake-autorate. 5 IPv4 handshakes that stall within this many seconds switch IPv4 injection to a learned client clock or pause it (see below). Each stall delays one connection by a SYN retry; a longer window catches slowly repeating stalls sooner. |
 
 Windows opens TCP connections without timestamps, so the TCP filter cannot
 measure them. With `tcp_timestamp_inject`, a second program in the same eBPF
@@ -172,11 +173,12 @@ again: the handshake stalls, and its server is skipped for a day.
   from its first timestamped packets and injected back to it, which suits any
   uptime; a stall skips that client and server only.
 - **IPv4** clients all share the router's address after NAT. They get the
-  value 1 (uptime up to 24.8 days). When 5 handshakes stall within 10
-  seconds, IPv4 SYNs are left alone at once and, within a second, cake-adapt
-  switches to the youngest client clock seen within a day if it is at least a
-  day old, else pauses IPv4 injection for a day; 5 more stalls within 10
-  seconds after a switch also pause it. After a pause it starts over with 1.
+  value 1 (uptime up to 24.8 days). When 5 handshakes stall within
+  `tcp_ts_stall_window_s`, IPv4 SYNs are left alone at once and, within a
+  second, cake-adapt switches to the youngest client clock seen within a day
+  if it is at least a day old, else pauses IPv4 injection for a day; 5 more
+  stalls within the window after a switch also pause it. After a pause it
+  starts over with 1.
   The `TCP_INJECT` record shows the stalls per family and the IPv4 mode.
 - **IPv6 behind NAT66 or NPTv6** is not handled; there, leave the option off.
 

@@ -462,6 +462,8 @@ static __always_inline void inject_stall(
 	struct tcpdelay_inject_counters *totals
 )
 {
+	__u32 zero = 0;
+	const struct tcpdelay_inject_settings *config;
 	struct tcpdelay_inject_state *state;
 	__u64 now_ns;
 
@@ -471,11 +473,12 @@ static __always_inline void inject_stall(
 		return;
 	}
 	totals->stalled_ipv4++;
+	config = bpf_map_lookup_elem(&inject_settings, &zero);
 	state = inject_state_entry();
-	if (state == NULL)
+	if (config == NULL || state == NULL)
 		return;
 	now_ns = bpf_ktime_get_boot_ns();
-	if (tcpdelay_inject_stall_burst(state, now_ns))
+	if (tcpdelay_inject_stall_burst(state, now_ns, config->stall_window_ns))
 		state->burst = 1U;
 }
 

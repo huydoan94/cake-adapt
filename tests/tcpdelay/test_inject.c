@@ -109,20 +109,30 @@ static void test_injected_tsval(void)
 #define SECOND_NS 1000000000ULL
 #define DAY_TICKS 86400000U
 
-/* Five stalls within ten seconds make a burst; spread out, they do not. */
+/* Five stalls within the window make a burst; spread out, they do not. */
 static void test_stall_burst(void)
 {
 	struct tcpdelay_inject_state state = { 0 };
 	uint64_t now = 1000U * SECOND_NS;
+	uint64_t window = 40U * SECOND_NS;
 	unsigned int i;
 
 	for (i = 0U; i < 4U; i++)
-		assert(!tcpdelay_inject_stall_burst(&state, now + i * SECOND_NS));
-	assert(tcpdelay_inject_stall_burst(&state, now + 9U * SECOND_NS));
-	/* One every three seconds: never five within ten. */
+		assert(!tcpdelay_inject_stall_burst(&state, now + i * 10U * SECOND_NS, window));
+	assert(tcpdelay_inject_stall_burst(&state, now + 40U * SECOND_NS, window));
+	/* One every eleven seconds: never five within forty. */
 	state = (struct tcpdelay_inject_state){ 0 };
 	for (i = 0U; i < 20U; i++)
-		assert(!tcpdelay_inject_stall_burst(&state, now + i * 3U * SECOND_NS));
+		assert(!tcpdelay_inject_stall_burst(&state, now + i * 11U * SECOND_NS, window));
+	/* The same spacing within a longer window is a burst. */
+	state = (struct tcpdelay_inject_state){ 0 };
+	for (i = 0U; i < 4U; i++)
+		assert(!tcpdelay_inject_stall_burst(
+			&state,
+			now + i * 11U * SECOND_NS,
+			60U * SECOND_NS
+		));
+	assert(tcpdelay_inject_stall_burst(&state, now + 44U * SECOND_NS, 60U * SECOND_NS));
 }
 
 /*
