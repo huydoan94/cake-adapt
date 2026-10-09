@@ -6,8 +6,9 @@
 # BPF statistics (kernel.bpf_stats_enabled) give the filter's run count and
 # run time over the loaded minute, and /proc the daemon's CPU time.
 # ADJUST=0 keeps both shapers at their base rate, so filter variants see the
-# same traffic. INJECT=1 also turns on tcp_timestamp_inject (builds that have
-# it), whose injector program is then measured too: summary has one line per
+# same traffic. INJECT=1 also turns on tcp_ts_request (builds that have
+# it; earlier builds read its old name, tcp_timestamp_inject, also written),
+# whose injector program is then measured too: summary has one line per
 # BPF program (socket filter, then the injector).
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 OBJECT=$3
@@ -39,7 +40,7 @@ config cake_adapt 'main'
 	option max_ul_shaper_rate_kbps '12000'
 	option tcp_delay_attribution '1'
 	option ul_congest_ack_share '0.45'
-$([ "$INJECT" = 1 ] && printf "\toption tcp_timestamp_inject '1'")
+$([ "$INJECT" = 1 ] && printf "\toption tcp_ts_request '1'\n\toption tcp_timestamp_inject '1'")
 	option connection_active_thr_kbps '2000'
 	option randomize_reflectors '0'
 	option log_file_max_size_KB '50000'
