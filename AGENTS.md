@@ -175,13 +175,15 @@ in that directory and is not included from outside it.
     counts upload and pure-ACK bytes, records departures and emits reply
     samples to a ring buffer, each at most once per flow per
     `TCPDELAY_SAMPLE_INTERVAL_NS`, without wakeups. The same object holds the
-    experimental `tcp_timestamp_inject` program (`inject_egress`, tcx egress
-    on the upload interface), which only adds a timestamp option to outgoing
-    SYNs that lack one; the filter observes the SYN-ACKs and resets that
-    answer them.
+    experimental `tcp_ts_request` program (`inject_egress`, tcx egress on
+    the upload interface), which only adds a timestamp option to outgoing
+    IPv6 SYNs that lack one and leaves IPv4 untouched; the filter observes
+    the SYN-ACKs, resets and first acknowledged data that answer them.
   - `record.h`: layouts and limits shared by the filter and userspace.
-  - `inject.h`: the injection maps' layouts and its inject-or-skip policy
-    (a rejecting server is skipped for a day), unit-tested.
+  - `inject.h`: the injection maps' layouts and its inject-or-skip policy,
+    unit-tested: each client address gets 1, then 0x80000000 after a stall,
+    then its learned clock; a server (address and port) that refuses or
+    declines a timestamp is skipped for every client. Both last a day.
   - `capture.c`: loading and attaching the filter with libbpf, draining the
     ring buffer, and reading the counters.
   - `injector.c`: attaching the capture's injection program with a tcx link
@@ -539,16 +541,20 @@ measured (evidence directories under `profiling/`, indexed in its README):
 - the filter samples at most every 4 ms per flow
   (`2026-10-03-sample-thinning`, with its cost in `2026-10-03-ebpf-filter-cost`);
 - `fping-ts` was verified on the testbed (`2026-10-03-fping-ts-testbed`), and
-  the Filogic build ran on an emulated arm64 VM (`2026-10-03-arm64-vm`).
+  the Filogic build ran on an emulated arm64 VM (`2026-10-03-arm64-vm`);
+- `tcp_ts_request` (named `tcp_timestamp_inject` until 0.3.12, needs
+  `tcp_delay_attribution`): timestamps are added to IPv6 SYNs without one, so
+  Windows clients' flows can be measured (`2026-10-07-tcp-timestamp-injection`,
+  `2026-10-08-tcp-inject-clock`, `2026-10-09-tcp-inject-ipv6`). IPv4
+  injection was removed in 0.3.15 because NAT hides which client a SYN came
+  from; IPv4 is being deprecated, so do not bring it back.
 
 `profiling/2026-10-03-ebpf-design-history/` records why these designs were
 chosen.
 
 On 2026-10-03 the C sources moved to the kernel `.clang-format` (`aecacfa`) and
 a cleanup pass removed duplication, dead code and hand-written arithmetic
-(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass, and
-the current code has run in controlled x86 VM comparisons
-(`2026-10-05-gpt-work-check`), but not through a lifecycle run.
+(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass.
 
 The TCP-delay estimator is under review in `docs/design/EBPF_REVIEW.md`, whose section 9 is
 the working order. Findings and their state:
@@ -563,7 +569,7 @@ the working order. Findings and their state:
   flow's estimate. Rejected samples no longer keep a stale slot fresh
   (`7665e7e`); both full tuple-lifetime designs were reverted (see below);
 - sustained change in remote reply timing read as upload queue: open and
-  uncommon.
+  uncommon; the user will decide later whether to take it up.
 
 On 2026-10-05 a guard that used TCP queue shares only when they agreed with the
 delivery heuristic caused a measured control regression and was reverted
@@ -586,7 +592,7 @@ Do not claim parity for a new behavior from host tests alone. `fping` remains
 the only supported production pinger until every additional backend has
 independent parser, lifecycle, fixture, and runtime verification.
 
-### Current status (2026-10-05)
+### Current status (2026-10-09)
 
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
@@ -595,13 +601,15 @@ independent parser, lifecycle, fixture, and runtime verification.
   (`5458100`, design, tools and unfinished work archived in
   `2026-10-05-tcp-lifetime-stream`). Do not restart it without a user decision
   and a concrete deployment need.
-- The x86 test VM runs the `d6564a6` package. The Filogic build has not run
-  on the arm64 VM since `58fb835`, and the current code has had no lifecycle
-  run. Before the user deploys, run the lifecycle and a controlled run with
-  the Filogic build on the arm64 VM.
-- The user keeps the version bump (packages are still 0.2.11-r1), pushing,
-  the router install, fping-ts on internet reflectors, and the profiling and
-  flowchart indexes.
+- Packages are at 0.3.15-r1, and the user runs them on their Filogic routers;
+  the arm64 VM is no longer needed before a deployment. The x86 test VM runs
+  the 0.3.15 package with `tcp_ts_request` on, and that code passed the
+  lifecycle checks and a controlled run (`2026-10-09-tcp-inject-ipv6`).
+- Waiting on field data from the routers: whether `TCP_INJECT` shows
+  `ACCEPTED` close to `INJECTED` with few `STALLED`, and an on/off testbed
+  comparison of whether injection reduces bufferbloat.
+- The user keeps the version bump, pushing, the router install, fping-ts on
+  internet reflectors, and the root README.
 
 ## VM testing and delegation
 
