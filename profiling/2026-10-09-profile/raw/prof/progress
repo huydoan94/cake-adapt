@@ -1,0 +1,21 @@
+13:11:43 start 01-head-cpu
+13:16:36 done 01-head-cpu
+13:16:36 start 02-base-cpu
+13:21:29 done 02-base-cpu
+13:21:29 start 03-base-cpu
+13:26:22 done 03-base-cpu
+13:26:22 start 04-head-cpu
+13:31:15 done 04-head-cpu
+13:31:15 start 05-head-cpu
+13:36:08 done 05-head-cpu
+13:36:08 start 06-base-cpu
+13:41:02 done 06-base-cpu
+13:41:02 start 07-head-perf
+13:45:56 done 07-head-perf
+13:45:56 start 08-base-perf
+13:50:50 done 08-base-perf
+13:50:50 start 09-head-strace
+13:51:40 done 09-head-strace
+13:51:40 start 10-base-strace
+13:52:31 done 10-base-strace
+13:52:31 finished

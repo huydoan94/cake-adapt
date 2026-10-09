@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.056 MB /tmp/e2e/prof/08-base-perf/bidirectional6.perf.data (266 samples) ]
