@@ -144,7 +144,18 @@ write() {
 		replaying = 0
 		next
 	}
-	replaying { held_line[++held] = $0; next }
+	# While the router replays its log, the screen hears how much has
+	# arrived, every 64 KB.
+	replaying {
+		held_line[++held] = $0
+		held_bytes += length($0) + 1
+		if (!print_lines && held_bytes >= reported + 65536) {
+			reported = held_bytes
+			print "R " held_bytes
+			fflush()
+		}
+		next
+	}
 	{ emit($0) }'
 }
 
@@ -153,9 +164,11 @@ write() {
 # following the file: reading a file on a Windows drive (/mnt/c, /mnt/d) while
 # it grows can fail with "No data available", which stops tail -F. It redraws
 # once a second on a tick that carries the time, the file size and the
-# terminal width. Lines are prefixed L (log), E (event), T (tick) or H (history
-# read only for the router's clock), and every writer writes whole lines, so
-# they never interleave mid-line.
+# terminal width. Lines are prefixed L (log), E (event), T (tick), H (history
+# read only for the router's clock), S (a loading step, drawn at once so the
+# screen is never blank while a large file is read) or R (how much of the
+# router's replay has arrived), and every writer writes whole lines, so they
+# never interleave mid-line.
 #
 # The router's start time is shown corrected for its clock: after a reboot the
 # router runs on a restored clock, saved at shutdown or taken from its files,
@@ -171,6 +184,10 @@ dashboard() {
 	local start_line
 
 	{
+		# Each step that can take long is announced first, so the screen shows
+		# what it is waiting for instead of staying blank.
+		columns=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
+		echo "S ${columns:-120} $(stat -c %s "$local_file" 2>/dev/null || echo 0) reading the router's last start in $local_file"
 		# The router's last start, which may lie far back in the file, with the
 		# records before it and the first part of its run for the clock check.
 		start_line=$(grep -an 'Starting cake-adapt' "$local_file" 2>/dev/null | tail -n 1 | cut -d: -f1)
@@ -180,8 +197,10 @@ dashboard() {
 			sed -n "$((start_line > 20 ? start_line - 20 : 1)),$((start_line + 50000))p; $((start_line + 50000))q" \
 				"$local_file" | sed 's/^/H /'
 		fi
+		echo "S ${columns:-120} 0 reading the last 3,000 lines"
 		tail -n 3000 "$local_file" 2>/dev/null | sed 's/^/L /'
 		tail -n 4 "$events" 2>/dev/null | sed 's/^/E /'
+		echo "S ${columns:-120} 0"
 		cat "$feed" &
 		while sleep 1; do
 			columns=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
@@ -266,6 +285,10 @@ dashboard() {
 			status_text = "connected since " when(connected_at) " (" ago(connected_at) ")"
 		else if (status_at)
 			status_text = status " since " when(status_at) " (" ago(status_at) ")"
+		if (status == "connecting" && replay_bytes != "")
+			status_text = status_text ", router replay " size(replay_bytes) " received"
+		if (loading != "")
+			line(sprintf("%-12s %s ...", "Loading", loading))
 		line(sprintf("%-12s %s, reconnects %d", "Connection", status_text, reconnects))
 		line(sprintf("%-12s download %s, upload %s", "Throughput", traffic(1), traffic(2)))
 		line(sprintf("%-12s %s this run at %s; file %s of %s; %d archived", "Log capture",
@@ -362,7 +385,9 @@ dashboard() {
 		CLOCK_STEP_S = 5
 		BLOAT_HOLD_S = 2
 		status = "starting"
-		opened = systime()
+		opened = now = systime()
+		columns = 120
+		loading = "starting"
 		bb_first = 1
 		# The screen passes these to its functions before any record arrives.
 		# gawk 5.2 crashes ("unexpected parameter type Node_illegal") when a
@@ -372,6 +397,24 @@ dashboard() {
 			delay[d] = delayed[d] = queue_valid[d] = queue_us[d] = ""
 		}
 		printf "\033[?25l\033[H\033[2J"
+	}
+	# A loading step (S columns bytes text; no text when the history is read),
+	# drawn at once.
+	/^S / {
+		split($0, step, " ")
+		columns = step[2]
+		loading = $0
+		sub(/^S [0-9]+ [0-9]+ ?/, "", loading)
+		if (loading != "" && step[3] > 0)
+			loading = loading " (" size(step[3]) ")"
+		now = systime()
+		draw()
+		next
+	}
+	# The router replay so far, in bytes.
+	/^R / {
+		replay_bytes = substr($0, 3)
+		next
 	}
 	/^T / {
 		split($0, tick, " ")
@@ -416,6 +459,7 @@ dashboard() {
 				reconnects++
 			status = "connecting"
 			status_at = t
+			replay_bytes = ""
 		} else if (message ~ /^disconnected/) {
 			status = "disconnected"
 			status_at = t
@@ -445,6 +489,7 @@ dashboard() {
 		if (status == "connecting") {
 			status = "connected"
 			connected_at = now ? now : systime()
+			replay_bytes = ""
 		}
 		if (f[3] ~ /^[0-9]+\.[0-9]+$/)
 			record_time = int(f[3])
@@ -577,6 +622,10 @@ event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
 # sh (read -t is not), and it removes its files however it ends (closed
 # session, SIGHUP from the SSH server, or the watchdog).
 # The router's shell expands its $ references, so they stay quoted here.
+#
+# FROZEN: the follower below is final as of fcb9184 (measured in
+# profiling/2026-10-09-follower). Do not modify it; make changes on the PC
+# side of this script instead.
 # shellcheck disable=SC2016
 follower='#!/bin/sh
 # Written by capture-log.sh for each SSH session; safe to delete.
