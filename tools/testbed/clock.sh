@@ -1,6 +1,6 @@
 #!/bin/sh
 # clock.sh NAME BINARY MODE
-# tcp_timestamp_inject against a Windows-like client whose own timestamp clock
+# tcp_ts_request against a Windows-like client whose own timestamp clock
 # may be "older" than the injected TSval, which servers then drop (PAWS).
 # The client in cpe sends SYNs without a timestamp yet adopts the server's,
 # as Windows does: nftables blanks the timestamp option of its SYNs before
@@ -65,7 +65,7 @@ config cake_adapt 'main'
 	option base_ul_shaper_rate_kbps '6000'
 	option max_ul_shaper_rate_kbps '12000'
 	option tcp_delay_attribution '1'
-	option tcp_timestamp_inject '1'
+	option tcp_ts_request '1'
 	option randomize_reflectors '0'
 	option output_processing_stats '1'
 	option log_file_max_size_KB '50000'
