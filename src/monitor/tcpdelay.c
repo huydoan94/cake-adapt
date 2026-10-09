@@ -33,10 +33,6 @@ void tcp_init(struct monitor *monitor)
 {
 	tcpdelay_capture_init(&monitor->tcp.capture);
 	tcpdelay_injector_init(&monitor->tcp.injector);
-	tcpdelay_injector_set_stall_window(
-		&monitor->tcp.injector,
-		monitor->config->tcp_ts_stall_window_us
-	);
 }
 
 void tcp_start(struct monitor *monitor)
@@ -55,34 +51,13 @@ void tcp_start(struct monitor *monitor)
 		);
 }
 
-static const char *inject_mode_name(uint32_t mode)
-{
-	if (mode == TCPDELAY_INJECT_SWITCHED)
-		return INJECT_MODE_SWITCHED;
-	if (mode == TCPDELAY_INJECT_PAUSED)
-		return INJECT_MODE_PAUSED;
-	return INJECT_MODE_NORMAL;
-}
-
-static struct log_tcp_inject_record inject_record(
-	const struct tcpdelay_inject_counters *counters,
-	const struct tcpdelay_inject_state *state
-)
+static struct log_tcp_inject_record inject_record(const struct tcpdelay_inject_counters *counters)
 {
 	return (struct log_tcp_inject_record){
 		.injected = counters->injected,
 		.skipped = counters->skipped,
-		.server_accepted = counters->server_accepted,
-		.server_declined = counters->server_declined,
-		.client_rejected = counters->client_rejected,
-		.server_rejected = counters->server_rejected,
-		.retried = counters->retried,
-		.failed = counters->failed,
-		.stalled_ipv4 = counters->stalled_ipv4,
-		.stalled_ipv6 = counters->stalled_ipv6,
-		.paused = counters->paused,
-		.ipv4_mode = inject_mode_name(state->mode),
-		.ipv4_tsval = state->tsval != 0U ? state->tsval : TCPDELAY_INJECT_TSVAL,
+		.accepted = counters->accepted,
+		.stalled = counters->stalled,
 	};
 }
 
@@ -125,10 +100,9 @@ static void detach_injector(struct monitor *monitor)
 		log_message(
 			LOG_LEVEL_NOTICE,
 			"Stopped TCP timestamp injection with injected SYNs: %" PRIu64
-			", IPv4 stalls: %" PRIu64 " and IPv6 stalls: %" PRIu64,
+			" and stalls: %" PRIu64,
 			(uint64_t)counters.injected,
-			(uint64_t)counters.stalled_ipv4,
-			(uint64_t)counters.stalled_ipv6
+			(uint64_t)counters.stalled
 		);
 	tcpdelay_injector_detach(injector);
 }
@@ -176,79 +150,17 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	return true;
 }
 
-/* Once a minute: the injector's counters and IPv4 mode. */
+/* Once a minute: the injector's counters. */
 static void log_injector(struct monitor *monitor)
 {
-	struct monitor_tcp *tcp = &monitor->tcp;
 	struct tcpdelay_inject_counters counters;
-	struct tcpdelay_inject_state state;
 	struct log_tcp_inject_record record;
 
 	if (!monitor->config->output_processing_stats ||
-	    tcpdelay_injector_counters(&tcp->injector, &counters) != 0 ||
-	    tcpdelay_injector_state(&tcp->capture, &state) != 0)
+	    tcpdelay_injector_counters(&monitor->tcp.injector, &counters) != 0)
 		return;
-	record = inject_record(&counters, &state);
+	record = inject_record(&counters);
 	log_tcp_inject(&record);
-}
-
-/*
- * Every second: acts on a stall burst the filter recorded (switch to the
- * youngest learned clock, or pause) and ends a pause after a day. The
- * injector leaves IPv4 SYNs alone from the burst until this runs.
- */
-static void resolve_injection(struct monitor *monitor, uint64_t timestamp_us)
-{
-	struct monitor_tcp *tcp = &monitor->tcp;
-	struct tcpdelay_inject_state state;
-	const char *from;
-	uint64_t boot_us;
-
-	if (timestamp_us < tcp->next_inject_check_us)
-		return;
-	tcp->next_inject_check_us = timestamp_us + TCPDELAY_INJECT_CHECK_US;
-	/* The program's clock: CLOCK_BOOTTIME. */
-	if (!read_clock_us(CLOCK_BOOTTIME, &boot_us) ||
-	    tcpdelay_injector_state(&tcp->capture, &state) != 0)
-		return;
-	from = inject_mode_name(state.mode);
-	switch (tcpdelay_inject_resolve(&state, boot_us * NANOSECONDS_PER_MICROSECOND)) {
-	case TCPDELAY_INJECT_UNCHANGED:
-		return;
-	case TCPDELAY_INJECT_TO_SWITCHED:
-		log_message(
-			LOG_LEVEL_WARNING,
-			"Warning: IPv4 handshake stall burst detected. Changing IPv4 timestamp injection"
-			" state from: %s to: %s with tsval: %" PRIu32,
-			from,
-			INJECT_MODE_SWITCHED,
-			state.tsval
-		);
-		break;
-	case TCPDELAY_INJECT_TO_PAUSED:
-		log_message(
-			LOG_LEVEL_WARNING,
-			"Warning: IPv4 handshake stall burst detected. Changing IPv4 timestamp injection"
-			" state from: %s to: %s for 24 hours.",
-			from,
-			INJECT_MODE_PAUSED
-		);
-		break;
-	case TCPDELAY_INJECT_TO_NORMAL:
-		log_message(
-			LOG_LEVEL_NOTICE,
-			"Changing IPv4 timestamp injection state from: %s to: %s with tsval: 1",
-			from,
-			INJECT_MODE_NORMAL
-		);
-		break;
-	}
-	if (tcpdelay_injector_set_state(&tcp->capture, &state) != 0)
-		log_message(
-			LOG_LEVEL_WARNING,
-			"Warning: could not update IPv4 timestamp injection state: %s.",
-			strerror(errno)
-		);
 }
 
 static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_us)
@@ -433,8 +345,6 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	if (!drain(monitor))
 		return;
 	report_dropped_records(monitor, input->timestamp_us);
-	if (tcpdelay_injector_attached(&tcp->injector))
-		resolve_injection(monitor, input->timestamp_us);
 	if (config->tcp_delay_attribution)
 		measure_queues(monitor, input->timestamp_us, queue);
 	if (config->ul_congest_ack_share_ratio_e6 != 0U)

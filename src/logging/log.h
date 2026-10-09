@@ -146,18 +146,8 @@ void log_tcp_queue(const struct log_tcp_queue_record *record);
 struct log_tcp_inject_record {
 	uint64_t injected;
 	uint64_t skipped;
-	uint64_t server_accepted;
-	uint64_t server_declined;
-	uint64_t client_rejected;
-	uint64_t server_rejected;
-	uint64_t retried;
-	uint64_t failed;
-	uint64_t stalled_ipv4;
-	uint64_t stalled_ipv6;
-	uint64_t paused;
-	/* INJECT_MODE_* */
-	const char *ipv4_mode;
-	uint32_t ipv4_tsval;
+	uint64_t accepted;
+	uint64_t stalled;
 };
 
 void log_tcp_inject(const struct log_tcp_inject_record *record);
