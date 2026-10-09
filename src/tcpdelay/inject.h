@@ -16,13 +16,18 @@
  *
  * The client's own timestamps must not look older than the injected TSval:
  * servers drop segments whose TSval is behind the last one they saw (PAWS,
- * RFC 7323), comparing 32-bit values by their signed difference. Windows
- * counts milliseconds since boot, so an injected 1 is behind every clock
- * from 1 ms to 24.8 days of uptime (2^31 ms). An older clock makes the
- * server drop the client's handshake ACK and resend its SYN-ACK; that stalled
- * handshake skips the server, and the daemon pauses injection when stalls
- * repeat. Behind NAT the program cannot tell clients apart, so it cannot
- * learn each one's clock.
+ * RFC 7323), comparing 32-bit values by their signed difference, so one
+ * injected value covers the clocks within 2^31 ticks (24.8 days of Windows
+ * uptime) after it. An older clock makes the server drop the client's
+ * handshake ACK and resend its SYN-ACK: the handshake stalls.
+ *
+ * IPv6 clients keep their own address, so each client's clock is learned
+ * from its first timestamped packets and injected back to it; a stall skips
+ * that client and server for a day. Behind IPv4 NAT clients cannot be told
+ * apart: all get TSVAL until 5 stalls within 10 seconds; then, if the
+ * youngest clock learned within a day is at least a day old, they get that
+ * clock instead; 5 more stalls within 10 seconds, or no such clock, pause
+ * IPv4 injection for a day, after which it starts over.
  */
 #include <linux/types.h>
 
@@ -30,19 +35,44 @@
 #include "tcpdelay/record.h"
 
 /*
- * The TSval of an injected SYN; a SYN-ACK of the same 4-tuple that echoes it
- * accepted the timestamp. Not zero, which some stacks read as no echo.
+ * Every function here is inlined: a BPF program with calls between functions
+ * cannot be JIT-compiled on 32-bit x86, and would run interpreted.
+ */
+#define INJECT_INLINE static inline __attribute__((always_inline))
+
+/*
+ * The TSval of an injected SYN while no better one is known; a SYN-ACK of the
+ * same 4-tuple that echoes the injected value accepted the timestamp. Not zero,
+ * which some stacks read as no echo.
  */
 #define TCPDELAY_INJECT_TSVAL 1U
 
 /* Each map holds about 100 KB of kernel memory. */
 #define TCPDELAY_INJECT_SERVERS 1024
 #define TCPDELAY_INJECT_HANDSHAKES 1024
-/* A skipped server is tried again after this long. */
-#define TCPDELAY_INJECT_SERVER_TTL_NS (24U * 60U * MINUTE * NANOSECONDS_PER_MICROSECOND)
+#define TCPDELAY_INJECT_CLIENTS 1024
+/* A skip, a pause and a learned clock each last a day. */
+#define TCPDELAY_INJECT_DAY_NS (24U * 60U * MINUTE * NANOSECONDS_PER_MICROSECOND)
+/* IPv4 injection changes after this many stalls within the window. */
+#define TCPDELAY_INJECT_STALL_BURST 5U
+#define TCPDELAY_INJECT_STALL_WINDOW_NS (10U * SECOND * NANOSECONDS_PER_MICROSECOND)
+/*
+ * Client clocks are compared in milliseconds since our boot, the tick of
+ * Windows timestamps. The youngest IPv4 clock replaces TSVAL only when it is
+ * at least a day old, less a margin for clocks read a little early.
+ */
+#define TCPDELAY_INJECT_TICK_NS NANOSECONDS_PER_MILLISECOND
+#define TCPDELAY_INJECT_SWITCH_MIN_TICKS ((__u32)(24U * 60U * MINUTE / MILLISECOND))
+#define TCPDELAY_INJECT_SWITCH_MARGIN_TICKS ((__u32)(10U * MINUTE / MILLISECOND))
+/* IPv4 clocks the filter remembers, oldest overwritten first; a power of two. */
+#define TCPDELAY_INJECT_CLOCKS 32U
 
-/* The server side of a connection; the address is IPv4-mapped IPv6. */
+/*
+ * A skipped server, with the client for IPv6 (zero for IPv4, where NAT hides
+ * it); addresses are IPv4-mapped IPv6.
+ */
 struct tcpdelay_inject_server_key {
+	__u8 client[16];
 	__u8 address[16];
 	/* Network byte order. */
 	__u16 port;
@@ -78,8 +108,66 @@ struct tcpdelay_inject_handshake {
 	__u64 sent_ns;
 	/* The SYN's initial sequence number, host byte order. */
 	__u32 sequence;
+	/* The injected TSval, which an accepting SYN-ACK echoes. */
+	__u32 tsval;
 	__u8 state;
-	__u8 reserved[3];
+	/* The client's clock was learned from this connection. */
+	__u8 learned;
+	/* IPv6, where the client keeps its own address; set from the SYN. */
+	__u8 ipv6;
+	__u8 reserved[5];
+};
+
+/* An IPv6 client, by its address. */
+struct tcpdelay_inject_client_key {
+	__u8 address[16];
+};
+
+/* An IPv6 client's latest timestamp, learned from a connection we injected. */
+struct tcpdelay_inject_client {
+	__u64 seen_ns;
+	__u32 tsval;
+	__u32 reserved;
+};
+
+enum tcpdelay_inject_mode {
+	/* Injecting TSVAL. */
+	TCPDELAY_INJECT_NORMAL = 0,
+	/* Injecting the youngest learned clock after a stall burst. */
+	TCPDELAY_INJECT_SWITCHED = 1,
+	/* Not injecting IPv4 until paused_until_ns. */
+	TCPDELAY_INJECT_PAUSED = 2,
+};
+
+/* A learned IPv4 clock: its TSval and when it was seen (CLOCK_BOOTTIME). */
+struct tcpdelay_inject_clock {
+	__u64 seen_ns;
+	__u32 tsval;
+	__u32 reserved;
+};
+
+/* IPv4 injection, shared by every CPU; racy updates only shift a stall or a clock. */
+struct tcpdelay_inject_state {
+	/* The latest stalls, oldest overwritten first. */
+	__u64 stall_ns[TCPDELAY_INJECT_STALL_BURST];
+	__u64 paused_until_ns;
+	/*
+	 * The latest IPv4 clocks learned, raw: the filter only stores them (the
+	 * 32-bit x86 JIT has no 64-bit division), and the daemon reads them.
+	 */
+	struct tcpdelay_inject_clock clocks[TCPDELAY_INJECT_CLOCKS];
+	__u32 next_clock;
+	__u32 next_stall;
+	/* The IPv4 TSval while NORMAL or SWITCHED. */
+	__u32 tsval;
+	__u32 mode;
+	/*
+	 * A stall burst the filter saw, for the injector to act on at the next
+	 * IPv4 SYN; the filter stays small enough for the verifier.
+	 */
+	__u32 burst;
+	/* Explicit: 32-bit x86 aligns __u64 to 4 bytes, BPF to 8. */
+	__u32 reserved;
 };
 
 /* Cumulative since the object was loaded, one copy per CPU. */
@@ -98,7 +186,10 @@ struct tcpdelay_inject_counters {
 	 * Accepted handshakes whose SYN-ACK came again: the server never took
 	 * the client's ACK, as when the client's clock looks older than ours.
 	 */
-	__u64 stalled;
+	__u64 stalled_ipv4;
+	__u64 stalled_ipv6;
+	/* IPv4 SYNs left alone while paused. */
+	__u64 paused;
 };
 
 /* Written before attaching; the offset of the IP header in a packet. */
@@ -107,17 +198,20 @@ struct tcpdelay_inject_settings {
 	__u32 reserved;
 };
 
-_Static_assert(sizeof(struct tcpdelay_inject_server_key) == 20, "server key layout");
+_Static_assert(sizeof(struct tcpdelay_inject_server_key) == 36, "server key layout");
 _Static_assert(sizeof(struct tcpdelay_inject_server) == 16, "server layout");
-_Static_assert(sizeof(struct tcpdelay_inject_handshake) == 16, "handshake layout");
-_Static_assert(sizeof(struct tcpdelay_inject_counters) == 72, "counter layout");
+_Static_assert(sizeof(struct tcpdelay_inject_handshake) == 24, "handshake layout");
+_Static_assert(sizeof(struct tcpdelay_inject_client_key) == 16, "client key layout");
+_Static_assert(sizeof(struct tcpdelay_inject_client) == 16, "client layout");
+_Static_assert(sizeof(struct tcpdelay_inject_state) == 584, "state layout");
+_Static_assert(sizeof(struct tcpdelay_inject_counters) == 88, "counter layout");
 _Static_assert(sizeof(struct tcpdelay_inject_settings) == 8, "settings layout");
 
 /* Whether to leave SYNs to this server alone: rejected within the last day. */
-static inline int
+INJECT_INLINE int
 tcpdelay_inject_server_skipped(const struct tcpdelay_inject_server *server, __u64 now_ns)
 {
-	return server != 0 && now_ns - server->rejected_ns < TCPDELAY_INJECT_SERVER_TTL_NS;
+	return server != 0 && now_ns - server->rejected_ns < TCPDELAY_INJECT_DAY_NS;
 }
 
 enum tcpdelay_inject_syn {
@@ -132,14 +226,14 @@ enum tcpdelay_inject_syn {
 };
 
 /* Whether the server has answered the injected SYN, with or without the timestamp. */
-static inline int tcpdelay_inject_answered(const struct tcpdelay_inject_handshake *handshake)
+INJECT_INLINE int tcpdelay_inject_answered(const struct tcpdelay_inject_handshake *handshake)
 {
 	return handshake->state == TCPDELAY_INJECT_ANSWERED ||
 	       handshake->state == TCPDELAY_INJECT_ACCEPTED;
 }
 
 /* A SYN without a timestamp, against the handshake of its 4-tuple, if any. */
-static inline enum tcpdelay_inject_syn
+INJECT_INLINE enum tcpdelay_inject_syn
 tcpdelay_inject_classify_syn(const struct tcpdelay_inject_handshake *handshake, __u32 sequence)
 {
 	if (handshake == 0 || handshake->sequence != sequence)
@@ -156,7 +250,7 @@ tcpdelay_inject_classify_syn(const struct tcpdelay_inject_handshake *handshake, 
  * arrived: the client refused the handshake before sending anything. An RST
  * after data has a later sequence and is an ordinary close.
  */
-static inline int tcpdelay_inject_client_reset_rejects(
+INJECT_INLINE int tcpdelay_inject_client_reset_rejects(
 	const struct tcpdelay_inject_handshake *handshake,
 	__u32 sequence
 )
@@ -166,7 +260,7 @@ static inline int tcpdelay_inject_client_reset_rejects(
 }
 
 /* A server RST before any SYN-ACK: the server refused the injected SYN. */
-static inline int
+INJECT_INLINE int
 tcpdelay_inject_server_reset_rejects(const struct tcpdelay_inject_handshake *handshake)
 {
 	return handshake != 0 && (handshake->state == TCPDELAY_INJECT_SENT ||
@@ -186,7 +280,7 @@ enum tcpdelay_inject_answer {
 };
 
 /* A SYN-ACK, against the handshake; echoes when its TSecr is the injected TSval. */
-static inline enum tcpdelay_inject_answer
+INJECT_INLINE enum tcpdelay_inject_answer
 tcpdelay_inject_classify_answer(const struct tcpdelay_inject_handshake *handshake, int echoes)
 {
 	if (handshake == 0)
@@ -205,75 +299,134 @@ tcpdelay_inject_classify_answer(const struct tcpdelay_inject_handshake *handshak
 }
 
 /*
- * Userspace: pauses injection when handshakes stall repeatedly. Behind NAT a
- * client whose clock looks older than the injected TSval cannot be told apart,
- * and every new server would cost it a hung connection, so injection stops
- * for everyone for a while. Times are microseconds.
+ * The IPv4 TSval for a new SYN, or 0 while paused or while a stall burst the
+ * filter recorded waits for the daemon (tcpdelay_inject_resolve()). Read-only,
+ * so the injector stays small enough for the verifier.
  */
-#define TCPDELAY_INJECT_STALL_LIMIT 3U
-#define TCPDELAY_INJECT_STALL_WINDOW_US (10U * MINUTE)
-#define TCPDELAY_INJECT_PAUSE_US (24U * 60U * MINUTE)
-/* Checks remembered; at one a minute, more than the window holds. */
-#define TCPDELAY_INJECT_BREAKER_SAMPLES 16U
+INJECT_INLINE __u32 tcpdelay_inject_ipv4_tsval(const struct tcpdelay_inject_state *state)
+{
+	if (state->burst || state->mode == TCPDELAY_INJECT_PAUSED)
+		return 0U;
+	if (state->mode == TCPDELAY_INJECT_SWITCHED && state->tsval != 0U)
+		return state->tsval;
+	return TCPDELAY_INJECT_TSVAL;
+}
 
-struct tcpdelay_inject_breaker {
-	/* The stalled counter at recent checks, oldest overwritten first. */
-	__u64 sample_us[TCPDELAY_INJECT_BREAKER_SAMPLES];
-	__u64 sample_stalled[TCPDELAY_INJECT_BREAKER_SAMPLES];
-	__u32 samples;
+/* Records an IPv4 stall; whether it completes a burst within the window. */
+INJECT_INLINE int tcpdelay_inject_stall_burst(struct tcpdelay_inject_state *state, __u64 now_ns)
+{
+	/*
+	 * Range checks, not a modulo: the verifier cannot bound x % 5, which
+	 * compiles to a multiplication and a shift.
+	 */
+	__u32 slot = state->next_stall;
 	__u32 next;
-	int paused;
-	__u64 paused_until_us;
-};
 
-enum tcpdelay_inject_breaker_action {
-	TCPDELAY_INJECT_BREAKER_KEEP,
-	/* Stalls repeated: detach until paused_until_us. */
-	TCPDELAY_INJECT_BREAKER_PAUSE,
-	/* The pause is over: attach again. */
-	TCPDELAY_INJECT_BREAKER_RESUME,
+	if (slot >= TCPDELAY_INJECT_STALL_BURST)
+		slot = 0U;
+	next = slot + 1U;
+	if (next >= TCPDELAY_INJECT_STALL_BURST)
+		next = 0U;
+	state->stall_ns[slot] = now_ns;
+	state->next_stall = next;
+	/* After this one, the next slot holds the oldest of the last BURST stalls. */
+	return state->stall_ns[next] != 0U &&
+	       now_ns - state->stall_ns[next] <= TCPDELAY_INJECT_STALL_WINDOW_NS;
+}
+
+/* Remembers an IPv4 client's clock; the filter's part, without division. */
+INJECT_INLINE void
+tcpdelay_inject_learn_clock(struct tcpdelay_inject_state *state, __u32 tsval, __u64 now_ns)
+{
+	/* CLOCKS is a power of two, so this is a mask the verifier can bound. */
+	__u32 slot = state->next_clock % TCPDELAY_INJECT_CLOCKS;
+
+	state->clocks[slot].seen_ns = now_ns;
+	state->clocks[slot].tsval = tsval;
+	state->next_clock = slot + 1U;
+}
+
+/*
+ * Userspace: the youngest IPv4 clock seen within a day, as it reads now (its
+ * TSval plus the milliseconds since); 0 when none. A younger Windows clock
+ * reads less, and unsigned readings order clocks any distance apart.
+ */
+INJECT_INLINE __u32
+tcpdelay_inject_youngest_clock(const struct tcpdelay_inject_state *state, __u64 now_ns)
+{
+	__u32 youngest = 0U;
+	__u32 i;
+
+	for (i = 0U; i < TCPDELAY_INJECT_CLOCKS; i++) {
+		const struct tcpdelay_inject_clock *clock = &state->clocks[i];
+		__u32 reading;
+
+		if (clock->seen_ns == 0U || now_ns - clock->seen_ns >= TCPDELAY_INJECT_DAY_NS)
+			continue;
+		reading =
+			clock->tsval + (__u32)((now_ns - clock->seen_ns) / TCPDELAY_INJECT_TICK_NS);
+		if (youngest == 0U || reading < youngest)
+			youngest = reading;
+	}
+	return youngest;
+}
+
+/*
+ * After a stall burst: switch to the youngest learned clock when NORMAL and it
+ * is at least a day old, else pause for a day. Whether IPv4 is now paused.
+ */
+INJECT_INLINE int tcpdelay_inject_escalate(struct tcpdelay_inject_state *state, __u64 now_ns)
+{
+	__u32 youngest = tcpdelay_inject_youngest_clock(state, now_ns);
+
+	__builtin_memset(state->stall_ns, 0, sizeof(state->stall_ns));
+	if (state->mode == TCPDELAY_INJECT_NORMAL && youngest >= TCPDELAY_INJECT_SWITCH_MIN_TICKS) {
+		state->mode = TCPDELAY_INJECT_SWITCHED;
+		state->tsval = youngest - TCPDELAY_INJECT_SWITCH_MARGIN_TICKS;
+		return 0;
+	}
+	state->mode = TCPDELAY_INJECT_PAUSED;
+	state->paused_until_ns = now_ns + TCPDELAY_INJECT_DAY_NS;
+	return 1;
+}
+
+/* An IPv6 client's learned TSval when fresh (a day), else TSVAL. */
+INJECT_INLINE __u32
+tcpdelay_inject_client_tsval(const struct tcpdelay_inject_client *client, __u64 now_ns)
+{
+	if (client == 0 || client->tsval == 0U ||
+	    now_ns - client->seen_ns >= TCPDELAY_INJECT_DAY_NS)
+		return TCPDELAY_INJECT_TSVAL;
+	return client->tsval;
+}
+
+enum tcpdelay_inject_change {
+	TCPDELAY_INJECT_UNCHANGED,
+	TCPDELAY_INJECT_TO_SWITCHED,
+	TCPDELAY_INJECT_TO_PAUSED,
+	TCPDELAY_INJECT_TO_NORMAL,
 };
 
 /*
- * One check of the stalled counter, cumulative since the object was loaded
- * (from zero), at now_us. It pauses when the counter rose by
- * TCPDELAY_INJECT_STALL_LIMIT or more since the oldest remembered check
- * within the window, or since zero before any check, and resumes after the
- * pause with a history starting at that check.
+ * Userspace, every second: acts on a recorded stall burst (switch or pause, as
+ * tcpdelay_inject_escalate()) and ends a pause after a day, starting over with
+ * TSVAL. The caller writes the state back.
  */
-static inline enum tcpdelay_inject_breaker_action
-tcpdelay_inject_breaker_check(struct tcpdelay_inject_breaker *breaker, __u64 stalled, __u64 now_us)
+INJECT_INLINE enum tcpdelay_inject_change
+tcpdelay_inject_resolve(struct tcpdelay_inject_state *state, __u64 now_ns)
 {
-	enum tcpdelay_inject_breaker_action action = TCPDELAY_INJECT_BREAKER_KEEP;
-	__u64 baseline = 0U;
-	__u32 i;
-
-	if (breaker->paused) {
-		if (now_us < breaker->paused_until_us)
-			return TCPDELAY_INJECT_BREAKER_KEEP;
-		breaker->paused = 0;
-		breaker->samples = 0U;
-		breaker->next = 0U;
-		baseline = stalled;
-		action = TCPDELAY_INJECT_BREAKER_RESUME;
+	if (state->burst) {
+		state->burst = 0U;
+		return tcpdelay_inject_escalate(state, now_ns) ? TCPDELAY_INJECT_TO_PAUSED :
+								 TCPDELAY_INJECT_TO_SWITCHED;
 	}
-	/* The counter only grows, so the smallest value in the window is its start. */
-	if (breaker->samples != 0U)
-		baseline = stalled;
-	for (i = 0U; i < breaker->samples; i++)
-		if (now_us - breaker->sample_us[i] <= TCPDELAY_INJECT_STALL_WINDOW_US &&
-		    breaker->sample_stalled[i] < baseline)
-			baseline = breaker->sample_stalled[i];
-	breaker->sample_us[breaker->next] = now_us;
-	breaker->sample_stalled[breaker->next] = stalled;
-	breaker->next = (breaker->next + 1U) % TCPDELAY_INJECT_BREAKER_SAMPLES;
-	if (breaker->samples < TCPDELAY_INJECT_BREAKER_SAMPLES)
-		breaker->samples++;
-	if (stalled - baseline < TCPDELAY_INJECT_STALL_LIMIT)
-		return action;
-	breaker->paused = 1;
-	breaker->paused_until_us = now_us + TCPDELAY_INJECT_PAUSE_US;
-	return TCPDELAY_INJECT_BREAKER_PAUSE;
+	if (state->mode == TCPDELAY_INJECT_PAUSED && now_ns >= state->paused_until_ns) {
+		__builtin_memset(state->stall_ns, 0, sizeof(state->stall_ns));
+		state->mode = TCPDELAY_INJECT_NORMAL;
+		state->tsval = TCPDELAY_INJECT_TSVAL;
+		return TCPDELAY_INJECT_TO_NORMAL;
+	}
+	return TCPDELAY_INJECT_UNCHANGED;
 }
 
 #endif

@@ -29,6 +29,7 @@
 #define INJECT_PROGRAM "inject_egress"
 #define INJECT_SERVERS "inject_servers"
 #define INJECT_HANDSHAKES "inject_handshakes"
+#define INJECT_CLIENTS "inject_clients"
 /* The injection maps' size while injection is off; the filter still looks them up. */
 #define INJECT_UNUSED_ENTRIES 1U
 
@@ -102,6 +103,10 @@ static int load_program(struct tcpdelay_capture *capture, char *error, size_t er
 	      ) != 0 ||
 	      bpf_map__set_max_entries(
 		      bpf_object__find_map_by_name(capture->object, INJECT_HANDSHAKES),
+		      INJECT_UNUSED_ENTRIES
+	      ) != 0 ||
+	      bpf_map__set_max_entries(
+		      bpf_object__find_map_by_name(capture->object, INJECT_CLIENTS),
 		      INJECT_UNUSED_ENTRIES
 	      ) != 0)))
 		return error_set(error, error_size, "TCP delay object lacks the timestamp injector");

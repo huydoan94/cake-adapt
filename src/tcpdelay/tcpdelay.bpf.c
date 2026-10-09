@@ -62,7 +62,12 @@ struct flow_state {
 	__u32 outgoing_tsval;
 	__u32 incoming_tsval;
 	__u32 incoming_tsecr;
-	__u32 reserved;
+	/*
+	 * A timestamp left on a packet other than the SYN: the client's own clock,
+	 * where an injected SYN carries ours (the tap sees packets after the
+	 * injector).
+	 */
+	__u32 client_stamped;
 };
 
 struct {
@@ -112,6 +117,22 @@ struct {
 	__type(key, struct tcpdelay_record_flow);
 	__type(value, struct tcpdelay_inject_handshake);
 } inject_handshakes SEC(".maps");
+
+/* IPv6 clients' learned clocks, by client address. */
+struct {
+	__uint(type, BPF_MAP_TYPE_LRU_HASH);
+	__uint(max_entries, TCPDELAY_INJECT_CLIENTS);
+	__type(key, struct tcpdelay_inject_client_key);
+	__type(value, struct tcpdelay_inject_client);
+} inject_clients SEC(".maps");
+
+/* IPv4 injection: stalls, learned clocks, the TSval and the pause. */
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__type(value, struct tcpdelay_inject_state);
+} inject_state SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
@@ -297,26 +318,39 @@ static __always_inline void swap_flow(struct tcpdelay_record_flow *flow)
 	flow->remote_port = port;
 }
 
-static __always_inline void outgoing(const struct tcpdelay_record_flow *flow, __u32 tsval)
+/*
+ * Whether this is the flow's first outgoing timestamp after the SYN, the
+ * client's own, for the injector to learn from.
+ */
+static __always_inline int outgoing(const struct tcpdelay_record_flow *flow, __u32 tsval, int syn)
 {
 	struct departure_key key = { .flow = *flow, .tsval = tsval };
 	struct flow_state *state = bpf_map_lookup_elem(&flows, flow);
 	__u64 now_ns;
+	int first;
 
 	if (state != NULL && state->outgoing_tsval == tsval)
-		return;
+		return 0;
+	first = !syn && (state == NULL || !state->client_stamped);
 	now_ns = bpf_ktime_get_ns();
 	if (state == NULL) {
-		struct flow_state initial = { .outgoing_tsval = tsval, .departure_ns = now_ns };
+		struct flow_state initial = {
+			.outgoing_tsval = tsval,
+			.departure_ns = now_ns,
+			.client_stamped = !syn,
+		};
 
 		bpf_map_update_elem(&flows, flow, &initial, BPF_NOEXIST);
 	} else {
 		state->outgoing_tsval = tsval;
+		if (!syn)
+			state->client_stamped = 1U;
 		if (now_ns - state->departure_ns < TCPDELAY_SAMPLE_INTERVAL_NS)
-			return;
+			return first;
 		state->departure_ns = now_ns;
 	}
 	bpf_map_update_elem(&departures, &key, &now_ns, BPF_NOEXIST);
+	return first;
 }
 
 static __always_inline struct tcpdelay_counters *counters_entry(void)
@@ -385,11 +419,14 @@ static __always_inline struct tcpdelay_inject_counters *inject_counters_entry(vo
 	return bpf_map_lookup_elem(&inject_counters, &zero);
 }
 
+/* The server, with the client for IPv6; IPv4 clients are hidden by NAT. */
 static __always_inline struct tcpdelay_inject_server_key
-inject_server_key(const struct tcpdelay_record_flow *flow)
+inject_server_key(const struct tcpdelay_record_flow *flow, int ipv6)
 {
 	struct tcpdelay_inject_server_key key = { .port = flow->remote_port };
 
+	if (ipv6)
+		__builtin_memcpy(key.client, flow->local_address, sizeof(key.client));
 	__builtin_memcpy(key.address, flow->remote_address, sizeof(key.address));
 	return key;
 }
@@ -400,11 +437,74 @@ static __always_inline void inject_skip_server(
 	struct tcpdelay_inject_handshake *handshake
 )
 {
-	struct tcpdelay_inject_server_key key = inject_server_key(flow);
+	struct tcpdelay_inject_server_key key = inject_server_key(flow, handshake->ipv6);
 	struct tcpdelay_inject_server value = { .rejected_ns = bpf_ktime_get_boot_ns() };
 
 	bpf_map_update_elem(&inject_servers, &key, &value, BPF_ANY);
 	handshake->state = TCPDELAY_INJECT_CLOSED;
+}
+
+static __always_inline struct tcpdelay_inject_state *inject_state_entry(void)
+{
+	__u32 zero = 0;
+
+	return bpf_map_lookup_elem(&inject_state, &zero);
+}
+
+/*
+ * A stalled handshake: the server is skipped (with its client for IPv6). An
+ * IPv4 stall may complete a burst: the injector then leaves IPv4 SYNs alone
+ * until the daemon switches or pauses (tcpdelay_inject_resolve()).
+ */
+static __always_inline void inject_stall(
+	const struct tcpdelay_record_flow *flow,
+	struct tcpdelay_inject_handshake *handshake,
+	struct tcpdelay_inject_counters *totals
+)
+{
+	struct tcpdelay_inject_state *state;
+	__u64 now_ns;
+
+	inject_skip_server(flow, handshake);
+	if (handshake->ipv6) {
+		totals->stalled_ipv6++;
+		return;
+	}
+	totals->stalled_ipv4++;
+	state = inject_state_entry();
+	if (state == NULL)
+		return;
+	now_ns = bpf_ktime_get_boot_ns();
+	if (tcpdelay_inject_stall_burst(state, now_ns))
+		state->burst = 1U;
+}
+
+/*
+ * The client's first timestamp on a connection we injected and the server
+ * accepted: its clock, per client for IPv6 and as one of the clocks behind
+ * NAT for IPv4. Called only for a flow's first outgoing timestamp.
+ */
+static __always_inline void inject_learn(const struct tcpdelay_record_flow *flow, __u32 tsval)
+{
+	struct tcpdelay_inject_handshake *handshake = bpf_map_lookup_elem(&inject_handshakes, flow);
+	struct tcpdelay_inject_state *state;
+	__u64 now_ns;
+
+	if (handshake == NULL || handshake->learned || handshake->state != TCPDELAY_INJECT_ACCEPTED)
+		return;
+	handshake->learned = 1;
+	now_ns = bpf_ktime_get_boot_ns();
+	if (handshake->ipv6) {
+		struct tcpdelay_inject_client_key key = {};
+		struct tcpdelay_inject_client client = { .seen_ns = now_ns, .tsval = tsval };
+
+		__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
+		bpf_map_update_elem(&inject_clients, &key, &client, BPF_ANY);
+		return;
+	}
+	state = inject_state_entry();
+	if (state != NULL)
+		tcpdelay_inject_learn_clock(state, tsval, now_ns);
 }
 
 /*
@@ -430,7 +530,7 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 		}
 		return;
 	}
-	switch (tcpdelay_inject_classify_answer(handshake, echo == TCPDELAY_INJECT_TSVAL)) {
+	switch (tcpdelay_inject_classify_answer(handshake, echo == handshake->tsval)) {
 	case TCPDELAY_INJECT_ANSWER_ACCEPTED:
 		handshake->state = TCPDELAY_INJECT_ACCEPTED;
 		totals->server_accepted++;
@@ -444,8 +544,7 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 		totals->server_rejected++;
 		break;
 	case TCPDELAY_INJECT_ANSWER_STALLED:
-		inject_skip_server(flow, handshake);
-		totals->stalled++;
+		inject_stall(flow, handshake, totals);
 		break;
 	case TCPDELAY_INJECT_ANSWER_NONE:
 		break;
@@ -502,8 +601,8 @@ int tcpdelay(struct __sk_buff *skb)
 			find_timestamp(options, options_length, &tsval, &tsecr);
 	}
 	if (skb->pkt_type == PACKET_OUTGOING) {
-		if (found)
-			outgoing(&flow, tsval);
+		if (found && outgoing(&flow, tsval, tcp.syn))
+			inject_learn(&flow, tsval);
 		return 0;
 	}
 	/* A SYN-ACK or reset may answer an injected SYN, with or without a timestamp. */
@@ -522,7 +621,6 @@ int tcpdelay(struct __sk_buff *skb)
 struct segment {
 	struct tcpdelay_record_flow flow;
 	struct tcphdr tcp;
-	__u8 options[TCP_OPTIONS_MAX];
 	__u32 network_offset;
 	__u32 tcp_offset;
 	/* The whole IP packet: header, TCP header and data. */
@@ -574,13 +672,14 @@ inject_parse(struct __sk_buff *skb, __u32 network_offset, struct segment *segmen
 }
 
 /*
- * Appends NOP, NOP, TS(TCPDELAY_INJECT_TSVAL, 0) to a SYN without data and updates the
+ * Appends NOP, NOP, TS(tsval, 0) to a SYN without data and updates the
  * lengths and checksums incrementally. The helpers keep a partial checksum
  * (a packet whose checksum the NIC completes) correct as well.
  */
-static __always_inline int append_timestamp(struct __sk_buff *skb, const struct segment *segment)
+static __always_inline int
+append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsval)
 {
-	__u32 added[3] = { bpf_htonl(0x0101080aU), bpf_htonl(TCPDELAY_INJECT_TSVAL), 0 };
+	__u32 added[3] = { bpf_htonl(0x0101080aU), bpf_htonl(tsval), 0 };
 	__u32 header_bytes = segment->tcp.doff * 4U;
 	__u32 end = segment->tcp_offset + header_bytes;
 	__u32 checksum = segment->tcp_offset + TCP_CHECKSUM_OFFSET;
@@ -657,30 +756,86 @@ static __always_inline int append_timestamp(struct __sk_buff *skb, const struct 
 	}
 }
 
+/*
+ * The TSval to inject: an IPv6 client's own learned clock, or the IPv4 one
+ * (TSVAL, or the youngest learned clock after a stall burst); 0 while IPv4 is
+ * paused or a burst waits for the daemon.
+ */
+static __always_inline __u32
+inject_tsval(const struct tcpdelay_record_flow *flow, int ipv6, __u64 now_ns)
+{
+	struct tcpdelay_inject_state *state;
+
+	if (ipv6) {
+		struct tcpdelay_inject_client_key key = {};
+
+		__builtin_memcpy(key.address, flow->local_address, sizeof(key.address));
+		return tcpdelay_inject_client_tsval(
+			bpf_map_lookup_elem(&inject_clients, &key),
+			now_ns
+		);
+	}
+	state = inject_state_entry();
+	return state != NULL ? tcpdelay_inject_ipv4_tsval(state) : TCPDELAY_INJECT_TSVAL;
+}
+
+/*
+ * Whether the SYN's options might hold a timestamp: its kind and length bytes
+ * (8, 10) anywhere. A false "might" only skips injecting one SYN; a timestamp
+ * is never missed. The full parser's loop, inlined with the rest of the
+ * injector, would exceed the verifier's limit, and calls between programs or
+ * functions are not compiled by every BPF JIT.
+ */
+static __always_inline int inject_options_may_timestamp(const __u8 *options, __u32 length)
+{
+	for (__u32 i = 0; i + 1U < TCP_OPTIONS_MAX; i++) {
+		if (i + 1U >= length)
+			return 0;
+		if (options[i] == TCP_OPTION_TIMESTAMP &&
+		    options[i + 1U] == TCP_OPTION_TIMESTAMP_LENGTH)
+			return 1;
+	}
+	return 0;
+}
+
+/*
+ * Whether a SYN may get a timestamp: no timestamp in its options, no data and
+ * room for 12 more bytes.
+ */
+static __always_inline int inject_syn_eligible(struct __sk_buff *skb, const struct segment *segment)
+{
+	__u8 options[TCP_OPTIONS_MAX] = {};
+
+	if (segment->options_bytes > TCP_OPTIONS_MAX ||
+	    (segment->options_bytes > 0 &&
+	     (bpf_skb_load_bytes(
+		      skb,
+		      segment->tcp_offset + TCP_HEADER_BYTES,
+		      options,
+		      segment->options_bytes
+	      ) < 0 ||
+	      inject_options_may_timestamp(options, segment->options_bytes))) ||
+	    segment->ip_bytes !=
+		    segment->tcp_offset - segment->network_offset + segment->tcp.doff * 4U ||
+	    segment->tcp.doff * 4U + INJECT_ADDED_BYTES > TCP_HEADER_MAX_BYTES)
+		return 0;
+	return 1;
+}
+
 /* A SYN without a timestamp: inject, or settle a resent one. */
-static __always_inline void
-inject_syn(struct __sk_buff *skb, struct segment *segment, struct tcpdelay_inject_counters *totals)
+static __always_inline void inject_new_syn(
+	struct __sk_buff *skb,
+	struct segment *segment,
+	struct tcpdelay_inject_counters *totals
+)
 {
 	struct tcpdelay_inject_handshake *handshake;
 	struct tcpdelay_inject_handshake fresh = {};
 	struct tcpdelay_inject_server_key key;
 	__u32 sequence = bpf_ntohl(segment->tcp.seq);
 	__u64 now_ns;
+	__u32 tsval;
 
-	/* Options with a timestamp or ending early, SYNs with data and full headers stay. */
-	if (segment->options_bytes > TCP_OPTIONS_MAX ||
-	    (segment->options_bytes > 0 &&
-	     (bpf_skb_load_bytes(
-		      skb,
-		      segment->tcp_offset + TCP_HEADER_BYTES,
-		      segment->options,
-		      segment->options_bytes
-	      ) < 0 ||
-	      timestamp_index(segment->options, segment->options_bytes) != -1)) ||
-	    segment->ip_bytes !=
-		    segment->tcp_offset - segment->network_offset + segment->tcp.doff * 4U ||
-	    segment->tcp.doff * 4U + INJECT_ADDED_BYTES > TCP_HEADER_MAX_BYTES)
-		return;
 	handshake = bpf_map_lookup_elem(&inject_handshakes, &segment->flow);
 	switch (tcpdelay_inject_classify_syn(handshake, sequence)) {
 	case TCPDELAY_INJECT_SYN_RETRY:
@@ -701,17 +856,24 @@ inject_syn(struct __sk_buff *skb, struct segment *segment, struct tcpdelay_injec
 		break;
 	}
 	now_ns = bpf_ktime_get_boot_ns();
-	key = inject_server_key(&segment->flow);
+	key = inject_server_key(&segment->flow, segment->ipv6);
 	if (tcpdelay_inject_server_skipped(bpf_map_lookup_elem(&inject_servers, &key), now_ns)) {
 		totals->skipped++;
 		return;
 	}
-	if (append_timestamp(skb, segment) < 0) {
+	tsval = inject_tsval(&segment->flow, segment->ipv6, now_ns);
+	if (tsval == 0U) {
+		totals->paused++;
+		return;
+	}
+	if (append_timestamp(skb, segment, tsval) < 0) {
 		totals->failed++;
 		return;
 	}
 	fresh.sent_ns = now_ns;
 	fresh.sequence = sequence;
+	fresh.tsval = tsval;
+	fresh.ipv6 = (__u8)segment->ipv6;
 	fresh.state = TCPDELAY_INJECT_SENT;
 	bpf_map_update_elem(&inject_handshakes, &segment->flow, &fresh, BPF_ANY);
 	totals->injected++;
@@ -727,7 +889,8 @@ static __always_inline void inject_outgoing(struct __sk_buff *skb, __u32 network
 	if (totals == NULL || inject_parse(skb, network_offset, &segment) < 0)
 		return;
 	if (segment.tcp.syn && !segment.tcp.ack && !segment.tcp.rst) {
-		inject_syn(skb, &segment, totals);
+		if (inject_syn_eligible(skb, &segment))
+			inject_new_syn(skb, &segment, totals);
 		return;
 	}
 	if (!segment.tcp.rst)

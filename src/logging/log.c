@@ -93,7 +93,7 @@ static const char tcp_queue_header[] =
 static const char tcp_inject_header[] =
 	"TCP_INJECT_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; INJECTED; SKIPPED;"
 	" SERVER_ACCEPTED; SERVER_DECLINED; CLIENT_REJECTED; SERVER_REJECTED; RETRIED; FAILED;"
-	" STALLED";
+	" STALLED_IPV4; STALLED_IPV6; PAUSED; IPV4_MODE; IPV4_TSVAL";
 
 /* Not in cake-autorate: the daemon's own memory use, in kilobytes. */
 static const char memory_header[] = "MEMORY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US;"
@@ -615,7 +615,7 @@ void log_tcp_inject(const struct log_tcp_inject_record *record)
 	write_timed_record(
 		RECORD_TCP_INJECT,
 		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64
-		"; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
+		"; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %s; %" PRIu32,
 		record->injected,
 		record->skipped,
 		record->server_accepted,
@@ -624,7 +624,11 @@ void log_tcp_inject(const struct log_tcp_inject_record *record)
 		record->server_rejected,
 		record->retried,
 		record->failed,
-		record->stalled
+		record->stalled_ipv4,
+		record->stalled_ipv6,
+		record->paused,
+		record->ipv4_mode,
+		record->ipv4_tsval
 	);
 }
 

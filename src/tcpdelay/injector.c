@@ -21,6 +21,7 @@
 #define INJECT_PROGRAM "inject_egress"
 #define INJECT_COUNTERS "inject_counters"
 #define INJECT_SETTINGS "inject_settings"
+#define INJECT_STATE "inject_state"
 
 void tcpdelay_injector_init(struct tcpdelay_injector *injector)
 {
@@ -59,6 +60,14 @@ static int network_offset(const char *interface, uint32_t *offset, char *error, 
 		interface,
 		strerror(failure)
 	);
+}
+
+/* Whether a map of the capture's object has the value size this daemon uses. */
+static bool layout_matches(const struct tcpdelay_capture *capture, const char *name, size_t size)
+{
+	const struct bpf_map *map = bpf_object__find_map_by_name(capture->object, name);
+
+	return map != NULL && bpf_map__value_size(map) == size;
 }
 
 /* Finds the counters and allocates their per-CPU copies, once. */
@@ -112,6 +121,17 @@ int tcpdelay_injector_attach(
 		program = bpf_object__find_program_by_name(capture->object, INJECT_PROGRAM);
 	if (program == NULL || bpf_program__fd(program) < 0)
 		return error_set(error, error_size, "TCP timestamp injection program is not loaded");
+	/*
+	 * The daemon and the object must agree on the layouts it reads and writes;
+	 * a mismatch, such as an object from another build, would corrupt memory.
+	 */
+	if (!layout_matches(capture, INJECT_COUNTERS, sizeof(struct tcpdelay_inject_counters)) ||
+	    !layout_matches(capture, INJECT_STATE, sizeof(struct tcpdelay_inject_state)))
+		return error_set(
+			error,
+			error_size,
+			"TCP timestamp injection object does not match this daemon"
+		);
 	if (find_counters(injector, capture, error, error_size) != 0 ||
 	    network_offset(interface, &values.network_offset, error, error_size) != 0)
 		return -1;
@@ -170,8 +190,42 @@ int tcpdelay_injector_counters(
 		counters->server_rejected += value->server_rejected;
 		counters->retried += value->retried;
 		counters->failed += value->failed;
-		counters->stalled += value->stalled;
+		counters->stalled_ipv4 += value->stalled_ipv4;
+		counters->stalled_ipv6 += value->stalled_ipv6;
+		counters->paused += value->paused;
 	}
+	return 0;
+}
+
+int tcpdelay_injector_state(
+	const struct tcpdelay_capture *capture,
+	struct tcpdelay_inject_state *state
+)
+{
+	uint32_t key = 0U;
+	int descriptor;
+
+	if (capture->object == NULL)
+		return -1;
+	descriptor = bpf_object__find_map_fd_by_name(capture->object, INJECT_STATE);
+	if (descriptor < 0 || bpf_map_lookup_elem(descriptor, &key, state) != 0)
+		return -1;
+	return 0;
+}
+
+int tcpdelay_injector_set_state(
+	const struct tcpdelay_capture *capture,
+	const struct tcpdelay_inject_state *state
+)
+{
+	uint32_t key = 0U;
+	int descriptor;
+
+	if (capture->object == NULL)
+		return -1;
+	descriptor = bpf_object__find_map_fd_by_name(capture->object, INJECT_STATE);
+	if (descriptor < 0 || bpf_map_update_elem(descriptor, &key, state, BPF_ANY) != 0)
+		return -1;
 	return 0;
 }
 
