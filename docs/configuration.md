@@ -104,7 +104,7 @@ RAM, so the defaults never write to flash.
 | `log_file_export_compress` | boolean | `1` | Compress the export written on `SIGUSR1`. |
 | `debug` | boolean | `1` | Include debug messages in the log file. |
 | `log_DEBUG_messages_to_syslog` | boolean | `0` | Also send debug messages to syslog. |
-| `output_processing_stats` | boolean | `0` | Log a `DATA` record per ping reply (and `TCP_QUEUE` records with `tcp_delay_attribution`, and a `TCP_INJECT` record each minute with `tcp_timestamp_inject`). |
+| `output_processing_stats` | boolean | `0` | Log a `DATA` record per ping reply (and `TCP_QUEUE` records with `tcp_delay_attribution`, and a `TCP_INJECT` record each minute with `tcp_ts_request`). |
 | `output_load_stats` | boolean | `0` | Log a `LOAD` record per traffic sample. |
 | `output_reflector_stats` | boolean | `0` | Log `REFLECTOR` records at each reflector comparison. |
 | `output_summary_stats` | boolean | `0` | Log a `SUMMARY` record per ping reply. |
@@ -138,11 +138,11 @@ Do not use `ack-filter-aggressive`.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `tcp_timestamp_inject` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Adds a TCP timestamp to clients' SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its connections are measured in both directions. |
+| `tcp_ts_request` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Renamed from `tcp_timestamp_inject`, which is no longer read: update existing UCI configurations. Adds a TCP timestamp to clients' SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its connections are measured in both directions. |
 | `tcp_ts_stall_window_s` | decimal | `40` | Not in cake-autorate. 5 IPv4 handshakes that stall within this many seconds switch IPv4 injection to a learned client clock or pause it (see below). Each stall delays one connection by a SYN retry; a longer window catches slowly repeating stalls sooner. |
 
 Windows opens TCP connections without timestamps, so the TCP filter cannot
-measure them. With `tcp_timestamp_inject`, a second program in the same eBPF
+measure them. With `tcp_ts_request`, a second program in the same eBPF
 object rewrites such a SYN on its way out of the upload interface: it gets a timestamp, the server answers with its own, and a
 client that accepts it (Windows does) then sends timestamps itself. Clients
 that already send timestamps are not touched.

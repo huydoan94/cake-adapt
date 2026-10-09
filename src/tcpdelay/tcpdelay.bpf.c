@@ -14,7 +14,7 @@
  *
  * The filter always returns 0, so no packet is copied to the socket.
  *
- * Experimental TCP timestamp injection (tcp_timestamp_inject; inject.h has
+ * Experimental TCP timestamp injection (tcp_ts_request; inject.h has
  * the policy) lives here too, so both share their maps and incoming packets
  * are read once: the tcx egress program at the end appends a timestamp to
  * SYNs that lack one, before the root qdisc, and this filter settles each

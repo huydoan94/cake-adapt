@@ -44,7 +44,7 @@ void tcp_start(struct monitor *monitor)
 	char error[ERROR_SIZE] = { 0 };
 
 	/* The injector shares the filter's object; validation requires attribution. */
-	if (monitor->config->tcp_timestamp_inject)
+	if (monitor->config->tcp_ts_request)
 		tcpdelay_capture_enable_injection(&monitor->tcp.capture);
 	if (tcp_enabled(monitor->config) &&
 	    tcpdelay_capture_load(&monitor->tcp.capture, error, sizeof(error)) != 0)
@@ -91,7 +91,7 @@ static void attach_injector(struct monitor *monitor, const char *interface)
 {
 	char error[ERROR_SIZE] = { 0 };
 
-	if (!monitor->config->tcp_timestamp_inject)
+	if (!monitor->config->tcp_ts_request)
 		return;
 	if (tcpdelay_injector_attach(
 		    &monitor->tcp.injector,
