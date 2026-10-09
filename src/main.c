@@ -151,6 +151,7 @@ static void log_configuration(const struct config *config, const char *log_path)
 		.reflector = config->output_reflector_stats,
 		.summary = config->output_summary_stats,
 		.tcp_queue = config->output_processing_stats && config->tcp_delay_attribution,
+		.tcp_inject = config->output_processing_stats && config->tcp_ts_request,
 		.memory = config->output_memory_stats,
 	};
 

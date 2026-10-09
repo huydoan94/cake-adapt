@@ -1,0 +1,2 @@
+44: type1  name tcpdelay  run_time_ns 58984428 run_cnt 44549
+46: type3  name inject_egress  run_time_ns 7238167 run_cnt 19417

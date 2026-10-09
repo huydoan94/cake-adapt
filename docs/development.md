@@ -113,8 +113,9 @@ The production daemon itself is built with strict warnings, including
 
 `tools/capture-log.sh` streams a router's cake-adapt log over SSH into a local
 file for long recordings. It follows the daemon's in-place rotation, reconnects
-after dropped connections or router reboots without losing or repeating lines,
-and archives the local file with gzip at a size limit (1024 MB by default):
+after dropped connections or router reboots without losing lines (see the
+limitations below for repeats), and archives the local file with gzip at a
+size limit (1024 MB by default):
 
 ```sh
 tools/capture-log.sh root@router cake-adapt.log            # status screen
@@ -170,3 +171,30 @@ The screen reads the file's history once at start and then takes each line
 from the capture itself, so it keeps working when the local file is on a
 Windows drive (`/mnt/c`, `/mnt/d`), where following a growing file can fail.
 It needs GNU awk (`gawk`); `-l` does not.
+
+Known limitations, not yet fixed:
+
+- **Start time after a reboot.** A router without a battery-backed clock boots
+  with a restored time (saved at shutdown, or the newest file in `/etc`), and
+  cake-adapt may start before NTP corrects it, so its start record carries the
+  restored time. The status screen corrects **Router** for this, without
+  changing the log: a run is on a restored clock when it starts earlier than
+  the previous run's last record, or when its first forward jump crosses a
+  capture disconnect (the router was down then, yet its records before the
+  jump are stamped earlier). The start then moves by the jump and shows
+  "corrected from" the logged time. The real time between the last record
+  before the jump and the first after it is unknown, so the corrected start
+  can be late by up to that gap; and a reboot the capture did not see, with a
+  clock restored to just after the previous run, stays uncorrected. In one
+  capture the start record said 13:09:34 and 10 s later the records jumped
+  24.5 minutes forward; in another the start said 02:28:58, the capture had
+  lost the router at 02:29:12, and the clock jumped 66 s, so the start shows
+  as 02:30:04.
+- **Warning times** show the record's `LOG_DATETIME`, the router's local time,
+  while every other time on the screen is the PC's local time.
+- **Repeated history.** After a reconnect, the capture skips the replayed log
+  up to the last line it already has. If that line was cut off when the
+  connection dropped, nothing matches and the whole router log is written
+  again. One capture holds the same start record twice, 10,000 lines apart,
+  with identical timestamps; the cut-off line is the likely cause, not yet
+  confirmed.

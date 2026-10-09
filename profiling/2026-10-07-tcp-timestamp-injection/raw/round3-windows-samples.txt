@@ -1,0 +1,157 @@
+02:40:12 windows_packets=13 with_ts=10 rst=0
+  example:     192.168.56.1.26509 > 94.140.14.14.5443: Flags [.], cksum 0x932a (correct), ack 2372565399, win 255, options [nop,nop,TS val 35439554 ecr 1545348944], length 0
+  example:     192.168.56.1.26509 > 94.140.14.14.5443: Flags [P.], cksum 0x41cd (correct), seq 0:322, ack 1, win 255, options [nop,nop,TS val 35439554 ecr 1545348944], length 322
+02:40:32 windows_packets=674 with_ts=306 rst=13
+  example:     192.168.56.1.8702 > 94.140.14.14.5443: Flags [.], cksum 0x1565 (correct), ack 3410192336, win 254, options [nop,nop,TS val 35457248 ecr 3460381709], length 0
+  example:     192.168.56.1.12392 > 94.140.14.14.5443: Flags [.], cksum 0x07ab (correct), ack 892824337, win 255, options [nop,nop,TS val 35457249 ecr 469082978], length 0
+02:40:52 windows_packets=170 with_ts=101 rst=0
+  example:     192.168.56.1.15635 > 94.140.14.14.5443: Flags [.], cksum 0x79f1 (correct), ack 2637657426, win 255, options [nop,nop,TS val 35477755 ecr 3592425861], length 0
+  example:     192.168.56.1.15635 > 94.140.14.14.5443: Flags [P.], cksum 0xc6bc (correct), seq 0:258, ack 1, win 255, options [nop,nop,TS val 35477755 ecr 3592425861], length 258
+02:41:12 windows_packets=13 with_ts=0 rst=0
+02:41:32 windows_packets=222 with_ts=196 rst=0
+  example:     192.168.56.1.30594 > 123.30.128.6.443: Flags [.], cksum 0x1a0b (correct), ack 3914311482, win 255, options [nop,nop,TS val 35517836 ecr 425436207], length 0
+  example:     192.168.56.1.61513 > 94.140.14.14.5443: Flags [.], cksum 0xa3f2 (correct), ack 184654302, win 255, options [nop,nop,TS val 35517848 ecr 1990326209], length 0
+02:41:52 windows_packets=15 with_ts=10 rst=0
+  example:     192.168.56.1.10358 > 94.140.14.14.5443: Flags [.], cksum 0xc2ae (correct), ack 1082812199, win 255, options [nop,nop,TS val 35538766 ecr 3733250114], length 0
+  example:     192.168.56.1.10358 > 94.140.14.14.5443: Flags [P.], cksum 0x1192 (correct), seq 0:322, ack 1, win 255, options [nop,nop,TS val 35538766 ecr 3733250114], length 322
+02:42:12 windows_packets=1765 with_ts=1647 rst=14
+  example:     192.168.56.1.50101 > 94.140.14.14.5443: Flags [.], cksum 0xab28 (correct), ack 365914015, win 254, options [nop,nop,TS val 35558058 ecr 3927444624], length 0
+  example:     192.168.56.1.16675 > 123.30.242.13.443: Flags [.], cksum 0xe0fa (correct), ack 1403054696, win 511, options [nop,nop,TS val 35558063 ecr 333031979], length 0
+02:42:33 windows_packets=11 with_ts=4 rst=1
+  example:     192.168.56.1.52774 > 104.18.124.108.443: Flags [.], cksum 0xbfaa (correct), seq 3822391908:3822393296, ack 1186701405, win 250, options [nop,nop,TS val 35580857 ecr 615969608], length 1388
+  example:     192.168.56.1.52774 > 104.18.124.108.443: Flags [P.], cksum 0x5173 (correct), seq 1388:1563, ack 1, win 250, options [nop,nop,TS val 35580857 ecr 615969608], length 175
+02:42:53 windows_packets=38 with_ts=35 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x7099 (correct), seq 1815203935:1815204038, ack 3249204757, win 250, options [nop,nop,TS val 35599720 ecr 402855751], length 103
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xfd38 (correct), seq 103:202, ack 1, win 250, options [nop,nop,TS val 35599720 ecr 402855751], length 99
+02:43:13 windows_packets=44 with_ts=42 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [.], cksum 0x6ee1 (correct), ack 2418418385, win 255, options [nop,nop,TS val 35619404 ecr 271415392], length 0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [.], cksum 0x7a3a (correct), seq 0:1428, ack 1, win 255, options [nop,nop,TS val 35619406 ecr 271415392], length 1428
+02:43:33 windows_packets=0 with_ts=0 rst=0
+02:43:53 windows_packets=5 with_ts=3 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x5585 (correct), seq 1849751065:1849751150, ack 2418429355, win 253, options [nop,nop,TS val 35660225 ecr 271451943], length 85
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x0c24 (correct), seq 85:1351, ack 1, win 253, options [nop,nop,TS val 35660225 ecr 271451943], length 1266
+02:44:13 windows_packets=9 with_ts=9 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xadff (correct), seq 1815214137:1815214240, ack 3249217184, win 251, options [nop,nop,TS val 35680049 ecr 402957793], length 103
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x0ed2 (correct), seq 103:202, ack 1, win 251, options [nop,nop,TS val 35680049 ecr 402957793], length 99
+02:44:33 windows_packets=38 with_ts=37 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xaf4b (correct), seq 1815214617:1815214720, ack 3249217836, win 255, options [nop,nop,TS val 35700017 ecr 402960162], length 103
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x9e9a (correct), seq 103:202, ack 1, win 255, options [nop,nop,TS val 35700017 ecr 402960162], length 99
+02:44:53 windows_packets=4 with_ts=0 rst=0
+02:45:13 windows_packets=58 with_ts=58 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xea01 (correct), seq 1815216962:1815217064, ack 3249221118, win 254, options [nop,nop,TS val 35740767 ecr 403001636], length 102
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xee99 (correct), seq 102:201, ack 1, win 254, options [nop,nop,TS val 35740767 ecr 403001636], length 99
+02:45:33 windows_packets=86 with_ts=83 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xd3a9 (correct), seq 1815229891:1815230051, ack 3249237304, win 252, options [nop,nop,TS val 35760150 ecr 403037803], length 160
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x5762 (correct), seq 160:259, ack 1, win 252, options [nop,nop,TS val 35760150 ecr 403037803], length 99
+02:45:53 windows_packets=8 with_ts=6 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0xff2d (correct), seq 1849790264:1849790349, ack 2418430847, win 252, options [nop,nop,TS val 35780123 ecr 271564234], length 85
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0xc6fd (correct), seq 85:124, ack 1, win 252, options [nop,nop,TS val 35780123 ecr 271564234], length 39
+02:46:13 windows_packets=78 with_ts=68 rst=0
+  example:     192.168.56.1.54788 > 94.140.14.14.5443: Flags [.], cksum 0x8c9f (correct), ack 657961741, win 255, options [nop,nop,TS val 35799905 ecr 4283529110], length 0
+  example:     192.168.56.1.54788 > 94.140.14.14.5443: Flags [P.], cksum 0xcf09 (correct), seq 0:386, ack 1, win 255, options [nop,nop,TS val 35799905 ecr 4283529110], length 386
+02:46:34 windows_packets=20 with_ts=19 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x8bdf (correct), seq 1849797386:1849797421, ack 2418431572, win 255, options [nop,nop,TS val 35819251 ecr 271615236], length 35
+  example:     192.168.56.1.52774 > 104.18.124.108.443: Flags [P.], cksum 0x5c25 (correct), seq 3822394314:3822394338, ack 1186702080, win 255, options [nop,nop,TS val 35819288 ecr 616029599], length 24
+02:46:54 windows_packets=2 with_ts=0 rst=0
+02:47:14 windows_packets=6 with_ts=6 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x4332 (correct), seq 1815235600:1815235702, ack 3249245206, win 251, options [nop,nop,TS val 35859451 ecr 403127101], length 102
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x6633 (correct), seq 102:201, ack 1, win 251, options [nop,nop,TS val 35859451 ecr 403127101], length 99
+02:47:34 windows_packets=1 with_ts=1 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [.], cksum 0xffe2 (correct), ack 3249246591, win 251, options [nop,nop,TS val 35879976 ecr 403144757], length 0
+02:47:54 windows_packets=34 with_ts=29 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x6f5f (correct), seq 1849812025:1849812110, ack 2418432829, win 251, options [nop,nop,TS val 35900010 ecr 271690130], length 85
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [.], cksum 0x1612 (correct), seq 85:1513, ack 1, win 251, options [nop,nop,TS val 35900010 ecr 271690130], length 1428
+02:48:14 windows_packets=5209 with_ts=5209 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x9c77 (correct), ack 1838252049, win 65535, options [nop,nop,TS val 35919825 ecr 2515660480,nop,nop,sack 3 {317113:325801}{1449:107153}{295393:315665}], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x96ce (correct), ack 1, win 65535, options [nop,nop,TS val 35919826 ecr 2515660480,nop,nop,sack 3 {317113:327249}{1449:107153}{295393:315665}], length 0
+02:48:35 windows_packets=4368 with_ts=4368 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x9365 (correct), ack 1894753009, win 65535, options [nop,nop,TS val 35940345 ecr 2515680830,nop,nop,sack 3 {1026633:1029529}{1017945:1025185}{13033:419921}], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x2e31 (correct), ack 1, win 65535, options [nop,nop,TS val 35940345 ecr 2515680830,nop,nop,sack 3 {532865:712417}{1026633:1029529}{1017945:1025185}], length 0
+02:48:55 windows_packets=6508 with_ts=6507 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x52d6 (correct), ack 1954698761, win 65535, options [nop,nop,TS val 35960664 ecr 2515701398], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x4785 (correct), ack 2897, win 65535, options [nop,nop,TS val 35960664 ecr 2515701399], length 0
+02:49:16 windows_packets=5979 with_ts=5978 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0xc631 (correct), ack 2016684745, win 65535, options [nop,nop,TS val 35981280 ecr 2515721950,nop,nop,sack 3 {154937:185345}{33305:153489}{17377:31857}], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0xc089 (correct), ack 1, win 65535, options [nop,nop,TS val 35981280 ecr 2515721950,nop,nop,sack 3 {154937:186793}{33305:153489}{17377:31857}], length 0
+02:49:37 windows_packets=5196 with_ts=5196 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x771a (correct), ack 2073630241, win 65535, options [nop,nop,TS val 36001864 ecr 2515742590,nop,nop,sack 2 {15929:112945}{1449:14481}], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x7171 (correct), ack 1, win 65535, options [nop,nop,TS val 36001865 ecr 2515742590,nop,nop,sack 2 {15929:114393}{1449:14481}], length 0
+02:49:57 windows_packets=4879 with_ts=4879 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0xb679 (correct), ack 2128413873, win 65535, options [nop,nop,TS val 36022531 ecr 2515763267], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0xab27 (correct), ack 2897, win 65535, options [nop,nop,TS val 36022532 ecr 2515763268], length 0
+02:50:18 windows_packets=3480 with_ts=3480 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x950c (correct), ack 2187469105, win 65535, options [nop,nop,TS val 36043010 ecr 2515783663,nop,nop,sack 3 {593681:603817}{1449:192585}{577753:592233}], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x8f64 (correct), ack 1, win 65535, options [nop,nop,TS val 36043010 ecr 2515783663,nop,nop,sack 3 {593681:605265}{1449:192585}{577753:592233}], length 0
+02:50:38 windows_packets=6785 with_ts=6785 rst=0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x9375 (correct), ack 2245846673, win 65535, options [nop,nop,TS val 36063345 ecr 2515804051,nop,nop,sack 3 {262089:280913}{241817:260641}{220097:240369}], length 0
+  example:     192.168.56.1.4492 > 91.189.91.109.443: Flags [.], cksum 0x8dcd (correct), ack 1, win 65535, options [nop,nop,TS val 36063345 ecr 2515804051,nop,nop,sack 3 {262089:282361}{241817:260641}{220097:240369}], length 0
+02:50:58 windows_packets=29 with_ts=28 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [.], cksum 0x0dfb (correct), ack 2418438294, win 253, options [nop,nop,TS val 36084081 ecr 271880024], length 0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x3b01 (correct), seq 0:35, ack 109, win 252, options [nop,nop,TS val 36084132 ecr 271880115], length 35
+02:51:18 windows_packets=0 with_ts=0 rst=0
+02:51:39 windows_packets=36 with_ts=36 rst=0
+  example:     192.168.56.1.31452 > 20.89.1.9.443: Flags [.], cksum 0x0c76 (correct), seq 1049788320:1049789748, ack 3898291164, win 251, options [nop,nop,TS val 36124503 ecr 648591760], length 1428
+  example:     192.168.56.1.31452 > 20.89.1.9.443: Flags [P.], cksum 0x4327 (correct), seq 1428:2604, ack 1, win 251, options [nop,nop,TS val 36124503 ecr 648591760], length 1176
+02:51:59 windows_packets=6 with_ts=6 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x21b9 (correct), seq 1815267342:1815267444, ack 3249287654, win 255, options [nop,nop,TS val 36145639 ecr 403418117], length 102
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0xa3a5 (correct), seq 102:201, ack 1, win 255, options [nop,nop,TS val 36145639 ecr 403418117], length 99
+02:52:19 windows_packets=0 with_ts=0 rst=0
+02:52:39 windows_packets=28 with_ts=25 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x7bf7 (correct), seq 1815273071:1815273111, ack 3249295237, win 250, options [nop,nop,TS val 36184440 ecr 403461556], length 40
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [P.], cksum 0x524b (correct), seq 40:139, ack 1, win 250, options [nop,nop,TS val 36184440 ecr 403461556], length 99
+02:52:59 windows_packets=1 with_ts=1 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [.], cksum 0xa2eb (correct), ack 3249299180, win 255, options [nop,nop,TS val 36207139 ecr 403471907], length 0
+02:53:19 windows_packets=0 with_ts=0 rst=0
+02:53:39 windows_packets=33 with_ts=30 rst=0
+  example:     192.168.56.1.29908 > 20.184.175.5.443: Flags [.], cksum 0xae36 (correct), ack 4068700642, win 255, options [nop,nop,TS val 36244752 ecr 9923451], length 0
+  example:     192.168.56.1.29908 > 20.184.175.5.443: Flags [P.], cksum 0x9563 (correct), seq 0:158, ack 1397, win 250, options [nop,nop,TS val 36244755 ecr 9923451], length 158
+02:53:59 windows_packets=1 with_ts=1 rst=0
+  example:     192.168.56.1.59566 > 94.140.14.14.443: Flags [.], cksum 0xcca8 (correct), ack 3249299258, win 255, options [nop,nop,TS val 36267298 ecr 403531977], length 0
+02:54:19 windows_packets=2 with_ts=2 rst=0
+  example:     192.168.56.1.39283 > 20.9.155.152.443: Flags [F.], cksum 0xb973 (correct), seq 2011429978, ack 1809847131, win 251, options [nop,nop,TS val 36285105 ecr 1089378193], length 0
+  example:     192.168.56.1.39283 > 20.9.155.152.443: Flags [.], cksum 0x3259 (correct), ack 2, win 251, options [nop,nop,TS val 36285158 ecr 1089478260], length 0
+02:54:39 windows_packets=24 with_ts=21 rst=0
+  example:     192.168.56.1.35596 > 94.140.14.14.5443: Flags [.], cksum 0xd77c (correct), ack 3992000679, win 255, options [nop,nop,TS val 36305381 ecr 424220457], length 0
+  example:     192.168.56.1.35596 > 94.140.14.14.5443: Flags [P.], cksum 0xe43a (correct), seq 0:258, ack 1, win 255, options [nop,nop,TS val 36305381 ecr 424220457], length 258
+02:54:59 windows_packets=0 with_ts=0 rst=0
+02:55:20 windows_packets=100 with_ts=81 rst=0
+  example:     192.168.56.1.31351 > 94.140.14.14.5443: Flags [.], cksum 0xde60 (correct), ack 2576137544, win 255, options [nop,nop,TS val 36345264 ecr 1872085598], length 0
+  example:     192.168.56.1.31351 > 94.140.14.14.5443: Flags [P.], cksum 0x221f (correct), seq 0:322, ack 1, win 255, options [nop,nop,TS val 36345264 ecr 1872085598], length 322
+02:55:40 windows_packets=434 with_ts=430 rst=0
+  example:     192.168.56.1.50282 > 45.32.196.23.443: Flags [.], cksum 0xa898 (incorrect -> 0x08ef), seq 3823799766:3823809902, ack 2529608357, win 508, options [nop,nop,TS val 36365322 ecr 3993662092], length 10136
+  example:     192.168.56.1.50282 > 45.32.196.23.443: Flags [P.], cksum 0x5467 (correct), seq 10136:10394, ack 1, win 508, options [nop,nop,TS val 36365322 ecr 3993662092], length 258
+02:56:00 windows_packets=14 with_ts=14 rst=0
+  example:     192.168.56.1.38400 > 104.18.54.45.443: Flags [P.], cksum 0x0ce5 (correct), seq 504567410:504568105, ack 2412413467, win 255, options [nop,nop,TS val 36385924 ecr 2329986286], length 695
+  example:     192.168.56.1.25260 > 104.18.50.34.443: Flags [P.], cksum 0xb96c (correct), seq 941594935:941595630, ack 1362127598, win 255, options [nop,nop,TS val 36386063 ecr 2126257366], length 695
+02:56:20 windows_packets=748 with_ts=743 rst=0
+  example:     192.168.56.1.38119 > 94.140.14.14.443: Flags [P.], cksum 0x8e3f (correct), seq 1322747242:1322747344, ack 2977981270, win 254, options [nop,nop,TS val 36405603 ecr 3512572768], length 102
+  example:     192.168.56.1.38119 > 94.140.14.14.443: Flags [P.], cksum 0xa2bc (correct), seq 102:201, ack 1, win 254, options [nop,nop,TS val 36405603 ecr 3512572768], length 99
+02:56:40 windows_packets=10 with_ts=10 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0xc705 (correct), seq 1850019585:1850019670, ack 2418443343, win 250, options [nop,nop,TS val 36425995 ecr 272220971], length 85
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x1ae8 (correct), seq 85:1181, ack 1, win 250, options [nop,nop,TS val 36425995 ecr 272220971], length 1096
+02:57:00 windows_packets=0 with_ts=0 rst=0
+02:57:20 windows_packets=141 with_ts=137 rst=4
+  example:     192.168.56.1.62257 > 116.202.22.246.443: Flags [.], cksum 0x0187 (correct), seq 3126714815:3126716263, ack 2360141329, win 255, options [nop,nop,TS val 36465911 ecr 3764562390], length 1448
+  example:     192.168.56.1.62257 > 116.202.22.246.443: Flags [P.], cksum 0xf9b0 (correct), seq 1448:2896, ack 1, win 255, options [nop,nop,TS val 36465911 ecr 3764562390], length 1448
+02:57:40 windows_packets=9 with_ts=8 rst=0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x35d9 (correct), seq 1850028552:1850028637, ack 2418444039, win 253, options [nop,nop,TS val 36486663 ecr 272238842], length 85
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [P.], cksum 0x8df6 (correct), seq 85:124, ack 1, win 253, options [nop,nop,TS val 36486663 ecr 272238842], length 39
+02:58:01 windows_packets=35 with_ts=34 rst=0
+  example:     192.168.56.1.38119 > 94.140.14.14.443: Flags [P.], cksum 0x254b (correct), seq 1322761816:1322761918, ack 2977998204, win 250, options [nop,nop,TS val 36506494 ecr 3512674028], length 102
+  example:     192.168.56.1.38119 > 94.140.14.14.443: Flags [P.], cksum 0xe916 (correct), seq 102:201, ack 1, win 250, options [nop,nop,TS val 36506494 ecr 3512674028], length 99
+02:58:21 windows_packets=0 with_ts=0 rst=0
+02:58:41 windows_packets=22 with_ts=10 rst=0
+  example:     192.168.56.1.52505 > 74.179.65.112.443: Flags [P.], cksum 0x3bfb (correct), seq 2276048981:2276049047, ack 2100556933, win 254, options [nop,nop,TS val 36547420 ecr 302845569], length 66
+  example:     192.168.56.1.49628 > 23.239.29.5.443: Flags [P.], cksum 0x88de (correct), seq 3535546367:3535547569, ack 2551456148, win 252, options [nop,nop,TS val 36547655 ecr 1329912950], length 1202
+02:59:01 windows_packets=628 with_ts=621 rst=0
+  example:     192.168.56.1.54468 > 216.128.139.130.443: Flags [P.], cksum 0x7167 (correct), seq 2601206267:2601207715, ack 3051428480, win 511, options [nop,nop,TS val 36566463 ecr 765340268], length 1448
+  example:     192.168.56.1.54468 > 216.128.139.130.443: Flags [.], cksum 0x32a6 (correct), seq 1448:2896, ack 1, win 511, options [nop,nop,TS val 36566463 ecr 765340268], length 1448
+02:59:21 windows_packets=6537 with_ts=6535 rst=0
+  example:     192.168.56.1.5650 > 172.64.190.1.443: Flags [.], cksum 0x0903 (incorrect -> 0x7907), seq 1688215569:1688218345, ack 2356669073, win 254, options [nop,nop,TS val 36586586 ecr 1237023440], length 2776
+  example:     192.168.56.1.5650 > 172.64.190.1.443: Flags [P.], cksum 0x8da8 (correct), seq 2776:4164, ack 1, win 254, options [nop,nop,TS val 36586586 ecr 1237023440], length 1388
+02:59:41 windows_packets=6 with_ts=6 rst=0
+  example:     192.168.56.1.32998 > 172.212.135.2.443: Flags [.], cksum 0xcbd8 (correct), ack 2114873810, win 255, options [nop,nop,TS val 36606881 ecr 1813387403], length 0
+  example:     192.168.56.1.39944 > 52.168.112.66.443: Flags [.], cksum 0xb856 (correct), ack 2418446821, win 254, options [nop,nop,TS val 36607045 ecr 272402974], length 0
+03:00:01 windows_packets=2 with_ts=2 rst=0
+  example:     192.168.56.1.41315 > 162.159.136.234.443: Flags [P.], cksum 0xb71d (correct), seq 269203984:269204105, ack 3193517160, win 251, options [nop,nop,TS val 36628896 ecr 628918396], length 121
+  example:     192.168.56.1.41315 > 162.159.136.234.443: Flags [.], cksum 0xd9af (correct), ack 45, win 251, options [nop,nop,TS val 36629075 ecr 628950335], length 0

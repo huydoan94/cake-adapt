@@ -32,15 +32,105 @@ static bool tcp_enabled(const struct config *config)
 void tcp_init(struct monitor *monitor)
 {
 	tcpdelay_capture_init(&monitor->tcp.capture);
+	tcpdelay_injector_init(&monitor->tcp.injector);
+	tcpdelay_injector_set_stall_window(
+		&monitor->tcp.injector,
+		monitor->config->tcp_ts_stall_window_us
+	);
 }
 
 void tcp_start(struct monitor *monitor)
 {
 	char error[ERROR_SIZE] = { 0 };
 
+	/* The injector shares the filter's object; validation requires attribution. */
+	if (monitor->config->tcp_ts_request)
+		tcpdelay_capture_enable_injection(&monitor->tcp.capture);
 	if (tcp_enabled(monitor->config) &&
 	    tcpdelay_capture_load(&monitor->tcp.capture, error, sizeof(error)) != 0)
-		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: %s", error);
+		log_message(
+			LOG_LEVEL_WARNING,
+			"Warning: TCP measurement unavailable: %s. Continuing without it.",
+			error
+		);
+}
+
+static const char *inject_mode_name(uint32_t mode)
+{
+	if (mode == TCPDELAY_INJECT_SWITCHED)
+		return INJECT_MODE_SWITCHED;
+	if (mode == TCPDELAY_INJECT_PAUSED)
+		return INJECT_MODE_PAUSED;
+	return INJECT_MODE_NORMAL;
+}
+
+static struct log_tcp_inject_record inject_record(
+	const struct tcpdelay_inject_counters *counters,
+	const struct tcpdelay_inject_state *state
+)
+{
+	return (struct log_tcp_inject_record){
+		.injected = counters->injected,
+		.skipped = counters->skipped,
+		.server_accepted = counters->server_accepted,
+		.server_declined = counters->server_declined,
+		.client_rejected = counters->client_rejected,
+		.server_rejected = counters->server_rejected,
+		.retried = counters->retried,
+		.failed = counters->failed,
+		.stalled_ipv4 = counters->stalled_ipv4,
+		.stalled_ipv6 = counters->stalled_ipv6,
+		.paused = counters->paused,
+		.ipv4_mode = inject_mode_name(state->mode),
+		.ipv4_tsval = state->tsval != 0U ? state->tsval : TCPDELAY_INJECT_TSVAL,
+	};
+}
+
+/* Experimental: follows the capture onto the same interface. */
+static void attach_injector(struct monitor *monitor, const char *interface)
+{
+	char error[ERROR_SIZE] = { 0 };
+
+	if (!monitor->config->tcp_ts_request)
+		return;
+	if (tcpdelay_injector_attach(
+		    &monitor->tcp.injector,
+		    &monitor->tcp.capture,
+		    interface,
+		    error,
+		    sizeof(error)
+	    ) != 0) {
+		log_message(
+			LOG_LEVEL_WARNING,
+			"Warning: TCP timestamp injection unavailable: %s. Continuing without it.",
+			error
+		);
+		return;
+	}
+	log_message(
+		LOG_LEVEL_NOTICE,
+		"Starting TCP timestamp injection on interface: %s",
+		interface
+	);
+}
+
+static void detach_injector(struct monitor *monitor)
+{
+	struct tcpdelay_injector *injector = &monitor->tcp.injector;
+	struct tcpdelay_inject_counters counters;
+
+	if (!tcpdelay_injector_attached(injector))
+		return;
+	if (tcpdelay_injector_counters(injector, &counters) == 0)
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"Stopped TCP timestamp injection with injected SYNs: %" PRIu64
+			", IPv4 stalls: %" PRIu64 " and IPv6 stalls: %" PRIu64,
+			(uint64_t)counters.injected,
+			(uint64_t)counters.stalled_ipv4,
+			(uint64_t)counters.stalled_ipv6
+		);
+	tcpdelay_injector_detach(injector);
 }
 
 static bool open_capture(struct monitor *monitor, const struct monitor_direction *upload)
@@ -59,7 +149,11 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 		    error,
 		    sizeof(error)
 	    ) != 0) {
-		log_message(LOG_LEVEL_WARNING, "TCP measurement degraded: %s", error);
+		log_message(
+			LOG_LEVEL_WARNING,
+			"Warning: TCP measurement unavailable: %s. Continuing without it.",
+			error
+		);
 		tcp->failed_index = cake->qdisc.interface_index;
 		return false;
 	}
@@ -73,8 +167,88 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 	tcp->ack_rate_valid = false;
 	tcp->ack_degraded = false;
 	tcp->unaccounted_packets = 0U;
-	log_message(LOG_LEVEL_NOTICE, "TCP measurement started: interface=%s", upload->interface);
+	log_message(
+		LOG_LEVEL_NOTICE,
+		"Starting TCP measurement on interface: %s",
+		upload->interface
+	);
+	attach_injector(monitor, upload->interface);
 	return true;
+}
+
+/* Once a minute: the injector's counters and IPv4 mode. */
+static void log_injector(struct monitor *monitor)
+{
+	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_inject_counters counters;
+	struct tcpdelay_inject_state state;
+	struct log_tcp_inject_record record;
+
+	if (!monitor->config->output_processing_stats ||
+	    tcpdelay_injector_counters(&tcp->injector, &counters) != 0 ||
+	    tcpdelay_injector_state(&tcp->capture, &state) != 0)
+		return;
+	record = inject_record(&counters, &state);
+	log_tcp_inject(&record);
+}
+
+/*
+ * Every second: acts on a stall burst the filter recorded (switch to the
+ * youngest learned clock, or pause) and ends a pause after a day. The
+ * injector leaves IPv4 SYNs alone from the burst until this runs.
+ */
+static void resolve_injection(struct monitor *monitor, uint64_t timestamp_us)
+{
+	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_inject_state state;
+	const char *from;
+	uint64_t boot_us;
+
+	if (timestamp_us < tcp->next_inject_check_us)
+		return;
+	tcp->next_inject_check_us = timestamp_us + TCPDELAY_INJECT_CHECK_US;
+	/* The program's clock: CLOCK_BOOTTIME. */
+	if (!read_clock_us(CLOCK_BOOTTIME, &boot_us) ||
+	    tcpdelay_injector_state(&tcp->capture, &state) != 0)
+		return;
+	from = inject_mode_name(state.mode);
+	switch (tcpdelay_inject_resolve(&state, boot_us * NANOSECONDS_PER_MICROSECOND)) {
+	case TCPDELAY_INJECT_UNCHANGED:
+		return;
+	case TCPDELAY_INJECT_TO_SWITCHED:
+		log_message(
+			LOG_LEVEL_WARNING,
+			"Warning: IPv4 handshake stall burst detected. Changing IPv4 timestamp injection"
+			" state from: %s to: %s with tsval: %" PRIu32,
+			from,
+			INJECT_MODE_SWITCHED,
+			state.tsval
+		);
+		break;
+	case TCPDELAY_INJECT_TO_PAUSED:
+		log_message(
+			LOG_LEVEL_WARNING,
+			"Warning: IPv4 handshake stall burst detected. Changing IPv4 timestamp injection"
+			" state from: %s to: %s for 24 hours.",
+			from,
+			INJECT_MODE_PAUSED
+		);
+		break;
+	case TCPDELAY_INJECT_TO_NORMAL:
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"Changing IPv4 timestamp injection state from: %s to: %s with tsval: 1",
+			from,
+			INJECT_MODE_NORMAL
+		);
+		break;
+	}
+	if (tcpdelay_injector_set_state(&tcp->capture, &state) != 0)
+		log_message(
+			LOG_LEVEL_WARNING,
+			"Warning: could not update IPv4 timestamp injection state: %s.",
+			strerror(errno)
+		);
 }
 
 static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_us)
@@ -85,12 +259,14 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_u
 	if (timestamp_us < tcp->next_counter_check_us)
 		return;
 	tcp->next_counter_check_us = timestamp_us + TCPDELAY_COUNTER_CHECK_US;
+	if (tcpdelay_injector_attached(&tcp->injector))
+		log_injector(monitor);
 	if (tcpdelay_capture_counters(&tcp->capture, &counters) != 0)
 		return;
 	if (counters.ring_full > tcp->dropped_records) {
 		log_message(
 			LOG_LEVEL_WARNING,
-			"TCP delay records dropped: %" PRIu64 " since the last check",
+			"Warning: TCP delay records dropped since last check: %" PRIu64,
 			(uint64_t)(counters.ring_full - tcp->dropped_records)
 		);
 		tcp->dropped_records = counters.ring_full;
@@ -106,7 +282,7 @@ static bool drain(struct monitor *monitor)
 		return true;
 	log_message(
 		LOG_LEVEL_WARNING,
-		"TCP measurement degraded: capture failed: %s",
+		"Warning: TCP measurement capture failed: %s. Continuing without it.",
 		strerror(errno)
 	);
 	tcp_close(monitor);
@@ -133,7 +309,7 @@ static bool capture_ready(struct monitor *monitor)
 			   memcmp(&tcp->capture.accounting.cake, &model, sizeof(model)) != 0))) {
 		log_message(
 			LOG_LEVEL_INFO,
-			"TCP capture follows changed interface or CAKE accounting: interface=%s",
+			"Reopening TCP capture for changed interface or CAKE accounting on interface: %s",
 			upload->interface
 		);
 		tcp_close(monitor);
@@ -177,10 +353,10 @@ static void ack_accounting_state(struct monitor *monitor, bool degraded)
 	if (degraded)
 		log_message(
 			LOG_LEVEL_WARNING,
-			"ACK ceiling disabled: incomplete CAKE accounting or unavailable counters"
+			"Warning: incomplete CAKE accounting or unavailable counters. Disabling ACK ceiling."
 		);
 	else
-		log_message(LOG_LEVEL_NOTICE, "ACK accounting recovered");
+		log_message(LOG_LEVEL_NOTICE, "ACK accounting recovered. Resuming ACK ceiling.");
 }
 
 /* Pure-ACK and total upload rates from the filter's byte counters, over >= 500 ms. */
@@ -257,6 +433,8 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	if (!drain(monitor))
 		return;
 	report_dropped_records(monitor, input->timestamp_us);
+	if (tcpdelay_injector_attached(&tcp->injector))
+		resolve_injection(monitor, input->timestamp_us);
 	if (config->tcp_delay_attribution)
 		measure_queues(monitor, input->timestamp_us, queue);
 	if (config->ul_congest_ack_share_ratio_e6 != 0U)
@@ -287,6 +465,7 @@ void tcp_close(struct monitor *monitor)
 
 	if (!tcp->open)
 		return;
+	detach_injector(monitor);
 	tcpdelay_capture_close(&tcp->capture);
 	tcp->open = false;
 	tcp->ack_sampled = false;
@@ -296,5 +475,6 @@ void tcp_close(struct monitor *monitor)
 void tcp_stop(struct monitor *monitor)
 {
 	tcp_close(monitor);
+	tcpdelay_injector_unload(&monitor->tcp.injector);
 	tcpdelay_capture_unload(&monitor->tcp.capture);
 }

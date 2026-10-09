@@ -212,6 +212,46 @@ static void test_supported_pinger_methods(void)
 	assert(strcmp(error, "option 'tcp_delay_attribution' needs pinger_method 'fping'") == 0);
 }
 
+static void test_tcp_ts_request(void)
+{
+	struct uci_section section = { 0 };
+	struct uci_option option = {
+		.e = { .type = UCI_TYPE_OPTION, .name = "tcp_ts_request" },
+		.type = UCI_TYPE_STRING,
+		.v.string = "1",
+	};
+	struct config config = valid_config();
+	char error[256] = "";
+	const struct loader loader = {
+		.section = &section,
+		.config = &config,
+		.error = error,
+		.error_size = sizeof(error),
+	};
+
+	(void)snprintf(config.reflectors[0], sizeof(config.reflectors[0]), "1.1.1.1");
+	lookup_option = &option;
+	assert(load_options(&loader) == 0);
+	lookup_option = NULL;
+	assert(config.tcp_ts_request);
+	/* Injected timestamps only serve the attribution's queue estimate. */
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strcmp(error, "option 'tcp_ts_request' needs tcp_delay_attribution") == 0);
+	config.tcp_delay_attribution = true;
+
+	/* The stall burst window, in seconds; a zero window would disable the breaker. */
+	option.e.name = "tcp_ts_stall_window_s";
+	option.v.string = "2.5";
+	lookup_option = &option;
+	assert(load_options(&loader) == 0);
+	lookup_option = NULL;
+	assert(config.tcp_ts_stall_window_us == 2500000U);
+	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+	config.tcp_ts_stall_window_us = 0U;
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strcmp(error, "option 'tcp_ts_stall_window_s' must be positive") == 0);
+}
+
 static void test_ul_congest_ack_share(void)
 {
 	struct uci_section section = { 0 };
@@ -381,6 +421,7 @@ int main(void)
 
 	test_supported_pinger_methods();
 	test_ul_congest_ack_share();
+	test_tcp_ts_request();
 	test_option_copy_boundaries();
 	test_scalar_option_types();
 	test_supported_option_names();

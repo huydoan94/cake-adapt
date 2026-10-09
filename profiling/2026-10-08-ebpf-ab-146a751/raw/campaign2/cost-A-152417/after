@@ -1,0 +1,8 @@
+918: socket_filter  name tcpdelay  tag 884a301dbd1db089  gpl run_time_ns 71478037 run_cnt 78825
+	loaded_at 2026-10-08T15:24:17-0600  uid 0
+	xlated 6016B  jited 10500B  memlock 8192B  map_ids 1711,1712,1709,1714,1715,1713,1708,1710,1717
+	btf_id 1539
+920: sched_cls  name inject_egress  tag 86535dcbfd2633af  gpl run_time_ns 14765340 run_cnt 38290
+	loaded_at 2026-10-08T15:24:17-0600  uid 0
+	xlated 3928B  jited 7174B  memlock 4096B  map_ids 1707,1715,1714,1713,1717
+	btf_id 1539

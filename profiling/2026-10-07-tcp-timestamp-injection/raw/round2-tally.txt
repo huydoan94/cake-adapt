@@ -1,0 +1,23 @@
+packets 374, bad checksums 0
+Windows SYNs without TS (LAN): 72; injected (WAN): 72; SYNs with their own TS: 19
+servers answering with TS 64, without 8, no SYN-ACK seen 0
+SYN-ACKs to Windows 96, still carrying the marker 0
+declined by ['150.171.27.11', '20.190.161.88', '40.126.28.20', '40.126.28.23']
+Windows connections whose SYN-ACK arrived with TS: 0, ended by a Windows RST: 0
+Windows connections whose SYN-ACK arrived without TS: 72, ended by a Windows RST: 0
+TCP_QUEUE records 2400, download valid 1386, upload valid 309
+10 s from (UTC)  download n  mean ms  max ms | upload n  mean ms  max ms | fping n  mean ms  max ms
+02:15:20               107      0.5     2.6 |       44      0.5     1.9
+02:15:30               138      0.6     2.1 |       23      0.7     2.1
+02:15:40               116      0.6     2.4 |       11      0.3     1.8
+02:15:50                95      0.9     5.3 |        0        -       -
+02:16:00                96      0.8     6.7 |        9      3.3     6.7
+02:16:10               104      1.6    11.2 |        2      0.0     0.0
+02:16:20               129      0.3     2.6 |        2      0.0     0.0
+02:16:30               124      0.8     6.2 |        3      0.0     0.0
+02:16:40               143      2.4    40.8 |        5      2.6     4.3
+02:16:50                50      0.6     6.2 |        0        -       -
+02:17:00                43      0.5     1.7 |        5      0.2     0.3
+02:17:10                68      0.3     1.6 |       47      1.0     4.8
+02:17:20               165      0.4     2.0 |      154      0.5     2.3
+02:17:30                 8      0.2     0.5 |        4      0.4     1.7

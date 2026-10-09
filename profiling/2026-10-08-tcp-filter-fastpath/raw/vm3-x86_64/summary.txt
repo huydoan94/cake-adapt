@@ -1,0 +1,17 @@
+ts1-f1-base-a          inject_egress=    555ns/14748  tcpdelay=   1464ns/35982  down=13.6 up=5.8 Mbit/s
+ts1-f1-base-b          inject_egress=    370ns/20946  tcpdelay=   1241ns/49377  down=21.8 up=6.5 Mbit/s
+ts1-f1-new-a           inject_egress=    368ns/19234  tcpdelay=   1329ns/44183  down=20.0 up=5.6 Mbit/s
+ts1-f1-new-b           inject_egress=    325ns/23846  tcpdelay=   1377ns/51867  down=26.0 up=5.3 Mbit/s
+ts1-f4-base-a          inject_egress=    341ns/34027  tcpdelay=   1736ns/74632  down=30.1 up=6.0 Mbit/s
+ts1-f4-base-b          inject_egress=    361ns/33577  tcpdelay=   1633ns/73741  down=29.3 up=6.2 Mbit/s
+ts1-f4-new-a           inject_egress=    349ns/34884  tcpdelay=   1750ns/77054  down=30.8 up=6.4 Mbit/s
+ts1-f4-new-b           inject_egress=    446ns/32266  tcpdelay=   1792ns/71264  down=27.7 up=6.3 Mbit/s
+
+ts1-f1   base  tcpdelay          1335 ns/run over 85359 runs
+ts1-f1   base  inject_egress      446 ns/run over 35694 runs
+ts1-f1   new   tcpdelay          1355 ns/run over 96050 runs
+ts1-f1   new   inject_egress      344 ns/run over 43080 runs
+ts1-f4   base  tcpdelay          1685 ns/run over 148373 runs
+ts1-f4   base  inject_egress      351 ns/run over 67604 runs
+ts1-f4   new   tcpdelay          1770 ns/run over 148318 runs
+ts1-f4   new   inject_egress      395 ns/run over 67150 runs

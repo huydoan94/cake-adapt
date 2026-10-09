@@ -1,0 +1,6 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 32Mb ecn drop_batch 64 
+qdisc cake 8007: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- 
+qdisc noqueue 0: dev br-lan root refcnt 2 
+qdisc cake 8008: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 

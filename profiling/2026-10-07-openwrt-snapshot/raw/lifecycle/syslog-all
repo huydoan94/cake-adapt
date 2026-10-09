@@ -1,0 +1,26 @@
+Wed Oct  7 22:43:41 2026 daemon.notice cake-adapt: instance 'main' disabled by configuration; not starting
+Wed Oct  7 22:43:41 2026 daemon.notice cake-adapt: no cake-adapt instances are enabled; not starting
+Wed Oct  7 22:43:47 2026 daemon.info cake-adapt[4713]: INFO: 1791413027.303704 Starting cake-adapt 0.3.7-r1 with PID: 4713, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:44:05 2026 daemon.err cake-adapt[4804]: ERROR: 1791413045.402370 configuration error: download rates must satisfy minimum <= base <= maximum
+Wed Oct  7 22:44:05 2026 daemon.err cake-adapt[4813]: ERROR: 1791413045.410952 configuration error: download shaper rates must be whole bytes/s (multiples of 8 bit/s)
+Wed Oct  7 22:44:05 2026 daemon.info cake-adapt[4713]: INFO: 1791413045.473458 Stopped cake-adapt with PID: 4713, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:44:08 2026 daemon.info cake-adapt[4910]: INFO: 1791413048.544685 Starting cake-adapt 0.3.7-r1 with PID: 4910, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:44:14 2026 daemon.info cake-adapt[4910]: INFO: 1791413054.593386 Stopped cake-adapt with PID: 4910, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:44:14 2026 daemon.info cake-adapt[5026]: INFO: 1791413054.634224 Starting cake-adapt 0.3.7-r1 with PID: 5026, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:44:25 2026 daemon.info cake-adapt[5076]: INFO: 1791413065.684330 Starting cake-adapt 0.3.7-r1 with PID: 5076, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:44:36 2026 daemon.warn cake-adapt[5076]: WARNING: 1791413076.068803 traffic observation unavailable: direction=download interface=ifb4eth1
+Wed Oct  7 22:44:41 2026 daemon.warn cake-adapt[5076]: WARNING: 1791413081.013599 line load unavailable: direction=download
+Wed Oct  7 22:44:49 2026 daemon.warn cake-adapt[5076]: WARNING: 1791413089.268068 CAKE observation degraded: no CAKE qdisc found on interface=ifb4eth1
+Wed Oct  7 22:44:49 2026 daemon.warn cake-adapt[5076]: WARNING: 1791413089.268091 traffic observation unavailable: direction=download interface=ifb4eth1
+Wed Oct  7 22:44:49 2026 daemon.warn cake-adapt[5076]: WARNING: 1791413089.268100 traffic observation unavailable: direction=upload interface=eth1
+Wed Oct  7 22:44:49 2026 daemon.warn cake-adapt[5076]: WARNING: 1791413089.575520 line load unavailable: direction=download
+Wed Oct  7 22:45:07 2026 daemon.info cake-adapt[5076]: INFO: 1791413107.783067 Stopped cake-adapt with PID: 5076, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:45:07 2026 daemon.info cake-adapt[5701]: INFO: 1791413107.824616 Starting cake-adapt 0.3.7-r1 with PID: 5701, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:47:13 2026 daemon.info cake-adapt[5701]: INFO: 1791413233.222984 Stopped cake-adapt with PID: 5701, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:47:13 2026 daemon.info cake-adapt[6268]: INFO: 1791413233.264540 Starting cake-adapt 0.3.7-r1 with PID: 6268, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:47:17 2026 daemon.notice cake-adapt: instance 'main' disabled by configuration; not starting
+Wed Oct  7 22:47:17 2026 daemon.notice cake-adapt: no cake-adapt instances are enabled; not starting
+Wed Oct  7 22:47:17 2026 daemon.info cake-adapt[6268]: INFO: 1791413237.293079 Stopped cake-adapt with PID: 6268, config: /tmp/cake-adapt-config/main, section: main
+Wed Oct  7 22:47:20 2026 daemon.err cake-adapt[6416]: ERROR: 1791413240.333526 configuration error: download rates must satisfy minimum <= base <= maximum
+Wed Oct  7 22:47:20 2026 daemon.err cake-adapt: could not generate /tmp/cake-adapt-config/main/cake-adapt; not starting instance 'main'
+Wed Oct  7 22:47:23 2026 daemon.info cake-adapt[6517]: INFO: 1791413243.426341 Starting cake-adapt 0.3.7-r1 with PID: 6517, config: /tmp/cake-adapt-config/main, section: main

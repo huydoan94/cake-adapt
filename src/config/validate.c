@@ -138,6 +138,21 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 			"option 'tcp_delay_attribution' needs pinger_method 'fping'"
 		);
 	}
+	/* Injected timestamps serve only the queue estimate of the attribution. */
+	if (config->tcp_ts_request && !config->tcp_delay_attribution) {
+		return error_set(
+			error,
+			error_size,
+			"option 'tcp_ts_request' needs tcp_delay_attribution"
+		);
+	}
+	if (config->tcp_ts_request && config->tcp_ts_stall_window_us == 0U) {
+		return error_set(
+			error,
+			error_size,
+			"option 'tcp_ts_stall_window_s' must be positive"
+		);
+	}
 	if (config->reflector_ping_interval_us / config->no_pingers < MILLISECOND) {
 		return error_set(
 			error,

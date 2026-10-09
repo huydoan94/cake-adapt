@@ -1,0 +1,3 @@
+Wed Oct  7 22:47:17 2026 daemon.notice cake-adapt: instance 'main' disabled by configuration; not starting
+Wed Oct  7 22:47:17 2026 daemon.notice cake-adapt: no cake-adapt instances are enabled; not starting
+Wed Oct  7 22:47:17 2026 daemon.info cake-adapt[6268]: INFO: 1791413237.293079 Stopped cake-adapt with PID: 6268, config: /tmp/cake-adapt-config/main, section: main

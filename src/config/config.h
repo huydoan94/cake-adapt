@@ -43,6 +43,8 @@ struct config {
 	bool log_file_export_compress;
 	/* Attribute fping's shared delay with per-direction TCP-timestamp queues. */
 	bool tcp_delay_attribution;
+	/* Experimental: add TCP timestamps to SYNs without them, so they can be measured. */
+	bool tcp_ts_request;
 	bool interface_overridden;
 	char interface[IF_NAMESIZE];
 	char ingress_interface[IF_NAMESIZE];
@@ -65,6 +67,8 @@ struct config {
 	uint64_t sustained_idle_sleep_threshold_us;
 	uint64_t log_file_buffer_timeout_us;
 	uint64_t irtt_session_duration_us;
+	/* Experimental: 5 IPv4 handshake stalls within this change IPv4 injection. */
+	uint64_t tcp_ts_stall_window_us;
 	uint64_t monitor_achieved_rates_interval_us;
 	uint64_t monitor_cpu_usage_interval_us;
 	uint64_t bufferbloat_detection_window;
