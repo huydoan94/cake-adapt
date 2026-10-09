@@ -1,0 +1,2 @@
+run: daemon exit 0
+run: leftover in cpe=[]
