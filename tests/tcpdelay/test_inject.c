@@ -105,57 +105,93 @@ static void test_injected_tsval(void)
 	assert((int32_t)(0x80000001U - injected) < 0);
 }
 
-/* Minutes in microseconds, written out so the checks do not reuse the constants. */
-#define MINUTE_US 60000000ULL
+/* Seconds and days in nanoseconds, written out so the checks do not reuse the constants. */
+#define SECOND_NS 1000000000ULL
+#define DAY_TICKS 86400000U
 
-static void test_breaker(void)
+/* Five stalls within ten seconds make a burst; spread out, they do not. */
+static void test_stall_burst(void)
 {
-	struct tcpdelay_inject_breaker breaker = { 0 };
-	uint64_t now = 1000U * MINUTE_US;
+	struct tcpdelay_inject_state state = { 0 };
+	uint64_t now = 1000U * SECOND_NS;
+	unsigned int i;
 
-	/* Two stalls since loading, then a third ten minutes later: still running. */
-	assert(tcpdelay_inject_breaker_check(&breaker, 2U, now) == TCPDELAY_INJECT_BREAKER_KEEP);
-	now += 11U * MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 3U, now) == TCPDELAY_INJECT_BREAKER_KEEP);
-	/* Three more within ten minutes pause it for a day. */
-	now += 5U * MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 5U, now) == TCPDELAY_INJECT_BREAKER_KEEP);
-	now += 4U * MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 6U, now) == TCPDELAY_INJECT_BREAKER_PAUSE);
-	assert(breaker.paused);
-	now += 60U * MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 6U, now) == TCPDELAY_INJECT_BREAKER_KEEP);
-	/* A day after pausing it runs again, counting from the counter at that check. */
-	now += 23U * 60U * MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 6U, now) == TCPDELAY_INJECT_BREAKER_RESUME);
-	assert(!breaker.paused);
-	now += MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 8U, now) == TCPDELAY_INJECT_BREAKER_KEEP);
-	now += MINUTE_US;
-	assert(tcpdelay_inject_breaker_check(&breaker, 9U, now) == TCPDELAY_INJECT_BREAKER_PAUSE);
+	for (i = 0U; i < 4U; i++)
+		assert(!tcpdelay_inject_stall_burst(&state, now + i * SECOND_NS));
+	assert(tcpdelay_inject_stall_burst(&state, now + 9U * SECOND_NS));
+	/* One every three seconds: never five within ten. */
+	state = (struct tcpdelay_inject_state){ 0 };
+	for (i = 0U; i < 20U; i++)
+		assert(!tcpdelay_inject_stall_burst(&state, now + i * 3U * SECOND_NS));
 }
 
-static void test_breaker_first_check(void)
+/*
+ * After a burst: switch to the youngest clock learned within a day when it is
+ * at least a day old; a second burst, or no such clock, pauses for a day.
+ */
+static void test_escalate(void)
 {
-	struct tcpdelay_inject_breaker breaker = { 0 };
+	struct tcpdelay_inject_state state = { 0 };
+	uint64_t now = 10U * DAY_NS;
 
-	/* Three stalls before the first check, counted from zero at loading. */
-	assert(tcpdelay_inject_breaker_check(&breaker, 3U, MINUTE_US) ==
-	       TCPDELAY_INJECT_BREAKER_PAUSE);
+	assert(tcpdelay_inject_ipv4_tsval(&state) == 1U);
+	/* Clients up 3 and 30 days; the 3-day one is the youngest. */
+	tcpdelay_inject_learn_clock(&state, 3U * DAY_TICKS, now);
+	tcpdelay_inject_learn_clock(&state, 30U * DAY_TICKS, now);
+	assert(tcpdelay_inject_youngest_clock(&state, now) == 3U * DAY_TICKS);
+	/* A minute later every clock reads a minute more. */
+	assert(tcpdelay_inject_youngest_clock(&state, now + 60U * SECOND_NS) ==
+	       3U * DAY_TICKS + 60000U);
+	/* A burst stops IPv4 injection until the daemon resolves it. */
+	state.burst = 1U;
+	assert(tcpdelay_inject_ipv4_tsval(&state) == 0U);
+	assert(tcpdelay_inject_resolve(&state, now) == TCPDELAY_INJECT_TO_SWITCHED);
+	assert(state.mode == TCPDELAY_INJECT_SWITCHED && !state.burst);
+	/* Ten minutes of margin below the youngest clock. */
+	assert(tcpdelay_inject_ipv4_tsval(&state) == 3U * DAY_TICKS - 600000U);
+	assert(tcpdelay_inject_resolve(&state, now) == TCPDELAY_INJECT_UNCHANGED);
+	state.burst = 1U;
+	assert(tcpdelay_inject_resolve(&state, now) == TCPDELAY_INJECT_TO_PAUSED);
+	assert(tcpdelay_inject_ipv4_tsval(&state) == 0U);
+	assert(tcpdelay_inject_resolve(&state, now + DAY_NS - 1U) == TCPDELAY_INJECT_UNCHANGED);
+	/* A day later it starts over with 1. */
+	assert(tcpdelay_inject_resolve(&state, now + DAY_NS) == TCPDELAY_INJECT_TO_NORMAL);
+	assert(tcpdelay_inject_ipv4_tsval(&state) == 1U);
+	assert(state.mode == TCPDELAY_INJECT_NORMAL);
 }
 
-static void test_breaker_history(void)
+static void test_escalate_young(void)
 {
-	struct tcpdelay_inject_breaker breaker = { 0 };
-	uint64_t now = MINUTE_US;
-	uint64_t check;
+	struct tcpdelay_inject_state state = { 0 };
+	uint64_t now = 10U * DAY_NS;
 
-	/* One stall every six minutes, for longer than the history holds: never three in ten. */
-	for (check = 0U; check < 40U; check++) {
-		assert(tcpdelay_inject_breaker_check(&breaker, check, now) ==
-		       TCPDELAY_INJECT_BREAKER_KEEP);
-		now += 6U * MINUTE_US;
-	}
+	/* A client up 2 hours: younger than a day, so a burst pauses. */
+	tcpdelay_inject_learn_clock(&state, 7200000U, now);
+	tcpdelay_inject_learn_clock(&state, 30U * DAY_TICKS, now);
+	assert(tcpdelay_inject_escalate(&state, now));
+	assert(state.mode == TCPDELAY_INJECT_PAUSED);
+	/* Nothing learned at all also pauses. */
+	state = (struct tcpdelay_inject_state){ 0 };
+	assert(tcpdelay_inject_escalate(&state, now));
+	/* A burst with nothing learned pauses at once. */
+	state = (struct tcpdelay_inject_state){ .burst = 1U };
+	assert(tcpdelay_inject_resolve(&state, now) == TCPDELAY_INJECT_TO_PAUSED);
+	assert(state.mode == TCPDELAY_INJECT_PAUSED && !state.burst);
+	/* Clocks older than a day are forgotten. */
+	state = (struct tcpdelay_inject_state){ 0 };
+	tcpdelay_inject_learn_clock(&state, 5U * DAY_TICKS, now);
+	assert(tcpdelay_inject_youngest_clock(&state, now + DAY_NS) == 0U);
+}
+
+/* An IPv6 client gets its own learned clock for a day, else 1. */
+static void test_client_tsval(void)
+{
+	const struct tcpdelay_inject_client client = { .seen_ns = DAY_NS, .tsval = 2600000000U };
+
+	assert(tcpdelay_inject_client_tsval(NULL, DAY_NS) == 1U);
+	assert(tcpdelay_inject_client_tsval(&client, DAY_NS) == 2600000000U);
+	assert(tcpdelay_inject_client_tsval(&client, 2U * DAY_NS - 1U) == 2600000000U);
+	assert(tcpdelay_inject_client_tsval(&client, 2U * DAY_NS) == 1U);
 }
 
 int main(void)
@@ -165,9 +201,10 @@ int main(void)
 	test_resets();
 	test_answer();
 	test_injected_tsval();
-	test_breaker();
-	test_breaker_first_check();
-	test_breaker_history();
+	test_stall_burst();
+	test_escalate();
+	test_escalate_young();
+	test_client_tsval();
 	puts("TCP timestamp injection policy tests passed");
 	return 0;
 }

@@ -159,25 +159,29 @@ to that server alone meanwhile:
 
 The connection that failed is not rescued; the next ones are.
 
-**Client clocks.** The injected SYN carries the timestamp value 1, and a
-client that adopts timestamps then sends values from its own clock. Servers
-drop segments whose value looks older than the last one they saw (PAWS, RFC
-7323), comparing 32-bit values by their signed difference. Windows counts
-milliseconds since boot, so its timestamps follow 1 for up to 24.8 days of
-uptime (2^31 ms); Fast Startup keeps that uptime running across shutdowns. A
-client up longer would have every injected connection hang, and that is the
-stalled handshake above: its server is skipped, and when 3 handshakes stall
-within 10 minutes, cake-adapt stops injecting for 24 hours and logs a warning.
-Behind NAT the router cannot tell clients apart: the injector runs on the
-upload interface after masquerading, where every SYN carries the router's own
-address, and a WAN port belongs to one connection, not to one client. So it
-cannot learn each client's clock, and the pause applies to all of them.
-Learning per client would need a hook before masquerading (a program on the
-LAN bridge, or a firewall mark); that is not implemented. IPv6 without NAT
-does not have this limitation in principle, but the injector treats it the
-same way for now. Restarting such a PC fixes it; better still, a Windows PC you manage
-can send timestamps itself, which needs no injection at all (as administrator:
-`netsh int tcp set global timestamps=enabled`). The programs are
+**Client clocks.** A client that adopts the timestamp then sends values from
+its own clock, and servers drop segments whose value looks older than the last
+one they saw (PAWS, RFC 7323), comparing 32-bit values by their signed
+difference: one injected value suits only clocks within 2^31 ticks after it.
+Windows counts milliseconds since boot, and Fast Startup keeps that uptime
+running across shutdowns, so clocks of any age are common. A clock outside the
+window makes the server drop the client's handshake reply and send its SYN-ACK
+again: the handshake stalls, and its server is skipped for a day.
+
+- **IPv6** clients keep their own address, so each client's clock is learned
+  from its first timestamped packets and injected back to it, which suits any
+  uptime; a stall skips that client and server only.
+- **IPv4** clients all share the router's address after NAT. They get the
+  value 1 (uptime up to 24.8 days). When 5 handshakes stall within 10
+  seconds, IPv4 SYNs are left alone at once and, within a second, cake-adapt
+  switches to the youngest client clock seen within a day if it is at least a
+  day old, else pauses IPv4 injection for a day; 5 more stalls within 10
+  seconds after a switch also pause it. After a pause it starts over with 1.
+  The `TCP_INJECT` record shows the stalls per family and the IPv4 mode.
+- **IPv6 behind NAT66 or NPTv6** is not handled; there, leave the option off.
+
+A Windows PC you manage can send timestamps itself, which needs no injection
+at all (as administrator: `netsh int tcp set global timestamps=enabled`). The programs are
 attached with tcx, so SQM's qdiscs are not affected, and the kernel removes
 them when cake-adapt stops, however it stops. It is opt-in because it changes
 clients' SYNs: the rewrite is the kind a router's MSS clamping already does,

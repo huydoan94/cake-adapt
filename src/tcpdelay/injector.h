@@ -46,6 +46,21 @@ int tcpdelay_injector_counters(
 	struct tcpdelay_inject_counters *counters
 );
 
+/* The shared IPv4 injection state (mode, TSval, pause), read from the capture's object. */
+int tcpdelay_injector_state(
+	const struct tcpdelay_capture *capture,
+	struct tcpdelay_inject_state *state
+);
+
+/*
+ * Writes the IPv4 injection state back after tcpdelay_inject_resolve(); a stall
+ * the filter records meanwhile may be lost, which only delays a burst.
+ */
+int tcpdelay_injector_set_state(
+	const struct tcpdelay_capture *capture,
+	const struct tcpdelay_inject_state *state
+);
+
 /* Detaches the program; its maps and server cache stay with the capture. Repeatable. */
 void tcpdelay_injector_detach(struct tcpdelay_injector *injector);
 
