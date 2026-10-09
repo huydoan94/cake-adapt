@@ -9,10 +9,11 @@
 # same traffic. INJECT=1 also turns on tcp_ts_request (builds that have
 # it; earlier builds read its old name, tcp_timestamp_inject, also written),
 # whose injector program is then measured too: summary has one line per
-# BPF program (socket filter, then the injector).
+# BPF program (socket filter, then the injector). SERVER is the iperf3
+# servers' address: 10.99.0.2, or fd99::2 for IPv6, which the injector reads.
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 OBJECT=$3
-: "${ADJUST:=1}" "${INJECT:=0}"
+: "${ADJUST:=1}" "${INJECT:=0}" "${SERVER:=10.99.0.2}"
 R=$T/results/$NAME
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
@@ -72,9 +73,9 @@ sample() {
 
 sleep 10
 sample > "$R/start"
-ip netns exec cpe iperf3 -c 10.99.0.2 -p 5202 -t 60 -P 4 -R -J > "$R/download.json" &
+ip netns exec cpe iperf3 -c "$SERVER" -p 5202 -t 60 -P 4 -R -J > "$R/download.json" &
 DOWNLOAD=$!
-X cpe iperf3 -c 10.99.0.2 -p 5201 -t 60 -J > "$R/upload.json"
+X cpe iperf3 -c "$SERVER" -p 5201 -t 60 -J > "$R/upload.json"
 wait "$DOWNLOAD"
 sample > "$R/end"
 
