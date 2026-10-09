@@ -1,5 +1,5 @@
 #!/bin/sh
-# inject.sh [BINARY]: checks tcp_timestamp_inject against the emulated ISP.
+# inject.sh [BINARY]: checks tcp_ts_request against the emulated ISP.
 # The client in cpe sends no TCP timestamps (net.ipv4.tcp_timestamps=0, as
 # Windows), and the servers in inet behave four ways:
 #   5202 accepts timestamps;
@@ -53,7 +53,7 @@ config cake_adapt 'main'
 	option base_ul_shaper_rate_kbps '6000'
 	option max_ul_shaper_rate_kbps '12000'
 	option tcp_delay_attribution '1'
-	option tcp_timestamp_inject '1'
+	option tcp_ts_request '1'
 	option randomize_reflectors '0'
 	option output_processing_stats '1'
 	option output_load_stats '1'
