@@ -507,10 +507,11 @@ screen_errors() {
 	fi
 }
 
-# One line every 5 s for the router-side watchdog; it ends with the connection.
+# One line a second: the router-side follower's clock and watchdog; it ends
+# with the connection.
 heartbeat() {
 	while echo; do
-		sleep 5
+		sleep 1
 	done
 }
 
@@ -552,44 +553,51 @@ event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
 # Runs on the router (BusyBox sh) as /tmp/cake-adapt-capture.sh, so that ps
 # shows it by name; each session writes it afresh under a temporary name and
 # renames it, so a follower still running keeps its own copy. It replays the
-# .old copy and the live log, prints
-# the marker, then follows the live log once a second. The log stays open on
-# descriptor 3, so each read continues where the last stopped instead of
-# rereading the file: its position comes from /proc/self/fdinfo, and its size
-# from ls, which reads no content. tail -F would lose what was written in the
-# second before a rotation, which cake-adapt does by copying the log to .old and
-# truncating it in place: when the log shrinks below the position, the rest of
-# the old content is read from .old at the same offset. The log cannot regrow
-# past that offset within a second, since it rotates at 2 MB or after 10
-# minutes of growth.
+# .old copy and the live log, prints the marker, then follows the live log on
+# each heartbeat. The log stays open on descriptor 3, so each read continues
+# where the last stopped instead of rereading the file. A slow router pays
+# mostly for starting processes, so each tick starts only the cat that copies
+# the new lines: the position before and after it comes from /proc/self/fdinfo
+# with builtins, and only when cat found nothing is the log's size read with
+# ls, since that is the only time it can have been rotated. tail -F would lose
+# what was written in the second before a rotation, which cake-adapt does by
+# copying the log to .old and truncating it in place: when the log shrinks
+# below the position, the rest of the old content is read from .old at the
+# same offset. The log cannot regrow past that offset within a second, since it
+# rotates at 2 MB or after 10 minutes of growth.
 #
-# The PC sends a heartbeat line every 5 s on the follower's stdin. Beside the
-# follower, one subshell counts them into a beat file with shell builtins only
-# and kills the whole session's process group at end of input (the session
-# closed); another wakes every 30 s and does the same when the count has not
-# moved (the network silently gone), so the follower exits within a minute,
-# including a reader blocked writing to a dead connection. The follower is
-# POSIX sh (read -t is not), and it removes the beat file however it ends
-# (closed session, SIGHUP from the SSH server, or the watchdog).
+# The PC sends a heartbeat line every second on the follower's stdin. A
+# subshell counts them into a beat file and passes each to the follower through
+# a FIFO, with shell builtins only, so the follower waits on a read instead of
+# starting sleep; at end of input (the session closed) it kills the whole
+# session's process group. Another subshell wakes every 30 s and does the same
+# when the count has not moved (the network silently gone), so the follower
+# exits within a minute, including a reader blocked writing to a dead
+# connection; the count keeps moving during the replay. The follower is POSIX
+# sh (read -t is not), and it removes its files however it ends (closed
+# session, SIGHUP from the SSH server, or the watchdog).
 # The router's shell expands its $ references, so they stay quoted here.
 # shellcheck disable=SC2016
 follower='#!/bin/sh
 # Written by capture-log.sh for each SSH session; safe to delete.
 f=$1
 beats=/tmp/cake-adapt-capture.$$.beats
+ticks=/tmp/cake-adapt-capture.$$.ticks
 echo 0 > "$beats"
-trap "rm -f \"$beats\"" EXIT
+mkfifo "$ticks" || exit
+trap "rm -f \"$beats\" \"$ticks\"" EXIT
 trap exit HUP INT TERM PIPE
-exec 4<&0
+exec 5<&0
 (
 	trap - EXIT HUP INT TERM PIPE
 	n=0
 	while read -r _; do
 		n=$((n + 1))
 		echo "$n" > "$beats"
+		echo
 	done
 	kill -TERM 0
-) <&4 &
+) <&5 > "$ticks" &
 (
 	trap - EXIT HUP INT TERM PIPE
 	last=
@@ -599,28 +607,30 @@ exec 4<&0
 		last=$beat
 	done
 ) &
+exec 4< "$ticks"
+# The position is the first line of fdinfo; the shell reads a byte per system
+# call, so only that line is read.
+position() {
+	read -r _ offset < /proc/$$/fdinfo/3
+}
 cat "$f.old" 2>/dev/null
 exec 3< "$f"
 cat <&3
 echo "$2"
-while :; do
+while read -r _ <&4; do
+	position
+	start=$offset
+	cat <&3
+	[ $? -lt 128 ] || exit
+	position
+	[ "$offset" = "$start" ] || continue
 	set -- "$1" "$2" $(ls -ln "$f" 2>/dev/null)
-	size=${7:-0}
-	while read -r key value; do
-		[ "$key" = pos: ] && offset=$value
-	done < /proc/$$/fdinfo/3
-	if [ "$size" -lt "$offset" ]; then
-		tail -c +$((offset + 1)) "$f.old" 2>/dev/null
-		[ $? -lt 128 ] || exit
-		exec 3< "$f"
-		continue
-	fi
-	if [ "$size" -gt "$offset" ]; then
-		cat <&3
-		[ $? -lt 128 ] || exit
-	fi
-	sleep 1
-done'
+	[ "${7:-0}" -lt "$offset" ] || continue
+	tail -c +$((offset + 1)) "$f.old" 2>/dev/null
+	[ $? -lt 128 ] || exit
+	exec 3< "$f"
+done
+kill -TERM 0'
 
 while true; do
 	event "connecting"
