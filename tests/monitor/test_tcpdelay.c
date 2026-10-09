@@ -30,6 +30,11 @@ void log_message(enum log_level level, const char *format, ...)
 		notices++;
 }
 
+void log_tcp_inject(const struct log_tcp_inject_record *record)
+{
+	(void)record;
+}
+
 static unsigned int opened;
 static unsigned int closed;
 
@@ -46,8 +51,9 @@ int tcpdelay_capture_open(
 	(void)error_size;
 	opened++;
 	capture->interface_index = 10U;
-	capture->accounting.cake = *accounting;
-	capture->accounting.enabled = 1U;
+	capture->accounting.enabled = accounting != NULL;
+	if (accounting != NULL)
+		capture->accounting.cake = *accounting;
 	return 0;
 }
 
@@ -67,6 +73,78 @@ void tcpdelay_estimator_set_bound(struct tcpdelay_estimator *estimator, int64_t 
 {
 	(void)estimator;
 	(void)queue_bound_us;
+}
+
+static unsigned int injector_attaches;
+static unsigned int injector_detaches;
+static int injector_status;
+static bool injector_on;
+static struct tcpdelay_inject_state injected_state;
+static unsigned int state_writes;
+
+int tcpdelay_injector_attach(
+	struct tcpdelay_injector *injector,
+	const struct tcpdelay_capture *capture,
+	const char *interface,
+	char *error,
+	size_t error_size
+)
+{
+	(void)injector;
+	(void)capture;
+	(void)error;
+	(void)error_size;
+	assert(strcmp(interface, "wan") == 0);
+	injector_attaches++;
+	injector_on = injector_status == 0;
+	return injector_status;
+}
+
+bool tcpdelay_injector_attached(const struct tcpdelay_injector *injector)
+{
+	(void)injector;
+	return injector_on;
+}
+
+int tcpdelay_injector_counters(
+	const struct tcpdelay_injector *injector,
+	struct tcpdelay_inject_counters *counters
+)
+{
+	(void)injector;
+	*counters = (struct tcpdelay_inject_counters){
+		.injected = 3U,
+		.server_accepted = 2U,
+	};
+	return 0;
+}
+
+int tcpdelay_injector_state(
+	const struct tcpdelay_capture *capture,
+	struct tcpdelay_inject_state *state
+)
+{
+	(void)capture;
+	*state = injected_state;
+	return 0;
+}
+
+int tcpdelay_injector_set_state(
+	const struct tcpdelay_capture *capture,
+	const struct tcpdelay_inject_state *state
+)
+{
+	(void)capture;
+	injected_state = *state;
+	state_writes++;
+	return 0;
+}
+
+void tcpdelay_injector_detach(struct tcpdelay_injector *injector)
+{
+	(void)injector;
+	injector_detaches++;
+	injector_on = false;
 }
 
 void traffic_init(struct traffic_monitor *monitor)
@@ -118,6 +196,72 @@ static void capture_lifecycle(struct monitor *monitor)
 	upload->cake_state = CAKE_OBSERVATION_FAILED;
 	tcp_drain(monitor);
 	assert(closed == 4U && !monitor->tcp.open);
+	monitor->config = NULL;
+}
+
+/* The injector follows the capture onto the upload interface, and never blocks it. */
+static void injector_lifecycle(struct monitor *monitor)
+{
+	struct config config = {
+		.tcp_delay_attribution = true,
+		.tcp_ts_request = true,
+	};
+	struct monitor_direction *upload = &monitor->links.upload;
+	unsigned int warned = warnings;
+
+	monitor->config = &config;
+	upload->interface = "wan";
+	upload->cake.qdisc = (struct qdisc_id){ .interface_index = 10U, .handle = 0x10000U };
+	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
+	assert(capture_ready(monitor));
+	assert(injector_attaches == 1U && injector_on);
+	tcp_close(monitor);
+	assert(injector_detaches == 1U && !injector_on);
+	/* A failed attachment warns; the capture stays open and nothing is detached. */
+	injector_status = -1;
+	assert(capture_ready(monitor));
+	assert(monitor->tcp.open && injector_attaches == 2U && warnings == warned + 1U);
+	tcp_close(monitor);
+	assert(injector_detaches == 1U);
+	/* Off by default: no attachment at all. */
+	injector_status = 0;
+	config.tcp_ts_request = false;
+	assert(capture_ready(monitor));
+	assert(injector_attaches == 2U);
+	tcp_close(monitor);
+	monitor->config = NULL;
+}
+
+/* A recorded stall burst is resolved within a second and written back, once. */
+static void injector_resolve(struct monitor *monitor)
+{
+	struct config config = {
+		.tcp_delay_attribution = true,
+		.tcp_ts_request = true,
+	};
+	struct monitor_direction *upload = &monitor->links.upload;
+	unsigned int warned = warnings;
+
+	monitor->config = &config;
+	upload->interface = "wan";
+	upload->cake.qdisc = (struct qdisc_id){ .interface_index = 10U, .handle = 0x10000U };
+	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
+	assert(capture_ready(monitor) && injector_on);
+	resolve_injection(monitor, 10U * SECOND);
+	assert(warnings == warned && state_writes == 0U);
+	/* A burst with nothing learned pauses, logged and written back once. */
+	injected_state.burst = 1U;
+	resolve_injection(monitor, 11U * SECOND);
+	assert(warnings == warned + 1U && state_writes == 1U);
+	assert(injected_state.mode == TCPDELAY_INJECT_PAUSED && !injected_state.burst);
+	/* Not again within the second. */
+	injected_state.burst = 1U;
+	resolve_injection(monitor, 11U * SECOND + 500U * MILLISECOND);
+	assert(state_writes == 1U);
+	injected_state.burst = 0U;
+	/* The program stays attached; IPv6 keeps injecting. */
+	assert(injector_on);
+	tcp_close(monitor);
 	monitor->config = NULL;
 }
 
@@ -175,6 +319,8 @@ int main(void)
 	assert(acks.valid && notices == 3U);
 	assert(bps(1U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
+	injector_lifecycle(monitor);
+	injector_resolve(monitor);
 	free(monitor);
 	puts("monitor ACK accounting tests passed");
 	return 0;

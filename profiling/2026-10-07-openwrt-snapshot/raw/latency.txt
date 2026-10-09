@@ -1,0 +1,6 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+fping-tcp              upload-steady     7.6   83.6  116.6   33.4   28.7     0      87.3       nan
+fping-tcp              upload-step      26.4  116.6  123.6   52.3   49.2     0      87.9       nan
+fping-tcp              download-steady   20.0   38.1   50.3   61.1   20.1     0       nan      83.8
+fping-tcp              bidirectional    25.2   68.1   78.6   62.0   43.2     0      83.0      66.5
+                       (idle base RTT 22.4 ms; delays are added RTT in ms)

@@ -104,7 +104,7 @@ RAM, so the defaults never write to flash.
 | `log_file_export_compress` | boolean | `1` | Compress the export written on `SIGUSR1`. |
 | `debug` | boolean | `1` | Include debug messages in the log file. |
 | `log_DEBUG_messages_to_syslog` | boolean | `0` | Also send debug messages to syslog. |
-| `output_processing_stats` | boolean | `0` | Log a `DATA` record per ping reply (and `TCP_QUEUE` records with `tcp_delay_attribution`). |
+| `output_processing_stats` | boolean | `0` | Log a `DATA` record per ping reply (and `TCP_QUEUE` records with `tcp_delay_attribution`, and a `TCP_INJECT` record each minute with `tcp_ts_request`). |
 | `output_load_stats` | boolean | `0` | Log a `LOAD` record per traffic sample. |
 | `output_reflector_stats` | boolean | `0` | Log `REFLECTOR` records at each reflector comparison. |
 | `output_summary_stats` | boolean | `0` | Log a `SUMMARY` record per ping reply. |
@@ -133,6 +133,61 @@ support the instance logs a warning and carries on without them.
 
 For a slow upload, CAKE's plain `ack-filter` on the upload qdisc also helps.
 Do not use `ack-filter-aggressive`.
+
+### TCP timestamp injection (experimental)
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `tcp_ts_request` | boolean | `0` | Experimental; needs `tcp_delay_attribution`. Renamed from `tcp_timestamp_inject`, which is no longer read: update existing UCI configurations. Adds a TCP timestamp to clients' SYNs that lack one, so the filter can measure those connections too. Windows does not send TCP timestamps; with this option on, its connections are measured in both directions. |
+| `tcp_ts_stall_window_s` | decimal | `40` | Not in cake-autorate. 5 IPv4 handshakes that stall within this many seconds switch IPv4 injection to a learned client clock or pause it (see below). Each stall delays one connection by a SYN retry; a longer window catches slowly repeating stalls sooner. |
+
+Windows opens TCP connections without timestamps, so the TCP filter cannot
+measure them. With `tcp_ts_request`, a second program in the same eBPF
+object rewrites such a SYN on its way out of the upload interface: it gets a timestamp, the server answers with its own, and a
+client that accepts it (Windows does) then sends timestamps itself. Clients
+that already send timestamps are not touched.
+
+Adding that option to a SYN is the only change made to any packet. It
+remembers, per server address and port, a rejection for a day and leaves SYNs
+to that server alone meanwhile:
+
+- the client refused the server's timestamp: it resent its SYN after the
+  SYN-ACK, or reset the connection before sending anything;
+- the server reset the rewritten SYN, or answered only once the SYN was resent
+  without the timestamp;
+- the handshake stalled: the server took the timestamp, then sent its SYN-ACK
+  again because it never accepted the client's reply (counted as `STALLED`).
+
+The connection that failed is not rescued; the next ones are.
+
+**Client clocks.** A client that adopts the timestamp then sends values from
+its own clock, and servers drop segments whose value looks older than the last
+one they saw (PAWS, RFC 7323), comparing 32-bit values by their signed
+difference: one injected value suits only clocks within 2^31 ticks after it.
+Windows counts milliseconds since boot, and Fast Startup keeps that uptime
+running across shutdowns, so clocks of any age are common. A clock outside the
+window makes the server drop the client's handshake reply and send its SYN-ACK
+again: the handshake stalls, and its server is skipped for a day.
+
+- **IPv6** clients keep their own address, so each client's clock is learned
+  from its first timestamped packets and injected back to it, which suits any
+  uptime; a stall skips that client and server only.
+- **IPv4** clients all share the router's address after NAT. They get the
+  value 1 (uptime up to 24.8 days). When 5 handshakes stall within
+  `tcp_ts_stall_window_s`, IPv4 SYNs are left alone at once and, within a
+  second, cake-adapt switches to the youngest client clock seen within a day
+  if it is at least a day old, else pauses IPv4 injection for a day; 5 more
+  stalls within the window after a switch also pause it. After a pause it
+  starts over with 1.
+  The `TCP_INJECT` record shows the stalls per family and the IPv4 mode.
+- **IPv6 behind NAT66 or NPTv6** is not handled; there, leave the option off.
+
+A Windows PC you manage can send timestamps itself, which needs no injection
+at all (as administrator: `netsh int tcp set global timestamps=enabled`). The programs are
+attached with tcx, so SQM's qdiscs are not affected, and the kernel removes
+them when cake-adapt stops, however it stops. It is opt-in because it changes
+clients' SYNs: the rewrite is the kind a router's MSS clamping already does,
+but adds an option instead of changing one.
 
 ## Idle, sleep and stall
 

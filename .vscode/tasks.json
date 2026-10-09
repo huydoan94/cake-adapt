@@ -1,14 +1,15 @@
 {
+    // The test and build tasks run tools/host-test.sh and tools/sdk-build.sh.
     // SDK locations default to siblings of this repository (../openwrt-sdk-x86,
     // ../openwrt-sdk-filogic); set OPENWRT_SDK_X86 or OPENWRT_SDK_FILOGIC to
-    // override. The host tests take the uci.h and libubox headers that
-    // check-config needs from the x86 SDK.
+    // override. The host tests take the uci.h, libubox and libbpf headers from
+    // the x86 SDK.
     "version": "2.0.0",
     "tasks": [
         {
             "label": "Test cake-adapt (host)",
             "type": "shell",
-            "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; headers=$(cd \"$sdk\" && echo \"$PWD\"/staging_dir/target-*/usr/include); make -C tests check check-netlink check-config check-tcpdelay UCI_CFLAGS=\"-isystem $headers\"",
+            "command": "sh tools/host-test.sh x86",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -25,12 +26,15 @@
             "options": {
                 "cwd": "${workspaceFolder}"
             },
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
             "problemMatcher": []
         },
         {
             "label": "Build cake-adapt (OpenWrt SDK x86)",
             "type": "shell",
-            "command": "sdk=$OPENWRT_SDK_X86; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-x86; make -C \"$sdk\" package/cake-adapt/clean V=s && make -C \"$sdk\" package/cake-adapt/compile V=s",
+            "command": "sh tools/sdk-build.sh x86",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -39,7 +43,7 @@
         {
             "label": "Build cake-adapt (OpenWrt SDK filogic)",
             "type": "shell",
-            "command": "sdk=$OPENWRT_SDK_FILOGIC; [ -n \"$sdk\" ] || sdk=../openwrt-sdk-filogic; make -C \"$sdk\" package/cake-adapt/clean V=s && make -C \"$sdk\" package/cake-adapt/compile V=s",
+            "command": "sh tools/sdk-build.sh filogic",
             "options": {
                 "cwd": "${workspaceFolder}"
             },

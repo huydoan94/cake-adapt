@@ -19,7 +19,7 @@ WARNINGS := \
 # Test sources mirror src/; objects and binaries stay below build/.
 OBJECT_DIR ?= ../build/tests
 BINARY_DIR := $(OBJECT_DIR)/bin
-TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_memory test_helpers test_defaults test_estimator test_accounting
+TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_memory test_helpers test_defaults test_estimator test_accounting test_inject
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 
 test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
@@ -37,6 +37,7 @@ test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
 test_defaults_OBJECTS := config/test_defaults.o src/config/defaults.o
 test_estimator_OBJECTS := tcpdelay/test_estimator.o src/tcpdelay/estimator.o
 test_accounting_OBJECTS := cake/test_accounting.o
+test_inject_OBJECTS := tcpdelay/test_inject.o
 
 OBJECTS := $(sort $(addprefix $(OBJECT_DIR)/,$(foreach target,$(TARGETS),$($(target)_OBJECTS))))
 
@@ -62,7 +63,7 @@ $(BINARY_DIR)/test_monitor_reflectors: monitor/test_reflectors.c $(SOURCE_DIR)/m
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/cake/accounting.h $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/tcpdelay/injector.h $(SOURCE_DIR)/tcpdelay/inject.h $(SOURCE_DIR)/cake/accounting.h $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 

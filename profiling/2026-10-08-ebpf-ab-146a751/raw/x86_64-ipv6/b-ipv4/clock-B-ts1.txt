@@ -1,0 +1,49 @@
+1 5320 ok
+1 5321 failed
+1 5322 failed
+1 5323 ok
+1 5324 failed
+1 5325 ok
+1 5326 ok
+1 5327 ok
+1 5328 failed
+1 5329 ok
+1 5330 ok
+1 5331 ok
+1 5332 ok
+1 5333 ok
+1 5334 ok
+1 5335 failed
+1 5336 failed
+1 5337 failed
+1 5338 ok
+1 5339 ok
+2 5320 ok
+2 5321 ok
+2 5322 ok
+2 5323 failed
+2 5324 ok
+2 5325 ok
+2 5326 ok
+2 5327 ok
+2 5328 ok
+2 5329 ok
+2 5330 ok
+2 5331 ok
+2 5332 ok
+2 5333 ok
+2 5334 ok
+2 5335 ok
+2 5336 ok
+2 5337 ok
+2 5338 ok
+2 5339 ok
+clock-B-ts1: daemon exit 0
+TCP_INJECT; 2026-10-08-20:06:56; 1791490016.694741; 1791490016.694738; 22; 2; 22; 0; 0; 0; 0; 0; 8
+WARNING; 2026-10-08-20:06:56; 1791490016.694744; TCP timestamp injection paused for 24 hours: handshakes stalled=8; a client's TCP timestamp clock looks older than the injected one, as on Windows up longer than 24.8 days; restart such PCs, or enable timestamps on them (netsh int tcp set global timestamps=enabled)
+INFO; 2026-10-08-20:06:56; 1791490016.694843; TCP timestamp injection stopped: injected=22 server_accepted=22 server_declined=0 client_rejected=0 server_rejected=0 skipped=2 failed=0 stalled=8
+round 1 failed: 7
+round 1 ok: 13
+round 2 failed: 1
+round 2 ok: 19
+clock-B-ts1: leftover in cpe=[]

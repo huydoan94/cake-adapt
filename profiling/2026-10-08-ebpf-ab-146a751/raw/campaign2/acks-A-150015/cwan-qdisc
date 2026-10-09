@@ -1,0 +1,2 @@
+qdisc cake 8084: root refcnt 3 bandwidth 900Kbit besteffort triple-isolate nat nowash ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: parent ffff:fff1 ---------------- 

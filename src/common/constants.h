@@ -179,6 +179,11 @@
 #define RECORD_SYSLOG "SYSLOG"
 #define RECORD_SUMMARY "SUMMARY"
 #define RECORD_TCP_QUEUE "TCP_QUEUE"
+#define RECORD_TCP_INJECT "TCP_INJECT"
+/* The IPv4 injection mode in TCP_INJECT records. */
+#define INJECT_MODE_NORMAL "normal"
+#define INJECT_MODE_SWITCHED "switched"
+#define INJECT_MODE_PAUSED "paused"
 #define RECORD_WARNING "WARNING"
 
 /* UCI option names, grouped in the same order as the configuration model. */
@@ -248,6 +253,8 @@
 #define OPTION_DECAY_REFRACTORY "decay_refractory_period_ms"
 #define OPTION_TCP_DELAY_ATTRIBUTION "tcp_delay_attribution"
 #define OPTION_UL_CONGEST_ACK_SHARE "ul_congest_ack_share"
+#define OPTION_TCP_TS_REQUEST "tcp_ts_request"
+#define OPTION_TCP_TS_STALL_WINDOW "tcp_ts_stall_window_s"
 #define OPTION_REFLECTOR_HEALTH_INTERVAL "reflector_health_check_interval_s"
 #define OPTION_REFLECTOR_RESPONSE_DEADLINE "reflector_response_deadline_s"
 #define OPTION_REFLECTOR_MISBEHAVING_WINDOW "reflector_misbehaving_detection_window"
