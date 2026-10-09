@@ -25,6 +25,9 @@
 # Stop with Ctrl-C. On the router the follower runs as
 # "sh /tmp/cake-adapt-capture.sh"; it exits by itself within 30 s of the
 # connection ending.
+
+# It needs bash (process substitution); started with sh, it runs itself with bash.
+[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 set -u
 
 limit_mb=1024
@@ -184,7 +187,8 @@ dashboard() {
 			columns=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
 			echo "T $(date +%s) $(stat -c %s "$local_file" 2>/dev/null || echo 0) ${columns:-120}"
 		done
-	} | gawk -v host="$host" -v remote="$remote_log" -v file="$local_file" \
+	} | {
+	gawk -v host="$host" -v remote="$remote_log" -v file="$local_file" \
 		-v limit="$limit_bytes" '
 	# Each value takes the largest unit in which it is still at least 1.0.
 	function scaled(value, step, units,   n, unit, i) {
@@ -360,6 +364,13 @@ dashboard() {
 		status = "starting"
 		opened = systime()
 		bb_first = 1
+		# The screen passes these to its functions before any record arrives.
+		# gawk 5.2 crashes ("unexpected parameter type Node_illegal") when a
+		# function gets an array element that was only read, never assigned.
+		for (d = 1; d <= 2; d++) {
+			achieved[d] = shaper[d] = load[d] = condition[d] = ""
+			delay[d] = delayed[d] = queue_valid[d] = queue_us[d] = ""
+		}
 		printf "\033[?25l\033[H\033[2J"
 	}
 	/^T / {
@@ -428,7 +439,7 @@ dashboard() {
 			clock_last = ""
 		}
 		if (f[3] ~ /^[0-9]+\.[0-9]+$/)
-			clock(f[3] + 0, (type == "SYSLOG" || type == "INFO") && f[4] ~ /^Starting cake-adapt /, f[4])
+			clock(f[3] + 0, (type == "SYSLOG" || type == "INFO") && f[4] ~ /^Starting cake-adapt /, f[4] "")
 		if (history)
 			next
 		if (status == "connecting") {
@@ -474,7 +485,16 @@ dashboard() {
 			warnings++
 			last_warning = f[2] " " f[4]
 		}
-	}'
+	}' 2>> "$local_file.screen.log"
+	# The screen stopped by itself: say why once, then keep reading its feed,
+	# so the capture, which writes into it, goes on instead of dying of a
+	# broken pipe. A stop with Ctrl-C ends this whole group first.
+	status=$?
+	printf '\033[?25h\n'
+	printf '%s status screen stopped (gawk exit %d), capture continues; errors in %s\n' \
+		"$(date '+%F %T')" "$status" "$local_file.screen.log" | tee -a "$events"
+	cat > /dev/null
+	}
 }
 
 # SSH's own errors, such as a refused connection, go to the screen as events;
@@ -547,6 +567,8 @@ event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
 # beside the follower reads them; at end of input (the session closed) or after
 # 30 s without one (the network silently gone), it kills the whole session's
 # process group, including a reader blocked writing to a dead connection.
+# The router's shell expands its $ references, so they stay quoted here.
+# shellcheck disable=SC2016
 follower='#!/bin/sh
 # Written by capture-log.sh for each SSH session; safe to delete.
 f=$1
