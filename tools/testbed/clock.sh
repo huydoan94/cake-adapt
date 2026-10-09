@@ -15,11 +15,12 @@
 # OLD_CLOCK=N makes every non-SYN TSval the client sends N, a fixed clock as
 # from a Windows PC up that many milliseconds (3000000000 is 34.7 days, older
 # than an injected 1). PARALLEL=1 opens each round's 20 connections at once,
-# as a browser does, so stalls come in bursts.
+# as a browser does, so stalls come in bursts. STALL_WINDOW=S sets
+# tcp_ts_stall_window_s.
 # Needs testbed.sh up, nftables and tcpthink.
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 MODE=$3
-: "${SERVER:=10.99.0.2}" "${OLD_CLOCK:=}" "${PARALLEL:=0}"
+: "${SERVER:=10.99.0.2}" "${OLD_CLOCK:=}" "${PARALLEL:=0}" "${STALL_WINDOW:=}"
 R=$T/results/$NAME
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
@@ -76,6 +77,8 @@ config cake_adapt 'main'
 	list reflectors '10.99.0.15'
 	list reflectors '10.99.0.16'
 EOF
+[ -z "$STALL_WINDOW" ] ||
+    echo "	option tcp_ts_stall_window_s '$STALL_WINDOW'" >> "$T/uci-$NAME/cake-adapt"
 "$BIN" -C "$T/uci-$NAME" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
 
 : > "$LOG"
