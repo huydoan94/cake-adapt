@@ -11,16 +11,16 @@
 # half of the clock). Two rounds of one request to each of 20 servers
 # (tcpthink on 5320-5339, then 5340-5359, timestamps on), each ended by tcpthink's own alarm
 # 5 s after it should finish: the second round shows what the injector learned.
-# SERVER is the servers' address (10.99.0.2, or fd99::2 for IPv6).
+# SERVER is the servers' address: fd99::2, or 10.99.0.2 to check that IPv4
+# is left alone.
 # OLD_CLOCK=N makes every non-SYN TSval the client sends N, a fixed clock as
 # from a Windows PC up that many milliseconds (3000000000 is 34.7 days, older
 # than an injected 1). PARALLEL=1 opens each round's 20 connections at once,
-# as a browser does, so stalls come in bursts. STALL_WINDOW=S sets
-# tcp_ts_stall_window_s.
+# as a browser does, so stalls come in bursts.
 # Needs testbed.sh up, nftables and tcpthink.
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 MODE=$3
-: "${SERVER:=10.99.0.2}" "${OLD_CLOCK:=}" "${PARALLEL:=0}" "${STALL_WINDOW:=}"
+: "${SERVER:=fd99::2}" "${OLD_CLOCK:=}" "${PARALLEL:=0}"
 R=$T/results/$NAME
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
@@ -77,8 +77,6 @@ config cake_adapt 'main'
 	list reflectors '10.99.0.15'
 	list reflectors '10.99.0.16'
 EOF
-[ -z "$STALL_WINDOW" ] ||
-    echo "	option tcp_ts_stall_window_s '$STALL_WINDOW'" >> "$T/uci-$NAME/cake-adapt"
 "$BIN" -C "$T/uci-$NAME" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
 
 : > "$LOG"
