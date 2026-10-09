@@ -9,6 +9,7 @@ vm=$1 out=$2
 repo=$(cd "$(dirname "$0")/../../.." && pwd)
 capture_script=${3:-$repo/tools/capture-log.sh}
 mkdir -p "$out"
+ssh "$vm" "mkdir -p /tmp/e2e"
 scp -O -q "$repo/profiling/2026-10-09-follower/tools/fprof.sh" "$vm:/tmp/fprof.sh"
 scp -O -q "$repo/profiling/2026-10-09-profile/tools/cake-adapt.template" "$vm:/tmp/fprof-template"
 scp -O -q "$repo/tools/testbed/testbed.sh" "$vm:/tmp/e2e/testbed.sh"
