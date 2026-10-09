@@ -41,7 +41,7 @@ and the scripts that produced it.
 | [`2026-10-03-ebpf-design-history`](2026-10-03-ebpf-design-history/README.md) | Design record: why fping alone is insufficient, the feasibility spike and CPU cost that justified the eBPF socket filter, the fixed-cap attempt that preceded the dynamic ACK share, and the net before/after numbers. No raw data; links to the two entries below for evidence. |
 | [`2026-10-03-ack-share-dynamic`](2026-10-03-ack-share-dynamic/README.md) | Download ACKs on a 900 kbit/s upload, off vs. `upload_ack_share_min 0.45`: ACKs took 46–74% and a 200 kbit/s UDP stream lost up to 48%; with the option, ACKs use what other upload traffic leaves, down to 45%, the stream loses 0–5.5%, and download gives up 4–12 Mbit/s while held. |
 | [`2026-10-02-tcp-queue-split`](2026-10-02-tcp-queue-split/README.md) | fping alone vs. `tcp_delay_attribution`: the TCP-timestamp queue estimate follows the emulated ISP's real queue under control (correlation 0.85–0.95, against RTT/2's half-size, two-sided reading); splitting fping's delay by it took median added RTT under bidirectional load from 50 to 28 ms and download from 41% to 67% of capacity. |
-| [`2026-09-30`](2026-09-30/README.md) | End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/further-integration/profiling/2026-09-30/index.html). |
+| [`2026-09-30`](2026-09-30/README.md) | End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html). |
 | [`cake-autorate-resources`](cake-autorate-resources/README.md) | CPU, memory, process and reaction-time comparison with cake-autorate `ac75f49` under the same workload: about 5× less CPU (7.6× with all records enabled), a tenth of the memory, and a 7× faster median reply-to-decision time. |
 | [`controller-comparison`](controller-comparison/README.md) | Side-by-side runs with cake-autorate `ac75f49` and the two traces the controller replays with no mismatching decisions. |
 | [`2026-09-26`](2026-09-26/README.md) | Superseded first flame graphs, from before the optimization pass and the source restructure. |
@@ -51,7 +51,7 @@ Historical reports use `upload_ack_share_min`, now named
 name used when the measurements were collected.
 
 Open `index.html` locally, or use the
-[hosted index](https://raw.githack.com/huydoan94/cake-adapt/further-integration/profiling/index.html).
+[hosted index](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
 The hosted links read the `main` branch. They use raw.githack because GitHub's
 raw-file host disables the JavaScript inside FlameGraph SVGs that drives hover,
 search, and click-to-zoom.
