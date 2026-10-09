@@ -23,8 +23,8 @@
 # HOST is anything ssh accepts (user@address or a Host from ~/.ssh/config) and
 # needs key authentication. REMOTE_LOG defaults to /var/log/cake-adapt.log.
 # Stop with Ctrl-C. On the router the follower runs as
-# "sh /tmp/cake-adapt-capture.sh"; it exits by itself within 30 s of the
-# connection ending.
+# "sh /tmp/cake-adapt-capture.sh", a POSIX sh script; it exits by itself
+# within a minute of the connection ending.
 
 # It needs bash (process substitution); started with sh, it runs itself with bash.
 [ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
@@ -563,20 +563,42 @@ event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
 # past that offset within a second, since it rotates at 2 MB or after 10
 # minutes of growth.
 #
-# The PC sends a heartbeat line every 5 s on the follower's stdin. A watchdog
-# beside the follower reads them; at end of input (the session closed) or after
-# 30 s without one (the network silently gone), it kills the whole session's
-# process group, including a reader blocked writing to a dead connection.
+# The PC sends a heartbeat line every 5 s on the follower's stdin. Beside the
+# follower, one subshell counts them into a beat file with shell builtins only
+# and kills the whole session's process group at end of input (the session
+# closed); another wakes every 30 s and does the same when the count has not
+# moved (the network silently gone), so the follower exits within a minute,
+# including a reader blocked writing to a dead connection. The follower is
+# POSIX sh (read -t is not), and it removes the beat file however it ends
+# (closed session, SIGHUP from the SSH server, or the watchdog).
 # The router's shell expands its $ references, so they stay quoted here.
 # shellcheck disable=SC2016
 follower='#!/bin/sh
 # Written by capture-log.sh for each SSH session; safe to delete.
 f=$1
+beats=/tmp/cake-adapt-capture.$$.beats
+echo 0 > "$beats"
+trap "rm -f \"$beats\"" EXIT
+trap exit HUP INT TERM PIPE
 exec 4<&0
 (
-	while read -r -t 30 beat; do :; done
+	trap - EXIT HUP INT TERM PIPE
+	n=0
+	while read -r _; do
+		n=$((n + 1))
+		echo "$n" > "$beats"
+	done
 	kill -TERM 0
 ) <&4 &
+(
+	trap - EXIT HUP INT TERM PIPE
+	last=
+	while sleep 30; do
+		read -r beat < "$beats" || beat=
+		[ "$beat" != "$last" ] || kill -TERM 0
+		last=$beat
+	done
+) &
 cat "$f.old" 2>/dev/null
 exec 3< "$f"
 cat <&3
