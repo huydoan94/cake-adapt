@@ -6,10 +6,12 @@
 # BPF statistics (kernel.bpf_stats_enabled) give the filter's run count and
 # run time over the loaded minute, and /proc the daemon's CPU time.
 # ADJUST=0 keeps both shapers at their base rate, so filter variants see the
-# same traffic.
+# same traffic. INJECT=1 also turns on tcp_timestamp_inject (builds that have
+# it), whose injector program is then measured too: summary has one line per
+# BPF program (socket filter, then the injector).
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 OBJECT=$3
-: "${ADJUST:=1}"
+: "${ADJUST:=1}" "${INJECT:=0}"
 R=$T/results/$NAME
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
@@ -37,6 +39,7 @@ config cake_adapt 'main'
 	option max_ul_shaper_rate_kbps '12000'
 	option tcp_delay_attribution '1'
 	option ul_congest_ack_share '0.45'
+$([ "$INJECT" = 1 ] && printf "\toption tcp_timestamp_inject '1'")
 	option connection_active_thr_kbps '2000'
 	option randomize_reflectors '0'
 	option log_file_max_size_KB '50000'
@@ -55,13 +58,15 @@ ln -f "$LOG" "$T/logs-$NAME/cake-adapt.log"
 ip netns exec cpe "$BIN" -C "$T/uci-$NAME" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 
-# run_cnt and run_time_ns of the daemon's one BPF program, and its CPU ticks.
+# Per BPF program of the daemon: type, run_cnt and run_time_ns, one line each,
+# then a line with its CPU ticks.
 sample() {
     for f in /proc/$DAEMON/fdinfo/*; do
         grep -q '^prog_type' "$f" 2>/dev/null || continue
-        awk '/^run_cnt/ { c = $2 } /^run_time_ns/ { t = $2 } END { printf "%s %s", c, t }' "$f"
-    done
-    awk '{ print "", $14 + $15 }' /proc/$DAEMON/stat
+        awk '/^prog_type/ { p = $2 } /^run_cnt/ { c = $2 } /^run_time_ns/ { t = $2 }
+            END { print "program", p, c, t }' "$f"
+    done | sort -u
+    awk '{ print "ticks", $14 + $15 }' /proc/$DAEMON/stat
 }
 
 sleep 10
@@ -79,7 +84,13 @@ wait "$DAEMON"; echo "$NAME: daemon exit $?"
 cp "$LOG" "$R/cake-adapt.log"
 rm -f "$T/logs-$NAME/cake-adapt.log"
 grep -q 'TCP measurement started' "$R/cake-adapt.log" || echo "$NAME: capture did not start"
-read -r c0 t0 k0 < "$R/start"
-read -r c1 t1 k1 < "$R/end"
-echo "$NAME: runs=$((c1 - c0)) ns_per_run=$(( (t1 - t0) / (c1 - c0) )) daemon_ticks=$((k1 - k0))" | tee "$R/summary"
+# Programs by type: 1 is the socket filter, 3 the injector (tcx).
+awk -v name="$NAME" '
+    NR == FNR && $1 == "program" { c[$2] = $3; t[$2] = $4; next }
+    NR == FNR && $1 == "ticks" { k = $2; next }
+    $1 == "program" && $3 > c[$2] {
+        printf "%s: type=%s runs=%d ns_per_run=%d\n", name, $2, $3 - c[$2], ($4 - t[$2]) / ($3 - c[$2])
+    }
+    $1 == "ticks" { printf "%s: daemon_ticks=%d\n", name, $2 - k }
+' "$R/start" "$R/end" | tee "$R/summary"
 echo "$NAME: leftover in cpe=[$(ip netns pids cpe | tr '\n' ' ')]"

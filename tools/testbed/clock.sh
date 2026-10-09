@@ -9,16 +9,21 @@
 # net.ipv4.tcp_timestamps=MODE: 2 is milliseconds since boot (Windows-like,
 # young), 1 adds a random offset per connection (about half fall in any
 # half of the clock). Two rounds of one request to each of 20 servers
-# (tcpthink on 5320-5339, timestamps on), each ended by tcpthink's own alarm
+# (tcpthink on 5320-5339, then 5340-5359, timestamps on), each ended by tcpthink's own alarm
 # 5 s after it should finish: the second round shows what the injector learned.
 # SERVER is the servers' address (10.99.0.2, or fd99::2 for IPv6).
+# OLD_CLOCK=N makes every non-SYN TSval the client sends N, a fixed clock as
+# from a Windows PC up that many milliseconds (3000000000 is 34.7 days, older
+# than an injected 1). PARALLEL=1 opens each round's 20 connections at once,
+# as a browser does, so stalls come in bursts.
 # Needs testbed.sh up, nftables and tcpthink.
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 MODE=$3
-: "${SERVER:=10.99.0.2}"
+: "${SERVER:=10.99.0.2}" "${OLD_CLOCK:=}" "${PARALLEL:=0}"
 R=$T/results/$NAME
 LOG=/tmp/sqm-mon-test.log
 X() { ip netns exec "$@"; }
+rm -rf "$R"
 mkdir -p "$R" "$T/uci-$NAME" "$T/logs-$NAME"
 if [ -n "$(ip netns pids cpe)" ]; then
     echo "$NAME: processes still running in cpe; not starting"
@@ -26,7 +31,7 @@ if [ -n "$(ip netns pids cpe)" ]; then
 fi
 
 SERVERS=
-for port in $(seq 5320 5339); do
+for port in $(seq 5320 5359); do
     ip netns exec inet "$T/tcpthink" -s "$port" 0 2000 &
     SERVERS="$SERVERS $!"
 done
@@ -43,6 +48,8 @@ table inet clock_test {
 }
 EOF
 X cpe sysctl -qw net.ipv4.tcp_timestamps="$MODE"
+[ -z "$OLD_CLOCK" ] ||
+    X cpe nft add rule inet clock_test out tcp flags \& syn == 0 tcp option timestamp tsval set "$OLD_CLOCK"
 
 cat > "$T/uci-$NAME/cake-adapt" <<EOF
 config cake_adapt 'main'
@@ -76,15 +83,29 @@ ln -f "$LOG" "$T/logs-$NAME/cake-adapt.log"
 ip netns exec cpe "$BIN" -C "$T/uci-$NAME" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 sleep 20
+connect() { # ROUND PORT
+    if ip netns exec cpe "$T/tcpthink" -c "$SERVER" "$2" 0.1 0 200 2000 >/dev/null 2>&1; then
+        echo "$1 $2 ok" >> "$R/connections"
+    else
+        echo "$1 $2 failed" >> "$R/connections"
+    fi
+}
 for round in 1 2; do
-    for port in $(seq 5320 5339); do
-        if X cpe "$T/tcpthink" -c "$SERVER" "$port" 0.1 0 200 2000 >/dev/null 2>&1; then
-            result=ok
+    CLIENTS=
+    # Fresh servers each round: a stalled server is skipped for a day.
+    first=$((5300 + round * 20))
+    for port in $(seq "$first" $((first + 19))); do
+        if [ "$PARALLEL" = 1 ]; then
+            connect "$round" "$port" &
+            CLIENTS="$CLIENTS $!"
         else
-            result=failed
+            connect "$round" "$port"
         fi
-        echo "$round $port $result" | tee -a "$R/connections"
     done
+    # Only the clients: the tcpthink servers run in the background too.
+    [ -z "$CLIENTS" ] || wait $CLIENTS
+    # The daemon resolves a stall burst within a second.
+    sleep 3
 done
 sleep 65
 
