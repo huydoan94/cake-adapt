@@ -6,7 +6,7 @@
  * injector's maps and the pure policy that decides what happens to a
  * connection. Kernel types work on both sides.
  *
- * Experimental (tcp_timestamp_inject). A SYN without a TCP timestamp, as
+ * Experimental (tcp_ts_request). A SYN without a TCP timestamp, as
  * Windows sends, gets one, so the server stamps its packets and the TCP
  * filter can measure the connection. A client that accepts the server's
  * timestamp (Windows does) then sends its own, and both directions are
