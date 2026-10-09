@@ -1,0 +1,7 @@
+old-v6-parallel: daemon exit 0
+TCP_INJECT; 2026-10-09-01:13:28; 1791530008.570476; 1791530008.570475; 0; 0; 0; 0
+TCP_INJECT; 2026-10-09-01:14:28; 1791530068.566440; 1791530068.566437; 40; 0; 20; 20
+INFO; 2026-10-09-01:15:04; 1791530104.440155; Stopped TCP timestamp injection with injected SYNs: 40 and stalls: 20
+round 1 failed: 20
+round 2 ok: 20
+old-v6-parallel: leftover in cpe=[]

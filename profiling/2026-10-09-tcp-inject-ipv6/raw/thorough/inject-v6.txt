@@ -1,0 +1,19 @@
+07:03:53 accept
+accept-1 port=5202 exit=0 seconds=20
+accept-2 port=5202 exit=0 seconds=5
+07:04:18 client-reject
+client-reject-1 port=5201 exit=1 seconds=4
+client-reject-2 port=5201 exit=0 seconds=15
+07:04:37 server-reset
+server-reset-1 port=5204 exit=1 seconds=0
+server-reset-2 port=5204 exit=0 seconds=6
+07:04:43 server-drop
+server-drop-1 port=5203 exit=0 seconds=6
+server-drop-2 port=5203 exit=0 seconds=5
+07:04:54 stop
+daemon exit 0
+07:04:55 after-stop
+after-stop port=5202 exit=0 seconds=2
+07:05:06 after-kill
+after-kill port=5202 exit=0 seconds=2
+test log inode unchanged
