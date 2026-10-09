@@ -47,8 +47,6 @@ struct config;
 #define TCPDELAY_ACK_RATE_INTERVAL_US (500U * MILLISECOND)
 /* Dropped capture records are reported at most this often. */
 #define TCPDELAY_COUNTER_CHECK_US MINUTE
-/* How often the daemon acts on a stall burst or the end of a pause. */
-#define TCPDELAY_INJECT_CHECK_US SECOND
 
 void defaults_apply(struct config *config);
 
