@@ -139,14 +139,14 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 		);
 	}
 	/* Injected timestamps serve only the queue estimate of the attribution. */
-	if (config->tcp_timestamp_inject && !config->tcp_delay_attribution) {
+	if (config->tcp_ts_request && !config->tcp_delay_attribution) {
 		return error_set(
 			error,
 			error_size,
-			"option 'tcp_timestamp_inject' needs tcp_delay_attribution"
+			"option 'tcp_ts_request' needs tcp_delay_attribution"
 		);
 	}
-	if (config->tcp_timestamp_inject && config->tcp_ts_stall_window_us == 0U) {
+	if (config->tcp_ts_request && config->tcp_ts_stall_window_us == 0U) {
 		return error_set(
 			error,
 			error_size,

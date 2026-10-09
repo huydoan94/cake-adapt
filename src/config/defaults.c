@@ -19,7 +19,7 @@ void defaults_apply(struct config *config)
 		/* Not in cake-autorate; opt-in until verified on real lines. */
 		.tcp_delay_attribution = false,
 		/* Not in cake-autorate; experimental, it rewrites clients' SYNs. */
-		.tcp_timestamp_inject = false,
+		.tcp_ts_request = false,
 		.tcp_ts_stall_window_us = 40U * SECOND,
 		/* Not in cake-autorate; off until measured on real lines. */
 		.ul_congest_ack_share_ratio_e6 = 0U,

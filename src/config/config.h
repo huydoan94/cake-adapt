@@ -44,7 +44,7 @@ struct config {
 	/* Attribute fping's shared delay with per-direction TCP-timestamp queues. */
 	bool tcp_delay_attribution;
 	/* Experimental: add TCP timestamps to SYNs without them, so they can be measured. */
-	bool tcp_timestamp_inject;
+	bool tcp_ts_request;
 	bool interface_overridden;
 	char interface[IF_NAMESIZE];
 	char ingress_interface[IF_NAMESIZE];

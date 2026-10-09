@@ -204,7 +204,7 @@ static void injector_lifecycle(struct monitor *monitor)
 {
 	struct config config = {
 		.tcp_delay_attribution = true,
-		.tcp_timestamp_inject = true,
+		.tcp_ts_request = true,
 	};
 	struct monitor_direction *upload = &monitor->links.upload;
 	unsigned int warned = warnings;
@@ -225,7 +225,7 @@ static void injector_lifecycle(struct monitor *monitor)
 	assert(injector_detaches == 1U);
 	/* Off by default: no attachment at all. */
 	injector_status = 0;
-	config.tcp_timestamp_inject = false;
+	config.tcp_ts_request = false;
 	assert(capture_ready(monitor));
 	assert(injector_attaches == 2U);
 	tcp_close(monitor);
@@ -237,7 +237,7 @@ static void injector_resolve(struct monitor *monitor)
 {
 	struct config config = {
 		.tcp_delay_attribution = true,
-		.tcp_timestamp_inject = true,
+		.tcp_ts_request = true,
 	};
 	struct monitor_direction *upload = &monitor->links.upload;
 	unsigned int warned = warnings;
