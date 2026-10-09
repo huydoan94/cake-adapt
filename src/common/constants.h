@@ -180,6 +180,10 @@
 #define RECORD_SUMMARY "SUMMARY"
 #define RECORD_TCP_QUEUE "TCP_QUEUE"
 #define RECORD_TCP_INJECT "TCP_INJECT"
+/* The IPv4 injection mode in TCP_INJECT records. */
+#define INJECT_MODE_NORMAL "normal"
+#define INJECT_MODE_SWITCHED "switched"
+#define INJECT_MODE_PAUSED "paused"
 #define RECORD_WARNING "WARNING"
 
 /* UCI option names, grouped in the same order as the configuration model. */

@@ -152,7 +152,12 @@ struct log_tcp_inject_record {
 	uint64_t server_rejected;
 	uint64_t retried;
 	uint64_t failed;
-	uint64_t stalled;
+	uint64_t stalled_ipv4;
+	uint64_t stalled_ipv6;
+	uint64_t paused;
+	/* INJECT_MODE_* */
+	const char *ipv4_mode;
+	uint32_t ipv4_tsval;
 };
 
 void log_tcp_inject(const struct log_tcp_inject_record *record);

@@ -79,7 +79,8 @@ static unsigned int injector_attaches;
 static unsigned int injector_detaches;
 static int injector_status;
 static bool injector_on;
-static uint64_t injector_stalled;
+static struct tcpdelay_inject_state injected_state;
+static unsigned int state_writes;
 
 int tcpdelay_injector_attach(
 	struct tcpdelay_injector *injector,
@@ -114,8 +115,28 @@ int tcpdelay_injector_counters(
 	*counters = (struct tcpdelay_inject_counters){
 		.injected = 3U,
 		.server_accepted = 2U,
-		.stalled = injector_stalled,
 	};
+	return 0;
+}
+
+int tcpdelay_injector_state(
+	const struct tcpdelay_capture *capture,
+	struct tcpdelay_inject_state *state
+)
+{
+	(void)capture;
+	*state = injected_state;
+	return 0;
+}
+
+int tcpdelay_injector_set_state(
+	const struct tcpdelay_capture *capture,
+	const struct tcpdelay_inject_state *state
+)
+{
+	(void)capture;
+	injected_state = *state;
+	state_writes++;
 	return 0;
 }
 
@@ -211,38 +232,35 @@ static void injector_lifecycle(struct monitor *monitor)
 	monitor->config = NULL;
 }
 
-/* Repeated stalled handshakes detach the injector for a day, through reopened captures. */
-static void injector_breaker(struct monitor *monitor)
+/* A recorded stall burst is resolved within a second and written back, once. */
+static void injector_resolve(struct monitor *monitor)
 {
 	struct config config = {
 		.tcp_delay_attribution = true,
 		.tcp_timestamp_inject = true,
 	};
 	struct monitor_direction *upload = &monitor->links.upload;
-	unsigned int attaches = injector_attaches;
-	unsigned int detaches = injector_detaches;
 	unsigned int warned = warnings;
-	const uint64_t start_us = 100U * SECOND;
 
 	monitor->config = &config;
 	upload->interface = "wan";
 	upload->cake.qdisc = (struct qdisc_id){ .interface_index = 10U, .handle = 0x10000U };
 	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
-	injector_stalled = 0U;
-	assert(capture_ready(monitor) && injector_attaches == attaches + 1U);
-	check_injector(monitor, start_us);
+	assert(capture_ready(monitor) && injector_on);
+	resolve_injection(monitor, 10U * SECOND);
+	assert(warnings == warned && state_writes == 0U);
+	/* A burst with nothing learned pauses, logged and written back once. */
+	injected_state.burst = 1U;
+	resolve_injection(monitor, 11U * SECOND);
+	assert(warnings == warned + 1U && state_writes == 1U);
+	assert(injected_state.mode == TCPDELAY_INJECT_PAUSED && !injected_state.burst);
+	/* Not again within the second. */
+	injected_state.burst = 1U;
+	resolve_injection(monitor, 11U * SECOND + 500U * MILLISECOND);
+	assert(state_writes == 1U);
+	injected_state.burst = 0U;
+	/* The program stays attached; IPv6 keeps injecting. */
 	assert(injector_on);
-	injector_stalled = 3U;
-	check_injector(monitor, start_us + MINUTE);
-	assert(!injector_on && injector_detaches == detaches + 1U && warnings == warned + 1U);
-	/* A new capture while paused does not attach it. */
-	tcp_close(monitor);
-	assert(capture_ready(monitor) && injector_attaches == attaches + 1U);
-	check_injector(monitor, start_us + 60U * MINUTE);
-	assert(!injector_on);
-	/* A day later it attaches again. */
-	check_injector(monitor, start_us + MINUTE + 24U * 60U * MINUTE);
-	assert(injector_on && injector_attaches == attaches + 2U);
 	tcp_close(monitor);
 	monitor->config = NULL;
 }
@@ -302,7 +320,7 @@ int main(void)
 	assert(bps(1U, 3U * SECOND) == 2U);
 	capture_lifecycle(monitor);
 	injector_lifecycle(monitor);
-	injector_breaker(monitor);
+	injector_resolve(monitor);
 	free(monitor);
 	puts("monitor ACK accounting tests passed");
 	return 0;
