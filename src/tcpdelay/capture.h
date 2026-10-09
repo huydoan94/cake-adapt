@@ -1,6 +1,7 @@
 #ifndef TCPDELAY_CAPTURE_H_INCLUDED
 #define TCPDELAY_CAPTURE_H_INCLUDED
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -25,10 +26,19 @@ struct tcpdelay_capture {
 	size_t cpu_count;
 	/* Every drained record is added to it; it starts empty with each capture. */
 	struct tcpdelay_estimator estimator;
+	/* Load the timestamp injector with the filter; set before loading. */
+	bool injection;
 };
 
 /* The unloaded state, before tcpdelay_capture_load() or after unloading. */
 void tcpdelay_capture_init(struct tcpdelay_capture *capture);
+
+/*
+ * Loads the experimental timestamp injector (see inject.h) with the filter;
+ * call before tcpdelay_capture_load(). Without it the injector program is not
+ * loaded and its maps take a single entry each.
+ */
+void tcpdelay_capture_enable_injection(struct tcpdelay_capture *capture);
 
 /*
  * Loads the installed socket filter, its maps and ring buffer. The kernel's

@@ -73,6 +73,7 @@ static const struct option_binding options[] = {
 	BOOLEAN_OPTION(OPTION_MIN_SHAPER_RATES_ENFORCEMENT, minimum_shaper_rates_enforcement),
 	BOOLEAN_OPTION(OPTION_LOG_FILE_EXPORT_COMPRESS, log_file_export_compress),
 	BOOLEAN_OPTION(OPTION_TCP_DELAY_ATTRIBUTION, tcp_delay_attribution),
+	BOOLEAN_OPTION(OPTION_TCP_TS_REQUEST, tcp_ts_request),
 	STRING_OPTION(OPTION_INTERFACE, interface),
 	STRING_OPTION(OPTION_UPLOAD_INTERFACE, ul_if),
 	STRING_OPTION(OPTION_DOWNLOAD_INTERFACE, dl_if),
@@ -126,6 +127,7 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_SUSTAINED_IDLE_SLEEP, sustained_idle_sleep_threshold_us, SECOND),
 	SCALED_OPTION(OPTION_LOG_FILE_BUFFER_TIMEOUT, log_file_buffer_timeout_us, MILLISECOND),
 	SCALED_OPTION(OPTION_IRTT_SESSION_DURATION, irtt_session_duration_us, MINUTE),
+	SCALED_OPTION(OPTION_TCP_TS_STALL_WINDOW, tcp_ts_stall_window_us, SECOND),
 	SCALED_OPTION(
 		OPTION_TRAFFIC_MONITOR_INTERVAL,
 		monitor_achieved_rates_interval_us,

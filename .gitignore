@@ -7,3 +7,4 @@ tests/test_*
 !tests/test_*.sh
 compile_commands.json
 src/compile_commands.json
+/bin/
