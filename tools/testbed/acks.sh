@@ -73,8 +73,8 @@ EOC
     ls -i "$LOG" > "$R/test-log-inode"
     : > "$LOG"
     ln -f "$LOG" "$T/logs-$NAME/cake-adapt.log"
-    "$DAEMON" -C "$T/uci-$NAME" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
-    ip netns exec cpe "$DAEMON" -C "$T/uci-$NAME" -S main < /dev/null > /dev/null 2>&1 &
+    "$DAEMON" -C "$T/uci-$NAME/cake-adapt" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
+    ip netns exec cpe "$DAEMON" -C "$T/uci-$NAME/cake-adapt" -S main < /dev/null > /dev/null 2>&1 &
     DAEMON_PID=$!
 fi
 sleep 2

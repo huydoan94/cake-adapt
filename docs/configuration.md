@@ -50,6 +50,17 @@ warning is logged.
 cake-adapt adjusts existing CAKE qdiscs. An SQM setup must create them first;
 cake-adapt follows them as they appear and disappear.
 
+The root qdisc may also be `cake_mq`, the multi-queue CAKE (Linux 7.0,
+backported in OpenWrt 25.12), which runs one CAKE per transmit queue so
+shaping can use several CPU cores. cake-adapt reads and sets its shared rate
+like a single CAKE's. Note that `cake_mq` divides the rate equally among the
+queues that are busy: when traffic is uneven, for example one bulk upload
+beside a download's ACKs, the busy flow gets only its share. On the testbed
+with 4 queues, a bidirectional load passed 3.3 Mbit/s of upload through a
+6 Mbit/s shaper (plain CAKE: about 7 Mbit/s;
+`profiling/2026-10-10-cake-mq`). Use it where one core cannot shape the line
+rate.
+
 ## Shaper rates
 
 | Name | Type | Default | Description |
@@ -97,7 +108,7 @@ RAM, so the defaults never write to flash.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `log_to_file` | boolean | `1` | Write the log file. |
-| `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A directory on flash wears it. |
+| `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
 | `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
 | `log_file_buffer_timeout_ms` | integer | `500` | Longest time a record waits in the write buffer. |
@@ -298,14 +309,19 @@ max_dl_shaper_rate_kbps=80000
 reflectors=(1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4 9.9.9.9 9.9.9.10)
 ```
 
-Precedence is built-in defaults, then UCI, then the file. `enabled` and
-`config_file` stay in UCI.
+Precedence is built-in defaults, then the file, then UCI: an option set in the
+UCI section keeps its UCI value, and the file fills in only the options UCI
+leaves unset. To take a value from the file, remove that option from the
+section, as in the minimal section above. `enabled` and `config_file` stay in
+UCI.
 
 How the file is handled:
 
-- At service start, a separate Bash process reads the file. It applies only
-  the option names cake-adapt knows, and writes the result to
-  `/tmp/cake-adapt-config/<section>/cake-adapt`.
+- At service start, each instance gets its own runtime file,
+  `/var/run/cake-adapt/<section>.uci`, from which it runs. It holds
+  only that instance's section, copied from UCI with `uci get` and `uci set`
+  for every option cake-adapt knows; a separate Bash process reads the shell
+  file and fills in the options UCI leaves unset.
 - That result is validated like UCI; cake-adapt itself never executes the
   file.
 - The service reloads when the file or UCI changes.

@@ -1,0 +1,6 @@
+base;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k] 1
+base;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_epoll_pwait_[k];do_epoll_pwait.part.0_[k];do_epoll_wait.part.0_[k];schedule_hrtimeout_range_[k];schedule_hrtimeout_range_clock_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k] 86
+base;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;[libc.so] 1
+base;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;__vdso_clock_gettime64_[k] 1
+base;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;control_update;cake_max_wire_packet_bits 1
+base;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];monitor_tick;tcp_drain 1

@@ -1,0 +1,3 @@
+none seconds=180 busy_ticks=883 idle_ticks=69811 daemon_ticks=28 follower=none follower_ticks=0 dropbear=none dropbear_ticks=0 log_bytes_now=1348511 log_bytes_start=204631
+follower seconds=180 busy_ticks=973 idle_ticks=69593 daemon_ticks=26 follower=20422 follower_ticks=19 dropbear=20421 dropbear_ticks=17 log_bytes_now=605972 log_bytes_start=1552422
+after-capture seconds=30 busy_ticks=140 idle_ticks=11635 daemon_ticks=5 follower=none follower_ticks=0 dropbear=none dropbear_ticks=0 log_bytes_now=1795182 log_bytes_start=1606979

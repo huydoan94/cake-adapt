@@ -1,0 +1,26 @@
+=== 1791572489 stop
+Fri Oct  9 13:01:26 2026 daemon.info cake-adapt[2668]: INFO: 1791572486.861274 Stopped cake-adapt with PID: 2668, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572495 start
+Fri Oct  9 13:01:29 2026 daemon.info cake-adapt[4661]: INFO: 1791572489.881898 Starting cake-adapt 0.3.15-r1 with PID: 4661, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572501 restart
+Fri Oct  9 13:01:36 2026 daemon.info cake-adapt[4786]: INFO: 1791572496.031282 Starting cake-adapt 0.3.15-r1 with PID: 4786, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572509 kill9
+Fri Oct  9 13:01:47 2026 daemon.info cake-adapt[4860]: INFO: 1791572507.061947 Starting cake-adapt 0.3.15-r1 with PID: 4860, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572517 del-ifb-cake
+Fri Oct  9 13:01:47 2026 daemon.info cake-adapt[4860]: INFO: 1791572507.061947 Starting cake-adapt 0.3.15-r1 with PID: 4860, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572522 add-ifb-cake
+Fri Oct  9 13:01:57 2026 daemon.warn cake-adapt[4860]: WARNING: 1791572517.139343 traffic observation unavailable: direction=download interface=ifb4eth1
+=== 1791572530 sqm-restart
+Fri Oct  9 13:02:10 2026 daemon.warn cake-adapt[4860]: WARNING: 1791572530.219933 traffic observation unavailable: direction=upload interface=eth1
+=== 1791572545 usr1
+Fri Oct  9 13:02:10 2026 daemon.warn cake-adapt[4860]: WARNING: 1791572530.631076 line load unavailable: direction=download
+=== 1791572548 usr2
+Fri Oct  9 13:02:10 2026 daemon.warn cake-adapt[4860]: WARNING: 1791572530.631076 line load unavailable: direction=download
+=== 1791572671 rotation
+Fri Oct  9 13:02:28 2026 daemon.info cake-adapt[5442]: INFO: 1791572548.831168 Starting cake-adapt 0.3.15-r1 with PID: 5442, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572678 disabled
+Fri Oct  9 13:04:35 2026 daemon.info cake-adapt[5821]: INFO: 1791572675.400980 Stopped cake-adapt with PID: 5821, config: /tmp/cake-adapt-config/main, section: main
+=== 1791572681 invalid
+Fri Oct  9 13:04:38 2026 daemon.err cake-adapt: could not generate /tmp/cake-adapt-config/main/cake-adapt; not starting instance 'main'
+=== 1791572687 restored
+Fri Oct  9 13:04:41 2026 daemon.info cake-adapt[6063]: INFO: 1791572681.551714 Starting cake-adapt 0.3.15-r1 with PID: 6063, config: /tmp/cake-adapt-config/main, section: main

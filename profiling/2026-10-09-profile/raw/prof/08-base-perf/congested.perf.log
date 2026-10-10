@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.049 MB /tmp/e2e/prof/08-base-perf/congested.perf.data (222 samples) ]

@@ -1,0 +1,268 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+ Sent 0 bytes 0 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake_mq 803a: dev cwan root bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 124943585 bytes 181696 pkt (dropped 158, overlimits 109884 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 0: dev cwan parent 803a:4 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 64891932 bytes 47323 pkt (dropped 152, overlimits 57178 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 17304b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           66 /    1514
+ min/max overhead-adjusted size:       66 /    1514
+ active queues:                         3
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh          2Mbit
+  target            5ms
+  interval        100ms
+  pk_delay       14.5ms
+  av_delay       7.61ms
+  sp_delay         90us
+  backlog            0b
+  pkts            47475
+  bytes        65122060
+  way_inds            0
+  way_miss            9
+  way_cols            0
+  drops             152
+  marks               0
+  ack_drop            0
+  sp_flows            2
+  bk_flows            1
+  un_flows            0
+  max_len          4542
+  quantum           300
+
+qdisc cake 0: dev cwan parent 803a:3 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 53422972 bytes 36272 pkt (dropped 5, overlimits 42942 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 17305b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           54 /    1514
+ min/max overhead-adjusted size:       54 /    1514
+ active queues:                         1
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh          6Mbit
+  target            5ms
+  interval        100ms
+  pk_delay       4.12ms
+  av_delay        623us
+  sp_delay          7us
+  backlog            0b
+  pkts            36277
+  bytes        53430542
+  way_inds            0
+  way_miss            4
+  way_cols            0
+  drops               5
+  marks               0
+  ack_drop            0
+  sp_flows            0
+  bk_flows            1
+  un_flows            0
+  max_len          4542
+  quantum           300
+
+qdisc cake 0: dev cwan parent 803a:2 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 185005 bytes 1888 pkt (dropped 0, overlimits 14 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 2304b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           66 /     396
+ min/max overhead-adjusted size:       66 /     396
+ active queues:                         2
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh          3Mbit
+  target            5ms
+  interval        100ms
+  pk_delay        153us
+  av_delay          6us
+  sp_delay          2us
+  backlog            0b
+  pkts             1888
+  bytes          185005
+  way_inds            0
+  way_miss            6
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            1
+  bk_flows            1
+  un_flows            0
+  max_len           396
+  quantum           300
+
+qdisc cake 0: dev cwan parent 803a:1 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 6443676 bytes 96213 pkt (dropped 1, overlimits 9750 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 933b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           42 /     103
+ min/max overhead-adjusted size:       42 /     103
+ active queues:                         3
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh          2Mbit
+  target            5ms
+  interval        100ms
+  pk_delay        320us
+  av_delay         16us
+  sp_delay          2us
+  backlog            0b
+  pkts            96214
+  bytes         6443742
+  way_inds            0
+  way_miss            4
+  way_cols            0
+  drops               1
+  marks               0
+  ack_drop            0
+  sp_flows            0
+  bk_flows            1
+  un_flows            0
+  max_len           103
+  quantum           300
+
+qdisc ingress ffff: dev cwan parent ffff:fff1 ---------------- 
+ Sent 488576967 bytes 375706 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake_mq 803b: dev ifb4cwan root bandwidth 51350Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 503952337 bytes 375647 pkt (dropped 65, overlimits 234440 requeues 0) 
+ backlog 0b 0p requeues 0
+qdisc cake 0: dev ifb4cwan parent 803b:4 bandwidth 51350Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 420 bytes 6 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 896b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           70 /      70
+ min/max overhead-adjusted size:       70 /      70
+ active queues:                         4
+ average network hdr offset:            0
+
+                  Tin 0
+  thresh      51350Kbit
+  target            5ms
+  interval        100ms
+  pk_delay         10us
+  av_delay          0us
+  sp_delay          0us
+  backlog            0b
+  pkts                6
+  bytes             420
+  way_inds            0
+  way_miss            1
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            1
+  bk_flows            0
+  un_flows            0
+  max_len            70
+  quantum          1514
+
+qdisc cake 0: dev ifb4cwan parent 803b:3 bandwidth 51350Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 2340647 bytes 33134 pkt (dropped 0, overlimits 1628 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 1225b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           54 /     395
+ min/max overhead-adjusted size:       54 /     395
+ active queues:                         3
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh      17116Kbit
+  target            5ms
+  interval        100ms
+  pk_delay        116us
+  av_delay          5us
+  sp_delay          1us
+  backlog            0b
+  pkts            33134
+  bytes         2340647
+  way_inds            0
+  way_miss            8
+  way_cols            0
+  drops               0
+  marks               0
+  ack_drop            0
+  sp_flows            2
+  bk_flows            1
+  un_flows            0
+  max_len           395
+  quantum           522
+
+qdisc cake 0: dev ifb4cwan parent 803b:2 bandwidth 51350Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 256337928 bytes 170218 pkt (dropped 36, overlimits 113648 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 215648b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           54 /    1514
+ min/max overhead-adjusted size:       54 /    1514
+ active queues:                         1
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh      51350Kbit
+  target            5ms
+  interval        100ms
+  pk_delay       7.34ms
+  av_delay       1.48ms
+  sp_delay        156us
+  backlog            0b
+  pkts           170254
+  bytes       256392432
+  way_inds            0
+  way_miss            4
+  way_cols            0
+  drops              36
+  marks               0
+  ack_drop            0
+  sp_flows            1
+  bk_flows            1
+  un_flows            0
+  max_len         15140
+  quantum          1514
+
+qdisc cake 0: dev ifb4cwan parent 803b:1 bandwidth 51350Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 245273342 bytes 172289 pkt (dropped 29, overlimits 119164 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 201584b of 4Mb
+ capacity estimate: 0bit
+ min/max network layer size:           42 /    1514
+ min/max overhead-adjusted size:       42 /    1514
+ active queues:                         2
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh      25675Kbit
+  target            5ms
+  interval        100ms
+  pk_delay        320us
+  av_delay          9us
+  sp_delay          3us
+  backlog            0b
+  pkts           172318
+  bytes       245317248
+  way_inds            0
+  way_miss           12
+  way_cols            0
+  drops              29
+  marks               0
+  ack_drop            0
+  sp_flows            3
+  bk_flows            1
+  un_flows            0
+  max_len         10598
+  quantum           783
+

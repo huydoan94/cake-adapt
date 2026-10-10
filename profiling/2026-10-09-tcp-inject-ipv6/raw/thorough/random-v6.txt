@@ -1,0 +1,9 @@
+random-v6: daemon exit 0
+TCP_INJECT; 2026-10-09-01:08:23; 1791529703.540802; 1791529703.540800; 0; 0; 0; 0
+TCP_INJECT; 2026-10-09-01:09:23; 1791529763.534871; 1791529763.534868; 19; 0; 11; 8
+INFO; 2026-10-09-01:11:41; 1791529901.883486; Stopped TCP timestamp injection with injected SYNs: 40 and stalls: 21
+round 1 failed: 8
+round 1 ok: 12
+round 2 failed: 13
+round 2 ok: 7
+random-v6: leftover in cpe=[]

@@ -1,0 +1,7 @@
+cp: '/lib/bpf/cake-adapt-tcpdelay.o' and '/lib/bpf/cake-adapt-tcpdelay.o' are the same file
+v6-before-002231: daemon exit 0
+v6-before-002231: capture did not start
+v6-before-002231: type=1 runs=204236 ns_per_run=1401
+v6-before-002231: type=3 runs=93529 ns_per_run=379
+v6-before-002231: daemon_ticks=11
+v6-before-002231: leftover in cpe=[]

@@ -1,0 +1,44 @@
+PASS L lists options
+PASS V accepts the running config
+PASS V rejects min > base
+PASS V accepts 10001 kbit/s (whole bytes/s)
+PASS V rejects 10000.001 kbit/s (not whole bytes/s)
+PASS stop leaves no daemon
+PASS stop leaves no fping
+PASS stop detaches the injector
+PASS stop is in syslog
+PASS start runs daemon
+PASS start runs one fping
+PASS start attaches one injector
+PASS start has TCP measurement
+PASS restart replaces the process
+PASS restart leaves one fping
+PASS restart leaves one injector
+PASS procd respawns after SIGKILL
+PASS one fping after respawn
+PASS one injector after respawn
+PASS CAKE removal is reported
+PASS pingers stop without CAKE
+PASS CAKE return is reported
+PASS pingers resume
+PASS control resumes (new DATA records)
+PASS one injector after CAKE returns
+PASS daemon survives SQM restart
+PASS pingers running after SQM restart
+PASS data flows after SQM restart
+PASS one injector after SQM restart
+PASS SIGUSR1 exports logs
+PASS SIGUSR2 keeps the inode
+PASS SIGUSR2 resets the log
+PASS size rotation happens
+PASS rotation keeps the inode
+PASS disabled config does not run
+PASS disabled leaves no injector
+PASS disabled is in syslog
+PASS invalid config is refused
+PASS invalid config leaves no injector
+PASS invalid config is in syslog
+PASS restored config runs
+PASS restored config attaches one injector
+PASS config file restored
+passed 43 failed 0

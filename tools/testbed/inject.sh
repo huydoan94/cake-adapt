@@ -72,7 +72,7 @@ touch "$LOG"
 ls -i "$LOG" | cut -d' ' -f1 > "$R/inode-before"
 : > "$LOG"
 ln -f "$LOG" "$T/logs-inject/cake-adapt.log"
-"$BIN" -C "$T/uci-inject" -S main -V || { echo "inject: invalid configuration"; exit 1; }
+"$BIN" -C "$T/uci-inject/cake-adapt" -S main -V || { echo "inject: invalid configuration"; exit 1; }
 
 # Handshakes and resets on the WAN side of cpe, as the injector sees them.
 # Background processes start through ip netns exec directly, so $! is the real process.
@@ -82,7 +82,7 @@ ip netns exec cpe tcpdump -n -l -v -i cwan \
     > "$R/handshakes" 2>/dev/null &
 DUMP=$!
 X cpe tc -s qdisc show dev ifb4cwan > "$R/ifb-before"
-ip netns exec cpe "$BIN" -C "$T/uci-inject" -S main </dev/null >/dev/null 2>&1 &
+ip netns exec cpe "$BIN" -C "$T/uci-inject/cake-adapt" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 sleep 10
 
@@ -121,7 +121,7 @@ wait "$DAEMON"; echo "daemon exit $?" | tee -a "$R/attempts"
 mark after-stop;     attempt after-stop 5202 2 -R
 
 # A daemon killed without warning must not leave its programs behind.
-ip netns exec cpe "$BIN" -C "$T/uci-inject" -S main </dev/null >/dev/null 2>&1 &
+ip netns exec cpe "$BIN" -C "$T/uci-inject/cake-adapt" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 sleep 8
 kill -KILL "$DAEMON"; wait "$DAEMON" 2>/dev/null

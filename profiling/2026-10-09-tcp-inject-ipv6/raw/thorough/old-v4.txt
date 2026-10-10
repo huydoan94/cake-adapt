@@ -1,0 +1,7 @@
+old-v4: daemon exit 0
+TCP_INJECT; 2026-10-09-01:15:07; 1791530107.410721; 1791530107.410718; 0; 0; 0; 0
+TCP_INJECT; 2026-10-09-01:16:07; 1791530167.420631; 1791530167.420628; 0; 0; 0; 0
+INFO; 2026-10-09-01:16:43; 1791530203.543039; Stopped TCP timestamp injection with injected SYNs: 0 and stalls: 0
+round 1 ok: 20
+round 2 ok: 20
+old-v4: leftover in cpe=[]

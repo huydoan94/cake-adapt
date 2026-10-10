@@ -1,0 +1,9 @@
+head;[libc.so] 3
+head;[libc.so];handle_exception_return_[k];sysvec_apic_timer_interrupt_[k];irq_exit_rcu_[k];do_softirq_own_stack_[k];__do_softirq_[k];handle_softirqs_[k] 2
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_epoll_pwait_[k];do_epoll_pwait.part.0_[k];do_epoll_wait.part.0_[k];schedule_hrtimeout_range_[k];schedule_hrtimeout_range_clock_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k] 95
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_epoll_pwait_[k];do_epoll_pwait.part.0_[k];do_epoll_wait.part.0_[k];schedule_hrtimeout_range_[k];schedule_hrtimeout_range_clock_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k];handle_exception_return_[k];sysvec_apic_timer_interrupt_[k];irq_exit_rcu_[k];do_softirq_own_stack_[k];__do_softirq_[k];handle_softirqs_[k] 1
+head;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_read_[k];ksys_read_[k];fdget_pos_[k] 1
+head;[unknown];[libc.so] 2
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;control_update;log_data 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];[libubox.so.20260213];handle_pinger_output;controller_update 1
+head;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];pingers_unsuspend 1

@@ -23,8 +23,8 @@
 # HOST is anything ssh accepts (user@address or a Host from ~/.ssh/config) and
 # needs key authentication. REMOTE_LOG defaults to /var/log/cake-adapt.log.
 # Stop with Ctrl-C. On the router the follower runs as
-# "sh /tmp/cake-adapt-capture.sh"; it exits by itself within 30 s of the
-# connection ending.
+# "sh /tmp/cake-adapt-capture.sh", a POSIX sh script; it exits by itself
+# within a minute of the connection ending.
 
 # It needs bash (process substitution); started with sh, it runs itself with bash.
 [ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"
@@ -144,7 +144,18 @@ write() {
 		replaying = 0
 		next
 	}
-	replaying { held_line[++held] = $0; next }
+	# While the router replays its log, the screen hears how much has
+	# arrived, every 64 KB.
+	replaying {
+		held_line[++held] = $0
+		held_bytes += length($0) + 1
+		if (!print_lines && held_bytes >= reported + 65536) {
+			reported = held_bytes
+			print "R " held_bytes
+			fflush()
+		}
+		next
+	}
 	{ emit($0) }'
 }
 
@@ -153,9 +164,11 @@ write() {
 # following the file: reading a file on a Windows drive (/mnt/c, /mnt/d) while
 # it grows can fail with "No data available", which stops tail -F. It redraws
 # once a second on a tick that carries the time, the file size and the
-# terminal width. Lines are prefixed L (log), E (event), T (tick) or H (history
-# read only for the router's clock), and every writer writes whole lines, so
-# they never interleave mid-line.
+# terminal width. Lines are prefixed L (log), E (event), T (tick), H (history
+# read only for the router's clock), S (a loading step, drawn at once so the
+# screen is never blank while a large file is read) or R (how much of the
+# router's replay has arrived), and every writer writes whole lines, so they
+# never interleave mid-line.
 #
 # The router's start time is shown corrected for its clock: after a reboot the
 # router runs on a restored clock, saved at shutdown or taken from its files,
@@ -171,6 +184,10 @@ dashboard() {
 	local start_line
 
 	{
+		# Each step that can take long is announced first, so the screen shows
+		# what it is waiting for instead of staying blank.
+		columns=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
+		echo "S ${columns:-120} $(stat -c %s "$local_file" 2>/dev/null || echo 0) reading the router's last start in $local_file"
 		# The router's last start, which may lie far back in the file, with the
 		# records before it and the first part of its run for the clock check.
 		start_line=$(grep -an 'Starting cake-adapt' "$local_file" 2>/dev/null | tail -n 1 | cut -d: -f1)
@@ -180,8 +197,10 @@ dashboard() {
 			sed -n "$((start_line > 20 ? start_line - 20 : 1)),$((start_line + 50000))p; $((start_line + 50000))q" \
 				"$local_file" | sed 's/^/H /'
 		fi
+		echo "S ${columns:-120} 0 reading the last 3,000 lines"
 		tail -n 3000 "$local_file" 2>/dev/null | sed 's/^/L /'
 		tail -n 4 "$events" 2>/dev/null | sed 's/^/E /'
+		echo "S ${columns:-120} 0"
 		cat "$feed" &
 		while sleep 1; do
 			columns=$(stty size < /dev/tty 2>/dev/null | cut -d' ' -f2)
@@ -266,6 +285,10 @@ dashboard() {
 			status_text = "connected since " when(connected_at) " (" ago(connected_at) ")"
 		else if (status_at)
 			status_text = status " since " when(status_at) " (" ago(status_at) ")"
+		if (status == "connecting" && replay_bytes != "")
+			status_text = status_text ", router replay " size(replay_bytes) " received"
+		if (loading != "")
+			line(sprintf("%-12s %s ...", "Loading", loading))
 		line(sprintf("%-12s %s, reconnects %d", "Connection", status_text, reconnects))
 		line(sprintf("%-12s download %s, upload %s", "Throughput", traffic(1), traffic(2)))
 		line(sprintf("%-12s %s this run at %s; file %s of %s; %d archived", "Log capture",
@@ -362,7 +385,9 @@ dashboard() {
 		CLOCK_STEP_S = 5
 		BLOAT_HOLD_S = 2
 		status = "starting"
-		opened = systime()
+		opened = now = systime()
+		columns = 120
+		loading = "starting"
 		bb_first = 1
 		# The screen passes these to its functions before any record arrives.
 		# gawk 5.2 crashes ("unexpected parameter type Node_illegal") when a
@@ -372,6 +397,24 @@ dashboard() {
 			delay[d] = delayed[d] = queue_valid[d] = queue_us[d] = ""
 		}
 		printf "\033[?25l\033[H\033[2J"
+	}
+	# A loading step (S columns bytes text; no text when the history is read),
+	# drawn at once.
+	/^S / {
+		split($0, step, " ")
+		columns = step[2]
+		loading = $0
+		sub(/^S [0-9]+ [0-9]+ ?/, "", loading)
+		if (loading != "" && step[3] > 0)
+			loading = loading " (" size(step[3]) ")"
+		now = systime()
+		draw()
+		next
+	}
+	# The router replay so far, in bytes.
+	/^R / {
+		replay_bytes = substr($0, 3)
+		next
 	}
 	/^T / {
 		split($0, tick, " ")
@@ -416,6 +459,7 @@ dashboard() {
 				reconnects++
 			status = "connecting"
 			status_at = t
+			replay_bytes = ""
 		} else if (message ~ /^disconnected/) {
 			status = "disconnected"
 			status_at = t
@@ -445,6 +489,7 @@ dashboard() {
 		if (status == "connecting") {
 			status = "connected"
 			connected_at = now ? now : systime()
+			replay_bytes = ""
 		}
 		if (f[3] ~ /^[0-9]+\.[0-9]+$/)
 			record_time = int(f[3])
@@ -507,10 +552,11 @@ screen_errors() {
 	fi
 }
 
-# One line every 5 s for the router-side watchdog; it ends with the connection.
+# One line a second: the router-side follower's clock and watchdog; it ends
+# with the connection.
 heartbeat() {
 	while echo; do
-		sleep 5
+		sleep 1
 	done
 }
 
@@ -552,53 +598,88 @@ event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
 # Runs on the router (BusyBox sh) as /tmp/cake-adapt-capture.sh, so that ps
 # shows it by name; each session writes it afresh under a temporary name and
 # renames it, so a follower still running keeps its own copy. It replays the
-# .old copy and the live log, prints
-# the marker, then follows the live log once a second. The log stays open on
-# descriptor 3, so each read continues where the last stopped instead of
-# rereading the file: its position comes from /proc/self/fdinfo, and its size
-# from ls, which reads no content. tail -F would lose what was written in the
-# second before a rotation, which cake-adapt does by copying the log to .old and
-# truncating it in place: when the log shrinks below the position, the rest of
-# the old content is read from .old at the same offset. The log cannot regrow
-# past that offset within a second, since it rotates at 2 MB or after 10
-# minutes of growth.
+# .old copy and the live log, prints the marker, then follows the live log on
+# each heartbeat. The log stays open on descriptor 3, so each read continues
+# where the last stopped instead of rereading the file. A slow router pays
+# mostly for starting processes, so each tick starts only the cat that copies
+# the new lines: the position before and after it comes from /proc/self/fdinfo
+# with builtins, and only when cat found nothing is the log's size read with
+# ls, since that is the only time it can have been rotated. tail -F would lose
+# what was written in the second before a rotation, which cake-adapt does by
+# copying the log to .old and truncating it in place: when the log shrinks
+# below the position, the rest of the old content is read from .old at the
+# same offset. The log cannot regrow past that offset within a second, since it
+# rotates at 2 MB or after 10 minutes of growth.
 #
-# The PC sends a heartbeat line every 5 s on the follower's stdin. A watchdog
-# beside the follower reads them; at end of input (the session closed) or after
-# 30 s without one (the network silently gone), it kills the whole session's
-# process group, including a reader blocked writing to a dead connection.
+# The PC sends a heartbeat line every second on the follower's stdin. A
+# subshell counts them into a beat file and passes each to the follower through
+# a FIFO, with shell builtins only, so the follower waits on a read instead of
+# starting sleep; at end of input (the session closed) it kills the whole
+# session's process group. Another subshell wakes every 30 s and does the same
+# when the count has not moved (the network silently gone), so the follower
+# exits within a minute, including a reader blocked writing to a dead
+# connection; the count keeps moving during the replay. The follower is POSIX
+# sh (read -t is not), and it removes its files however it ends (closed
+# session, SIGHUP from the SSH server, or the watchdog).
 # The router's shell expands its $ references, so they stay quoted here.
+#
+# FROZEN: the follower below is final as of fcb9184 (measured in
+# profiling/2026-10-09-follower). Do not modify it; make changes on the PC
+# side of this script instead.
 # shellcheck disable=SC2016
 follower='#!/bin/sh
 # Written by capture-log.sh for each SSH session; safe to delete.
 f=$1
-exec 4<&0
+beats=/tmp/cake-adapt-capture.$$.beats
+ticks=/tmp/cake-adapt-capture.$$.ticks
+echo 0 > "$beats"
+mkfifo "$ticks" || exit
+trap "rm -f \"$beats\" \"$ticks\"" EXIT
+trap exit HUP INT TERM PIPE
+exec 5<&0
 (
-	while read -r -t 30 beat; do :; done
+	trap - EXIT HUP INT TERM PIPE
+	n=0
+	while read -r _; do
+		n=$((n + 1))
+		echo "$n" > "$beats"
+		echo
+	done
 	kill -TERM 0
-) <&4 &
+) <&5 > "$ticks" &
+(
+	trap - EXIT HUP INT TERM PIPE
+	last=
+	while sleep 30; do
+		read -r beat < "$beats" || beat=
+		[ "$beat" != "$last" ] || kill -TERM 0
+		last=$beat
+	done
+) &
+exec 4< "$ticks"
+# The position is the first line of fdinfo; the shell reads a byte per system
+# call, so only that line is read.
+position() {
+	read -r _ offset < /proc/$$/fdinfo/3
+}
 cat "$f.old" 2>/dev/null
 exec 3< "$f"
 cat <&3
 echo "$2"
-while :; do
+while read -r _ <&4; do
+	position
+	start=$offset
+	cat <&3
+	[ $? -lt 128 ] || exit
+	position
+	[ "$offset" = "$start" ] || continue
 	set -- "$1" "$2" $(ls -ln "$f" 2>/dev/null)
-	size=${7:-0}
-	while read -r key value; do
-		[ "$key" = pos: ] && offset=$value
-	done < /proc/$$/fdinfo/3
-	if [ "$size" -lt "$offset" ]; then
-		tail -c +$((offset + 1)) "$f.old" 2>/dev/null
-		[ $? -lt 128 ] || exit
-		exec 3< "$f"
-		continue
-	fi
-	if [ "$size" -gt "$offset" ]; then
-		cat <&3
-		[ $? -lt 128 ] || exit
-	fi
-	sleep 1
-done'
+	[ "${7:-0}" -lt "$offset" ] || continue
+	tail -c +$((offset + 1)) "$f.old" 2>/dev/null
+	[ $? -lt 128 ] || exit
+	exec 3< "$f"
+done
+kill -TERM 0'
 
 while true; do
 	event "connecting"
