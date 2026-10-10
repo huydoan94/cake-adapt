@@ -279,8 +279,8 @@ static void test_absolute_path(void)
 	assert(absolute_path("/etc/config/cake-adapt", buffer, sizeof(buffer)) == 0);
 	assert(strcmp(buffer, "/etc/config/cake-adapt") == 0);
 	assert(chdir("/tmp") == 0);
-	assert(absolute_path("config-main.uci", buffer, sizeof(buffer)) == 0);
-	assert(strcmp(buffer, "/tmp/config-main.uci") == 0);
+	assert(absolute_path("main.uci", buffer, sizeof(buffer)) == 0);
+	assert(strcmp(buffer, "/tmp/main.uci") == 0);
 	assert(absolute_path("../tmp/logs", buffer, sizeof(buffer)) == 0);
 	assert(strcmp(buffer, "/tmp/../tmp/logs") == 0);
 	assert(chdir("/") == 0);
