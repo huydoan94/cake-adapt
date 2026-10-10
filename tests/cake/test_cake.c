@@ -55,6 +55,7 @@ static void test_qdisc_message(void)
 	assert(observation.bandwidth_bps == 10000000U);
 	assert(observation.has_basic_stats);
 	assert(observation.bytes == bytes);
+	assert(strcmp(observation.kind, "cake") == 0);
 
 	read.found = false;
 	read.interface_index = 8U;
@@ -65,6 +66,69 @@ static void test_qdisc_message(void)
 	assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
 	assert(!read.found);
 	nlmsg_free(message);
+}
+
+/* A root qdisc of KIND with a bandwidth of 1,250,000 bytes/s and a byte counter. */
+static struct nl_msg *root_qdisc(const char *kind, uint32_t parent)
+{
+	struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
+	struct tcmsg tc = { .tcm_ifindex = 7, .tcm_parent = parent, .tcm_handle = 0x80360000U };
+	uint64_t bandwidth = 1250000U;
+	struct gnet_stats_basic basic = { .bytes = 4096U };
+	struct nlattr *nested;
+
+	assert(message != NULL);
+	assert(nlmsg_append(message, &tc, sizeof(tc), NLMSG_ALIGNTO) == 0);
+	assert(nla_put_string(message, TCA_KIND, kind) == 0);
+	nested = nla_nest_start(message, TCA_OPTIONS);
+	assert(nested != NULL);
+	assert(nla_put(message, TCA_CAKE_BASE_RATE64, sizeof(bandwidth), &bandwidth) == 0);
+	assert(nla_put_s32(message, TCA_CAKE_OVERHEAD, 44) == 0);
+	assert(nla_nest_end(message, nested) == 0);
+	nested = nla_nest_start(message, TCA_STATS2);
+	assert(nested != NULL);
+	assert(nla_put(message, TCA_STATS_BASIC, sizeof(basic), &basic) == 0);
+	assert(nla_nest_end(message, nested) == 0);
+	return message;
+}
+
+/*
+ * A cake_mq root is used like a single CAKE and keeps its kind for changes;
+ * its per-queue cake children and other qdiscs are not.
+ */
+static void test_qdisc_kinds(void)
+{
+	static const struct {
+		const char *kind;
+		uint32_t parent;
+		const char *found_kind;
+	} cases[] = {
+		{ "cake", TC_H_ROOT, "cake" },
+		{ "cake_mq", TC_H_ROOT, "cake_mq" },
+		{ "cake", 0x80360004U, NULL },
+		{ "fq_codel", TC_H_ROOT, NULL },
+	};
+	size_t index;
+
+	for (index = 0U; index < ARRAY_SIZE(cases); index++) {
+		struct nl_msg *message = root_qdisc(cases[index].kind, cases[index].parent);
+		struct cake_observation observation = { 0 };
+		struct cake_read read = { .observation = &observation, .interface_index = 7U };
+		struct cake_read_context context = { .reads = &read, .count = 1U };
+
+		assert(handle_qdisc(nlmsg_hdr(message), &context) == 0);
+		if (cases[index].found_kind == NULL) {
+			assert(!read.found);
+		} else {
+			assert(read.found);
+			assert(strcmp(observation.kind, cases[index].found_kind) == 0);
+			assert(observation.bandwidth_bps == 10000000U);
+			assert(observation.overhead_bytes == 44);
+			assert(observation.has_basic_stats && observation.bytes == 4096U);
+			assert(observation.qdisc.handle == 0x80360000U);
+		}
+		nlmsg_free(message);
+	}
 }
 
 /* One dump carries every interface; each root qdisc fills only its own read. */
@@ -232,6 +296,7 @@ static void test_wire_packet_formula(void)
 int main(void)
 {
 	test_qdisc_message();
+	test_qdisc_kinds();
 	test_dump_routes_each_interface();
 	test_invalid_optional_attributes();
 	test_invalid_message();
