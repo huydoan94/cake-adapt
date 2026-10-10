@@ -11,6 +11,8 @@
 struct cake_observation {
 	/* Its interface index is cached while CAKE is found; zero resolves the name again. */
 	struct qdisc_id qdisc;
+	/* QDISC_KIND or QDISC_KIND_MQ, as found; every change must name the same kind. */
+	const char *kind;
 	uint64_t bandwidth_bps;
 	uint64_t bytes;
 	uint32_t mtu_bytes;

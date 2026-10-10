@@ -1,4 +1,12 @@
 #!/bin/bash
+# import UCI_DIRECTORY CAKE_ADAPT_BINARY UCI_SECTION [CONFIG_FILE]
+#
+# Builds one instance's runtime configuration in UCI_DIRECTORY/cake-adapt, an
+# empty file: the instance's section with every option cake-adapt knows. Each
+# value comes from the system UCI section when it sets the option, and
+# otherwise from CONFIG_FILE, a cake-autorate style Bash configuration, when
+# it defines it: UCI wins. Values are read with uci get and written with uci
+# set, never parsed by hand.
 
 set -euo pipefail
 set -f
@@ -9,77 +17,93 @@ fail()
     exit 1
 }
 
-if (( $# != 4 )); then
-    fail "usage: $0 CONFIG_FILE UCI_DIRECTORY CAKE_ADAPT_BINARY UCI_SECTION"
-fi
+(( $# == 3 || $# == 4 )) ||
+    fail "usage: $0 UCI_DIRECTORY CAKE_ADAPT_BINARY UCI_SECTION [CONFIG_FILE]"
+# Read-only, so the sourced configuration cannot change them.
+readonly uci_directory=$1 program=$2 section=$3 config_path=${4:-}
+readonly uci_command=${UCI:-/sbin/uci} section_reference="cake-adapt.$3"
 
-config_path=$1
-uci_directory=$2
-program=$3
-section=$4
-uci_command=${UCI:-/sbin/uci}
-section_reference="cake-adapt.$section"
-
-[[ $config_path == /* ]] || fail "configuration path must be absolute"
 [[ $section =~ ^[A-Za-z0-9_-]+$ ]] || fail "invalid UCI section '$section'"
-[[ -r $config_path ]] || fail "cannot read $config_path"
 [[ -x $program ]] || fail "cannot execute $program"
 [[ -x $uci_command ]] || fail "cannot execute $uci_command"
 [[ -d $uci_directory/.uci ]] || fail "missing UCI staging directory"
 
-"$BASH" -n "$config_path" ||
-    fail "invalid shell syntax"
+if [[ -n $config_path ]]; then
+    [[ $config_path == /* ]] || fail "configuration path must be absolute"
+    [[ -r $config_path ]] || fail "cannot read $config_path"
+    "$BASH" -n "$config_path" || fail "invalid shell syntax"
+    # The configuration is executable Bash. Run it only in this child process
+    # so its variables and shell settings cannot alter procd's init shell.
+    # shellcheck source=/dev/null
+    . "$config_path"
+    set -euo pipefail
+    set -f
+    IFS=$' \t\n'
+fi
 
-# The imported configuration is executable Bash. Run it only in this child
-# process so its variables and shell settings cannot alter procd's init shell.
-# shellcheck source=/dev/null
-. "$config_path"
+# The system UCI, where the instance is configured.
+system_uci()
+{
+    "$uci_command" -q "$@"
+}
 
-set -euo pipefail
-set -f
-IFS=$' \t\n'
+# The runtime configuration, with its changes kept in .uci until the commit.
+runtime_uci()
+{
+    "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" "$@"
+}
 
-supported_option_text=$("$program" -L) ||
-    fail "could not query supported cake-adapt options"
-[[ -n $supported_option_text ]] ||
-    fail "cake-adapt returned no supported options"
-mapfile -t supported_options <<< "$supported_option_text"
-for name in "${supported_options[@]}"; do
-    case $name in
+single_line()
+{
+    [[ $1 != *$'\n'* && $1 != *$'\r'* ]] || fail "$2 contains a line break"
+}
+
+# The configuration file's value of NAME, a scalar, into file_value.
+file_value()
+{
+    case $1 in
     enabled|interface|config_file)
-        continue
+        return 1
         ;;
     esac
-    [[ -v $name ]] || continue
-
-    declaration=$(declare -p "$name")
-    case $declaration in
+    [[ -v $1 ]] || return 1
+    case $(declare -p "$1") in
     "declare -a "*|"declare -A "*)
-        fail "$name must be a scalar value"
+        fail "$1 must be a scalar value"
         ;;
     esac
-    value=${!name}
-    if [[ $value == *$'\n'* || $value == *$'\r'* ]]; then
-        fail "$name contains a line break"
+    file_value=${!1}
+}
+
+options=$("$program" -L) || fail "could not query supported cake-adapt options"
+[[ -n $options ]] || fail "cake-adapt returned no supported options"
+
+runtime_uci set "$section_reference=cake_adapt"
+for name in $options; do
+    if value=$(system_uci get "$section_reference.$name"); then
+        :
+    elif file_value "$name"; then
+        value=$file_value
+    else
+        continue
     fi
-    "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-        set "$section_reference.$name=$value"
+    single_line "$value" "$name"
+    runtime_uci set "$section_reference.$name=$value"
 done
 
-if reflector_declaration=$(declare -p reflectors 2>/dev/null); then
+# Reflectors are a list: UCI's as a whole, or else the file's array.
+if uci_reflectors=$(system_uci get "$section_reference.reflectors"); then
+    read -r -a reflectors <<< "$uci_reflectors"
+elif reflector_declaration=$(declare -p reflectors 2> /dev/null); then
     [[ $reflector_declaration == "declare -a "* ]] ||
         fail "reflectors must be an indexed array"
     (( ${#reflectors[@]} > 0 )) || fail "reflectors is empty"
-
-    "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-        delete "$section_reference.reflectors" || true
-    for reflector in "${reflectors[@]}"; do
-        [[ $reflector != *$'\n'* && $reflector != *$'\r'* ]] ||
-            fail "reflector contains a line break"
-        "$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-            add_list "$section_reference.reflectors=$reflector"
-    done
+else
+    reflectors=()
 fi
+for reflector in "${reflectors[@]}"; do
+    single_line "$reflector" reflector
+    runtime_uci add_list "$section_reference.reflectors=$reflector"
+done
 
-"$uci_command" -q -c "$uci_directory" -t "$uci_directory/.uci" \
-    commit cake-adapt
+runtime_uci commit cake-adapt

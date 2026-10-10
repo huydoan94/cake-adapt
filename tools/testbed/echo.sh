@@ -73,8 +73,8 @@ EOF
 
 : > "$LOG"
 ln -f "$LOG" "$T/logs-$NAME/cake-adapt.log"
-"$BIN" -C "$T/uci-$NAME" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
-ip netns exec cpe "$BIN" -C "$T/uci-$NAME" -S main </dev/null >/dev/null 2>&1 &
+"$BIN" -C "$T/uci-$NAME/cake-adapt" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
+ip netns exec cpe "$BIN" -C "$T/uci-$NAME/cake-adapt" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 # Bytes queued in each tbf bottleneck with its current rate: upload, download.
 ip netns exec isp env TBF='/qdisc tbf/ { for (i = 1; i < NF; i++) if ($i == "rate") rate = $(i + 1); tbf = 1 }
