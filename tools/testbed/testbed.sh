@@ -8,8 +8,15 @@
 #   [inet] iperf3 servers, reflectors 10.99.0.11-16, probe target 10.99.0.20
 # IPv6 runs alongside on unique local addresses: cpe fd98::2, isp fd98::1 and
 # fd99::1, inet fd99::2 (servers), fd99::11-16 (reflectors) and fd99::20.
+# CAKE_MQ=1 gives cwan and ifb4cwan 4 transmit queues and multi-queue CAKE
+# (cake_mq, one cake per queue under a root with the shared settings).
 set -e
 X() { ip netns exec "$@"; }
+if [ "${CAKE_MQ:-0}" = 1 ]; then
+    QUEUES="numtxqueues 4 numrxqueues 4" KIND=cake_mq
+else
+    QUEUES="" KIND=cake
+fi
 
 bottleneck() { # NS DEV MBIT
     limit=$(( $3 * 1000000 / 8 / 2 ))   # 500 ms of buffer at the line rate
@@ -20,7 +27,9 @@ bottleneck() { # NS DEV MBIT
 case "$1" in
 up)
     for ns in cpe isp inet; do ip netns add "$ns"; X "$ns" ip link set lo up; done
-    ip link add cwan type veth peer name iwan
+    # $QUEUES is empty or several words, so it is not quoted.
+    # shellcheck disable=SC2086
+    ip link add cwan $QUEUES type veth peer name iwan $QUEUES
     ip link set cwan netns cpe
     ip link set iwan netns isp
     ip link add iinet type veth peer name inet0
@@ -48,12 +57,13 @@ up)
     for host in 11 12 13 14 15 16 20; do X inet ip -6 addr add fd99::$host/64 dev inet0 nodad; done
     X inet ip -6 route add default via fd99::1
     # SQM-like CAKE in the cpe namespace.
-    X cpe ip link add ifb4cwan type ifb
+    # shellcheck disable=SC2086
+    X cpe ip link add ifb4cwan $QUEUES type ifb
     X cpe ip link set ifb4cwan up
-    X cpe tc qdisc add dev cwan root cake bandwidth 6mbit besteffort nat
+    X cpe tc qdisc add dev cwan root "$KIND" bandwidth 6mbit besteffort nat
     X cpe tc qdisc add dev cwan handle ffff: ingress
     X cpe tc filter add dev cwan parent ffff: matchall action mirred egress redirect dev ifb4cwan
-    X cpe tc qdisc add dev ifb4cwan root cake bandwidth 30mbit besteffort nat ingress
+    X cpe tc qdisc add dev ifb4cwan root "$KIND" bandwidth 30mbit besteffort nat ingress
     bottleneck isp iinet 8      # upload
     bottleneck isp iwan 40      # download
     X inet iperf3 -s -p 5201 -D

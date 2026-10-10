@@ -1,0 +1,1 @@
+qdisc cake 8011: root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 

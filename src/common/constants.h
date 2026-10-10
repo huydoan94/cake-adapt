@@ -57,6 +57,8 @@
 #define PROGRAM_VERSION "unknown"
 #endif
 #define QDISC_KIND "cake"
+/* Multi-queue CAKE: one cake per transmit queue under a root that holds the shared settings. */
+#define QDISC_KIND_MQ "cake_mq"
 #define UCI_PACKAGE PROGRAM_NAME
 #define UCI_SECTION_TYPE "cake_adapt"
 

@@ -1,0 +1,4 @@
+Fri Oct  9 13:04:35 2026 daemon.notice cake-adapt: no cake-adapt instances are enabled; not starting
+Fri Oct  9 13:04:35 2026 daemon.info cake-adapt[5821]: INFO: 1791572675.400980 Stopped cake-adapt with PID: 5821, config: /tmp/cake-adapt-config/main, section: main
+Fri Oct  9 13:04:38 2026 daemon.err cake-adapt[5963]: ERROR: 1791572678.398662 configuration error: download rates must satisfy minimum <= base <= maximum
+Fri Oct  9 13:04:38 2026 daemon.err cake-adapt: could not generate /tmp/cake-adapt-config/main/cake-adapt; not starting instance 'main'

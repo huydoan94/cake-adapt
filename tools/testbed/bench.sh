@@ -56,8 +56,8 @@ EOF
 
 : > "$LOG"
 ln -f "$LOG" "$T/logs-$NAME/cake-adapt.log"
-"$BIN" -C "$T/uci-$NAME" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
-ip netns exec cpe "$BIN" -C "$T/uci-$NAME" -S main </dev/null >/dev/null 2>&1 &
+"$BIN" -C "$T/uci-$NAME/cake-adapt" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
+ip netns exec cpe "$BIN" -C "$T/uci-$NAME/cake-adapt" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 
 # Per BPF program of the daemon: type, run_cnt and run_time_ns, one line each,

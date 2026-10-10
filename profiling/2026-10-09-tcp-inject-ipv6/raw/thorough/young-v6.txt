@@ -1,0 +1,7 @@
+young-v6: daemon exit 0
+TCP_INJECT; 2026-10-09-01:06:44; 1791529604.470615; 1791529604.470613; 0; 0; 0; 0
+TCP_INJECT; 2026-10-09-01:07:44; 1791529664.431386; 1791529664.431382; 40; 0; 40; 0
+INFO; 2026-10-09-01:08:20; 1791529700.568008; Stopped TCP timestamp injection with injected SYNs: 40 and stalls: 0
+round 1 ok: 20
+round 2 ok: 20
+young-v6: leftover in cpe=[]
