@@ -1,0 +1,11 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+cake                   upload-steady     5.1   72.4   91.4   28.9   20.9     0      85.6       nan
+cake                   upload-step       4.9   92.4  211.4   29.9   22.9     0      84.1       nan
+cake                   download-steady   15.8   36.5   48.6   52.5   13.0     0       nan      80.4
+cake                   bidirectional    23.7   68.5   87.4   72.4   35.5     0      79.9      72.7
+                       (idle base RTT 21.6 ms; delays are added RTT in ms)
+mq                     upload-steady     1.8   71.9   87.0   28.6   21.4     0      84.7       nan
+mq                     upload-step       4.4   89.0  175.0   27.6   21.9     0      82.5       nan
+mq                     download-steady   14.2   34.6   40.9   48.2   10.3     0       nan      77.9
+mq                     bidirectional    13.8   32.5   39.0   46.5    7.6     0      33.6      81.5
+                       (idle base RTT 22.0 ms; delays are added RTT in ms)

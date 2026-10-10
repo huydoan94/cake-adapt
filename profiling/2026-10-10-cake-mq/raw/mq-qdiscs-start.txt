@@ -1,0 +1,12 @@
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc cake_mq 803a: dev cwan root bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev cwan parent 803a:4 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev cwan parent 803a:3 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev cwan parent 803a:2 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev cwan parent 803a:1 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: dev cwan parent ffff:fff1 ---------------- 
+qdisc cake_mq 803b: dev ifb4cwan root bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev ifb4cwan parent 803b:4 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev ifb4cwan parent 803b:3 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev ifb4cwan parent 803b:2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 0: dev ifb4cwan parent 803b:1 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
