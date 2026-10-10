@@ -106,9 +106,10 @@ const char *config_option_name(size_t index);
 /* Checks a loaded configuration for consistency; config_load() calls it. */
 int config_validate(const struct config *config, char *error, size_t error_size);
 
+/* Loads SECTION_NAME from CONFIG_PATH, the absolute path of a file in UCI syntax. */
 int config_load(
 	struct config *config,
-	const char *config_directory,
+	const char *config_path,
 	const char *section_name,
 	char *error,
 	size_t error_size
