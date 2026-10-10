@@ -108,7 +108,7 @@ RAM, so the defaults never write to flash.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `log_to_file` | boolean | `1` | Write the log file. |
-| `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A directory on flash wears it. |
+| `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
 | `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
 | `log_file_buffer_timeout_ms` | integer | `500` | Longest time a record waits in the write buffer. |

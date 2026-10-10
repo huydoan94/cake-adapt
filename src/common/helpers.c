@@ -6,8 +6,10 @@
 
 #include <limits.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 bool parse_unsigned(const char *start, const char *end, uint64_t *value)
 {
@@ -157,4 +159,30 @@ uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us)
 		saturating_mul(byte_delta / elapsed_us, byte_per_us_to_bps),
 		saturating_mul(byte_delta % elapsed_us, byte_per_us_to_bps) / elapsed_us
 	);
+}
+
+int absolute_path(const char *path, char *buffer, size_t size)
+{
+	char directory[PATH_MAX];
+	int length;
+
+	if (path[0] == '/') {
+		length = snprintf(buffer, size, "%s", path);
+	} else {
+		if (getcwd(directory, sizeof(directory)) == NULL)
+			return -1;
+		/* The root directory already ends in the separator. */
+		length = snprintf(
+			buffer,
+			size,
+			"%s/%s",
+			strcmp(directory, "/") == 0 ? "" : directory,
+			path
+		);
+	}
+	if (length < 0 || (size_t)length >= size) {
+		errno = ENAMETOOLONG;
+		return -1;
+	}
+	return 0;
 }

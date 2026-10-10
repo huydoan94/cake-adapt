@@ -37,6 +37,13 @@ bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_
 
 bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us);
 
+/*
+ * PATH as an absolute path in BUFFER: copied when it is absolute, otherwise
+ * joined to the current directory (the path need not exist). Returns -1 with
+ * errno set when the current directory is unknown or the result does not fit.
+ */
+int absolute_path(const char *path, char *buffer, size_t size);
+
 /* A counter delta over a positive duration, in bit/s; saturated at UINT64_MAX. */
 uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us);
 
