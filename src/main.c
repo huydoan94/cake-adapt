@@ -19,7 +19,7 @@ static void print_usage(const char *program_name)
 {
 	(void)fprintf(
 		stderr,
-		"Usage: %s [-f] [-V] [-C UCI_CONFIG_DIRECTORY] [-S UCI_SECTION]\n"
+		"Usage: %s [-f] [-V] [-C UCI_CONFIG_FILE] [-S UCI_SECTION]\n"
 		"       %s -L\n",
 		program_name,
 		program_name
@@ -27,7 +27,7 @@ static void print_usage(const char *program_name)
 }
 
 struct options {
-	const char *config_directory;
+	const char *config_path;
 	const char *section_name;
 	bool foreground;
 	bool list;
@@ -43,7 +43,7 @@ static int parse_options(int argc, char **argv, struct options *options)
 	while ((option = getopt(argc, argv, CLI_OPTIONS)) != -1) {
 		switch (option) {
 		case 'C':
-			options->config_directory = optarg;
+			options->config_path = optarg;
 			break;
 		case 'L':
 			options->list = true;
@@ -67,7 +67,7 @@ static int parse_options(int argc, char **argv, struct options *options)
 		}
 	}
 	if (optind != argc ||
-	    (options->list && (options->config_directory != NULL || options->foreground ||
+	    (options->list && (options->config_path != NULL || options->foreground ||
 			       options->section_selected || options->validate_only))) {
 		print_usage(argv[0]);
 		return 2;
@@ -215,20 +215,14 @@ int main(int argc, char **argv)
 		return ret;
 	if (options.list)
 		return list_config_options();
-	active_config = options.config_directory ? options.config_directory : DEFAULT_CONFIG_PATH;
+	active_config = options.config_path ? options.config_path : DEFAULT_CONFIG_PATH;
 
 	log_init(PROGRAM_NAME, options.foreground);
 	if (options.validate_only)
 		log_problems_to_stderr();
 
 	ret = 1;
-	if (config_load(
-		    &config,
-		    options.config_directory,
-		    options.section_name,
-		    error,
-		    sizeof(error)
-	    ) != 0) {
+	if (config_load(&config, active_config, options.section_name, error, sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "configuration error: %s", error);
 		goto out;
 	}

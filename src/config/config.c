@@ -9,9 +9,11 @@
 #include <libubox/utils.h>
 
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 
 /*
  * Current libuci headers contain inline helpers that trigger -Wsign-conversion.
@@ -493,7 +495,7 @@ static int load_section(const struct loader *loader)
 
 int config_load(
 	struct config *config,
-	const char *config_directory,
+	const char *config_path,
 	const char *section_name,
 	char *error,
 	size_t error_size
@@ -506,10 +508,31 @@ int config_load(
 	};
 	struct uci_context *context;
 	struct uci_package *package = NULL;
+	struct stat status;
 	int result = -1;
 
 	if (section_name == NULL || section_name[0] == '\0')
 		return error_set(error, error_size, "UCI section name is empty");
+	/* libuci loads a name that starts with '/' as that file. */
+	if (config_path[0] != '/') {
+		return error_set(
+			error,
+			error_size,
+			"configuration file path '%s' must be absolute",
+			config_path
+		);
+	}
+	if (stat(config_path, &status) != 0) {
+		return error_set(
+			error,
+			error_size,
+			"cannot read configuration file '%s': %s",
+			config_path,
+			strerror(errno)
+		);
+	}
+	if (!S_ISREG(status.st_mode))
+		return error_set(error, error_size, "'%s' is not a configuration file", config_path);
 
 	defaults_apply(config);
 
@@ -517,22 +540,10 @@ int config_load(
 	if (context == NULL)
 		return error_set(error, error_size, "could not allocate a UCI context");
 
-	if (config_directory != NULL) {
-		if (uci_set_confdir(context, config_directory) != UCI_OK) {
-			error_set(
-				error,
-				error_size,
-				"could not use UCI configuration directory '%s'",
-				config_directory
-			);
-			goto done;
-		}
-	}
-
-	if (uci_load(context, UCI_PACKAGE, &package) != UCI_OK) {
+	if (uci_load(context, config_path, &package) != UCI_OK) {
 		char *uci_error = NULL;
 
-		uci_get_errorstr(context, &uci_error, UCI_PACKAGE);
+		uci_get_errorstr(context, &uci_error, config_path);
 		error_set(
 			error,
 			error_size,
