@@ -4,7 +4,7 @@ digraph G {
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
   start [label="service start / reload",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   load [label="config_load 'cake-adapt'",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  runtime [label="prepare /tmp/cake-adapt-config\n(0700, not a symlink)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  runtime [label="prepare /var/run/cake-adapt\n(0700, not a symlink)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   each [label="for each config cake_adapt section",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   enabled [label="enabled = 1?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   skip [label="syslog notice: disabled;\nnot started",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
