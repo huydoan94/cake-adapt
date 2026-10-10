@@ -1,0 +1,42 @@
+== 19:58:03
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 8891Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 19:58:23
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 9126Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 19:58:43
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 5078Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 19:59:03
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 8892Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 19:59:23
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 9173Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 19:59:43
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 4306Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 29219Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:00:03
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 6520Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 30Mbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:00:23
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 7324Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 46183Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:00:43
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 6050Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 39775Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:01:03
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 50710Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:01:23
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 6Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 49031Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:01:43
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 7608Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 34725Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:02:03
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 7597Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 42555Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 
+== 20:02:23
+qdisc cake 803c: dev cwan root refcnt 5 bandwidth 10505Kbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 803d: dev ifb4cwan root refcnt 2 bandwidth 52176Kbit besteffort triple-isolate nat nowash ingress no-ack-filter split-gso rtt 100ms raw overhead 0 

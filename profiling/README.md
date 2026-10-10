@@ -6,6 +6,7 @@ and the scripts that produced it.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-10-cake-mq`](2026-10-10-cake-mq/README.md) | cake-adapt controls a root `cake_mq` like a single CAKE (901 changes, every per-queue child followed the root); control matched plain CAKE except under bidirectional load, where `cake_mq` passed 3.3 of 6 Mbit/s upload because it splits the rate equally among busy queues. |
 | [`2026-10-09-follower`](2026-10-09-follower/README.md) | Cost of `capture-log.sh`'s follower on the router: about 0.33% of a core plus 0.1% for its SSH session on the x86 VM, twice the daemon's own 0.16%, almost all from starting `ls`, `cat` and `sleep` every second; the POSIX rewrite of its watchdog costs the same, and the one-`cat` follower 68% less. |
 | [`2026-10-09-profile`](2026-10-09-profile/README.md) | **Latest profile.** 0.3.15 against 0.3.12 with flame graphs over seven workloads, two of them IPv6: same CPU (0.15–0.42% of a core) and memory (2.1 MB), injector half the cost per packet on IPv4 traffic and unchanged on IPv6. |
 | [`2026-10-09-tcp-inject-ipv6`](2026-10-09-tcp-inject-ipv6/README.md) | `tcp_ts_request` on IPv6 only, keyed by client (0.3.15, `0dc6e37`): server behaviours end as designed, IPv4 is untouched, a client with a 34.7-day clock loses only its first burst, 43 of 43 lifecycle checks pass including the injector's tcx link; filter and injector cost unchanged on IPv6, injector 21–35% cheaper on IPv4 traffic. |
