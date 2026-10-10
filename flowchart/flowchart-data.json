@@ -165,8 +165,8 @@
         "src/config/validate.c:config_validate"
       ],
       "notes": [
-        "The init script generates a private runtime copy for each instance under /tmp/cake-adapt-config/<section>. It validates that copy with the daemon itself (-V) before procd sees the instance.",
-        "config_file names a cake-autorate-format Bash file. The importer sources it only in a child process and writes the recognized options into the staged UCI copy.",
+        "The init script generates a private runtime file for each instance, /var/run/cake-adapt/config-<section>.uci. It builds and validates it with the daemon itself (-V) in a staging directory, then moves it into place before procd sees the instance, which runs with -C pointing at that file.",
+        "config_file names a cake-autorate-format Bash file. The importer sources it only in a child process and writes the recognized options the UCI section leaves unset into the staged UCI copy: UCI wins.",
         "config_load applies built-in defaults first, then reads the typed UCI options, resolves the interface pair, and runs config_validate.",
         "A disabled configuration is reported to syslog and exits successfully. An invalid configuration is reported and exits with status 1.",
         "Rate control stays opt-in. With both adjust flags off, the daemon runs in observation-only mode."
@@ -184,7 +184,7 @@
         },
         {
           "id": "runtime",
-          "label": "prepare /tmp/cake-adapt-config\n(0700, not a symlink)",
+          "label": "prepare /var/run/cake-adapt\n(0700, not a symlink)",
           "kind": "process"
         },
         {
