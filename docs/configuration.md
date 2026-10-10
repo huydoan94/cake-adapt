@@ -309,14 +309,19 @@ max_dl_shaper_rate_kbps=80000
 reflectors=(1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4 9.9.9.9 9.9.9.10)
 ```
 
-Precedence is built-in defaults, then UCI, then the file. `enabled` and
-`config_file` stay in UCI.
+Precedence is built-in defaults, then the file, then UCI: an option set in the
+UCI section keeps its UCI value, and the file fills in only the options UCI
+leaves unset. To take a value from the file, remove that option from the
+section, as in the minimal section above. `enabled` and `config_file` stay in
+UCI.
 
 How the file is handled:
 
-- At service start, a separate Bash process reads the file. It applies only
-  the option names cake-adapt knows, and writes the result to
-  `/tmp/cake-adapt-config/<section>/cake-adapt`.
+- At service start, each instance gets its own runtime file,
+  `/var/run/cake-adapt/config-<section>.uci`, from which it runs. It holds
+  only that instance's section, copied from UCI with `uci get` and `uci set`
+  for every option cake-adapt knows; a separate Bash process reads the shell
+  file and fills in the options UCI leaves unset.
 - That result is validated like UCI; cake-adapt itself never executes the
   file.
 - The service reloads when the file or UCI changes.
