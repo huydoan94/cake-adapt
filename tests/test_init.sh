@@ -91,11 +91,11 @@ start_service
 [ "$instances" -eq 2 ]
 [ "$opened" = ' primary secondary' ]
 case "$generated" in
-    *"primary:$primary_config:$RUNTIME_DIR/config-primary.uci"*"secondary::$RUNTIME_DIR/config-secondary.uci"*) ;;
+    *"primary:$primary_config:$RUNTIME_DIR/primary.uci"*"secondary::$RUNTIME_DIR/secondary.uci"*) ;;
     *) exit 1 ;;
 esac
 case "$parameters" in
-    *"[primary] command test_program -C $RUNTIME_DIR/config-primary.uci -S primary"*) ;;
+    *"[primary] command test_program -C $RUNTIME_DIR/primary.uci -S primary"*) ;;
     *) exit 1 ;;
 esac
 case "$parameters" in
@@ -103,7 +103,7 @@ case "$parameters" in
     *) exit 1 ;;
 esac
 case "$parameters" in
-    *"[secondary] command test_program -C $RUNTIME_DIR/config-secondary.uci -S secondary"*) ;;
+    *"[secondary] command test_program -C $RUNTIME_DIR/secondary.uci -S secondary"*) ;;
     *) exit 1 ;;
 esac
 case "$parameters" in
@@ -132,7 +132,7 @@ if start_service; then exit 1; fi
 [ "$instances" -eq 0 ]
 
 # A directory where the instance's runtime file belongs stops that instance.
-command mkdir -p "$RUNTIME_DIR/config-primary.uci"
+command mkdir -p "$RUNTIME_DIR/primary.uci"
 failed_generation=''
 instances=0
 logged=''
@@ -142,7 +142,7 @@ command rm -rf "$RUNTIME_DIR"
 [ "$instances" -eq 0 ]
 [ -z "$generated" ]
 case "$logged" in
-    *"config-primary.uci is not a regular file; not starting instance 'primary'"*) ;;
+    *"primary.uci is not a regular file; not starting instance 'primary'"*) ;;
     *) exit 1 ;;
 esac
 

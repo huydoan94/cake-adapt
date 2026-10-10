@@ -8,7 +8,7 @@ PROG=${PROG:-/usr/sbin/cake-adapt}
 IMPORTER=${IMPORTER:-/usr/libexec/cake-adapt/import}
 RUNTIME_DIR=${RUNTIME_DIR:-/var/run/cake-adapt}
 
-# Each instance runs from $RUNTIME_DIR/config-<section>.uci, holding only its
+# Each instance runs from $RUNTIME_DIR/<section>.uci, holding only its
 # own section: the importer copies it from UCI with uci get and set, filling
 # unset options from the instance's shell configuration. The file is built and
 # validated in a private staging directory, then moved into place.
@@ -40,7 +40,7 @@ start_instance() {
 	local section="$1"
 	local enabled
 	local config_file
-	local runtime_config="$RUNTIME_DIR/config-$section.uci"
+	local runtime_config="$RUNTIME_DIR/$section.uci"
 
 	configured_instances=$((configured_instances + 1))
 	config_get_bool enabled "$section" 'enabled' 0
