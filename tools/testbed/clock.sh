@@ -77,11 +77,11 @@ config cake_adapt 'main'
 	list reflectors '10.99.0.15'
 	list reflectors '10.99.0.16'
 EOF
-"$BIN" -C "$T/uci-$NAME" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
+"$BIN" -C "$T/uci-$NAME/cake-adapt" -S main -V || { echo "$NAME: invalid configuration"; exit 1; }
 
 : > "$LOG"
 ln -f "$LOG" "$T/logs-$NAME/cake-adapt.log"
-ip netns exec cpe "$BIN" -C "$T/uci-$NAME" -S main </dev/null >/dev/null 2>&1 &
+ip netns exec cpe "$BIN" -C "$T/uci-$NAME/cake-adapt" -S main </dev/null >/dev/null 2>&1 &
 DAEMON=$!
 sleep 20
 connect() { # ROUND PORT
