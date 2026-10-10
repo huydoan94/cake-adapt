@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 struct random_sequence {
 	const uint32_t *values;
@@ -269,6 +270,29 @@ static void test_response_timestamp_boundaries(void)
 	assert(response_monotonic_us(UINT64_MAX - 1U, UINT64_MAX - 1U, UINT64_MAX) == UINT64_MAX);
 }
 
+/* Absolute paths are kept; relative ones join the current directory. */
+static void test_absolute_path(void)
+{
+	char buffer[64];
+	char small[8];
+
+	assert(absolute_path("/etc/config/cake-adapt", buffer, sizeof(buffer)) == 0);
+	assert(strcmp(buffer, "/etc/config/cake-adapt") == 0);
+	assert(chdir("/tmp") == 0);
+	assert(absolute_path("config-main.uci", buffer, sizeof(buffer)) == 0);
+	assert(strcmp(buffer, "/tmp/config-main.uci") == 0);
+	assert(absolute_path("../tmp/logs", buffer, sizeof(buffer)) == 0);
+	assert(strcmp(buffer, "/tmp/../tmp/logs") == 0);
+	assert(chdir("/") == 0);
+	assert(absolute_path("var/log", buffer, sizeof(buffer)) == 0);
+	assert(strcmp(buffer, "/var/log") == 0);
+	errno = 0;
+	assert(absolute_path("/etc/config", small, sizeof(small)) == -1);
+	assert(errno == ENAMETOOLONG);
+	assert(absolute_path("configuration", small, sizeof(small)) == -1);
+	assert(errno == ENAMETOOLONG);
+}
+
 int main(void)
 {
 	test_percentages_and_rounding();
@@ -285,6 +309,7 @@ int main(void)
 	test_serialization_us();
 	test_random_selection_and_shuffle();
 	test_response_timestamp_boundaries();
+	test_absolute_path();
 	(void)puts("helper tests passed");
 	return 0;
 }

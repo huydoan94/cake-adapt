@@ -493,6 +493,26 @@ static int load_section(const struct loader *loader)
 	return config_validate(config, loader->error, loader->error_size);
 }
 
+/* A relative log directory is taken from where the daemon starts, made absolute. */
+static int absolute_log_directory(struct config *config, char *error, size_t error_size)
+{
+	char directory[sizeof(config->log_file_path_override)];
+
+	if (config->log_file_path_override[0] == '\0')
+		return 0;
+	if (absolute_path(config->log_file_path_override, directory, sizeof(directory)) != 0) {
+		return error_set(
+			error,
+			error_size,
+			"option '%s': %s",
+			OPTION_LOG_FILE_PATH_OVERRIDE,
+			strerror(errno)
+		);
+	}
+	memcpy(config->log_file_path_override, directory, sizeof(directory));
+	return 0;
+}
+
 int config_load(
 	struct config *config,
 	const char *config_path,
@@ -513,15 +533,6 @@ int config_load(
 
 	if (section_name == NULL || section_name[0] == '\0')
 		return error_set(error, error_size, "UCI section name is empty");
-	/* libuci loads a name that starts with '/' as that file. */
-	if (config_path[0] != '/') {
-		return error_set(
-			error,
-			error_size,
-			"configuration file path '%s' must be absolute",
-			config_path
-		);
-	}
 	if (stat(config_path, &status) != 0) {
 		return error_set(
 			error,
@@ -562,6 +573,8 @@ int config_load(
 	}
 
 	result = load_section(&loader);
+	if (result == 0)
+		result = absolute_log_directory(config, error, error_size);
 
 done:
 	/* libuci owns and releases every package loaded into this context. */

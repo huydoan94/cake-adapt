@@ -1,5 +1,8 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "config/config.h"
 #include "common/constants.h"
+#include "common/helpers.h"
 #include "config/defaults.h"
 #include "common/error.h"
 #include "latency/latency.h"
@@ -9,6 +12,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -206,7 +210,9 @@ int main(int argc, char **argv)
 	struct options options = { .section_name = DEFAULT_SECTION };
 	char error[ERROR_SIZE] = { 0 };
 	char log_path[LOG_PATH_SIZE];
-	const char *active_config;
+	char config_path[PATH_MAX];
+	const char *requested_config;
+	const char *active_config = config_path;
 	struct config config;
 	int ret;
 
@@ -215,13 +221,22 @@ int main(int argc, char **argv)
 		return ret;
 	if (options.list)
 		return list_config_options();
-	active_config = options.config_path ? options.config_path : DEFAULT_CONFIG_PATH;
+	requested_config = options.config_path ? options.config_path : DEFAULT_CONFIG_PATH;
 
 	log_init(PROGRAM_NAME, options.foreground);
 	if (options.validate_only)
 		log_problems_to_stderr();
 
 	ret = 1;
+	if (absolute_path(requested_config, config_path, sizeof(config_path)) != 0) {
+		log_message(
+			LOG_LEVEL_ERROR,
+			"configuration error: path '%s': %s",
+			requested_config,
+			strerror(errno)
+		);
+		goto out;
+	}
 	if (config_load(&config, active_config, options.section_name, error, sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "configuration error: %s", error);
 		goto out;
