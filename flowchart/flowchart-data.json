@@ -165,7 +165,7 @@
         "src/config/validate.c:config_validate"
       ],
       "notes": [
-        "The init script generates a private runtime file for each instance, /var/run/cake-adapt/config-<section>.uci. It builds and validates it with the daemon itself (-V) in a staging directory, then moves it into place before procd sees the instance, which runs with -C pointing at that file.",
+        "The init script generates a private runtime file for each instance, /var/run/cake-adapt/<section>.uci. It builds and validates it with the daemon itself (-V) in a staging directory, then moves it into place before procd sees the instance, which runs with -C pointing at that file.",
         "config_file names a cake-autorate-format Bash file. The importer sources it only in a child process and writes the recognized options the UCI section leaves unset into the staged UCI copy: UCI wins.",
         "config_load applies built-in defaults first, then reads the typed UCI options, resolves the interface pair, and runs config_validate.",
         "A disabled configuration is reported to syslog and exits successfully. An invalid configuration is reported and exits with status 1.",
