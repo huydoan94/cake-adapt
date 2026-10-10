@@ -50,6 +50,17 @@ warning is logged.
 cake-adapt adjusts existing CAKE qdiscs. An SQM setup must create them first;
 cake-adapt follows them as they appear and disappear.
 
+The root qdisc may also be `cake_mq`, the multi-queue CAKE (Linux 7.0,
+backported in OpenWrt 25.12), which runs one CAKE per transmit queue so
+shaping can use several CPU cores. cake-adapt reads and sets its shared rate
+like a single CAKE's. Note that `cake_mq` divides the rate equally among the
+queues that are busy: when traffic is uneven, for example one bulk upload
+beside a download's ACKs, the busy flow gets only its share. On the testbed
+with 4 queues, a bidirectional load passed 3.3 Mbit/s of upload through a
+6 Mbit/s shaper (plain CAKE: about 7 Mbit/s;
+`profiling/2026-10-10-cake-mq`). Use it where one core cannot shape the line
+rate.
+
 ## Shaper rates
 
 | Name | Type | Default | Description |
