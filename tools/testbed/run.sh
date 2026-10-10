@@ -6,7 +6,7 @@
 # TCP_ATTRIBUTION=1 for tcp_delay_attribution, ACK_FILTER=1 for CAKE's
 # ack-filter on upload, ACTIVE_THR for connection_active_thr_kbps (which may
 # not exceed either minimum shaper rate), BACKLOG=1 to sample the emulated
-# ISP's real queues every 100 ms.
+# ISP's real queues every 100 ms. CAKE_MQ=1 as for testbed.sh (cake_mq).
 T=/tmp/cake-adapt-test
 NAME=$1 BIN=$2 PINGER=$3 UP=$4 THR=$5 DOWN=$6
 : "${UL_CAP:=8}" "${DL_CAP:=40}" "${UL_STEP:=4}"
@@ -32,8 +32,11 @@ fi
 # Fresh shaper and bottleneck state for every variant.
 ACK=no-ack-filter
 [ "$ACK_FILTER" = 1 ] && ACK=ack-filter
-X cpe tc qdisc change dev cwan root cake bandwidth "$UL_BASE"kbit "$ACK"
-X cpe tc qdisc change dev ifb4cwan root cake bandwidth "$DL_BASE"kbit
+# The kind must match: changing a cake_mq as cake would replace it.
+KIND=cake
+[ "${CAKE_MQ:-0}" = 1 ] && KIND=cake_mq
+X cpe tc qdisc change dev cwan root "$KIND" bandwidth "$UL_BASE"kbit "$ACK"
+X cpe tc qdisc change dev ifb4cwan root "$KIND" bandwidth "$DL_BASE"kbit
 sh "$T/testbed.sh" rate "$UL_CAP" "$DL_CAP"
 echo "$UL_CAP $DL_CAP $UL_STEP" > "$R/capacity"
 
