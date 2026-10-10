@@ -318,7 +318,7 @@ UCI.
 How the file is handled:
 
 - At service start, each instance gets its own runtime file,
-  `/var/run/cake-adapt/config-<section>.uci`, from which it runs. It holds
+  `/var/run/cake-adapt/<section>.uci`, from which it runs. It holds
   only that instance's section, copied from UCI with `uci get` and `uci set`
   for every option cake-adapt knows; a separate Bash process reads the shell
   file and fills in the options UCI leaves unset.
