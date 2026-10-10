@@ -104,6 +104,7 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 	struct nlattr *attributes[TCA_MAX + 1];
 	struct cake_read *read = NULL;
 	struct cake_observation *observation;
+	const char *kind;
 	size_t index;
 
 	if (!nlmsg_valid_hdr(message, sizeof(struct tcmsg)) || message->nlmsg_len > INT_MAX)
@@ -132,9 +133,20 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 		    nlmsg_attrlen(message, sizeof(*traffic_control)),
 		    policy
 	    ) < 0 ||
-	    attributes[TCA_KIND] == NULL || nla_strcmp(attributes[TCA_KIND], QDISC_KIND) != 0) {
+	    attributes[TCA_KIND] == NULL) {
 		return 0;
 	}
+	/*
+	 * A cake_mq root reports and takes the settings shared by its per-queue
+	 * cake children, and its byte counters are their sum, so it is used like
+	 * a single CAKE.
+	 */
+	if (nla_strcmp(attributes[TCA_KIND], QDISC_KIND) == 0)
+		kind = QDISC_KIND;
+	else if (nla_strcmp(attributes[TCA_KIND], QDISC_KIND_MQ) == 0)
+		kind = QDISC_KIND_MQ;
+	else
+		return 0;
 
 	observation = read->observation;
 	*observation = (struct cake_observation){
@@ -143,6 +155,7 @@ static int handle_qdisc(const struct nlmsghdr *message, void *context_pointer)
 			.handle = traffic_control->tcm_handle,
 			.parent = traffic_control->tcm_parent,
 		},
+		.kind = kind,
 	};
 	parse_options(attributes[TCA_OPTIONS], observation);
 	parse_stats(attributes[TCA_STATS2], observation);
@@ -282,7 +295,7 @@ int cake_set_bandwidth(
 {
 	uint64_t bandwidth_byte_ps = bit_to_byte(bandwidth_bps);
 	const struct qdisc_option option = {
-		.kind = QDISC_KIND,
+		.kind = observation->kind,
 		.type = TCA_CAKE_BASE_RATE64,
 		.data = &bandwidth_byte_ps,
 		.size = sizeof(bandwidth_byte_ps),

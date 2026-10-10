@@ -116,17 +116,20 @@ log_cake_discovery(const char *interface, const struct cake_observation *observa
 	if (recovered) {
 		log_message(
 			LOG_LEVEL_NOTICE,
-			"CAKE observation recovered: interface=%s handle=0x%08" PRIx32
+			"CAKE observation recovered: interface=%s qdisc=%s handle=0x%08" PRIx32
 			" bandwidth=%s",
 			interface,
+			observation->kind,
 			observation->qdisc.handle,
 			bandwidth
 		);
 	} else {
 		log_message(
 			LOG_LEVEL_INFO,
-			"CAKE discovered: interface=%s handle=0x%08" PRIx32 " bandwidth=%s",
+			"CAKE discovered: interface=%s qdisc=%s handle=0x%08" PRIx32
+			" bandwidth=%s",
 			interface,
+			observation->kind,
 			observation->qdisc.handle,
 			bandwidth
 		);
