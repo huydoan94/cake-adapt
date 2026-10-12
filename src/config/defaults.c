@@ -12,6 +12,7 @@ void defaults_apply(struct config *config)
 		.upload.adjust = false,
 		.debug = true,
 		.log_to_file = true,
+		.mqtt.port = 1883U,
 		.randomize_reflectors = true,
 		.retain_reflector_stats = true,
 		.enable_sleep_function = true,
@@ -72,4 +73,5 @@ void defaults_apply(struct config *config)
 		.interface_up_check_interval_us = 10U * SECOND
 	};
 	(void)strcpy(config->pinger_method, PINGER_METHOD_FPING);
+	(void)strcpy(config->mqtt.topic, MQTT_DEFAULT_TOPIC);
 }

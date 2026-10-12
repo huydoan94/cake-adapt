@@ -98,6 +98,20 @@ const fails = (changes, option, text) => {
 	assert.ok(found[0].message.includes(text), `${option}: "${found[0].message}" lacks "${text}"`);
 };
 
+ok({ mqtt_enabled: '0', mqtt_host: '', mqtt_topic: '#', mqtt_port: '0' });
+fails({ mqtt_enabled: '1' }, 'mqtt_host', 'hostname or IP');
+ok({ mqtt_enabled: '1', mqtt_host: 'broker.example' });
+ok({ mqtt_enabled: '1', mqtt_host: '2001:db8::1', mqtt_port: '65535' });
+fails({ mqtt_enabled: '1', mqtt_host: 'mqtt://broker' }, 'mqtt_host', 'hostname or IP');
+fails({ mqtt_enabled: '1', mqtt_port: '0' }, 'mqtt_port', 'between 1 and 65535');
+fails({ mqtt_enabled: '1', mqtt_port: '65536' }, 'mqtt_port', 'between 1 and 65535');
+fails({ mqtt_enabled: '1', mqtt_port: '1.5' }, 'mqtt_port', 'more precision');
+fails({ mqtt_enabled: '1', mqtt_topic: 'logs/+' }, 'mqtt_topic', 'no + or #');
+fails({ mqtt_enabled: '1', mqtt_topic: 'logs/#' }, 'mqtt_topic', 'no + or #');
+fails({ mqtt_enabled: '1', mqtt_password: 'test' }, 'mqtt_password', 'needs mqtt_username');
+ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_username: 'user', mqtt_password: 'test' });
+fails({ mqtt_username: 'x'.repeat(512) }, 'mqtt_username', 'too long');
+
 ok({}, 'the reference configuration is clean');
 
 /* config.c: text too long (a size of IF_NAMESIZE or more). */

@@ -111,6 +111,12 @@ RAM, so the defaults never write to flash.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `log_to_file` | boolean | `1` | Write the log file. |
+| `mqtt_enabled` | boolean | `0` | Forward generated cake-adapt records to MQTT on a background sender. |
+| `mqtt_host` | string | *(empty)* | Broker hostname or IPv4/IPv6 address, without a URL scheme, brackets or port. Required when MQTT is enabled. |
+| `mqtt_port` | integer | `1883` | Plain MQTT broker TCP port, 1–65535. |
+| `mqtt_topic` | string | `cake-adapt/log` | Publish topic, without MQTT wildcards (`+`, `#`). Use distinct topics for instances or routers as needed. |
+| `mqtt_username` | string | *(empty)* | Optional broker username. |
+| `mqtt_password` | string | *(empty)* | Optional password; requires a username. Stored in UCI and the instance runtime file. |
 | `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
 | `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
@@ -126,6 +132,27 @@ RAM, so the defaults never write to flash.
 | `output_cpu_stats` | boolean | `0` | Log CPU usage. |
 | `output_cpu_raw_stats` | boolean | `0` | Log raw CPU counters. |
 | `output_memory_stats` | boolean | `0` | Not in cake-autorate: log the daemon's own memory every 10 s as a `MEMORY` record: resident (`RSS_KB`), peak resident (`PEAK_RSS_KB`), resident heap (`RSS_ANON_KB`) and data size (`DATA_KB`), from `/proc/self/status`. About 60,000 lines a week; use it to spot leaks on long runs. |
+
+MQTT settings are in LuCI under **Advanced → Logging**. Each MQTT message is
+one generated log line, unchanged, without the terminating newline: structured
+records, headers, and messages allowed by the existing output and debug options.
+It sends only this instance's cake-adapt records, independently of `log_to_file`;
+it does not collect other services' syslog or replay existing log files.
+
+MQTT uses `libmosquitto-nossl`: TLS is unavailable, and traffic, including
+username/password credentials, is unencrypted. The earlier development
+`mqtt_tls` and `mqtt_ca_file` options have been removed. The package no longer
+requires OpenSSL or a CA bundle for MQTT.
+
+The main thread only tries to copy a record into a 32-record queue (64 KiB when
+enabled). A sender thread and a network thread using libmosquitto handle publishing,
+DNS and authentication. Disconnected, busy or full queues silently drop
+records. Delivery uses QoS 0 with no retained messages or disk spool; records
+longer than 2047 bytes are also dropped. Each connection attempt has a five-second
+handshake deadline; attempts start every ten seconds while disconnected, with
+no retry limit. DNS resolution and network-thread cleanup stay off the control
+thread; shutdown waits at most about one second for the sender. Queued records
+are discarded on disconnect, so reconnect does not replay stale logs.
 
 The structured records keep cake-autorate's names, fields and units, so its
 log analysis tools work on them. The `output_*` records are frequent: enable
