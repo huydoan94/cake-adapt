@@ -20,6 +20,7 @@ digraph G {
   ready [label="both CAKE AVAILABLE?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   suspend [label="pingers_close;\npingers_suspended",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   activity [label="update_activity\n(chart 11), pingers_watch",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  publish [label="publish_update:\ncopy status_snapshot under mutex;\nlog ubus thread events",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   tick -> clock;
   clock -> clockfail [label="no"];
   clock -> due [label="yes"];
@@ -40,4 +41,6 @@ digraph G {
   rebase -> ready;
   ready -> suspend [label="no"];
   ready -> activity [label="yes"];
+  suspend -> publish;
+  activity -> publish;
 }
