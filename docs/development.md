@@ -26,6 +26,32 @@ directory as `package/luci-app-cake-adapt` and compile it the same way. It has
 no architecture (`all`). `tools/sdk-build.sh x86` (or `filogic`, or an SDK
 directory) cleans and builds `cake-adapt`, and `luci-app-cake-adapt` too when
 that link exists, copies the packages to `bin/`, and says why a build failed.
+The helper expects dependencies already staged, rejects a staged Mosquitto
+library linked to OpenSSL, and uses `NO_DEPS=1` for package builds so an SDK's
+other selected variants cannot trigger recursive OpenSSL/kernel builds.
+
+For agent validation without authorized artifact copying, run the focused
+`package/cake-adapt/clean` and `package/cake-adapt/compile` Make targets in the
+selected SDK, and the equivalent LuCI targets when applicable. Package builds
+may recursively download or rebuild dependencies; inspect the selected packages
+and existing staging first. Use `NO_DEPS=1` only after the required dependencies
+are built and staged, when it keeps validation within the approved scope. A
+missing library must be prepared in that selected SDK under an applicable
+approval or reported as a blocker. Do not switch SDKs to obtain a passing build.
+
+The current MQTT dependency is `libmosquitto-nossl`; it does not bring in OpenSSL
+or CA certificates. The earlier TLS prototype used `libmosquitto-ssl`. An SDK
+that selects optional OpenSSL AF_ALG or `/dev/crypto` engines can therefore pull kernel-module package
+targets into an ordinary recursive package build. In the earlier Filogic run,
+the AF_ALG dependency entered `package/kernel/linux/compile`, which repackaged
+many selected modules; the log does not show a full kernel image compilation.
+Inspect the SDK's `tmp/.packagedeps` and engine selection before running a
+recursive build. The non-SSL switch removes that MQTT dependency chain;
+header-only staging for editor use requires no kernel targets.
+SDKs may still select both Mosquitto variants through `CONFIG_ALL`; our package
+build helper deliberately uses the already staged non-SSL library instead of
+recursively building every selected variant. Preparing dependencies is a separate,
+scoped action.
 
 GitHub Actions also discovers the OpenWrt 25.12 architecture list, runs the
 host tests, builds each architecture, and publishes packages as workflow

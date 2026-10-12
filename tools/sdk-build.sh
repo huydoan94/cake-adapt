@@ -1,6 +1,7 @@
 #!/bin/sh
 # sdk-build.sh: cleans and compiles the cake-adapt package in an OpenWrt SDK,
 # then says why it failed, if it did.
+# Dependencies must already be staged; builds do not recurse into other packages.
 #
 # Usage: sh tools/sdk-build.sh NAME|DIRECTORY
 #
@@ -41,13 +42,24 @@ link=$(readlink -f "$sdk/package/cake-adapt" 2>/dev/null)
 	fail 2 "$sdk/package/cake-adapt does not point to this repository (it is: ${link:-missing})" \
 		"Fix it with: ln -sfn $repo $sdk/package/cake-adapt"
 
+# Both Mosquitto variants install the same soname. Verify the actual staged
+# library so an earlier SSL build cannot silently satisfy the non-SSL package.
+library=$(ls "$sdk"/staging_dir/target-*/usr/lib/libmosquitto.so.1 2>/dev/null | head -n 1)
+[ -n "$library" ] ||
+	fail 3 "libmosquitto-nossl is not staged in this SDK; prepare its dependencies first"
+command -v readelf >/dev/null || fail 2 "readelf is needed to verify the staged MQTT library"
+needed=$(readelf -d "$library") || fail 3 "cannot inspect the staged MQTT library: $library"
+if printf '%s\n' "$needed" | grep -Eq 'Shared library: \[lib(ssl|crypto)[.]'; then
+	fail 3 "the staged Mosquitto library uses OpenSSL; stage libmosquitto-nossl first"
+fi
+
 mkdir -p "$repo/build"
 log=$repo/build/sdk-$name.log
 status_file=$repo/build/sdk-$name.status
 echo "Building cake-adapt in $sdk (log: build/sdk-$name.log)"
 {
-	make -C "$sdk" package/cake-adapt/clean &&
-		make -C "$sdk" package/cake-adapt/compile
+	make -C "$sdk" package/cake-adapt/clean NO_DEPS=1 &&
+		make -C "$sdk" package/cake-adapt/compile NO_DEPS=1
 	echo $? >"$status_file"
 } 2>&1 | tee "$log"
 status=$(cat "$status_file")
@@ -82,8 +94,8 @@ if [ "$status" -eq 0 ] && [ -z "$libraries" ]; then
 	if [ "$luci_link" = "$repo/luci-app-cake-adapt" ]; then
 		echo "Building luci-app-cake-adapt in $sdk"
 		{
-			make -C "$sdk" package/luci-app-cake-adapt/clean &&
-				make -C "$sdk" package/luci-app-cake-adapt/compile
+			make -C "$sdk" package/luci-app-cake-adapt/clean NO_DEPS=1 &&
+				make -C "$sdk" package/luci-app-cake-adapt/compile NO_DEPS=1
 			echo $? >"$status_file"
 		} 2>&1 | tee -a "$log"
 		[ "$(cat "$status_file")" -eq 0 ] || fail 1 "the luci-app-cake-adapt build failed (see $log)"
@@ -108,11 +120,11 @@ fi
 		"Install their feed packages in the SDK and rebuild."
 [ -z "$headers" ] ||
 	fail 3 "headers not found: $headers" \
-		"A dependency (libbpf, libnl-tiny, libuci, libubox, zlib) is probably not installed from the SDK's feeds."
+		"A dependency (libbpf, libnl-tiny, libuci, libubox, zlib, libmosquitto-nossl) is probably not staged from the SDK's feeds."
 errors=$(grep -E '(error|Error):' "$log" | grep -v -E '^make(\[[0-9]+\])?: \*\*\*|^ERROR: package/' | head -n 20)
 [ -z "$errors" ] ||
 	fail 4 "compile errors:" "$errors"
 # Missing runtime packages (fping, bash) only warn, so they do not explain a
 # failed build; without V=s the compiler's own errors are not in the log.
 fail 1 "make exited with status $status, and the log shows no compiler error" \
-	"See the compiler output with: make -C $sdk package/cake-adapt/compile V=s"
+	"See the compiler output with: make -C $sdk package/cake-adapt/compile NO_DEPS=1 V=s"
