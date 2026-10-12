@@ -52,9 +52,48 @@ directory as `package/luci-app-cake-adapt` and compile it the same way. It has
 no architecture (`all`). `tools/sdk-build.sh x86` (or `filogic`, or an SDK
 directory) cleans and builds `cake-adapt`, and `luci-app-cake-adapt` too when
 that link exists, copies the packages to `bin/`, and says why a build failed.
-The helper expects dependencies already staged, rejects a staged Mosquitto
-library linked to OpenSSL, and uses `NO_DEPS=1` for package builds so an SDK's
-other selected variants cannot trigger recursive OpenSSL/kernel builds.
+Before invoking Make, the helper checks the SDK compiler and BPF tools, the
+daemon's declared dependencies, staged headers and linker libraries, and the
+tools actually used by the linked LuCI package. It reports the full preparation
+plan before building any dependency. Missing target libraries are staged in
+dependency order: UCI, libubox, ubus, libnl-tiny, libbpf, zlib and the selected
+Mosquitto, with their build prerequisites such as libelf, c-ares, Lua and JSON-C.
+Checks include required pkg-config metadata and shared-library ELF class,
+byte order and machine matching the SDK's runtime. An existing stamp cannot hide
+a missing header, broken library link or an SSL Mosquitto library overwriting
+the shared soname. Unrepresented new package/build dependencies fail preflight
+until their staging requirements are added to `tools/sdk-dependencies.sh`.
+
+Command-line package selections avoid manual `.config` edits. All package builds
+use `NO_DEPS=1`, so unrelated selected variants cannot trigger recursive
+OpenSSL/kernel builds. Missing SDK tools or an unavailable local feed stop
+preflight with a diagnostic before dependency builds start. The helper registers
+packages from existing local feeds; it does not fetch or update feeds. Dependency
+compilation can download source archives absent from the SDK's `dl/` cache.
+
+To check and prepare dependency headers, libraries and metadata without building
+the app or copying artifacts, run `sh tools/sdk-build.sh --prepare-only x86`
+(or `filogic` for that explicitly selected target). The usual VS Code SDK build tasks prepare them
+automatically; no manual dependency selections in `.config` are needed.
+
+Non-SSL is the default. Select the SSL-capable Mosquitto library with:
+
+```sh
+sh tools/sdk-build.sh x86 ssl=yes
+sh tools/sdk-build.sh --prepare-only x86 ssl=yes
+```
+
+Use `ssl=no`, or omit the argument, for `libmosquitto-nossl`. The helper verifies
+and stages the selected variant, prepares OpenSSL first for `ssl=yes`, and passes
+the selection to package builds so their dependencies match. Direct SDK package
+Make targets accept `ssl=yes` as well. SSL dependency builds disable optional
+OpenSSL engines and retain `NO_DEPS=1` to keep kernel packages out of the build.
+SSL builds support the **MQTT TLS** and **MQTT CA certificate file** settings in
+LuCI's Advanced Logging tab. TLS remains off until enabled there or through
+`mqtt_tls`; certificate and hostname verification are mandatory. Non-SSL builds
+reject enabled TLS configuration. The default CA file is supplied by `ca-bundle`;
+an absolute path to a custom CA file can be configured instead. Copied SSL daemon
+and LuCI APK filenames include `-ssl` so they do not replace the default copies.
 
 For agent validation without authorized artifact copying, run the focused
 `package/cake-adapt/clean` and `package/cake-adapt/compile` Make targets in the
@@ -65,8 +104,10 @@ are built and staged, when it keeps validation within the approved scope. A
 missing library must be prepared in that selected SDK under an applicable
 approval or reported as a blocker. Do not switch SDKs to obtain a passing build.
 
-The current MQTT dependency is `libmosquitto-nossl`; it does not bring in OpenSSL
-or CA certificates. The earlier TLS prototype used `libmosquitto-ssl`. An SDK
+The default MQTT dependency is `libmosquitto-nossl`; it does not bring in OpenSSL
+or CA certificates. `ssl=yes` chooses `libmosquitto-ssl`, requires OpenSSL and
+adds the runtime `ca-bundle` dependency.
+The earlier TLS prototype also used `libmosquitto-ssl`. An SDK
 that selects optional OpenSSL AF_ALG or `/dev/crypto` engines can therefore pull kernel-module package
 targets into an ordinary recursive package build. In the earlier Filogic run,
 the AF_ALG dependency entered `package/kernel/linux/compile`, which repackaged
@@ -75,9 +116,10 @@ Inspect the SDK's `tmp/.packagedeps` and engine selection before running a
 recursive build. The non-SSL switch removes that MQTT dependency chain;
 header-only staging for editor use requires no kernel targets.
 SDKs may still select both Mosquitto variants through `CONFIG_ALL`; our package
-build helper deliberately uses the already staged non-SSL library instead of
-recursively building every selected variant. Preparing dependencies is a separate,
-scoped action.
+build helper checks the actual staged library, rather than trusting package
+stamps, and repairs it before the app build when necessary. MQTT preparation
+builds only the selected library variant and its required dependencies. Existing source
+archives are reused; approval rules still apply to any new download or SDK modification.
 
 GitHub Actions also discovers the OpenWrt 25.12 architecture list, runs the
 host tests, builds each architecture, and publishes packages as workflow
@@ -196,7 +238,10 @@ The ordinary logging tests use an MQTT stub. The dedicated queue tests use
 through `MQTT_CFLAGS` and `MQTT_LIBS` when needed. Broker validation uses
 `tests/logging/mqtt_integration.py` with an approved local library and broker
 build. Commands, source identities and validation limits are in the
-[MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md). Native broker
+[initial MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) and
+[current optional TLS evidence](../profiling/2026-10-12-mqtt-ssl-build/README.md).
+Select `ssl=yes` for TLS driver/config tests and `--tls-only` for the TLS broker
+cases; `--tls-stalled-only` checks the first socket deadline. Native broker
 checks and an SDK build do not establish full-daemon behavior on the x86 VM.
 
 ## Recording a router's log

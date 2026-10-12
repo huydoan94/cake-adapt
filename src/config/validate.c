@@ -310,6 +310,22 @@ static int validate_mqtt(const struct config_mqtt *mqtt, char *error, size_t err
 		);
 	if (mqtt->password[0] != '\0' && mqtt->username[0] == '\0')
 		return error_set(error, error_size, "option 'mqtt_password' needs mqtt_username");
+	if (mqtt->tls) {
+#if !MQTT_TLS_SUPPORTED
+		return error_set(
+			error,
+			error_size,
+			"option 'mqtt_tls' requires an SSL-enabled package"
+		);
+#else
+		if (mqtt->ca_file[0] != '/')
+			return error_set(
+				error,
+				error_size,
+				"option 'mqtt_ca_file' must be an absolute path"
+			);
+#endif
+	}
 	return 0;
 }
 

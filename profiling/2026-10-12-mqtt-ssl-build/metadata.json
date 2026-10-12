@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-12",
+  "base_commit": "a4302ae",
+  "worktree": "uncommitted follow-up; hashes identify tested inputs",
+  "package_version": "0.3.17-r1",
+  "target": "OpenWrt 25.12 x86 i386_pentium4 musl",
+  "source_sha256": {
+    "Makefile": "c34f37704150d06283b14154125030b7231ec5ecd56efe23296a1542ca94c340",
+    "src/Makefile": "0027094dde1154eab2f3c793727ca9b6d3a6f9b1f9ded184755acc9e1a81e64e",
+    "src/common/constants.h": "ada976cc7161124e504a0feb290d1b96bf0e667944d1d9a2e934fff29d778ede",
+    "src/config/config.c": "aa921e57a9cdab0e2418e48ce0ff14223f5f5b71bace726e7a08a9ae4e0a90bb",
+    "src/config/config.h": "775fe34e53a275323f8ca9739bbbd68beee7f0ed374b50203e3355ba4a6a4661",
+    "src/config/defaults.c": "906a9225a1604c03f094e57ac0188e28a6dc19f2b5cfb3f09fea3a03a8222859",
+    "src/config/defaults.h": "ee1142bc84faf634513db4e02a06b1b6d314063ff6db5ddbb67e5c5b737dbc15",
+    "src/config/validate.c": "933c571d10951434d0200ccd03a249841441c9f32d66fdbaa8809183747f5657",
+    "src/logging/mqtt.c": "461dafcddef19cb59a003b5ed1e3e3561e4d53fd723e70964016a71ce9e15b80",
+    "tests/Makefile": "66f1c3a659d55e97b833bb48bd4eebbb33d7cbb84bf2207255607bc0b4b6dc0e",
+    "tests/config/test_config.c": "2fb4c9e540e8733ff1bd7c58ef5e770f18a9a53ab76e0df574adb4610be40129",
+    "tests/logging/test_mqtt.c": "8d90fef329ec4bac13f6199e695de627e7e594a626f439d430671574b66c2f8d",
+    "tests/logging/mqtt_driver.c": "2cd0edd245418cd5b69e9024f4c27c84f4f25df70e25c7773a4b7d5f56c710fa",
+    "tests/logging/mqtt_integration.py": "8562e4a94633566c6f875836a5844c018ff697ab7651292ee389703b3110c74e",
+    "tests/luci_config.js": "56f51631d04c7be1ca70b194e39f28887163783e2152bd2d95e0364f01c22c96",
+    "tests/tools/test_sdk_build.py": "798d461d21998bd0b302616442bbabcc1ae5698e6f5802f3a739e670f3cb52c2",
+    "tools/sdk-build.sh": "bae53d6063fe36d23f963c46c9ee82491e86ab598a29fb7c65e9a6c7ef3b2acc",
+    "tools/sdk-dependencies.sh": "4fca066d94b0b6a02ba3eae8c45d30502a0d4c047201f866dfc70c28baf34ed5",
+    "luci-app-cake-adapt/Makefile": "057eddc243181c4f0ddd7b52b0029f8deefa39e79901ff5fd9db3d005b2d57c6",
+    "luci-app-cake-adapt/htdocs/luci-static/resources/view/cake-adapt/config.js": "e87a4cf9df05d4745f23c3667790161b30f3f6490f12c79182c26e5e1bfcab8d",
+    "files/cake-adapt.config": "38b31f9f0192dbd8151994361b301908f9ec01f16231f54b60558c2d13257521",
+    "tests/test_luci.sh": "af44aec192b5b4b89958dc52cc1362357531b8dfe5a13099c5109a26e2d9bbe7"
+  },
+  "source_cache": {
+    "openssl-3.5.7.tar.gz": "a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8"
+  },
+  "downloads": 0,
+  "system_installations": 0,
+  "kernel_targets": 0,
+  "filogic_builds": 0,
+  "repo_bin_release_copies": 0
+}

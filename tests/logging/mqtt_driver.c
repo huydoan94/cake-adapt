@@ -15,14 +15,28 @@ int main(int argc, char **argv)
 	char *line = NULL;
 	size_t capacity = 0U;
 	bool foreground = false;
+	int first = 2;
 	uint64_t before_us;
 	uint64_t after_us;
 
 	assert(argc >= 2);
 	settings.port = strtoull(argv[1], NULL, 10);
-	if (argc >= 4) {
+	if (argc >= 4 && argv[2][0] != '-') {
 		(void)snprintf(settings.username, sizeof(settings.username), "%s", argv[2]);
 		(void)snprintf(settings.password, sizeof(settings.password), "%s", argv[3]);
+		first = 4;
+	}
+	for (int index = first; index < argc; index++) {
+		assert(index + 1 < argc);
+		if (strcmp(argv[index], "--tls") == 0) {
+			settings.tls = true;
+			(
+				void
+			)snprintf(settings.ca_file, sizeof(settings.ca_file), "%s", argv[++index]);
+		} else {
+			assert(strcmp(argv[index], "--host") == 0);
+			(void)snprintf(settings.host, sizeof(settings.host), "%s", argv[++index]);
+		}
 	}
 	log_init("mqtt-test", foreground);
 	assert(mqtt_start(&settings) == 0);

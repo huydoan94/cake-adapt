@@ -1,0 +1,10 @@
+1791830347: mosquitto version 2.0.22 starting
+1791830347: Config loaded from build/sdk-ssl-validation/evidence-vm-tls/broker.conf.
+1791830347: Opening ipv4 listen socket on port 33547.
+1791830347: mosquitto version 2.0.22 running
+1791830347: Client connection from 127.0.0.1 failed: error:0A000126:SSL routines::unexpected eof while reading.
+1791830349: New connection from 127.0.0.1:57240 on port 33547.
+1791830349: New client connected from 127.0.0.1:57240 as auto-1CC8737F-5B02-7DB0-FCB2-EE594947BBE6 (p2, c1, k60).
+1791830350: New connection from 127.0.0.1:57242 on port 33547.
+1791830350: New client connected from 127.0.0.1:57242 as auto-899E0196-D792-DEBF-ED8E-32494080812C (p2, c1, k30).
+1791830360: mosquitto version 2.0.22 terminating

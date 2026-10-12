@@ -1,6 +1,6 @@
 # Optional non-SSL MQTT log forwarding
 
-Current revision, 2026-10-12: the user chose `libmosquitto-nossl` to remove the
+Historical non-SSL transition, 2026-10-12: the user chose `libmosquitto-nossl` to remove the
 MQTT OpenSSL dependency. TLS and CA-file options are removed from UCI, LuCI and
 the sender. Username/password authentication remains supported over plain TCP;
 traffic and credentials are unencrypted. MQTT remains disabled by default.
@@ -10,7 +10,11 @@ network threads own broker operations. Offline, contended, full and oversized
 submissions are silently dropped. QoS 0, no retention, exact log schemas and
 10-second retries without a retry limit are unchanged.
 
-## Current validation
+The subsequent optional `ssl=yes` build and restored TLS settings are validated in
+[the follow-up report](../2026-10-12-mqtt-ssl-build/README.md). The results below
+retain the hashes and behavior of this earlier non-SSL revision.
+
+## Validation of the non-SSL transition
 
 - Config, LuCI, logging, defaults and queue checks passed. Queue tests also passed
   AddressSanitizer/UndefinedBehaviorSanitizer outside the ptrace-restricted
