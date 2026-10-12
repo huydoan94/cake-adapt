@@ -3,6 +3,6 @@
 
 #include "config/config.h"
 
-int monitor_run(const struct config *config);
+int monitor_run(const struct config *config, const char *section_name);
 
 #endif

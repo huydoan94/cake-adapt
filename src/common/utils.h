@@ -198,6 +198,15 @@ static inline uint64_t timespec_to_us(const struct timespec *value)
 	       ns_to_us((uint64_t)value->tv_nsec);
 }
 
+/* Microseconds as a timespec, for clock deadlines. */
+static inline struct timespec us_to_timespec(uint64_t us)
+{
+	return (struct timespec){
+		.tv_sec = (time_t)(us / MICROSECONDS_PER_SECOND),
+		.tv_nsec = (long)(us % MICROSECONDS_PER_SECOND * NANOSECONDS_PER_MICROSECOND),
+	};
+}
+
 /* Strict boundary: equality and backwards timestamps have not elapsed. */
 static inline bool interval_elapsed(uint64_t current, uint64_t previous, uint64_t interval)
 {
