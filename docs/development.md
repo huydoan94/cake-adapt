@@ -3,10 +3,36 @@
 See the [technical overview](technical.md) for the design and the
 [flowcharts](../flowchart/README.md) for the event flow.
 
+## Agent workflows and resumption
+
+Both Claude and Codex follow [AGENTS.md](../AGENTS.md) and
+[CODING_STYLE.md](../CODING_STYLE.md). Their model, delegation and tool choices
+are defined separately in [COLLABORATION.md](../COLLABORATION.md); Codex uses its
+own available tools and current primary model. Read [HANDOFF.md](../HANDOFF.md)
+for the active task, decisions, scoped approvals, evidence and unfinished work.
+Keep it current so a resumed session does not need the user to repeat the chat.
+
+Development, SDK validation, host-test headers, IntelliSense and VM validation
+default to **x86**. Use `OPENWRT_SDK_X86` or `../openwrt-sdk-x86`. Filogic or
+arm64 checks require an explicit target-specific request. The router's
+architecture and another SDK's installed dependencies do not change the default.
+
+Before running a build, check whether it will download dependencies, modify
+feeds or SDK configuration, install tools, or copy artifacts. Obtain approval
+for new downloads and environment changes; continue without asking again when
+the exact scope is already authorized. Approved local validation dependencies,
+tools and their caches belong in ignored `build/` unless another destination
+was approved. A Filogic dependency approval does not authorize x86 SDK changes,
+system installation or deployment. Record downloads and changes in the handoff.
+
 ## Building with an OpenWrt SDK
 
 This repository is an OpenWrt package source tree. Clone it one level below an
-OpenWrt 25.12 SDK's `package` directory and compile only this package:
+OpenWrt 25.12 SDK's `package` directory and compile only this package.
+
+The following is manual setup guidance. Agents working in an existing checkout
+use its package link and selected SDK; cloning, SDK downloads and feed changes
+are separate actions requiring authorization under the agent guide.
 
 ```sh
 cd /path/to/openwrt-sdk
@@ -68,6 +94,13 @@ and `tools/`, including the socket filter with the SDK's BPF clang and the
 kernel headers, so libbpf's `<bpf/...>` and libnl-tiny resolve. The file holds
 absolute paths and is not committed; regenerate it after adding or moving a
 source file.
+
+The database supplies include paths; it does not install headers. For a new
+library such as libmosquitto, verify that its header (for example `mosquitto.h`)
+exists under the selected x86 SDK's staged include directory. If it is missing,
+prepare the dependency there only within an authorized scope, then regenerate
+the database. Do not add Filogic paths to an x86 command or silently change the
+generator's target. Report an unresolved include as unresolved.
 
 ## Source layout
 
@@ -140,7 +173,7 @@ make -C tests check-config
 ```
 
 If the host lacks those headers, `UCI_CFLAGS` can point at a directory that
-exposes an OpenWrt SDK's staged `uci.h` and `libubox/` headers:
+exposes the selected x86 SDK's staged `uci.h` and `libubox/` headers:
 
 ```sh
 make -C tests check-config UCI_CFLAGS="-isystem /path/to/uci-headers"

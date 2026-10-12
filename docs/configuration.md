@@ -4,6 +4,11 @@ cake-adapt is configured through UCI in `/etc/config/cake-adapt`. Each
 `config cake_adapt '<name>'` section runs as its own instance. The packaged file
 lists only the common options; everything else uses the defaults below.
 
+For development or agent work, follow the [development guide](development.md)
+and the Claude or Codex route in [COLLABORATION.md](../COLLABORATION.md).
+The [handoff](../HANDOFF.md) distinguishes current development changes from
+released behavior and records their remaining validation.
+
 Change options with `uci`, by editing the file, or in LuCI under
 **Services → CAKE Adapt → Configuration** (package `luci-app-cake-adapt`),
 then reload or restart the service:

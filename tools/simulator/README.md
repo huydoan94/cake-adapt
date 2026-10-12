@@ -4,6 +4,12 @@ A closed-loop, deterministic simulator for comparing controller variants. It
 links the real `src/controller/controller.c` and `src/latency/tracker.c`, so it
 measures the code the daemon runs.
 
+Claude and Codex follow the same model and verification limits here; use their
+respective workflows in [COLLABORATION.md](../../COLLABORATION.md) and the
+[agent guide](../../AGENTS.md). This is host work and needs no SDK build by
+itself. If a candidate proceeds to target validation, x86 is the default; record
+decisions and remaining checks in [HANDOFF.md](../../HANDOFF.md).
+
 ```sh
 make -C tools/simulator run                   # summary, RTT/2 and one-way delays
 build/tools/simulator/simulate --owd --trace steady > steady.csv

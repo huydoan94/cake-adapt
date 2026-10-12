@@ -1,9 +1,16 @@
 # cake-adapt — Agent Guide
 
 **At session start, resumption after a long break (more than 2 hours), the primary agent reads
-[`COLLABORATION.md`](COLLABORATION.md) together with this guide. Inspect the
-current worktree and identify unfinished work before continuing. Delegated
+[`COLLABORATION.md`](COLLABORATION.md) and [`HANDOFF.md`](HANDOFF.md) together
+with this guide. Read [`CODING_STYLE.md`](CODING_STYLE.md) and the task's relevant
+documentation before editing. Inspect the current worktree and identify
+unfinished work before continuing. Delegated
 agents use a scoped task brief with the applicable policy excerpts.**
+
+Claude and Codex each have an explicit workflow in `COLLABORATION.md`. Select
+the workflow for the active primary agent; the Claude model requirement does
+not apply to Codex. Preserve user decisions and scoped approvals in `HANDOFF.md`
+so resumption does not depend on the user repeating earlier instructions.
 
 ## Product contract
 
@@ -213,7 +220,11 @@ in that directory and is not included from outside it.
   - `cpu.c`: CPU sampling and usage calculations only.
   - `memory.c`: the daemon's memory sampling from `/proc/self/status`.
 - `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
-  export, and reset behavior.
+  export, reset behavior, and submission to the optional MQTT sender.
+- `logging/mqtt.c`: asynchronous plain MQTT transport through libmosquitto-nossl;
+  owns its bounded queue, sender/network threads, connection retries and cleanup. It
+  never makes controller decisions. Logging submissions never wait for a broker
+  or queue space; offline, contended, full or oversized submissions drop silently.
 
 Outside `src/`:
 
@@ -523,7 +534,13 @@ decision and documentation.
 source logs are in `profiling/controller-comparison/`.
 
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
-builds for host-only work. Use the `.vscode/tasks.json` tasks: the host test
+builds for host-only work. Development, SDK validation, host-test headers,
+IntelliSense and the test VM default to **x86**. Use `../openwrt-sdk-x86` or
+`OPENWRT_SDK_X86`. Filogic/arm64 requires an explicit target-specific request;
+the user's Filogic routers do not change the default. Missing x86 dependencies
+are an environment limitation, not permission to switch SDKs or mix headers.
+
+Use the `.vscode/tasks.json` tasks: the host test
 task (`tools/host-test.sh`) runs `check`, `check-netlink`, `check-config` and
 `check-tcpdelay`, where `check` also runs the init, import and LuCI script
 tests (`node` and `python3` needed), and each SDK build task
@@ -534,6 +551,28 @@ the SDK's `package/luci-app-cake-adapt` links to this repository's. Do not
 guess other SDK locations, and keep absolute or personal paths out of
 `.vscode/`. OpenWrt 25.12 is the only release target for now. Never touch
 `openwrt-image-builder`.
+
+Inspect SDK commands for dependency downloads, feed/configuration changes and
+artifact copying before running them. New downloads, SDK/feed modifications or
+installations need explicit authorization for the dependency and destination;
+reuse an existing approval within that exact scope without asking again. Keep
+local validation downloads, tools and caches in ignored `build/` unless a
+different destination is approved. Do not install system-wide or download an
+SDK merely because a build needs it. Record changes and remaining files in
+`HANDOFF.md`.
+
+`tools/sdk-build.sh` also copies successful packages into the repository's
+`bin/`. It requires dependencies already staged, checks the actual Mosquitto
+library is non-SSL, and uses `NO_DEPS=1` to avoid recursive package/kernel builds.
+For validation without authorized artifact copying, use focused package
+Make targets in the selected SDK instead; see `docs/development.md`. Avoid
+recursive dependency builds when their side effects exceed the approved scope.
+
+Generate `compile_commands.json` with `tools/compile-commands.sh` from the x86
+SDK. Verify that a newly required header exists in that SDK's staged include
+directory before claiming IntelliSense is fixed. Never add a Filogic header
+fallback to conceal a missing x86 dependency. Regenerate the ignored database
+after the selected SDK's headers are ready or source files move.
 
 Do not bump `PKG_VERSION` or `PKG_RELEASE`, copy artifacts, deploy, or publish a
 release unless the user explicitly asks. When asked to build both SDKs, run the
@@ -674,15 +713,16 @@ independent parser, lifecycle, fixture, and runtime verification.
 ## VM testing and delegation
 
 At session start, resumption, and after a long break, the primary agent reads
-`COLLABORATION.md` alongside this guide and inspects the current worktree and
-unfinished work. Follow its assigned roles and handoff workflow for diagnosis,
-implementation, review, verification, and acceptance. Do not run parallel
+`COLLABORATION.md` and `HANDOFF.md` alongside this guide and inspects the current
+worktree and unfinished work. Follow the matching provider's roles and handoff
+workflow for diagnosis, implementation, review, verification, and acceptance. Do not run parallel
 writers on overlapping files. Delegation does not expand the user's granted
 authority or override the branch, remote, Windows, version, and deployment
 restrictions in this guide.
 
-Use the context and usage budget in `COLLABORATION.md`: short per-task files,
-context-free delegation, one implementer and one bounded review by default,
+Use the matching Claude or Codex workflow and context budget in
+`COLLABORATION.md`: short per-task files, context-free delegation when used,
+one implementer and one bounded review for substantial delegated work,
 and only the checks selected for the affected behavior. Reports and evidence
 should be sufficient and concise. Broad reviews, exhaustive testing, detailed
 documentation and instructions to finish every plan are task-specific requests,
@@ -756,7 +796,8 @@ their hostnames in any file, commit or report.
 - **arm64 VM, `192.168.50.5`:** OpenWrt 25.12 `armsr/armv8`, which ran the
   Filogic build before the user deployed it on real routers. It is no longer
   needed before a deployment. Its CPU is emulated, so it gives functional
-  results only, never timings. The user resets it.
+  results only, never timings. Use it only for an explicitly requested arm64
+  check; x86 remains the default. The user resets it.
 
 During long VM runs, move each run's results to disk (for example under
 `/root`) as soon as it ends, so a panic loses only the run in progress, and
@@ -804,7 +845,9 @@ and version management stay with the user.
 - Do not silently change architecture, defaults, or compatibility behavior.
 - If a request conflicts with this guide, explain the conflict before changing
   direction.
-- Do not commit generated or machine-specific files.
+- Do not commit machine-specific files or build outputs. Maintain the tracked
+  generated flowcharts when their sources change; include them in a commit only
+  when committing that change is authorized.
 
 ## Working style and collaboration
 
@@ -835,6 +878,9 @@ and version management stay with the user.
   scope change or conflict before acting; do not infer permission for branch,
   remote, version, publication, deployment, or Windows operations beyond the
   user's explicit instructions.
+- Keep `HANDOFF.md` current with decisions, approvals, verified results and
+  unfinished work. Follow the Codex workflow in `COLLABORATION.md` when using
+  Codex; unavailable Claude tools do not require a repeated permission question.
 - After laying out options, ask which one the user wants and wait for the
   answer before acting on any of them.
 - When asked what something means, answer with a concrete worked example.
