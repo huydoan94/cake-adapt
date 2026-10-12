@@ -29,7 +29,7 @@ LATENCY_OBJECTS := src/latency/latency.o src/latency/fping.o src/latency/irtt.o 
 test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o src/common/helpers.o
 test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/helpers.o
 test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/helpers.o
-test_log_OBJECTS := logging/test_log.o src/logging/log.o src/common/helpers_log.o
+test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/common/helpers_log.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
 test_memory_OBJECTS := platform/test_memory.o src/platform/memory.o src/common/error.o
@@ -45,6 +45,20 @@ OBJECTS := $(sort $(addprefix $(OBJECT_DIR)/,$(foreach target,$(TARGETS),$($(tar
 NETLINK_CFLAGS ?= $(patsubst -I%,-isystem %,$(shell pkg-config --cflags-only-I libnl-3.0))
 NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0)
 UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
+MQTT_CFLAGS ?= $(shell pkg-config --cflags libmosquitto 2>/dev/null)
+MQTT_LIBS ?= $(shell pkg-config --libs libmosquitto 2>/dev/null)
+
+.PHONY: check-mqtt
+check-mqtt: $(BINARY_DIR)/test_mqtt
+	$(BINARY_DIR)/test_mqtt
+
+$(BINARY_DIR)/test_mqtt: logging/test_mqtt.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/common/helpers.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS)
+
+$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS) -lz
 
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
@@ -79,7 +93,7 @@ $(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 -pthread $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c logging/log.c common/error.c common/helpers.c)
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c logging/log.c common/error.c common/helpers.c) logging/mqtt_stub.c
 
 .PHONY: check-config
 check-config: $(BINARY_DIR)/test_config

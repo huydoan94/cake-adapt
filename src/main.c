@@ -7,6 +7,7 @@
 #include "common/error.h"
 #include "latency/latency.h"
 #include "logging/log.h"
+#include "logging/mqtt.h"
 #include "monitor/monitor.h"
 
 #include <errno.h>
@@ -327,6 +328,8 @@ int main(int argc, char **argv)
 		goto out;
 	if (open_log_file(&config, options.section_name, log_path, sizeof(log_path)) != 0)
 		goto out;
+	if (mqtt_start(&config.mqtt) != 0)
+		log_message(LOG_LEVEL_WARNING, "MQTT logging degraded: %s", strerror(errno));
 	log_configuration(&config, log_path);
 
 	log_system_message(

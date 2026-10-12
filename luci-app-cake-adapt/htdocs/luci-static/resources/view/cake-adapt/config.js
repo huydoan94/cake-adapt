@@ -14,6 +14,9 @@ const defaults = {
 	enable_sleep_function: '1',
 	tcp_delay_attribution: '0',
 	tcp_ts_request: '0',
+	mqtt_enabled: '0',
+	mqtt_port: '1883',
+	mqtt_topic: 'cake-adapt/log',
 	output_cpu_stats: '0',
 	output_cpu_raw_stats: '0',
 	pinger_method: 'fping',
@@ -76,6 +79,7 @@ const defaults = {
 const KILO = 1000n, MILLI = 1000n, SECOND = 1000000n, MINUTE = 60n * SECOND;
 const RATIO_ONE = 1000000n;
 const scales = {
+	mqtt_port: 1n,
 	no_pingers: 1n,
 	reflector_ping_interval_s: SECOND,
 	irtt_session_duration_m: MINUTE,
@@ -132,7 +136,9 @@ const IFNAME_SIZE = 16, STRING_SIZE = 512, REFLECTOR_SIZE = 256, MAX_REFLECTORS 
 const textSizes = {
 	interface: IFNAME_SIZE, ul_if: IFNAME_SIZE, dl_if: IFNAME_SIZE,
 	config_file: STRING_SIZE, log_file_path_override: STRING_SIZE, pinger_method: STRING_SIZE,
-	ping_extra_args: STRING_SIZE, ping_prefix_string: STRING_SIZE
+	ping_extra_args: STRING_SIZE, ping_prefix_string: STRING_SIZE,
+	mqtt_host: STRING_SIZE, mqtt_topic: STRING_SIZE, mqtt_username: STRING_SIZE,
+	mqtt_password: STRING_SIZE
 };
 const pingerMethods = [ 'fping', 'fping-ts', 'irtt' ];
 const UINT_MAX = 4294967295n, UINT64_MAX = (1n << 64n) - 1n;
@@ -272,6 +278,16 @@ function instanceErrors(screen) {
 	const adjusting = on('adjust_dl_shaper_rate') || on('adjust_ul_shaper_rate');
 
 	/* validate.c config_validate. */
+	if (on('mqtt_enabled')) {
+		if (text('mqtt_host') == '' || /[ /\[\]\t\r\n]/.test(text('mqtt_host')))
+			fail(_("option 'mqtt_host' must be a hostname or IP address"), 'mqtt_host');
+		if (known('mqtt_port') && (num.mqtt_port == 0n || num.mqtt_port > 65535n))
+			fail(_("option 'mqtt_port' must be between 1 and 65535"), 'mqtt_port');
+		if (text('mqtt_topic') == '' || /[+#]/.test(text('mqtt_topic')))
+			fail(_("option 'mqtt_topic' must be nonempty and contain no + or #"), 'mqtt_topic');
+		if (text('mqtt_password') != '' && text('mqtt_username') == '')
+			fail(_("option 'mqtt_password' needs mqtt_username"), 'mqtt_password', 'mqtt_username');
+	}
 	if ((on('enabled') || adjusting) && !partial && pair[0] == '' && text('interface') == '')
 		fail(_("set either option 'interface' or both options 'ul_if' and 'dl_if' when cake-adapt is enabled or rate adjustment is configured"), 'interface', 'ul_if', 'dl_if');
 
@@ -518,6 +534,18 @@ return view.extend({
 			_('Length of each IRTT session (irtt only).'));
 
 		/* Advanced: Output and logging */
+		o = a.taboption('logging', form.Flag, 'mqtt_enabled', _('Send logs to MQTT'),
+			_('Off by default. Send generated cake-adapt log records without waiting for the broker. Disconnected or overloaded senders silently discard records. Retry every 10 seconds indefinitely. MQTT traffic, including credentials, is unencrypted.'));
+		o.rmempty = false;
+		o = a.taboption('logging', form.Value, 'mqtt_host', _('MQTT broker host'),
+			_('Hostname or IPv4/IPv6 address, without a URL scheme or port.'));
+		o = a.taboption('logging', form.Value, 'mqtt_port', _('MQTT broker port'),
+			_('Plain MQTT TCP port, usually 1883.'));
+		o = a.taboption('logging', form.Value, 'mqtt_topic', _('MQTT topic'),
+			_('One plain-text log record per message. Use a different topic for each instance if needed.'));
+		o = a.taboption('logging', form.Value, 'mqtt_username', _('MQTT username'));
+		o = a.taboption('logging', form.Value, 'mqtt_password', _('MQTT password'));
+		o.password = true;
 		o = a.taboption('logging', form.Flag, 'log_to_file', _('Log to file'),
 			_('Write the log file.'));
 		o.default = o.enabled;

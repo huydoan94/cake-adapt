@@ -43,6 +43,7 @@ SOURCES := \
 	latency/parser.c \
 	latency/tracker.c \
 	logging/log.c \
+	logging/mqtt.c \
 	monitor/control.c \
 	monitor/monitor.c \
 	monitor/links.c \
@@ -68,7 +69,7 @@ DEPENDENCIES := $(OBJECTS:.o=.d) $(BPF_OBJECT:.o=.d)
 all: $(TARGET) $(if $(BPF_CLANG),$(BPF_OBJECT))
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -pthread -o $@ $(OBJECTS) $(LDLIBS) -luci -lubus -lubox -lz -lbpf $(NETLINK_LIBS)
+	$(CC) $(LDFLAGS) -pthread -o $@ $(OBJECTS) $(LDLIBS) -luci -lubus -lubox -lz -lbpf -lmosquitto $(NETLINK_LIBS)
 
 # Subsystem headers are included relative to this source root.
 $(OBJECT_DIR)/%.o: %.c

@@ -69,7 +69,7 @@ src/
 ├── tcpdelay/           eBPF TCP filter and timestamp injector, their loaders,
 │                       and the per-flow queue estimator
 ├── platform/           rtnetlink transport, traffic rates, CPU and memory sampling
-└── logging/            syslog, structured records, rotation, export, reset
+└── logging/            syslog, records, rotation/export/reset and optional MQTT
 files/
 ├── cake-adapt.init     procd service: runtime files, reload, restart, respawn
 ├── cake-adapt.import   builds /var/run/cake-adapt/<section>.uci from UCI
@@ -131,6 +131,14 @@ make -C tests check check-netlink OBJECT_DIR=../build/sanitize \
 The production daemon itself is built with strict warnings, including
 `-Wall`, `-Wextra`, `-Wpedantic`, `-Wformat=2`, `-Wshadow`, `-Wconversion`, and
 `-Werror`.
+
+The ordinary logging tests use an MQTT stub. The dedicated queue tests use
+`make -C tests check-mqtt` with real libmosquitto headers and linkage, configured
+through `MQTT_CFLAGS` and `MQTT_LIBS` when needed. Broker validation uses
+`tests/logging/mqtt_integration.py` with an approved local library and broker
+build. Commands, source identities and validation limits are in the
+[MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md). Native broker
+checks and an SDK build do not establish full-daemon behavior on the x86 VM.
 
 ## Recording a router's log
 
