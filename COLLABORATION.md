@@ -83,8 +83,8 @@ campaign. A material regression is a diagnosis point, not permission for more
 soak tests. State the result and the next decision plainly. Do not require
 exhaustive scheduler interleavings as an open-ended acceptance gate: identify
 the concurrency invariant, use a bounded targeted test and source review, and
-record the remaining limits. Preserve all existing VM restoration, timeout,
-log-inode, and deployment restrictions.
+record the remaining limits. Preserve the VM timeout, log-inode, change
+recording and deployment rules in `AGENTS.md`.
 
 Keep reports short: outcome, changed files, checks, remaining blockers. Preserve
 only the raw evidence needed to substantiate a claim. Detailed reports, exhaustive
