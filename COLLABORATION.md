@@ -8,23 +8,23 @@ This agreement governs agent roles and handoffs for work in this repository.
 - The primary agent owns diagnosis, evidence review, plans, acceptance criteria,
   file ownership, test requirements, final acceptance, and the user-facing
   explanation.
-- GPT-5.6 Luna at medium reasoning effort implements assigned changes and
-  carries out assigned tests, builds, and VM evidence collection when that
-  model is available. Otherwise use GPT-6 Luna at medium reasoning effort, the
-  current implementation choice.
-- GPT-5.6 Sol at medium reasoning effort reviews final diff for logic gaps,
-  dead code, duplication, and existing helpers or libraries. The implementer
-  addresses review findings; the primary agent makes final acceptance.
+- A Claude subagent on the primary agent's own model version (currently
+  Claude Opus 5.5) implements assigned changes and carries out assigned tests,
+  builds, and VM evidence collection.
+- A separate Claude subagent on the same model version reviews the final diff
+  for logic gaps, dead code, duplication, and existing helpers or libraries.
+  The implementer addresses review findings; the primary agent makes final
+  acceptance.
 
-Use only these designated model choices. If neither implementation model or
-the reviewer is available, report that limitation and wait for direction; do
-not silently substitute another model.
+Use only these designated model choices. If that model version is not
+available to subagents, report that limitation and wait for direction; do not
+silently substitute another model.
 
 ## Context and usage budget
 
-The primary agent retains the broader project context. Start delegated work with
-`fork_turns="none"` and a path to its task brief; do not send the conversation
-history. Do not have agents independently rediscover the primary agent's diagnosis.
+The primary agent retains the broader project context. Start delegated work as a
+fresh subagent (not a fork of the conversation) with a path to its task brief;
+do not send the conversation history. Do not have agents independently rediscover the primary agent's diagnosis.
 Use one implementation agent and one bounded review by default, with no nested
 delegation or overlapping audits unless the task needs them.
 
