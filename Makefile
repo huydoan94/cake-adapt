@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=cake-adapt
-PKG_VERSION:=0.3.16
+PKG_VERSION:=0.3.17
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 PKG_LICENSE_FILES:=LICENSE
@@ -15,7 +15,7 @@ define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libnl-tiny +libbpf +zlib +fping +bash $(BPF_DEPENDS)
+  DEPENDS:=+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping +bash $(BPF_DEPENDS)
 endef
 
 define Package/cake-adapt/description

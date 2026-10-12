@@ -9,7 +9,9 @@
 # argument with a slash is the SDK directory. The SDK's package/cake-adapt
 # must be a link to this repository. The full output is shown and also kept in
 # build/sdk-<name>.log; the built package is copied to bin/ with -<name> before
-# its extension, for example bin/cake-adapt-0.3.9-r1-filogic.apk.
+# its extension, for example bin/cake-adapt-0.3.9-r1-filogic.apk. When the SDK's
+# package/luci-app-cake-adapt links to this repository's luci-app-cake-adapt, that
+# package is built too and copied to bin/ as it is named (it has no architecture).
 #
 # Exit status: 0 built, 2 SDK missing or not set up, 3 libraries or headers
 # missing, 4 compile error, 1 any other failure.
@@ -75,6 +77,27 @@ if [ "$status" -eq 0 ] && [ -z "$libraries" ]; then
 	echo "BUILT ($name):"
 	sha256sum "$package"
 	echo "copied to bin/$(basename "$copy") (checksum verified)"
+	# The LuCI app, when the SDK links it; its package has no architecture.
+	luci_link=$(readlink -f "$sdk/package/luci-app-cake-adapt" 2>/dev/null)
+	if [ "$luci_link" = "$repo/luci-app-cake-adapt" ]; then
+		echo "Building luci-app-cake-adapt in $sdk"
+		{
+			make -C "$sdk" package/luci-app-cake-adapt/clean &&
+				make -C "$sdk" package/luci-app-cake-adapt/compile
+			echo $? >"$status_file"
+		} 2>&1 | tee -a "$log"
+		[ "$(cat "$status_file")" -eq 0 ] || fail 1 "the luci-app-cake-adapt build failed (see $log)"
+		rm -f "$status_file"
+		package=$(find "$sdk/bin/packages" \( -name 'luci-app-cake-adapt-*.apk' -o -name 'luci-app-cake-adapt_*.ipk' \) \
+			-printf '%T@ %p\n' | sort -rn | head -n 1 | cut -d' ' -f2-)
+		[ -n "$package" ] || fail 1 "make succeeded but no luci-app-cake-adapt package is in $sdk/bin/packages"
+		copy=$repo/bin/$(basename "$package")
+		cp "$package" "$copy"
+		[ "$(sha256sum <"$package")" = "$(sha256sum <"$copy")" ] ||
+			fail 1 "the copy $copy does not match $package"
+		sha256sum "$package"
+		echo "copied to bin/$(basename "$copy") (checksum verified)"
+	fi
 	[ -z "$missing" ] ||
 		printf 'warning: the SDK has no package for runtime dependencies: %s\n%s\n' "$missing" \
 			"  (harmless for this build; to clear it: cd $sdk && ./scripts/feeds install $missing)"

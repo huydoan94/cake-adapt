@@ -254,6 +254,17 @@ measure_queues(struct monitor *monitor, uint64_t timestamp_us, struct controller
 	queue->upload_us = estimate.upload_queue_us;
 }
 
+bool tcp_estimate(struct monitor *monitor, uint64_t timestamp_us, struct tcpdelay_estimate *estimate)
+{
+	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_capture *capture = &tcp->capture;
+
+	if (!tcp->open)
+		return false;
+	tcpdelay_estimator_result(&capture->estimator, timestamp_us, estimate);
+	return true;
+}
+
 /* elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_US, so never zero. */
 static void ack_accounting_state(struct monitor *monitor, bool degraded)
 {
