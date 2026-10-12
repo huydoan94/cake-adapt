@@ -309,6 +309,30 @@ or touches a qdisc; the first one keeps running. The kernel drops the lock when
 the process exits, so procd's restart and respawn work as before. Validation
 (`-V`) and listing (`-L`) take no lock.
 
+## Optional MQTT logging (current development work)
+
+All records still enter through `logging/log.c`. When MQTT is enabled, it
+submits the same log lines to `logging/mqtt.c` through a try-lock and a bounded
+queue. The control thread never resolves the broker, opens its connection,
+waits for queue space or publishes on the network. Separate sender and network
+threads own those operations through `libmosquitto-nossl`. MQTT has no TLS
+support; username/password authentication remains available over plain TCP.
+
+MQTT is off by default. It publishes with QoS 0 and no retention. Disconnected,
+contended, full and oversized submissions are silently dropped; offline records
+are not replayed. Failed connections retry every 10 seconds indefinitely, with
+bounded waits and bounded main-thread shutdown. Existing output flags and record
+schemas remain in effect. Broker, topic and authentication settings are
+available in LuCI and the [configuration reference](configuration.md#output-and-logging).
+
+[MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) distinguishes
+current non-SSL validation from the earlier TLS-capable prototype's results.
+The current daemon and LuCI packages build for x86, and an isolated packaged
+daemon passed observation-only MQTT delivery, outage and cleanup checks on the
+x86 VM. The existing service and qdisc settings remained unchanged.
+Field resource usage and frequent-record overhead during control remain open.
+Earlier passing x86 builds below predate this change.
+
 ## Evidence and design documents
 
 - [Current-code flowcharts](../flowchart/README.md) — architecture, event flow,

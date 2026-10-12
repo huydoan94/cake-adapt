@@ -142,6 +142,18 @@ Logs live in `/var/log`, which on OpenWrt is RAM, so nothing is written to
 flash by default. If a CAKE qdisc disappears, for example while SQM restarts,
 cake-adapt pauses that direction and resumes when it returns.
 
+The current development work also adds optional MQTT log forwarding, disabled
+by default and configurable in LuCI. It sends logs asynchronously, drops them
+silently while offline or when its bounded queue cannot accept them, and retries
+connections every 10 seconds indefinitely. See the
+[MQTT configuration](docs/configuration.md#output-and-logging) and
+[validation limits](profiling/2026-10-11-mqtt-logging/README.md). The non-SSL
+packages passed x86 builds and a bounded observation-only daemon check on the
+x86 VM; production resource usage remains unmeasured.
+
+MQTT uses the non-SSL library. TLS is unavailable; log data and optional
+username/password credentials are sent unencrypted.
+
 ## LuCI
 
 The `luci-app-cake-adapt` package adds a LuCI interface. Install it next to

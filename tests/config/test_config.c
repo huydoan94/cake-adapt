@@ -360,6 +360,47 @@ static void test_option_copy_boundaries(void)
 	assert(value[0] == '\0');
 }
 
+static void test_mqtt_validation(void)
+{
+	struct config config;
+	struct config_mqtt *mqtt = &config.mqtt;
+	char error[256];
+
+	defaults_apply(&config);
+	assert(!mqtt->enabled);
+	assert(mqtt->port == 1883U);
+	assert(strcmp(mqtt->topic, "cake-adapt/log") == 0);
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->enabled = true;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strstr(error, "mqtt_host") != NULL);
+	(void)strcpy(mqtt->host, "broker.example");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->port = 65536U;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	mqtt->port = 0U;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	mqtt->port = 65535U;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	(void)strcpy(mqtt->host, "mqtt://broker");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->host, "2001:db8::1");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	(void)strcpy(mqtt->topic, "logs/+");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->topic, "logs/#");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	mqtt->topic[0] = '\0';
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->topic, "logs/router");
+	(void)strcpy(mqtt->password, "test-password");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->username, "test-user");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->enabled = false;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+}
+
 int main(void)
 {
 	struct config_direction rates;
@@ -409,6 +450,7 @@ int main(void)
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
 
 	test_supported_pinger_methods();
+	test_mqtt_validation();
 	test_ul_congest_ack_share();
 	test_tcp_ts_request();
 	test_option_copy_boundaries();

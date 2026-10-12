@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "logging/log.h"
+#include "logging/mqtt.h"
 #include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
@@ -343,6 +344,7 @@ void log_tick(void)
 
 static void write_line(const char *line)
 {
+	mqtt_submit(line);
 	if (log_to_stdout) {
 		(void)fprintf(stdout, "%s\n", line);
 		(void)fflush(stdout);
@@ -411,6 +413,7 @@ void log_init(const char *identifier, bool foreground)
 
 void log_close(void)
 {
+	mqtt_stop();
 	if (log_file != NULL) {
 		(void)fclose(log_file);
 		log_file = NULL;
@@ -842,7 +845,7 @@ void log_message(enum log_level level, const char *format, ...)
 		      (level <= LOG_LEVEL_WARNING || (level == LOG_LEVEL_DEBUG && debug_to_syslog));
 	/* In the foreground the message already reaches the terminal on stdout. */
 	send_stderr = problems_to_stderr && !log_to_stdout && level <= LOG_LEVEL_WARNING;
-	if (!send_syslog && !send_stderr && !log_to_stdout && log_file == NULL)
+	if (!send_syslog && !send_stderr && !log_to_stdout && log_file == NULL && !mqtt_enabled())
 		return;
 
 	va_start(arguments, format);
@@ -854,6 +857,6 @@ void log_message(enum log_level level, const char *format, ...)
 		write_syslog(levels[level].priority, levels[level].record, timestamp_us, message);
 	if (send_stderr)
 		(void)fprintf(stderr, "%s: %s\n", levels[level].record, message);
-	if (log_to_stdout || log_file != NULL)
+	if (log_to_stdout || log_file != NULL || mqtt_enabled())
 		write_record_at(levels[level].record, message, timestamp_us);
 }
