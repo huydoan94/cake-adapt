@@ -1,0 +1,177 @@
++ date
+Sun Oct 11 12:04:03 CST 2026
++ uptime
+ 12:04:03 up 24 min,  load average: 0.00, 0.00, 0.00
++ uci export cake-adapt
+package cake-adapt
+
+config cake_adapt 'main'
+	option enabled '1'
+	option interface 'eth1'
+	option adjust_dl_shaper_rate '1'
+	option min_dl_shaper_rate_kbps '10000'
+	option base_dl_shaper_rate_kbps '20000'
+	option max_dl_shaper_rate_kbps '50000'
+	option adjust_ul_shaper_rate '1'
+	option min_ul_shaper_rate_kbps '10000'
+	option base_ul_shaper_rate_kbps '20000'
+	option max_ul_shaper_rate_kbps '50000'
+	option output_processing_stats '1'
+	option output_load_stats '1'
+	option output_reflector_stats '1'
+	option output_summary_stats '1'
+	option output_cake_changes '1'
+	option output_cpu_stats '0'
+	option output_cpu_raw_stats '0'
+	option debug '1'
+	option log_DEBUG_messages_to_syslog '0'
+	option log_to_file '1'
+	list reflectors '1.1.1.1'
+	list reflectors '1.0.0.1'
+	list reflectors '8.8.8.8'
+	list reflectors '8.8.4.4'
+	list reflectors '9.9.9.9'
+	list reflectors '9.9.9.10'
+	list reflectors '9.9.9.11'
+	list reflectors '94.140.14.15'
+	list reflectors '94.140.14.140'
+	list reflectors '94.140.14.141'
+	list reflectors '94.140.15.15'
+	list reflectors '94.140.15.16'
+	list reflectors '64.6.65.6'
+	list reflectors '156.154.70.1'
+	list reflectors '156.154.70.2'
+	list reflectors '156.154.70.3'
+	list reflectors '156.154.70.4'
+	list reflectors '156.154.70.5'
+	list reflectors '156.154.71.1'
+	list reflectors '156.154.71.2'
+	list reflectors '156.154.71.3'
+	list reflectors '156.154.71.4'
+	list reflectors '156.154.71.5'
+	list reflectors '208.67.220.2'
+	list reflectors '208.67.220.123'
+	list reflectors '208.67.220.220'
+	list reflectors '208.67.222.2'
+	list reflectors '208.67.222.123'
+	list reflectors '185.228.168.9'
+	list reflectors '185.228.168.10'
+	option tcp_delay_attribution '1'
+	option tcp_ts_request '1'
+
++ ubus call service list '{"name":"cake-adapt"}'
+{
+	"cake-adapt": {
+		"instances": {
+			"main": {
+				"running": true,
+				"pid": 3388,
+				"command": [
+					"/usr/sbin/cake-adapt",
+					"-C",
+					"/var/run/cake-adapt/main.uci",
+					"-S",
+					"main"
+				],
+				"term_timeout": 5,
+				"respawn": {
+					"threshold": 3600,
+					"timeout": 5,
+					"retry": 5
+				}
+			}
+		}
+	}
+}
++ apk list -I
++ grep -E 'cake-adapt|^ubus|procd'
+cake-adapt-0.3.16-r1 i386_pentium4 {~/cake-adapt} (GPL-2.0-only) [installed]
+luci-app-cake-adapt-0.3.16-r1 noarch {~/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+procd-2026.03.13~58eb263d-r1 i386_pentium4 {feeds/base/system/procd} (GPL-2.0) [installed]
+procd-seccomp-2026.03.13~58eb263d-r1 i386_pentium4 {feeds/base/system/procd} (GPL-2.0) [installed]
+procd-ujail-2026.03.13~58eb263d-r1 i386_pentium4 {feeds/base/system/procd} (GPL-2.0) [installed]
+ubus-2026.06.28~24864e78-r2 i386_pentium4 {feeds/base/system/ubus} (LGPL-2.1) [installed]
+ubusd-2026.06.28~24864e78-r2 i386_pentium4 {feeds/base/system/ubus} (LGPL-2.1) [installed]
++ ls -la /var/run/cake-adapt /root
+/root:
+drwxr-x---   18 root     root          4096 Oct 11 10:39 .
+drwxr-xr-x   18 root     root          4096 Oct  1 20:12 ..
+drwxr-xr-x    4 root     root          4096 Oct  5 22:17 .debug
+drwx------    2 root     root          4096 Oct  4 14:12 .ssh
+drwxr-xr-x    2 root     root          4096 Oct  9 00:48 accepted
+-rw-r--r--    1 root     root          1839 Oct  9 00:38 accepted.sh
+drwxr-xr-x    2 root     root          4096 Oct  7 22:16 before-inject
+-rw-------    1 root     root          1628 Oct  7 11:13 cake-adapt.config.0.2.11
+-rw-------    1 root     root          1695 Oct  9 10:49 cake-adapt.config.before-0.3.15
+-rwxr-xr-x    1 root     root        114709 Oct 10 15:37 cake-adapt.orig-0.3.16
+drwxr-xr-x    2 root     root          4096 Oct  9 00:28 cleanup
+-rw-r--r--    1 root     root          1623 Oct  9 00:17 cleanup-ab.sh
+-rw-r--r--    1 root     root          1986 Oct  8 00:15 cost-flows.sh
+-rw-r--r--    1 root     root          3928 Oct  8 19:04 cost3.sh
+-rw-r--r--    1 root     root          3607 Oct  8 19:21 cost4.sh
+drwxr-xr-x    3 root     root          4096 Oct  9 13:01 e2e
+-rw-r--r--    1 root     root          6516 Oct  7 11:36 e2e-lifecycle.sh
+-rw-r--r--    1 root     root             0 Oct  8 14:53 ebpf-campaign.out
+-rw-r--r--    1 root     root          4984 Oct  8 14:02 ebpf-campaign.sh
+-rw-r--r--    1 root     root          4720 Oct  8 14:55 ebpf-campaign2.sh
+drwxr-xr-x    8 1000     1000          4096 Oct  7 11:22 eval
+-rw-r--r--    1 root     root         65198 Oct  8 00:01 fastpath-baseline.apk
+-rw-r--r--    1 root     root          1651 Oct  8 00:01 fastpath-campaign.sh
+-rw-r--r--    1 root     root           922 Oct  8 00:15 fastpath-campaign2.sh
+drwxr-xr-x    2 root     root          4096 Oct  9 00:33 final
+-rw-r--r--    1 root     root          1067 Oct  9 00:30 final-inject.sh
+-rw-r--r--    1 root     root          1969 Oct  7 21:58 inject-cost.sh
+-rw-r--r--    1 root     root          1587 Oct  9 13:04 lifecycle-0315.out
+-rw-r--r--    1 root     root          7233 Oct  9 13:01 lifecycle-0315.sh
+-rw-r--r--    1 root     root          1238 Oct  7 22:19 lifecycle-inject.out
+-rw-r--r--    1 root     root          1238 Oct  7 23:15 lifecycle-merged.out
+-rw-r--r--    1 root     root          6510 Oct  7 22:16 lifecycle.sh
+drwxr-xr-x    2 root     root          4096 Oct  9 20:02 mq
+-rw-r--r--    1 root     root             0 Oct  9 19:52 mqrun.out
+-rw-r--r--    1 root     root          1357 Oct  9 19:52 mqrun.sh
+-rw-r--r--    1 root     root          1049 Oct  8 18:11 new.sh
+-rw-r--r--    1 root     root          1029 Oct  8 18:45 old.sh
+-rw-r--r--    1 root     root          1666 Oct  8 22:25 oldname.sh
+-rw-r--r--    1 root     root          1098 Oct  8 22:56 probe.sh
+drwxr-xr-x    3 root     root          4096 Oct 10 11:56 rtcheck
+-rw-r--r--    1 root     root            78 Oct 10 11:55 rtcheck.out
+-rw-r--r--    1 root     root          5909 Oct 10 11:55 rtcheck.sh
+drwxr-xr-x    3 root     root          4096 Oct 10 10:47 rtfail
+-rw-r--r--    1 root     root          1050 Oct  8 22:42 rule.sh
+-rw-r--r--    1 root     root           946 Oct 10 15:20 step5.sh
+-rw-------    1 root     root          1738 Oct 10 15:20 step5.uci
+-rw-r--r--    1 root     root           636 Oct 10 15:22 step5b.sh
+drwxr-xr-x    2 root     root          4096 Oct  8 23:31 suite
+-rw-r--r--    1 root     root          1927 Oct  8 23:12 suite.sh
+drwxr-xr-x    2 root     root          4096 Oct  9 00:17 suite6
+-rw-r--r--    1 root     root          2054 Oct  8 23:52 suite6.sh
+drwxr-xr-x    2 root     root          4096 Oct 10 15:16 t2
+-rw-r--r--    1 root     root             0 Oct 10 15:11 t2run.out
+-rw-r--r--    1 root     root          1491 Oct 10 15:01 t2run.sh
+drwxr-xr-x    2 root     root          4096 Oct 10 15:00 task2-backup
+drwxr-xr-x    2 root     root          4096 Oct  9 01:40 thorough
+-rw-r--r--    1 root     root          2408 Oct  9 01:03 thorough.sh
+-rw-r--r--    1 root     root          1364 Oct  8 19:34 v038.sh
+-rw-r--r--    1 root     root          1486 Oct  8 19:58 v039.sh
+-rw-r--r--    1 root     root          4675 Oct  7 22:10 verifier-tail.txt
+-rw-r--r--    1 root     root           940 Oct  8 21:50 window.sh
+
+/var/run/cake-adapt:
+drwx------    2 root     root            80 Oct 11 11:10 .
+drwxr-xr-x    7 root     root           280 Oct 11 11:39 ..
+-rw-------    1 root     root             5 Oct 11 11:10 main.lock
+-rw-------    1 root     root          1689 Oct 11 11:10 main.uci
++ tc qdisc show
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 4Mb ecn drop_batch 64 
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- 
+qdisc noqueue 0: dev br-lan root refcnt 2 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
++ sha256sum /usr/sbin/cake-adapt /etc/init.d/cake-adapt
+21d3093268910dc8ac02044a8c6111b79e88a4529c66520fe5fb0f601cf0ee3d  /usr/sbin/cake-adapt
+cfe95fc9540df26ee86917ff950669ef1e691ccc8fefa40753df337eaa38765b  /etc/init.d/cake-adapt
++ pidof ubusd
+1019
++ ls -i /tmp/sqm-mon-test.log
+ls: /tmp/sqm-mon-test.log: No such file or directory

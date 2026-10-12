@@ -1,0 +1,10 @@
+State:	S (sleeping)
+11372
+11372
+11372
+11398
+b5fcd16a65f38152e10577cc45b7ed9c  -
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+-rwxr-xr-x    1 root     root        114709 Oct 10 15:37 /root/cake-adapt.orig-0.3.16
+-rwxr-xr-x    1 root     root        114693 Oct 11 10:36 /usr/sbin/cake-adapt

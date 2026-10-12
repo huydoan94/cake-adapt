@@ -1,0 +1,16 @@
+== 16:52:18 U1 ubusd killed; daemon=6562 ubusd=1021
+Failed to connect to ubus
+Failed to connect to ubus
+  waited 3 s; ubusd now 6620; daemon 6562 alive: yes
+-- logread (with priority) since U1:
+Sun Oct 11 16:52:18 2026 daemon.err cake-adapt[6562]: ERROR: 1791759138.658114 cannot reconnect to ubus: Connection failed
+Sun Oct 11 16:52:18 2026 daemon.err cake-adapt[6562]: ERROR: 1791759138.658146 cannot publish status on ubus: no connection
+Sun Oct 11 16:52:20 2026 daemon.info cake-adapt[6562]: INFO: 1791759140.656991 connected to ubus; status published as cake-adapt.main
+-- daemon log file:
+ERROR; 2026-10-11-16:52:18; 1791759138.658114; cannot reconnect to ubus: Connection failed
+ERROR; 2026-10-11-16:52:18; 1791759138.658146; cannot publish status on ubus: no connection
+SYSLOG; 2026-10-11-16:52:20; 1791759140.656991; connected to ubus; status published as cake-adapt.main
+{
+	"version": "0.3.16-r1",
+	"pid": 6562,
+	"started": 1791759129,

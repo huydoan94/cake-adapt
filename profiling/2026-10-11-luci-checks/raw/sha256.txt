@@ -1,0 +1,4 @@
+3e46d6a9504e875e04ea45a35a4a6b631a37c019ab624178ce0cdf108039604c  bin/luci-app-cake-adapt-0.3.16-r1.apk
+b7241cb9391792631dd9e09732d90844f816ad0b27858481d2c490131cabcf40  luci-app-cake-adapt/htdocs/luci-static/resources/view/cake-adapt/config.js
+006bc7cfa5f8158e0140218ff752399a790b798fc4fcd2db38fb18da5941dc6b  luci-app-cake-adapt/htdocs/luci-static/resources/view/cake-adapt/status.js
+137fbb89d17b5ebfdc7de908800b56204e12b89db0bb4d47689a4a9422f5211d  luci-app-cake-adapt/root/usr/share/rpcd/acl.d/luci-app-cake-adapt.json

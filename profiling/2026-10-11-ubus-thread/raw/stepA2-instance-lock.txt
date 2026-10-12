@@ -1,0 +1,18 @@
+service daemon 11086 (11086)
+drwx------    2 root     root            80 Oct 11 10:47 .
+drwxr-xr-x    7 root     root           280 Oct 10 22:03 ..
+-rw-------    1 root     root             6 Oct 11 10:47 main.lock
+-rw-------    1 root     root          1689 Oct 11 10:47 main.uci
+second daemon by hand: rc=1 after 10 ms
+Sun Oct 11 10:47:42 2026 daemon.warn cake-adapt[11086]: WARNING: 1791737262.650767 lost the ubus connection; status cake-adapt.main returns when ubusd does
+Sun Oct 11 10:47:55 2026 daemon.err cake-adapt[11179]: ERROR: 1791737275.712212 instance 'main' is already running (pid 11086); exiting
+service daemon after: 11086 (11086); qdiscs:
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+validation (-V) while running: rc=0
+listing (-L): rc=0
+after restart: 11372 (11372), was 11086
+Sun Oct 11 10:47:55 2026 daemon.err cake-adapt[11179]: ERROR: 1791737275.712212 instance 'main' is already running (pid 11086); exiting
+Sun Oct 11 10:47:55 2026 daemon.info cake-adapt[11086]: INFO: 1791737275.891568 Stopped cake-adapt with PID: 11086, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:47:56 2026 daemon.info cake-adapt[11372]: INFO: 1791737276.013052 Starting cake-adapt 0.3.16-r1 with PID: 11372, config: /var/run/cake-adapt/main.uci, section: main
+	"pid": 11372,

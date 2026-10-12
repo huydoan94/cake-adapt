@@ -1,0 +1,23 @@
+(1/2) Replacing cake-adapt (0.3.16-r1 -> 0.3.16-r1)
+  Installing file to etc/config/cake-adapt.apk-new
+  Executing cake-adapt-0.3.16-r1.post-upgrade
+(2/2) Installing luci-app-cake-adapt (0.3.16-r1)
+  Executing luci-app-cake-adapt-0.3.16-r1.post-install
+OK: 31.0 MiB in 221 packages
+config.js
+config.js.o
+status.js
+status.js.o
+2975
+cake-adapt.main
+rc
+uci
+{
+	"cake-adapt": {
+		"start": 95,
+		"stop": 10,
+		"enabled": true,
+		"running": true
+	}
+}
+2afd0b938c6de304ec83bcd10921620d4fd8c170a13ca4ffa7963a4932fe53dd  /usr/sbin/cake-adapt

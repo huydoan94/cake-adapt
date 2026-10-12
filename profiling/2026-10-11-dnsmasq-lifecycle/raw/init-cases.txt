@@ -1,0 +1,58 @@
+== 12:05:16 A0 baseline
+  pid=5205 running=true main.uci=823bf1f4de571b4c lock=5205
+== 12:05:16 A1 reload, no change
+  pid=5205 running=true main.uci=823bf1f4de571b4c lock=5205
+  A1 PASS pid unchanged
+== 12:05:20 A2 reload, valid change base_dl 20000->21000
+  pid=5704 running=true main.uci=91775be706ae427e lock=5704
+  A2 PASS restarted with new file
+1
+== 12:05:25 A3 reload, refused change min_dl 60000 > max 50000
+ERROR: configuration error: download rates must satisfy minimum <= base <= maximum
+  pid=5704 running=true main.uci=91775be706ae427e lock=5704
+  A3 PASS kept previous pid and file
+12:05:25 2026 daemon.err cake-adapt[5921]: ERROR: 1791741925.805119 configuration error: download rates must satisfy minimum <= base <= maximum
+12:05:25 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+12:05:25 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+== 12:05:30 A4 add disabled section second, fix main
+  pid=5704 running=true main.uci=91775be706ae427e lock=5704
+  (main file back to A2 content: same)
+  A4 PASS main unchanged, pid kept
+12:05:31 2026 daemon.notice cake-adapt: instance 'second' disabled by configuration; not starting
+== 12:05:36 A5 per-instance stop/start/restart
+Command failed: ubus call service delete { "name": "cake-adapt", "instance": "second" } (Not found)
+  pid=5704 running=true main.uci=91775be706ae427e lock=5704
+  A5a PASS stop second leaves main
+  pid= running= main.uci=none lock=5704
+main.lock
+  A5b PASS main stopped, file removed
+  pid=6479 running=true main.uci=91775be706ae427e lock=6479
+  A5c PASS main started
+  pid=6705 running=true main.uci=91775be706ae427e lock=6705
+  A5d PASS main restarted
+  start nosuch rc=0
+  pid=6705 running=true main.uci=91775be706ae427e lock=6705
+12:05:36 2026 daemon.err procd: instance second not found
+12:05:38 2026 daemon.info cake-adapt[5704]: INFO: 1791741938.272580 Stopped cake-adapt with PID: 5704, config: /var/run/cake-adapt/main.uci, section: main
+12:05:41 2026 daemon.info cake-adapt[6479]: INFO: 1791741941.424024 Starting cake-adapt 0.3.16-r1 with PID: 6479, config: /var/run/cake-adapt/main.uci, section: main
+12:05:45 2026 daemon.info cake-adapt[6479]: INFO: 1791741945.512212 Stopped cake-adapt with PID: 6479, config: /var/run/cake-adapt/main.uci, section: main
+12:05:45 2026 daemon.info cake-adapt[6705]: INFO: 1791741945.587593 Starting cake-adapt 0.3.16-r1 with PID: 6705, config: /var/run/cake-adapt/main.uci, section: main
+12:05:50 2026 daemon.err cake-adapt: no cake_adapt instance 'nosuch' configured; not starting
+== 12:05:50 A6 disable main, reload
+  pid= running= main.uci=none lock=6705
+  A6 PASS disabled instance stopped
+  pid=7071 running=true main.uci=91775be706ae427e lock=7071
+== 12:06:00 A7 remove section main, reload
+  pid= running= main.uci=none lock=7071
+  A7 PASS removed instance stopped
+== 12:06:05 A8 first start with invalid config
+ERROR: configuration error: download rates must satisfy minimum <= base <= maximum
+  start rc=0
+  pid= running= main.uci=none lock=7071
+  A8 PASS not started
+12:06:08 2026 daemon.err cake-adapt[7375]: ERROR: 1791741968.151277 configuration error: download rates must satisfy minimum <= base <= maximum
+12:06:08 2026 daemon.err cake-adapt: could not generate /var/run/cake-adapt/main.uci; not starting instance 'main'
+== 12:06:12 A9 restore original config, start
+  pid=7601 running=true main.uci=823bf1f4de571b4c lock=7601
+  config restored
+12:05:36 2026 daemon.err procd: instance second not found

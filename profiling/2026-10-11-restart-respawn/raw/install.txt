@@ -1,0 +1,32 @@
+d0a68a8bbe1c78f8d495137c9889b1ca3c1a198f7ab50af439cf33ce101ad6c4  /root/rollback/cake-adapt.bin.before-restart
+2f5a11f3398c864b1943d735d6bfd4031e86f9468a0b7bc89eac1a5b6826b58f  /root/rollback/cake-adapt.config.before-restart
+e8f4fd3eb1e8c43b991c018306d4fb7b79f8ce63640d8d787347eeb8fbe8e9b4  /root/rollback/cake-adapt.init.before-restart
+454ffd305d8740684bb519be8a5e09516f6662bb3189f0fa00809dac99f60a3e  /tmp/cake-adapt-restart.apk
+  Installing file to etc/config/cake-adapt.apk-new
+  Executing cake-adapt-0.3.16-r1.post-upgrade
+OK: 31.8 MiB in 224 packages
+f8686bb5ee75742b9eeaae671005ee6c78cabbd62ade04440626bc0250049648  /usr/sbin/cake-adapt
+3856c22c49477641b207528b67d2b01b1a907ec3a12e86a6369dbd50495fbf12  /etc/init.d/cake-adapt
+{
+	"cake-adapt": {
+		"instances": {
+			"main": {
+				"running": true,
+				"pid": 5114,
+				"command": [
+					"/usr/sbin/cake-adapt",
+					"-C",
+					"/var/run/cake-adapt/main.uci",
+					"-S",
+					"main"
+				],
+				"term_timeout": 5,
+				"respawn": {
+					"threshold": 3600,
+					"timeout": 5,
+					"retry": 0
+				}
+			}
+		}
+	}
+}
