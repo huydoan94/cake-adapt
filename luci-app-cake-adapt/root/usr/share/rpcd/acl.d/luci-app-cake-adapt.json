@@ -1,0 +1,23 @@
+{
+	"luci-app-cake-adapt": {
+		"description": "Grant access to cake-adapt configuration and status",
+		"read": {
+			"uci": [ "cake-adapt" ],
+			"ubus": {
+				"cake-adapt.*": [ "status" ],
+				"service": [ "list" ]
+			}
+		},
+		"write": {
+			"uci": [ "cake-adapt" ],
+			"file": {
+				"/etc/init.d/cake-adapt start [A-Za-z0-9_]*": [ "exec" ],
+				"/etc/init.d/cake-adapt stop [A-Za-z0-9_]*": [ "exec" ],
+				"/etc/init.d/cake-adapt restart [A-Za-z0-9_]*": [ "exec" ]
+			},
+			"ubus": {
+				"file": [ "exec" ]
+			}
+		}
+	}
+}
