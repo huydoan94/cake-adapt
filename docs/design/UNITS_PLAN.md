@@ -2,6 +2,13 @@
 
 Status: implemented on 2026-10-06 in `3ec0d43` and `85a002c`.
 
+Agent execution: Claude and Codex follow their respective routes in
+[COLLABORATION.md](../../COLLABORATION.md) and the current
+[agent guide](../../AGENTS.md). This completed plan records its own historical
+verification; its two-target builds are not a standing requirement for later
+tasks. Current development defaults to x86. Read [HANDOFF.md](../../HANDOFF.md)
+before resuming work.
+
 ## Base units (user, 2026-10-06, final)
 
 | Quantity | Base unit | Type | Suffix |
