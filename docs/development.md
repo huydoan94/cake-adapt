@@ -44,6 +44,9 @@ src/
 ├── monitor/            uloop event loop; one struct monitor, a part per file:
 │   ├── monitor.c         loop setup and teardown, traffic tick, activity
 │   │                     state, CPU and log timers, signals
+│   ├── status.c          pure status snapshot of the current state (no I/O)
+│   ├── publish.c         ubus object cake-adapt.<section> answering status
+│   │                     requests from the snapshot, reconnecting to ubusd
 │   ├── links.c           both directions' CAKE, achieved rates, qdisc events
 │   ├── control.c         controller input, CAKE updates and readback, records
 │   ├── pingers.c         pinger start, output, exit, restart, and grace

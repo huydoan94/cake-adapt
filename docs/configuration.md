@@ -324,6 +324,8 @@ How the file is handled:
   file and fills in the options UCI leaves unset.
 - That result is validated like UCI; cake-adapt itself never executes the
   file.
-- The service reloads when the file or UCI changes.
+- The service reloads when UCI changes. A change to the shell file alone is
+  not watched: it is picked up at the next `/etc/init.d/cake-adapt reload` or
+  `restart`.
 
 The file is executable Bash: use only a trusted, root-owned file.

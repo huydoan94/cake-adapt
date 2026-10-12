@@ -175,6 +175,136 @@ The directional pair takes precedence over `interface`. Setting only one is a
 configuration error. When all three have values, cake-adapt logs a syslog
 warning that `interface` was overridden.
 
+### Status on ubus
+
+Each running instance registers one ubus object, `cake-adapt.<section>` (for
+example `cake-adapt.main`), with one method, `status`, that takes no
+arguments. It is answered from a snapshot of the state the monitor already
+holds, taken on every traffic tick; nothing is stored or logged for it, so
+there is no history.
+
+Control never waits for ubus. libubus can block without a timeout (the
+connection handshake, adding the object, writing a reply), so one thread of its
+own owns the ubus connection, never registered with the event loop, and serves
+the requests; the main thread only copies the snapshot into it under a mutex
+and logs what it reports. Each ubus state is handled as
+OpenWrt's dnsmasq handles it, with dnsmasq's levels. As in dnsmasq, the two
+info messages below reach syslog at info level, like the daemon's start and
+stop messages, and are also written to its log file
+(`/var/log/cake-adapt[.<section>].log`); the warnings and errors reach both
+too:
+
+| State | Behaviour | Logged |
+| --- | --- | --- |
+| No `ubusd` | Retried every second; control goes on. | Error `cannot publish status on ubus: no connection`, once until a connection is made. |
+| Connected by any attempt but the first (after no `ubusd`, a failed reconnection or a hang-up) | Published. Only the connection made by the daemon's very first attempt is not logged. | Info `connected to ubus; status published as cake-adapt.<section>`. |
+| Connection lost | Reconnected at once, which adds the object again; if that fails, closed and retried as above. | Error `cannot reconnect to ubus: <reason>` only when the reconnection fails. |
+| `POLLHUP` or `POLLERR` on the socket | Closed and retried as above. | Info `disconnecting from ubus`. |
+| Object refused on the first connection | The daemon exits with status 1 through its normal shutdown, as dnsmasq does; procd starts it again. | Error `ubus error: <reason>; exiting`. |
+| Object refused on a later connection | No further attempt; control goes on. | Error `ubus error: <reason>; status not published`. |
+
+The thread never logs: it raises events that the main thread logs on its next
+traffic tick, so several identical events within one tick are logged once.
+libubus adds the object again on a reconnection but ignores a refusal there;
+the thread then adds it once more to learn the reason, and handles a refusal
+as on a later connection. A `ubusd` that is alive but frozen delays only the
+answers. At shutdown the thread is given 2 s to stop; one still stuck inside
+libubus is left behind with a warning, as the process is exiting anyway. On
+the x86 test VM, control went on through 60 s of a stopped `ubusd` and SIGTERM
+ended a daemon whose thread was stuck in 2.1 s
+([evidence](../profiling/2026-10-11-ubus-thread/README.md)).
+
+The daemon itself never waits on ubus, but the service does: `/etc/init.d/cake-adapt
+stop`, `restart` and every other init action reach procd through ubus, so while
+`ubusd` is frozen they wait and no signal reaches the daemon. Only a direct
+signal, such as `kill -TERM <pid>` with the pid from
+`/var/run/cake-adapt/<section>.lock`, stops it then.
+
+```json
+{
+	"version": "0.3.16-r1",
+	"pid": 4767,
+	"started": 1791666047,
+	"state": "running",
+	"download": {
+		"interface": "ifb4eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15687,
+		"load_e6": 784,
+		"delay_us": 5048,
+		"bufferbloat": false,
+		"tcp_queue_us": 1200
+	},
+	"upload": { "...": "same fields as download" }
+}
+```
+
+- `started` is the Unix time the status object was set up; `state` is
+  `running`, `idle` or `stall` (the activity state).
+- `shaper_bps` is the CAKE bandwidth read from the kernel, `achieved_bps` the
+  traffic rate, `load_e6` their ratio per million (1000000 is a full shaper).
+- `delay_us` is the controller's average added delay for the direction in
+  microseconds (negative values are possible); `bufferbloat` is true while
+  congestion is detected.
+- `tcp_queue_us` appears only while the eBPF TCP queue estimate is valid.
+- A direction without a CAKE qdisc reports only `interface` and
+  `available: false`.
+
+### Service start, reload and stop
+
+The init script follows OpenWrt's dnsmasq. Each instance runs from a runtime
+file the script generates, `/var/run/cake-adapt/<section>.uci`, built and
+checked with the daemon's own validation (`cake-adapt -V`) in a staging
+directory before it replaces the previous one. procd watches that file.
+
+- **Reload** (a configuration change, LuCI's Save & Apply, or
+  `/etc/init.d/cake-adapt reload`) registers the instances again without
+  stopping anything. procd restarts only an instance whose command or runtime
+  file changed, leaves the others running with the same pid, and stops the
+  instances of sections that were removed or disabled.
+- **A refused configuration** leaves the previous runtime file in place: the
+  instance is registered unchanged and keeps running its previous
+  configuration. The system log has the validation's reason followed by
+  `configuration of instance '<section>' refused` and `instance '<section>'
+  keeps its previous configuration …`. When `/etc/config/cake-adapt` cannot be
+  read at all, or the runtime directory cannot be prepared, every instance
+  with a runtime file keeps it the same way. A runtime directory that is a
+  symbolic link is never read through: nothing is kept and every instance
+  stops.
+- **Without a previous runtime file** (the first start after boot, or after a
+  stop, which removes the file) a refused configuration does not start:
+  `could not generate …; not starting instance '<section>'`.
+- **Restart** (`/etc/init.d/cake-adapt restart`, and LuCI's Restart button,
+  which calls it through rpcd) checks each instance's new configuration before
+  stopping it. A valid one stops the instance and starts it again with a new
+  pid, even when nothing changed. A refused one keeps the instance running its
+  previous configuration and pid, logged as on a reload; without a previous
+  runtime file it does not start. An instance of a disabled or removed section
+  stops, and `restart <section>` also removes its runtime file. If procd cannot
+  stop an instance (a ubus failure other than not running), the system log says
+  `could not stop instance '<section>' for restart …; it keeps running` and
+  `restart` exits with an error.
+- **One instance**: `start`, `stop`, `restart` and `reload` take an optional
+  section name, for example `/etc/init.d/cake-adapt restart main`, and then act
+  on that instance only.
+- **Respawn never gives up**: each instance is registered with
+  `respawn 3600 5 0`. procd starts an instance that exited again after 5 s,
+  and retry 0 means without limit, so a daemon that keeps exiting (for
+  example when `ubusd` refuses its status object at start) is retried every
+  5 s instead of being abandoned after procd's default of 5 failures within
+  an hour. `stop` still stops it.
+
+### One daemon per instance
+
+Each running daemon holds an exclusive lock on
+`/var/run/cake-adapt/<section>.lock`, which also holds its pid. A second daemon
+started with the same section name logs `instance '<section>' is already
+running (pid N); exiting` and exits with status 1 before it opens the log file
+or touches a qdisc; the first one keeps running. The kernel drops the lock when
+the process exits, so procd's restart and respawn work as before. Validation
+(`-V`) and listing (`-L`) take no lock.
+
 ## Evidence and design documents
 
 - [Current-code flowcharts](../flowchart/README.md) — architecture, event flow,
