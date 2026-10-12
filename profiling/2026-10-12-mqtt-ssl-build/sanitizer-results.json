@@ -1,0 +1,35 @@
+{
+  "driver_sha256": "d4b6953cb078fac3e7a827a5533ef4d8482d7b099d2cef600f8e66e0e12db6a4",
+  "library_sha256": "4c460db8e738d862890332e62a02d0179d67424c30a4d5a214488cb3ba82f304",
+  "cases": [
+    {
+      "name": "tls-trusted-auth-delivery",
+      "stop_us": 102790
+    },
+    {
+      "name": "tls-wrong-ca",
+      "stop_us": 10232
+    },
+    {
+      "name": "tls-wrong-host",
+      "stop_us": 10378
+    },
+    {
+      "name": "tls-no-plaintext-fallback",
+      "stop_us": 10662
+    },
+    {
+      "name": "ssl-capable-plain-delivery",
+      "stop_us": 101636
+    },
+    {
+      "name": "tls-stalled-handshake",
+      "connection_times_sec": [
+        0.008654388999275398,
+        10.057298835003166
+      ],
+      "offline_burst_us": 34,
+      "stop_us": 102059
+    }
+  ]
+}

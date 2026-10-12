@@ -1,0 +1,25 @@
+{
+  "scope": "packaged x86 daemon and dependencies in /tmp; verified TLS, observation-only; no installed-service change",
+  "payload_sha256": {
+    "usr/sbin/cake-adapt": "a3b86a277c5fb03c188858b64d2b56503a0a76231b4d68a60b630eaf0547f45e",
+    "usr/lib/libmosquitto.so.1": "838be0510540c23b6e70c24d4563b183564583740b0ba84ee1ec7c822fb88a42",
+    "usr/lib/libcares.so.2": "61fd2e433a0827fe69647b7b99020488668cc6887399a4ced8e44e1fd9a2e648",
+    "usr/lib/libssl.so.3": "b9f7821a0192466f92c697e5f3a0d9e809a251881d52b604a923bfe0b1955561",
+    "usr/lib/libcrypto.so.3": "e1584d0a389247b89a09fa69db2aecf1c71aa58f3339663c5b10e1999e76884b",
+    "ca.pem": "27b6a24b2813e9b1db3820fd4b81293e205521c0ef72c227b268ff81e0cf1add"
+  },
+  "installed_pids_before": "3389",
+  "qdisc_before": "qdisc noqueue 0: dev lo root refcnt 2 \nqdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 4Mb ecn drop_batch 64 \nqdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 \nqdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- \nqdisc noqueue 0: dev br-lan root refcnt 2 \nqdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 \n",
+  "ready": "READY 6820 179",
+  "owned_child_pids": [
+    "6825"
+  ],
+  "alive_during_outage": true,
+  "remote_exit_output": "EXITED\n",
+  "daemon_output": "MEMORY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; RSS_KB; PEAK_RSS_KB; RSS_ANON_KB; DATA_KB\nDEBUG; 2026-10-12-12:39:10; 1791830350.063683; Local list of reflectors contains 1 entries.\nINFO; 2026-10-12-12:39:10; 1791830350.063746; configuration loaded: upload_interface=eth1 download_interface=ifb4eth1 reflectors=1 active_pingers=1 reflector_ping_interval=300000 us traffic_monitor_interval=200000 us debug=1 log_file=/tmp/cake-adapt-mqtt-tls/logs/cake-adapt.mqtt_tls_test.log\nSYSLOG; 2026-10-12-12:39:10; 1791830350.063754; Starting cake-adapt 0.3.17-r1 with PID: 6820, config: /tmp/cake-adapt-mqtt-tls/test.uci, section: mqtt_tls_test\nINFO; 2026-10-12-12:39:10; 1791830350.063759; started in observation-only mode\nDEBUG; 2026-10-12-12:39:10; 1791830350.068007; Randomizing reflectors.\nINFO; 2026-10-12-12:39:10; 1791830350.075278; CAKE discovered: interface=eth1 qdisc=cake handle=0x800f0000 bandwidth=20000000 bit/s\nINFO; 2026-10-12-12:39:10; 1791830350.075290; CAKE discovered: interface=ifb4eth1 qdisc=cake handle=0x80100000 bandwidth=20000000 bit/s\nINFO; 2026-10-12-12:39:10; 1791830350.075296; traffic observation initialized: direction=download interface=ifb4eth1\nINFO; 2026-10-12-12:39:10; 1791830350.075299; traffic observation initialized: direction=upload interface=eth1\nMEMORY; 2026-10-12-12:39:10; 1791830350.075392; 1791830350.075389; 3436; 3436; 512; 508\nINFO; 2026-10-12-12:39:10; 1791830350.075812; latency observation initialized: targets=1 interface=eth1\nDEBUG; 2026-10-12-12:39:11; 1791830351.073670; no ping response from reflector: 127.0.0.1 within reflector_response_deadline: 1.000s\nDEBUG; 2026-10-12-12:39:11; 1791830351.073889; reflector=127.0.0.1, sum_reflector_offences=1 and reflector_misbehaving_detection_thr=3\nDEBUG; 2026-10-12-12:39:11; 1791830351.676736; Warning: no reflector response within: 1.50 seconds. Checking loads.\nDEBUG; 2026-10-12-12:39:11; 1791830351.677022; load check is: (( 3 kbps > 10 kbps for download && 3 kbps > 10 kbps for upload ))\nDEBUG; 2026-10-12-12:39:11; 1791830351.677048; Changing main state from: RUNNING to: STALL\nSYSLOG; 2026-10-12-12:39:20; 1791830360.075646; Warning: Configured global ping response timeout: 10.000 seconds exceeded.\nDEBUG; 2026-10-12-12:39:20; 1791830360.075856; Restarting pingers.\nMEMORY; 2026-10-12-12:39:20; 1791830360.076510; 1791830360.076499; 7460; 7460; 936; 1088\nINFO; 2026-10-12-12:39:20; 1791830360.079421; latency observation initialized: targets=1 interface=eth1\nINFO; 2026-10-12-12:39:21; 1791830361.988879; received signal 15; shutting down\nSYSLOG; 2026-10-12-12:39:22; 1791830362.002431; Stopped cake-adapt with PID: 6820, config: /tmp/cake-adapt-mqtt-tls/test.uci, section: mqtt_tls_test\n",
+  "received_records": 9,
+  "qdisc_after": "qdisc noqueue 0: dev lo root refcnt 2 \nqdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 4Mb ecn drop_batch 64 \nqdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 \nqdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- \nqdisc noqueue 0: dev br-lan root refcnt 2 \nqdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 \n",
+  "installed_pids_after": "3389",
+  "clean_shutdown": true,
+  "result": "passed"
+}

@@ -1,0 +1,18 @@
+{
+  "driver_sha256": "85982a9f878330957e497324a7d5e800146c075f035b22b7a302dc90e17d4484",
+  "library_sha256": "4c460db8e738d862890332e62a02d0179d67424c30a4d5a214488cb3ba82f304",
+  "cases": [
+    {
+      "name": "tls-stalled-handshake",
+      "connection_times_sec": [
+        0.0038547949952771887,
+        10.03025929100113
+      ],
+      "first_socket_close_sec": 5.212193321000086,
+      "first_socket_lifetime_sec": 5.208338526004809,
+      "first_socket_handshake_bytes": 311,
+      "offline_burst_us": 32,
+      "stop_us": 101409
+    }
+  ]
+}

@@ -214,7 +214,12 @@
 #define OPTION_MQTT_TOPIC "mqtt_topic"
 #define OPTION_MQTT_USERNAME "mqtt_username"
 #define OPTION_MQTT_PASSWORD "mqtt_password"
+#define OPTION_MQTT_TLS "mqtt_tls"
+#define OPTION_MQTT_CA_FILE "mqtt_ca_file"
 #define MQTT_DEFAULT_TOPIC "cake-adapt/log"
+#ifndef MQTT_TLS_SUPPORTED
+#define MQTT_TLS_SUPPORTED 0
+#endif
 #define OPTION_RANDOMIZE_REFLECTORS "randomize_reflectors"
 #define OPTION_RETAIN_REFLECTOR_STATS "retain_reflector_stats"
 #define OPTION_ENABLE_SLEEP_FUNCTION "enable_sleep_function"

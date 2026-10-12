@@ -79,7 +79,7 @@
         },
         {
           "id": "mqtt",
-          "label": "logging/mqtt.c (opt-in, plain TCP)\nnonblocking queue → sender/network threads\nMQTT broker",
+          "label": "logging/mqtt.c (opt-in, TCP or verified TLS)\nnonblocking queue → sender/network threads\nMQTT broker",
           "kind": "io"
         }
       ],
@@ -2649,7 +2649,7 @@
         "Rotation copies the active log to cake-adapt[.<section>].log.old and truncates the active file in place. The inode is preserved, so tail -f stays attached.",
         "SIGUSR1 exports the active and retained logs (optionally compressed with zlib). SIGUSR2 flushes and truncates them in place.",
         "CPU records are written only while RUNNING. A failed /proc/stat read is reported once as degraded and once on recovery.",
-        "MQTT is an independent opt-in sink for generated records. The logging thread uses a try-lock to copy into a bounded 32-record queue; offline, full or contended queues drop silently. Sender and network threads handle QoS 0 delivery without retention, a five-second connection deadline, and ten-second retries indefinitely. Existing output and debug flags still govern which records are generated."
+        "MQTT is an independent opt-in sink for generated records. The logging thread uses a try-lock to copy into a bounded 32-record queue; offline, full or contended queues drop silently. Sender and network threads handle QoS 0 delivery without retention, a five-second connection deadline, and ten-second retries indefinitely. SSL builds can enable TLS: the sender loads the CA file and configures certificate/hostname verification before starting the network thread. Non-SSL builds reject TLS settings. Existing output and debug flags still govern which records are generated."
       ],
       "nodes": [
         {

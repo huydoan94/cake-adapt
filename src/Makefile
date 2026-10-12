@@ -16,6 +16,14 @@ BPF_STRIP ?=
 BPF_INCLUDES ?=
 # The OpenWrt package passes PKG_VERSION-rPKG_RELEASE.
 VERSION ?= unknown
+ssl ?= no
+ifeq ($(ssl),yes)
+MQTT_TLS_SUPPORTED := 1
+else ifeq ($(ssl),no)
+MQTT_TLS_SUPPORTED := 0
+else
+$(error ssl must be yes or no)
+endif
 
 WARNINGS := \
 	-Wall \
@@ -63,10 +71,19 @@ OBJECT_DIR ?= ../build
 OBJECTS := $(SOURCES:%.c=$(OBJECT_DIR)/%.o)
 BPF_OBJECT := $(OBJECT_DIR)/tcpdelay.bpf.o
 DEPENDENCIES := $(OBJECTS:.o=.d) $(BPF_OBJECT:.o=.d)
+MQTT_BUILD_CONFIG := $(OBJECT_DIR)/mqtt-tls.config
 
 .PHONY: all clean
 
 all: $(TARGET) $(if $(BPF_CLANG),$(BPF_OBJECT))
+
+# OpenWrt can rerun this Makefile without cleaning after changing ssl.
+.PHONY: FORCE_MQTT_CONFIG
+$(MQTT_BUILD_CONFIG): FORCE_MQTT_CONFIG
+	@mkdir -p $(@D)
+	@printf '%s\n' '$(MQTT_TLS_SUPPORTED)' | cmp -s - $@ || printf '%s\n' '$(MQTT_TLS_SUPPORTED)' > $@
+
+$(OBJECTS): $(MQTT_BUILD_CONFIG)
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(LDFLAGS) -pthread -o $@ $(OBJECTS) $(LDLIBS) -luci -lubus -lubox -lz -lbpf -lmosquitto $(NETLINK_LIBS)
@@ -74,7 +91,7 @@ $(TARGET): $(OBJECTS)
 # Subsystem headers are included relative to this source root.
 $(OBJECT_DIR)/%.o: %.c
 	@mkdir -p $(@D)
-	$(CC) -I$(CURDIR) -DPROGRAM_VERSION='"$(VERSION)"' $(CPPFLAGS) $(NETLINK_CFLAGS) $(OBJECT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
+	$(CC) -I$(CURDIR) -DPROGRAM_VERSION='"$(VERSION)"' -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED) $(CPPFLAGS) $(NETLINK_CFLAGS) $(OBJECT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 $(OBJECT_DIR)/tcpdelay/capture.o $(OBJECT_DIR)/tcpdelay/injector.o: OBJECT_CFLAGS := $(LIBBPF_CFLAGS)
 
@@ -88,6 +105,6 @@ $(BPF_OBJECT): tcpdelay/tcpdelay.bpf.c
 	@if grep -q __bpf_trap $@; then echo "$@ references __bpf_trap" >&2; rm -f $@; exit 1; fi
 
 clean:
-	$(RM) $(TARGET) $(OBJECTS) $(BPF_OBJECT) $(DEPENDENCIES)
+	$(RM) $(TARGET) $(OBJECTS) $(BPF_OBJECT) $(DEPENDENCIES) $(MQTT_BUILD_CONFIG)
 
 -include $(DEPENDENCIES)

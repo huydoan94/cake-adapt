@@ -147,12 +147,14 @@ by default and configurable in LuCI. It sends logs asynchronously, drops them
 silently while offline or when its bounded queue cannot accept them, and retries
 connections every 10 seconds indefinitely. See the
 [MQTT configuration](docs/configuration.md#output-and-logging) and
-[validation limits](profiling/2026-10-11-mqtt-logging/README.md). The non-SSL
+[validation limits](profiling/2026-10-12-mqtt-ssl-build/README.md). The non-SSL
 packages passed x86 builds and a bounded observation-only daemon check on the
 x86 VM; production resource usage remains unmeasured.
 
-MQTT uses the non-SSL library. TLS is unavailable; log data and optional
-username/password credentials are sent unencrypted.
+MQTT uses the non-SSL library by default. The optional
+[SSL build](docs/development.md#building-with-an-openwrt-sdk) adds TLS settings in
+LuCI, with broker certificate and hostname verification. TLS is opt-in; plain
+connections send log data and optional username/password credentials unencrypted.
 
 ## LuCI
 

@@ -3,6 +3,9 @@
 'require form';
 'require uci';
 
+/* The package preparation step sets this to the daemon's build capability. */
+const mqttTlsSupported = false;
+
 /*
  * What the daemon uses for an option left empty (src/config/defaults.c), in the
  * units of the form. The placeholders and the checks below both read this table.
@@ -15,6 +18,8 @@ const defaults = {
 	tcp_delay_attribution: '0',
 	tcp_ts_request: '0',
 	mqtt_enabled: '0',
+	mqtt_tls: '0',
+	mqtt_ca_file: '/etc/ssl/certs/ca-certificates.crt',
 	mqtt_port: '1883',
 	mqtt_topic: 'cake-adapt/log',
 	output_cpu_stats: '0',
@@ -138,7 +143,7 @@ const textSizes = {
 	config_file: STRING_SIZE, log_file_path_override: STRING_SIZE, pinger_method: STRING_SIZE,
 	ping_extra_args: STRING_SIZE, ping_prefix_string: STRING_SIZE,
 	mqtt_host: STRING_SIZE, mqtt_topic: STRING_SIZE, mqtt_username: STRING_SIZE,
-	mqtt_password: STRING_SIZE
+	mqtt_password: STRING_SIZE, mqtt_ca_file: STRING_SIZE
 };
 const pingerMethods = [ 'fping', 'fping-ts', 'irtt' ];
 const UINT_MAX = 4294967295n, UINT64_MAX = (1n << 64n) - 1n;
@@ -287,6 +292,12 @@ function instanceErrors(screen) {
 			fail(_("option 'mqtt_topic' must be nonempty and contain no + or #"), 'mqtt_topic');
 		if (text('mqtt_password') != '' && text('mqtt_username') == '')
 			fail(_("option 'mqtt_password' needs mqtt_username"), 'mqtt_password', 'mqtt_username');
+		if (on('mqtt_tls')) {
+			if (!mqttTlsSupported)
+				fail(_("option 'mqtt_tls' requires an SSL-enabled package"), 'mqtt_tls', 'mqtt_enabled');
+			else if (!text('mqtt_ca_file').startsWith('/'))
+				fail(_("option 'mqtt_ca_file' must be an absolute path"), 'mqtt_ca_file');
+		}
 	}
 	if ((on('enabled') || adjusting) && !partial && pair[0] == '' && text('interface') == '')
 		fail(_("set either option 'interface' or both options 'ul_if' and 'dl_if' when cake-adapt is enabled or rate adjustment is configured"), 'interface', 'ul_if', 'dl_if');
@@ -535,17 +546,28 @@ return view.extend({
 
 		/* Advanced: Output and logging */
 		o = a.taboption('logging', form.Flag, 'mqtt_enabled', _('Send logs to MQTT'),
-			_('Off by default. Send generated cake-adapt log records without waiting for the broker. Disconnected or overloaded senders silently discard records. Retry every 10 seconds indefinitely. MQTT traffic, including credentials, is unencrypted.'));
+			_('Off by default. Send generated cake-adapt log records without waiting for the broker. Disconnected or overloaded senders silently discard records. Retry every 10 seconds indefinitely.'));
 		o.rmempty = false;
 		o = a.taboption('logging', form.Value, 'mqtt_host', _('MQTT broker host'),
 			_('Hostname or IPv4/IPv6 address, without a URL scheme or port.'));
 		o = a.taboption('logging', form.Value, 'mqtt_port', _('MQTT broker port'),
-			_('Plain MQTT TCP port, usually 1883.'));
+			_('Usually 1883 for plain MQTT or 8883 for TLS.'));
 		o = a.taboption('logging', form.Value, 'mqtt_topic', _('MQTT topic'),
 			_('One plain-text log record per message. Use a different topic for each instance if needed.'));
 		o = a.taboption('logging', form.Value, 'mqtt_username', _('MQTT username'));
 		o = a.taboption('logging', form.Value, 'mqtt_password', _('MQTT password'));
 		o.password = true;
+		if (mqttTlsSupported) {
+			o = a.taboption('logging', form.Flag, 'mqtt_tls', _('Encrypt MQTT with TLS'),
+				_('Verify the broker certificate and hostname. Without TLS, MQTT traffic and credentials are unencrypted.'));
+			o.rmempty = false;
+			o.retain = true;
+			o.depends('mqtt_enabled', '1');
+			o = a.taboption('logging', form.Value, 'mqtt_ca_file', _('MQTT trusted CA file'),
+				_('Absolute path to a trusted CA bundle on the router.'));
+			o.retain = true;
+			o.depends({ mqtt_enabled: '1', mqtt_tls: '1' });
+		}
 		o = a.taboption('logging', form.Flag, 'log_to_file', _('Log to file'),
 			_('Write the log file.'));
 		o.default = o.enabled;
@@ -704,6 +726,10 @@ return view.extend({
 			const values = valuesOf(section_id);
 
 			values.latency_target = uci.get('cake-adapt', section_id, 'latency_target');
+			if (!mqttTlsSupported) {
+				values.mqtt_tls = uci.get('cake-adapt', section_id, 'mqtt_tls');
+				values.mqtt_ca_file = uci.get('cake-adapt', section_id, 'mqtt_ca_file');
+			}
 			const errors = instanceErrors((name) => values[name]);
 
 			cache[section_id] = errors;

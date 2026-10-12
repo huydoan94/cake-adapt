@@ -1,5 +1,37 @@
 /* Inspect the queue seam while linking the actual Mosquitto API. */
+#define _GNU_SOURCE
+#include "config/config.h"
+#include <mosquitto.h>
+#include <stdio.h>
+
+#if MQTT_TLS_SUPPORTED
+static unsigned int tls_calls;
+static const char *tls_ca_file;
+
+static int test_tls_setup(
+	struct mosquitto *client,
+	const char *ca_file,
+	const char *ca_path,
+	const char *certificate,
+	const char *key,
+	int (*password)(char *, int, int, void *)
+)
+{
+	(void)client;
+	(void)ca_path;
+	(void)certificate;
+	(void)key;
+	(void)password;
+	tls_calls++;
+	tls_ca_file = ca_file;
+	return MOSQ_ERR_INVAL;
+}
+#define mosquitto_tls_set test_tls_setup
+#endif
 #include "logging/mqtt.c"
+#if MQTT_TLS_SUPPORTED
+#undef mosquitto_tls_set
+#endif
 
 #include <assert.h>
 #include <stdio.h>
@@ -53,6 +85,29 @@ static void test_queue(void)
 	(void)pthread_mutex_destroy(&state.lock);
 }
 
+static void test_tls(void)
+{
+	struct mqtt_sender state = { .settings = { .enabled = true,
+						   .tls = true,
+						   .host = "localhost",
+						   .ca_file = "/tmp/fixture-ca.pem" } };
+
+#if MQTT_TLS_SUPPORTED
+	assert(mosquitto_lib_init() == MOSQ_ERR_SUCCESS);
+	assert(mqtt_connect(&state) == NULL);
+	assert(tls_calls == 1U);
+	assert(strcmp(tls_ca_file, "/tmp/fixture-ca.pem") == 0);
+	/* A TLS setup failure never starts the network thread or retries as plain MQTT. */
+	assert(state.client == NULL);
+	assert(!atomic_load(&state.online));
+	assert(mosquitto_lib_cleanup() == MOSQ_ERR_SUCCESS);
+#else
+	assert(mqtt_start(&state.settings) == -1);
+	assert(errno == ENOTSUP);
+	assert(!mqtt_enabled());
+#endif
+}
+
 int main(void)
 {
 	const struct config_mqtt disabled = { 0 };
@@ -62,6 +117,7 @@ int main(void)
 	mqtt_submit("disabled");
 	mqtt_stop();
 	test_queue();
-	(void)puts("MQTT disabled, offline, contention, overflow and payload-boundary tests passed");
+	test_tls();
+	(void)puts("MQTT queue, disabled and TLS setup tests passed");
 	return 0;
 }

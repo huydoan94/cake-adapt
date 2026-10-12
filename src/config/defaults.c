@@ -74,4 +74,5 @@ void defaults_apply(struct config *config)
 	};
 	(void)strcpy(config->pinger_method, PINGER_METHOD_FPING);
 	(void)strcpy(config->mqtt.topic, MQTT_DEFAULT_TOPIC);
+	(void)strcpy(config->mqtt.ca_file, DEFAULT_MQTT_CA_FILE);
 }

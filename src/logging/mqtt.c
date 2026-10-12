@@ -133,6 +133,12 @@ static struct mosquitto *mqtt_connect(struct mqtt_sender *state)
 	    mosquitto_username_pw_set(client, settings->username, settings->password) !=
 		    MOSQ_ERR_SUCCESS)
 		goto failed;
+#if MQTT_TLS_SUPPORTED
+	/* Mosquitto defaults to peer certificate and hostname verification. */
+	if (settings->tls && mosquitto_tls_set(client, settings->ca_file, NULL, NULL, NULL, NULL) !=
+				     MOSQ_ERR_SUCCESS)
+		goto failed;
+#endif
 	state->client = client;
 	atomic_store(&state->connecting, true);
 	atomic_store(&state->network_stop, false);
@@ -255,6 +261,12 @@ int mqtt_start(const struct config_mqtt *settings)
 
 	if (!settings->enabled)
 		return 0;
+#if !MQTT_TLS_SUPPORTED
+	if (settings->tls) {
+		errno = ENOTSUP;
+		return -1;
+	}
+#endif
 	state = calloc(1U, sizeof(*state));
 	if (state == NULL)
 		return -1;

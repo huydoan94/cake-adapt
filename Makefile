@@ -5,17 +5,29 @@ PKG_VERSION:=0.3.17
 PKG_RELEASE:=1
 PKG_LICENSE:=GPL-2.0-only
 PKG_LICENSE_FILES:=LICENSE
+PKG_CONFIG_DEPENDS:=ssl
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
 
+ssl ?= no
+ifeq ($(ssl),yes)
+  MQTT_VARIANT:=ssl
+  MQTT_RUNTIME_DEPENDS:=+ca-bundle
+else ifeq ($(ssl),no)
+  MQTT_VARIANT:=nossl
+  MQTT_RUNTIME_DEPENDS:=
+else
+  $(error ssl must be yes or no)
+endif
+
 define Package/cake-adapt
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +libmosquitto-nossl +fping +bash $(BPF_DEPENDS)
+  DEPENDS:=+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +libmosquitto-$(MQTT_VARIANT) $(MQTT_RUNTIME_DEPENDS) +fping +bash $(BPF_DEPENDS)
 endef
 
 define Package/cake-adapt/description
@@ -42,6 +54,7 @@ define Build/Compile
 		BPF_STRIP="$(LLVM_STRIP)" \
 		BPF_INCLUDES="-I$(STAGING_DIR)/usr/include -I$(TOOLCHAIN_DIR)/include" \
 		OBJECT_DIR="$(PKG_BUILD_DIR)/build" \
+		ssl="$(ssl)" \
 		VERSION="$(PKG_VERSION)-r$(PKG_RELEASE)"
 endef
 

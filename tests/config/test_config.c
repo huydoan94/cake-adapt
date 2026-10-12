@@ -81,6 +81,13 @@ static void test_scalar_option_types(void)
 	option.e.name = "interface";
 	assert(load_options(&loader) == 0);
 	assert(strcmp(config.interface, "1") == 0);
+	option.e.name = "mqtt_tls";
+	assert(load_options(&loader) == 0);
+	assert(config.mqtt.tls);
+	option.e.name = "mqtt_ca_file";
+	option.v.string = "/tmp/fixture-ca.pem";
+	assert(load_options(&loader) == 0);
+	assert(strcmp(config.mqtt.ca_file, "/tmp/fixture-ca.pem") == 0);
 	lookup_option = NULL;
 }
 
@@ -368,6 +375,8 @@ static void test_mqtt_validation(void)
 
 	defaults_apply(&config);
 	assert(!mqtt->enabled);
+	assert(!mqtt->tls);
+	assert(strcmp(mqtt->ca_file, "/etc/ssl/certs/ca-certificates.crt") == 0);
 	assert(mqtt->port == 1883U);
 	assert(strcmp(mqtt->topic, "cake-adapt/log") == 0);
 	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
@@ -397,7 +406,25 @@ static void test_mqtt_validation(void)
 	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
 	(void)strcpy(mqtt->username, "test-user");
 	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->tls = true;
+#if MQTT_TLS_SUPPORTED
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	(void)strcpy(mqtt->ca_file, "relative-ca.pem");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strstr(error, "absolute path") != NULL);
+	mqtt->ca_file[0] = '\0';
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->ca_file, "/tmp/fixture-ca.pem");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+#else
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strstr(error, "SSL-enabled package") != NULL);
+#endif
 	mqtt->enabled = false;
+	mqtt->ca_file[0] = '\0';
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->enabled = true;
+	mqtt->tls = false;
 	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
 }
 

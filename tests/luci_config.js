@@ -6,7 +6,9 @@
  */
 const assert = require('assert');
 const fs = require('fs');
-const src = fs.readFileSync(process.argv[2], 'utf8');
+const tlsSupported = process.argv[3] === 'ssl=yes';
+const src = fs.readFileSync(process.argv[2], 'utf8').replace(
+	'const mqttTlsSupported = false;', `const mqttTlsSupported = ${tlsSupported};`);
 
 String.prototype.format = function(...a) {
 	return this.replace(/%[sd]/g, () => String(a.shift()));
@@ -17,7 +19,22 @@ class Option {
 	constructor(section, option) { this.section = section; this.option = option; this.checks = 0; this.loaded = {}; this.parsed = []; }
 	triggerValidation() { this.checks++; }
 	cfgvalue(sid, value) { this.loaded[sid] = value; }
-	parse(sid) { this.parsed.push(sid); return Promise.resolve(); }
+	parse(sid) {
+		this.parsed.push(sid);
+		if (this.persisted) {
+			const deps = typeof this.dependencies?.[0] === 'string' ?
+				{ [this.dependencies[0]]: this.dependencies[1] } : (this.dependencies?.[0] ?? {});
+			const active = Object.entries(deps).every(([ name, value ]) =>
+				(screen[name] ?? this.persisted[name]) === value);
+			/* Stock form.js AbstractValue and Flag remove inactive values unless retain is set. */
+			if (active)
+				this.persisted[this.option] = screen[this.option] ?? this.persisted[this.option];
+			else if (!this.retain)
+				delete this.persisted[this.option];
+		}
+		return Promise.resolve();
+	}
+	depends(...values) { this.dependencies = values; }
 }
 class Value extends Option {}
 class Flag extends Value { constructor(...a) { super(...a); this.enabled = '1'; } }
@@ -111,6 +128,18 @@ fails({ mqtt_enabled: '1', mqtt_topic: 'logs/#' }, 'mqtt_topic', 'no + or #');
 fails({ mqtt_enabled: '1', mqtt_password: 'test' }, 'mqtt_password', 'needs mqtt_username');
 ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_username: 'user', mqtt_password: 'test' });
 fails({ mqtt_username: 'x'.repeat(512) }, 'mqtt_username', 'too long');
+ok({ mqtt_enabled: '0', mqtt_tls: '1', mqtt_ca_file: 'relative.pem' });
+ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '0', mqtt_ca_file: 'relative.pem' });
+if (tlsSupported) {
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '1' });
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/private-ca.pem' });
+	fails({ mqtt_enabled: '1', mqtt_tls: '1', mqtt_ca_file: 'relative.pem' }, 'mqtt_ca_file', 'absolute path');
+	/* Empty form values use the daemon's CA bundle default. */
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '1', mqtt_ca_file: '' });
+} else {
+	fails({ mqtt_enabled: '1', mqtt_tls: '1' }, 'mqtt_tls', 'SSL-enabled package');
+	fails({ mqtt_enabled: '1', mqtt_tls: '1' }, 'mqtt_enabled', 'SSL-enabled package');
+}
 
 ok({}, 'the reference configuration is clean');
 
@@ -330,8 +359,16 @@ const asked = new Set();
 instanceErrors((name) => { asked.add(name); return undefined; });
 /* The legacy single target is read from the stored section; the form has no field for it. */
 asked.delete('latency_target');
-for (const name of new Set([ ...asked, ...Object.keys(defaults), ...Object.keys(scales) ]))
-	assert.ok(options.includes(name), `${name} is an option of the view`);
+for (const name of new Set([ ...asked, ...Object.keys(defaults), ...Object.keys(scales) ])) {
+	if (!tlsSupported && [ 'mqtt_tls', 'mqtt_ca_file' ].includes(name))
+		assert.ok(!options.includes(name), `${name} requires an SSL-enabled app`);
+	else
+		assert.ok(options.includes(name), `${name} is an option of the view`);
+}
+if (tlsSupported) {
+	assert.deepStrictEqual(option('mqtt_tls').dependencies, [ 'mqtt_enabled', '1' ]);
+	assert.deepStrictEqual(option('mqtt_ca_file').dependencies, [ { mqtt_enabled: '1', mqtt_tls: '1' } ]);
+}
 for (const option of allOptions) {
 	assert.strictEqual(typeof option.validate, 'function', `${option.option} is validated`);
 	if (!(option instanceof Flag) && defaults[option.option] != null)
@@ -369,9 +406,31 @@ const nested = advanced.load('guest').then(() => {
 		assert.ok(!('main' in o.loaded), `${o.option} loads only the instance asked`);
 	}
 	return advanced.parse('main');
-}).then(() => {
+}).then(async () => {
 	for (const o of advanced.children)
 		assert.deepStrictEqual(o.parsed, [ 'main' ], `${o.option} parses only the instance asked`);
+	if (tlsSupported) {
+		const savedScreen = screen;
+		const persisted = { mqtt_enabled: '1', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/custom-mqtt-ca.pem' };
+		const fields = [ option('mqtt_enabled'), option('mqtt_tls'), option('mqtt_ca_file') ];
+		fields.forEach((field) => { field.persisted = persisted; });
+		/* Save with MQTT disabled: dependent fields are inactive and absent from form values. */
+		screen = { mqtt_enabled: '0' };
+		await Promise.all(fields.map((field) => field.parse('main')));
+		assert.deepStrictEqual(persisted, { mqtt_enabled: '0', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/custom-mqtt-ca.pem' });
+		/* The seam exercises stock removal too; an ordinary inactive option is deleted. */
+		const probe = new Value(advanced, 'inactive_probe');
+		probe.persisted = { inactive_probe: 'saved', mqtt_enabled: '1' };
+		probe.depends('mqtt_enabled', '1');
+		await probe.parse('main');
+		assert.ok(!('inactive_probe' in probe.persisted));
+		/* Reload the saved values, enable MQTT and save: TLS and the custom CA survive. */
+		screen = { ...persisted, mqtt_enabled: '1' };
+		await Promise.all(fields.map((field) => field.parse('main')));
+		assert.deepStrictEqual(persisted, { mqtt_enabled: '1', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/custom-mqtt-ca.pem' });
+		fields.forEach((field) => { delete field.persisted; });
+		screen = savedScreen;
+	}
 	return advanced.render('guest');
 }).then((node) => {
 	assert.strictEqual(node.attrs['data-section-id'], 'guest');
@@ -385,6 +444,11 @@ const show = (values, name, value) => {
 	return option(name).validate.call(option(name), 'main', value);
 };
 assert.strictEqual(show({}, 'base_dl_shaper_rate_kbps', '20000'), true);
+if (!tlsSupported) {
+	stored.mqtt_tls = '1';
+	assert.ok(show({ mqtt_enabled: '1', mqtt_host: 'broker.example' }, 'mqtt_enabled', '1').includes('SSL-enabled package'));
+	delete stored.mqtt_tls;
+}
 assert.ok(show({ min_dl_shaper_rate_kbps: '30000' }, 'min_dl_shaper_rate_kbps', '30000').includes('minimum <= base'));
 assert.ok(show({ min_dl_shaper_rate_kbps: '30000' }, 'max_dl_shaper_rate_kbps', '50000').includes('minimum <= base'));
 assert.strictEqual(show({ tcp_ts_request: '1' }, 'tcp_delay_attribution', '0') === true, false, 'the attribution is named too');

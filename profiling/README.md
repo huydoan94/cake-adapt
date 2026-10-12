@@ -13,6 +13,7 @@ changing SDKs, downloading dependencies or accessing production systems.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-12-mqtt-ssl-build`](2026-10-12-mqtt-ssl-build/README.md) | Optional `ssl=yes` packages, verified TLS broker settings, inactive LuCI setting retention, dependency staging and bounded TLS connection/shutdown checks. Default remains no-SSL. |
 | [`2026-10-11-mqtt-logging`](2026-10-11-mqtt-logging/README.md) | Optional MQTT forwarding: silent offline/overflow drops, exact QoS 0 payloads, retries every 10 s, recovery, authentication and bounded shutdown. Current non-SSL validation is separated from superseded TLS-prototype evidence. No router deployment or CAKE performance claim. |
 | [`2026-10-11-restart-respawn`](2026-10-11-restart-respawn/README.md) | `restart` checks the new configuration first (`513eea7`): unchanged restarts with a new pid, a refused one keeps the pid and previous file with the reason in syslog, and without a previous file does not start; respawn registered as `3600 5 0` (never gives up); `connected to ubus` reaches `logread` at info and the log file. A named restart of a deleted or disabled section stops it and removes its file (`6a79733`). `disconnecting from ubus` host-tested only. |
 | [`2026-10-11-luci-checks`](2026-10-11-luci-checks/README.md) | LuCI app 0.3.16-r1 on the x86 VM: `service list` is granted and shows procd's running state and pid (stopped: no object), writes and `network` stay denied; the Configuration checks and the Status state text are covered by host tests. Not a browser. |

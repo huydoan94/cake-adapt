@@ -179,7 +179,7 @@
 <g id="node12" class="node">
 <title>mqtt</title>
 <polygon fill="#e9f7ff" stroke="#24749c" stroke-width="1.2" points="714.2,-310.35 313.85,-310.35 210.86,-205.23 611.21,-205.23 714.2,-310.35"/>
-<text xml:space="preserve" text-anchor="middle" x="462.53" y="-267.69" font-family="Arial" font-size="11.00">logging/mqtt.c (opt&#45;in, plain TCP)</text>
+<text xml:space="preserve" text-anchor="middle" x="462.53" y="-267.69" font-family="Arial" font-size="11.00">logging/mqtt.c (opt&#45;in, TCP or verified TLS)</text>
 <text xml:space="preserve" text-anchor="middle" x="462.53" y="-254.49" font-family="Arial" font-size="11.00">nonblocking queue → sender/network threads</text>
 <text xml:space="preserve" text-anchor="middle" x="462.53" y="-241.29" font-family="Arial" font-size="11.00">MQTT broker</text>
 </g>
