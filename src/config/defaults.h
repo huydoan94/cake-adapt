@@ -9,6 +9,7 @@ struct config;
 #define DEFAULT_CONFIG_PATH "/etc/config/" UCI_PACKAGE
 #define DEFAULT_LOG_DIRECTORY "/var/log"
 #define DEFAULT_LOG_FILE_BASE PROGRAM_NAME
+#define DEFAULT_MQTT_CA_FILE "/etc/ssl/certs/ca-certificates.crt"
 
 /* Fixed operational defaults, separate from configurable UCI values. */
 #define CHILD_STOP_ATTEMPTS 50U

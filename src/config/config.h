@@ -24,10 +24,12 @@ struct config_direction {
 
 struct config_mqtt {
 	bool enabled;
+	bool tls;
 	char host[CONFIG_STRING_SIZE];
 	char topic[CONFIG_STRING_SIZE];
 	char username[CONFIG_STRING_SIZE];
 	char password[CONFIG_STRING_SIZE];
+	char ca_file[CONFIG_STRING_SIZE];
 	uint64_t port;
 };
 

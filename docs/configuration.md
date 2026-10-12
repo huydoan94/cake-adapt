@@ -118,10 +118,12 @@ RAM, so the defaults never write to flash.
 | `log_to_file` | boolean | `1` | Write the log file. |
 | `mqtt_enabled` | boolean | `0` | Forward generated cake-adapt records to MQTT on a background sender. |
 | `mqtt_host` | string | *(empty)* | Broker hostname or IPv4/IPv6 address, without a URL scheme, brackets or port. Required when MQTT is enabled. |
-| `mqtt_port` | integer | `1883` | Plain MQTT broker TCP port, 1–65535. |
+| `mqtt_port` | integer | `1883` | Broker TCP port, 1–65535. Set the broker's TLS port when TLS is enabled (commonly 8883). |
 | `mqtt_topic` | string | `cake-adapt/log` | Publish topic, without MQTT wildcards (`+`, `#`). Use distinct topics for instances or routers as needed. |
 | `mqtt_username` | string | *(empty)* | Optional broker username. |
 | `mqtt_password` | string | *(empty)* | Optional password; requires a username. Stored in UCI and the instance runtime file. |
+| `mqtt_tls` | boolean | `0` | Use certificate-verified TLS; requires an SSL build. |
+| `mqtt_ca_file` | string | `/etc/ssl/certs/ca-certificates.crt` | CA certificate file for TLS; an absolute path is required when TLS is enabled. |
 | `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
 | `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
@@ -144,10 +146,16 @@ records, headers, and messages allowed by the existing output and debug options.
 It sends only this instance's cake-adapt records, independently of `log_to_file`;
 it does not collect other services' syslog or replay existing log files.
 
-MQTT uses `libmosquitto-nossl`: TLS is unavailable, and traffic, including
-username/password credentials, is unencrypted. The earlier development
-`mqtt_tls` and `mqtt_ca_file` options have been removed. The package no longer
-requires OpenSSL or a CA bundle for MQTT.
+MQTT uses `libmosquitto-nossl` by default. The optional `ssl=yes` build adds TLS
+controls in LuCI: enable `mqtt_tls`, set the broker's TLS port, and use
+`mqtt_ca_file` for the CA certificate file. Its default is supplied by the SSL
+package's `ca-bundle` dependency. Custom CA files must use absolute paths.
+Certificates and broker hostnames are always verified; there is no insecure mode
+or plaintext fallback. Non-SSL builds reject enabled TLS configuration.
+
+TLS remains off by default. Plain connections send traffic, including
+username/password credentials, unencrypted. The default non-SSL package has no
+MQTT OpenSSL or CA-bundle dependency.
 
 The main thread only tries to copy a record into a 32-record queue (64 KiB when
 enabled). A sender thread and a network thread using libmosquitto handle publishing,

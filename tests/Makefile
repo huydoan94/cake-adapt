@@ -47,6 +47,23 @@ NETLINK_LIBS ?= $(shell pkg-config --libs libnl-3.0)
 UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 MQTT_CFLAGS ?= $(shell pkg-config --cflags libmosquitto 2>/dev/null)
 MQTT_LIBS ?= $(shell pkg-config --libs libmosquitto 2>/dev/null)
+ssl ?= no
+ifeq ($(ssl),yes)
+MQTT_TLS_SUPPORTED := 1
+else ifeq ($(ssl),no)
+MQTT_TLS_SUPPORTED := 0
+else
+$(error ssl must be yes or no)
+endif
+MQTT_CPPFLAGS := -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED)
+MQTT_BUILD_CONFIG := $(OBJECT_DIR)/mqtt-tls.config
+
+.PHONY: FORCE_MQTT_CONFIG
+$(MQTT_BUILD_CONFIG): FORCE_MQTT_CONFIG
+	@mkdir -p $(@D)
+	@printf '%s\n' '$(MQTT_TLS_SUPPORTED)' | cmp -s - $@ || printf '%s\n' '$(MQTT_TLS_SUPPORTED)' > $@
+
+$(BINARY_DIR)/test_config $(BINARY_DIR)/test_mqtt $(BINARY_DIR)/mqtt_driver: $(MQTT_BUILD_CONFIG)
 
 .PHONY: check-mqtt
 check-mqtt: $(BINARY_DIR)/test_mqtt
@@ -54,11 +71,11 @@ check-mqtt: $(BINARY_DIR)/test_mqtt
 
 $(BINARY_DIR)/test_mqtt: logging/test_mqtt.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS)
+	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS)
 
 $(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS) -lz
+	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS) -lz
 
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
@@ -101,7 +118,7 @@ check-config: $(BINARY_DIR)/test_config
 
 $(BINARY_DIR)/test_config: config/test_config.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/test_config.c $(CONFIG_SOURCES) $(LDLIBS) -lz
+	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/test_config.c $(CONFIG_SOURCES) $(LDLIBS) -lz
 
 .PHONY: check-netlink
 check-netlink: $(BINARY_DIR)/test_cake $(BINARY_DIR)/test_netlink
@@ -125,6 +142,11 @@ check: $(BINARIES)
 	sh ./test_init.sh
 	sh ./test_import.sh
 	sh ./test_luci.sh
+	python3 tools/test_sdk_build.py
+
+.PHONY: check-sdk-build
+check-sdk-build:
+	python3 tools/test_sdk_build.py
 
 .SECONDEXPANSION:
 $(BINARIES): $(BINARY_DIR)/%: $$(addprefix $(OBJECT_DIR)/,$$($$*_OBJECTS))

@@ -221,7 +221,7 @@ in that directory and is not included from outside it.
   - `memory.c`: the daemon's memory sampling from `/proc/self/status`.
 - `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
   export, reset behavior, and submission to the optional MQTT sender.
-- `logging/mqtt.c`: asynchronous plain MQTT transport through libmosquitto-nossl;
+- `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
   never makes controller decisions. Logging submissions never wait for a broker
   or queue space; offline, contended, full or oversized submissions drop silently.
@@ -562,10 +562,27 @@ SDK merely because a build needs it. Record changes and remaining files in
 `HANDOFF.md`.
 
 `tools/sdk-build.sh` also copies successful packages into the repository's
-`bin/`. It requires dependencies already staged, checks the actual Mosquitto
-library is non-SSL, and uses `NO_DEPS=1` to avoid recursive package/kernel builds.
-For validation without authorized artifact copying, use focused package
-Make targets in the selected SDK instead; see `docs/development.md`. Avoid
+`bin/`. Before invoking Make it checks declared build dependencies, staged
+headers/libraries, the SDK compiler and BPF tools, and required LuCI processing
+tools when linked. It reports the complete preparation plan first, registers
+missing package links from existing local feeds, and stages missing target
+libraries in dependency order. Check actual artifacts as well as stamps;
+Mosquitto's shared soname must match the selected variant: default `ssl=no` uses
+`libmosquitto-nossl`; optional `ssl=yes` uses `libmosquitto-ssl` and prepares OpenSSL
+first. Package dependencies must agree with the linked variant. SSL builds also
+require runtime `ca-bundle`, enable TLS support in the daemon and expose LuCI
+TLS/CA controls; TLS stays opt-in and must verify certificate trust and hostname.
+Non-SSL builds must reject active TLS configuration without a plaintext fallback.
+Use command-line
+package selections and `NO_DEPS=1`, without manual saved-selection edits or
+recursive kernel/toolchain builds. Missing SDK tools or unavailable local feeds
+must stop preflight before dependency Make calls. `--prepare-only` checks and
+prepares dependencies without building or copying app artifacts.
+Keep the preflight staging contracts consistent with package dependencies and
+the headers/libraries the daemon uses; a new unhandled library dependency must
+fail before Make rather than silently bypass preparation.
+For app validation without authorized artifact copying, use focused package
+Make targets in the selected SDK after preparation; see `docs/development.md`. Avoid
 recursive dependency builds when their side effects exceed the approved scope.
 
 Generate `compile_commands.json` with `tools/compile-commands.sh` from the x86

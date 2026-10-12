@@ -28,10 +28,100 @@ task's relevant docs before continuing. Keep this file current at stop points.
 - The user explicitly requested updating all relevant docs to include that
   workflow. `AGENTS.md`, collaboration/style guides, development/editor/test
   docs, product docs and design/spec notices now link to the same rules.
-- The user chose **non-SSL MQTT** on 2026-10-12. Use `libmosquitto-nossl`;
-  remove the MQTT OpenSSL/CA-bundle dependencies and TLS/CA controls. Plain
+- The user chose **non-SSL MQTT** as the default on 2026-10-12. The default
+  uses `libmosquitto-nossl` without MQTT OpenSSL/CA-bundle dependencies or TLS controls. Plain
   username/password authentication remains supported; traffic and credentials
   are unencrypted. Keep all queue, retry, logging and default-off behavior.
+- The user subsequently requested optional `ssl=yes` builds, retaining `ssl=no`
+  as the default, and explicitly confirmed restoring TLS broker settings in
+  LuCI. SSL builds must support verified TLS connections; non-SSL builds must
+  reject TLS configuration rather than silently sending plain traffic.
+- The subsequent Filogic kernel-build report was withdrawn as a false alarm.
+  The user requested automatic dependency staging before SDK builds, without
+  manually finding and changing MQTT selections in `.config`.
+
+## Completed follow-up: optional SSL builds and TLS settings
+
+`ssl=yes|no` is implemented; no-SSL remains the default. The helper verifies and
+stages all build dependencies before Make, repairs the actual selected Mosquitto
+variant, and prepares OpenSSL first for SSL. Package dependencies and compile
+capability agree. Matching LuCI builds expose TLS/CA controls only for SSL, retain
+inactive settings, and both daemons keep the typed options. TLS is off by default;
+active TLS in a no-SSL build is rejected. Certificate and hostname verification
+are mandatory; CA loading and connection work remain outside the daemon loop.
+All package builds use `NO_DEPS=1` and scoped selections with optional OpenSSL
+engines disabled. Normal helper SSL artifact copies have `-ssl` names; validation
+did not invoke the release-copy step.
+
+The 39-case helper suite, config and queue tests in both modes, LuCI checks,
+six real-library TLS cases and ASan/UBSan fixture with leak detection pass.
+The stalled peer closes near five seconds and retries near ten. Both x86
+daemon/LuCI package variants built and their dependencies, TLS symbols and
+packaged capability were checked. A reviewed isolated observation-only x86 VM
+batch passed verified TLS delivery, outage responsiveness, process/child cleanup,
+and unchanged installed service, qdiscs and test-log inode. Its initial missing
+native subscriber was fixed from cached source before the one affected rerun.
+The 16 flowcharts were regenerated and verified. Independent source/helper and
+incremental TLS/harness reviews closed their findings.
+
+Evidence and exact identities are in
+[profiling/2026-10-12-mqtt-ssl-build](profiling/2026-10-12-mqtt-ssl-build/README.md).
+No new download, system installation, Filogic build, kernel build, version bump,
+repo/bin copy, production deployment or commit occurred. Approved cached OpenSSL
+source was copied into x86 dl; OpenSSL feed/build/staging outputs remain there.
+The x86 saved configuration gained 34 normalized symbols but changed no existing
+selection; engine defaults were overridden off for these bounded builds.
+Final x86 Mosquitto staging and packages are restored to `ssl=no`. Ignored
+`build/sdk-ssl-validation/` retains detailed preparation/package logs and extracted
+SSL inputs; `build/tls-settings/` retains native/sanitizer evidence. VM temporary
+files and lock were removed. Future commits, release copies or deployment need
+an explicit request. Browser/production and control overhead acceptance remain
+open; these transport checks make no such claim.
+
+## Completed follow-up: all SDK build dependencies
+
+The user clarified that automatic preparation must cover all build dependencies,
+not only MQTT. The helper now preflights the declared daemon
+library dependencies, their build prerequisites, SDK compiler/BPF tools, and
+LuCI's actual asset-processing requirements before invoking any Make target.
+Missing artifacts or stamps trigger bounded preparation in dependency order.
+The contracts cover Lua, JSON-C, libubox/blobmsg-json, UCI, ubus, libnl-tiny,
+zlib, musl's argp/fts prerequisites, libelf, libbpf, c-ares and non-SSL Mosquitto.
+Required pkg-config metadata is checked along with headers and libraries.
+Shared-library ELF class, byte order and machine must match the SDK runtime.
+Unknown new direct or `PKG_BUILD_DEPENDS` declarations and unavailable tools/feeds
+stop before dependency Make calls. Dependency builds retain `NO_DEPS=1` and use
+command-line selections rather than editing saved SDK configuration. Missing
+optional LuCI minifiers warn and retain LuCI's existing original-asset fallback;
+missing translation tooling blocks when selected translations actually need it.
+
+An implementation agent updated `tools/sdk-build.sh`, `tools/sdk-dependencies.sh`
+and the fake-SDK regressions; the primary updated the docs and checked the real
+x86 SDK. A separate bounded review found missing pkg-config metadata contracts;
+the JSON-C, zlib and libelf contracts and regression cases were fixed and the
+review closed with no remaining findings. The final 25-case suite passed, along
+with shell syntax and diff checks. Logs are ignored
+`build/sdk-dependency-tests.log` and `build/sdk-x86.log`; contracts and the plan
+are also retained under ignored `build/` for diagnostics.
+
+The real x86 `--prepare-only` check reported all 13 dependency contracts ready,
+validated compiler/BPF tools and ELF compatibility, and invoked no Make targets.
+The existing SDK lacks optional jsmin, so its original-asset fallback was reported.
+Its `.config` checksum remained
+`f4551df6b0aa6fa53f1c3f89c793730763f3bbef0659260b952a74ceeca3688e`.
+No SDK mutation, new download, system install, app artifact copy or deployment
+occurred in this expanded follow-up. All repair/failure branches were exercised
+in isolated fake SDKs; no missing core dependency was forced in the user's SDK.
+The daemon C sources are unchanged, so existing runtime checks remain applicable.
+
+The earlier MQTT-only preparation passed nine fixture cases and real x86
+readiness. It repaired Filogic's SSL library from existing approved sources and
+built the Filogic daemon with `NO_DEPS=1`; no kernel targets ran and its `.config`
+checksum stayed `1af05411271905aa964fa7b9a385ab4ffc3444548f100292b814d8c338f58e32`.
+Those narrow results do not validate the expanded dependency helper. The earlier
+logs remain under ignored `build/`; staged outputs remain inside their SDKs.
+Existing MQTT source/runtime evidence is unchanged; its old helper hash identifies
+the earlier reject-only preflight.
 
 ## Completed work: optional MQTT log forwarding
 
@@ -48,10 +138,11 @@ published with QoS 0 and no retention. Separate sender and network threads own
 broker operations. Shutdown waits on the main thread are bounded. Existing log
 output flags and schemas remain in effect.
 
-The current dependency is `libmosquitto-nossl`. `mqtt_tls` and `mqtt_ca_file`
-were removed from the typed model, constants/defaults, validation, shipped UCI,
-LuCI and tests. The sender makes no TLS API calls. The broker fixture now takes
-`--library` explicitly so it records and loads the actual non-SSL library.
+During the initial non-SSL transition, the dependency became
+`libmosquitto-nossl`. `mqtt_tls` and `mqtt_ca_file` were removed from the typed model, constants/defaults, validation, shipped UCI,
+LuCI and tests, and that sender made no TLS API calls. The optional-SSL
+follow-up above supersedes those removals. The broker fixture takes `--library`
+explicitly so it records and loads the actual selected library.
 
 Changed subsystems: root and source Makefiles; `src/common/constants.h`;
 `src/config/`; `src/logging/`; `src/main.c`; shipped UCI; LuCI configuration;
@@ -60,7 +151,7 @@ configuration/technical docs; flowchart data and generated output; profiling
 index and MQTT evidence. Inspect `git status --short` for the exact current list
 and preserve all existing changes.
 
-## Current non-SSL verification
+## Historical non-SSL transition verification
 
 The [MQTT report](profiling/2026-10-11-mqtt-logging/README.md) and its
 [metadata](profiling/2026-10-11-mqtt-logging/metadata.json) identify tested sources,
@@ -103,7 +194,7 @@ inputs remain unchanged.
 
 The earlier TLS-capable implementation's report and metadata are preserved as
 `README-tls.md` and `metadata-tls.json` in the MQTT evidence directory. The
-following results apply to those old hashes, not the current non-SSL revision:
+following results apply to those old hashes, not the current optional-SSL follow-up:
 
 - Focused logging, queue, configuration, init/import, LuCI, replay and monitor
   host checks passed. Netlink checks passed outside the restricted sandbox.
@@ -152,13 +243,12 @@ These are task-scoped approvals, not permission for new SDKs or system installs:
   Local non-SSL library/subscriber builds remain under
   `build/mqtt-validation/nossl/`. The earlier TLS build remains separate for
   historical evidence and as a plain-listener broker fixture.
-- `tools/sdk-build.sh` now requires staged dependencies, checks that the actual
-  Mosquitto library is non-SSL, and uses `NO_DEPS=1` for both package builds.
-  SDK `CONFIG_ALL` may still select SSL variants; the helper does not recursively
-  build them. Its diagnostic retry keeps `NO_DEPS=1`, and an isolated preflight
-  rejected the actual older SSL library before any build or copy. It still copies
-  artifacts when invoked, so use direct package
-  targets for validation unless that copy is explicitly authorized.
+- The first `tools/sdk-build.sh` change required staged dependencies and rejected
+  the actual older SSL library before any build or copy. The follow-up above
+  supersedes that reject-only behavior with automatic preparation. Both app
+  builds and diagnostic retry retain `NO_DEPS=1`. Normal invocation still copies
+  artifacts, so use `--prepare-only` followed by direct package targets for
+  validation unless copying is explicitly authorized.
 
 The Filogic approval was given after that target had been proposed; it does not
 make Filogic the default or authorize using its headers to fix x86 IntelliSense.
@@ -202,8 +292,8 @@ recursive command was too broad for this validation; final builds used prepared
 dependencies and `NO_DEPS=1`, with unneeded OpenSSL engines excluded for those
 commands. Do not remove dependencies while still promising the behavior that
 requires them.
-The current user-directed non-SSL switch deliberately removes TLS support and
-that OpenSSL dependency chain. The existing SDK's unrelated OpenSSL packages
+The initial user-directed non-SSL switch removed TLS support and that OpenSSL
+dependency chain; the follow-up restores them only for optional `ssl=yes` builds. The existing SDK's unrelated OpenSSL packages
 and historical Filogic outputs have not been removed.
 
 ## Local commit authorization
