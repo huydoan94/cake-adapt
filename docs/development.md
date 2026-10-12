@@ -20,6 +20,13 @@ The APK is written below:
 bin/packages/<architecture>/base/
 ```
 
+The LuCI app is a second package in `luci-app-cake-adapt/`. It uses the LuCI
+feed's `luci.mk`, so the SDK needs the `luci` feed installed; link the
+directory as `package/luci-app-cake-adapt` and compile it the same way. It has
+no architecture (`all`). `tools/sdk-build.sh x86` (or `filogic`, or an SDK
+directory) cleans and builds `cake-adapt`, and `luci-app-cake-adapt` too when
+that link exists, copies the packages to `bin/`, and says why a build failed.
+
 GitHub Actions also discovers the OpenWrt 25.12 architecture list, runs the
 host tests, builds each architecture, and publishes packages as workflow
 artifacts. Tags beginning with `v` additionally publish the packages as GitHub
@@ -59,8 +66,15 @@ src/
 │                       reflector health and selection (reflector.c)
 ├── latency/            pinger sessions, fping/IRTT backends, parsing, tracking
 ├── cake/               CAKE discovery, state decoding, and bandwidth updates
+├── tcpdelay/           eBPF TCP filter and timestamp injector, their loaders,
+│                       and the per-flow queue estimator
 ├── platform/           rtnetlink transport, traffic rates, CPU and memory sampling
 └── logging/            syslog, structured records, rotation, export, reset
+files/
+├── cake-adapt.init     procd service: runtime files, reload, restart, respawn
+├── cake-adapt.import   builds /var/run/cake-adapt/<section>.uci from UCI
+└── cake-adapt.config   the shipped UCI template
+luci-app-cake-adapt/    Status and Configuration views, menu and rpcd ACL
 ```
 
 `controller/` has no knowledge of UCI, netlink, processes, or OpenWrt, and is
@@ -78,6 +92,12 @@ OpenWrt SDK:
 ```sh
 make -C tests check check-netlink
 ```
+
+`tools/host-test.sh` (the VS Code test task) runs `check`, `check-netlink`,
+`check-config` and `check-tcpdelay`, taking the `uci.h`, libubox and libbpf
+headers from the x86 SDK. `check` also runs the init script, importer and
+LuCI tests (`tests/test_init.sh`, `test_import.sh`, `test_luci.sh`); the LuCI
+test needs `node` and `python3`.
 
 `check` includes `test_replay`, which feeds two recorded cake-autorate traces
 (`tests/controller/fixtures/`) through the controller. Delay counts and
@@ -128,6 +148,9 @@ tools/capture-log.sh -l root@router cake-adapt.log         # print lines instead
 
 The router needs SSH key authentication; nothing is installed on it. Capture
 events (connect, disconnect, archive, stop) go to `cake-adapt.log.events`.
+The small follower the script runs on the router is final (it starts one
+process a second; its cost is in `profiling/2026-10-09-follower`); changes
+belong on the PC side.
 
 By default the console shows a status screen that is redrawn in place every
 second (this one was captured from the test VM's emulated ISP under load):
@@ -201,3 +224,21 @@ Known limitations, not yet fixed:
   again. One capture holds the same start record twice, 10,000 lines apart,
   with identical timestamps; the cut-off line is the likely cause, not yet
   confirmed.
+
+## Watching flow offloading
+
+`tools/offload-dashboard.sh` shows a router's software flow offloading over
+SSH, redrawn in place: the flowtable's devices, offloaded connections by
+protocol, the share of active TCP offloaded, conntrack table use, and each
+CPU's utilization. Offloaded traffic bypasses CAKE, so this shows how much of
+the line cake-adapt cannot see.
+
+```sh
+tools/offload-dashboard.sh root@router          # every 2 s, table every 10 s
+tools/offload-dashboard.sh -i 5 -t 30 root@router eth1
+```
+
+The optional last argument is the WAN device; it defaults to the device of
+the router's `wan` interface. Walking the conntrack table costs the router the most, so connection counts
+refresh only every `-t` seconds (default 10). It needs `gawk` on the PC and
+SSH key authentication, and reconnects after dropped connections and reboots.
