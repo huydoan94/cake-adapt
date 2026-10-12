@@ -109,7 +109,9 @@ in that directory and is not included from outside it.
 ### Module boundaries
 
 - `main.c`: CLI, startup, logging initialization, configuration loading,
-  top-level lifecycle, and orderly shutdown only.
+  the per-instance lock (`/var/run/cake-adapt/<section>.lock`, so a second
+  daemon with a running instance's name exits with an error), top-level
+  lifecycle, and orderly shutdown only.
 - `monitor/`: uloop orchestration and coordination between measurements,
   controller decisions, qdisc lifecycle, timers, and signals. All state is one
   `struct monitor` in the private `loop.h`, passed to every function; each
@@ -129,6 +131,12 @@ in that directory and is not included from outside it.
     scheduled comparison and replacement, and health checks.
   - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
     rate, and the timestamp injector's attachment and `TCP_INJECT` records.
+  - `status.c` (`status`): the instance's status snapshot from state the
+    monitor already holds.
+  - `publish.c` (`publish`): the status object on ubus, served from its own
+    thread so a stalled `ubusd` never blocks control; the main thread only
+    copies a snapshot under a mutex each traffic tick and logs what the thread
+    reports.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
@@ -211,6 +219,7 @@ substitutes:
 
 - `libuci` for configuration;
 - `libubox`/`uloop` for the event loop;
+- `libubus` for the status object;
 - rtnetlink/libnl for interface and qdisc operations;
 - `procd` for service lifecycle; and
 - kernel CAKE, IFB, `ctinfo`, and `mirred` facilities.
