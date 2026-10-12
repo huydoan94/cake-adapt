@@ -4,8 +4,16 @@ Raw evidence, mostly from the OpenWrt 25.12 x86 test VMs, kept with the code
 it measured. Each directory has its own README with the method, the result,
 and the scripts that produced it.
 
+For new evidence collection, Claude and Codex follow their respective workflows
+in [COLLABORATION.md](../COLLABORATION.md), the constraints in
+[AGENTS.md](../AGENTS.md), and the current [handoff](../HANDOFF.md). Development
+and VM validation default to x86. Historical reports preserve their original
+targets, authorship and results; they do not authorize repeating an experiment,
+changing SDKs, downloading dependencies or accessing production systems.
+
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-11-mqtt-logging`](2026-10-11-mqtt-logging/README.md) | Optional MQTT forwarding: silent offline/overflow drops, exact QoS 0 payloads, retries every 10 s, recovery, authentication and bounded shutdown. Current non-SSL validation is separated from superseded TLS-prototype evidence. No router deployment or CAKE performance claim. |
 | [`2026-10-11-restart-respawn`](2026-10-11-restart-respawn/README.md) | `restart` checks the new configuration first (`513eea7`): unchanged restarts with a new pid, a refused one keeps the pid and previous file with the reason in syslog, and without a previous file does not start; respawn registered as `3600 5 0` (never gives up); `connected to ubus` reaches `logread` at info and the log file. A named restart of a deleted or disabled section stops it and removes its file (`6a79733`). `disconnecting from ubus` host-tested only. |
 | [`2026-10-11-luci-checks`](2026-10-11-luci-checks/README.md) | LuCI app 0.3.16-r1 on the x86 VM: `service list` is granted and shows procd's running state and pid (stopped: no object), writes and `network` stay denied; the Configuration checks and the Status state text are covered by host tests. Not a browser. |
 | [`2026-10-11-dnsmasq-lifecycle`](2026-10-11-dnsmasq-lifecycle/README.md) | Service reload and ubus states copied from dnsmasq (`4fbaa0c`, `dabe4d0`): reload restarts only a changed instance, a refused configuration keeps the instance running with its previous file and pid, a removed or disabled section stops, per-instance start/stop/restart work; a killed `ubusd` gave dnsmasq's reconnect, no-connection and connected messages and republishing in 2 s, and control kept ticking through a stopped `ubusd`. |

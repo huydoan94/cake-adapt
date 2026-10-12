@@ -8,7 +8,7 @@ digraph G {
   pingers [label="pingers_stop_now:\ncancel pinger timers; free streams;\nSIGTERM groups; ≤500 ms; SIGKILL; reap",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   loop [label="remove qdisc fd; cancel timers;\nremove signal handlers;\npublish_stop (join ≤ 2 s, else detach);\nuloop_done",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   free [label="reflectors_stop; netlink_close;\ncontroller_close",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  log [label="syslog: Stopped cake-adapt …\nlog_close",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
+  log [label="syslog: Stopped cake-adapt …\nlog_close; mqtt_stop (≤1 s, else detach)",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   exit [label="exit 0 (signal) / 1 (failure)",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   degraded [label="degraded conditions\nlog once, continue,\nlog recovery",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   sig -> end;
