@@ -35,6 +35,13 @@ precedence when they are more restrictive.
   directory.
 - Make resource ownership explicit: the code that acquires a resource must have
   a clear cleanup path.
+- Let objects keep their own settings, set once through an init function or a
+  setter, and pass the object instead of long argument lists or values copied
+  between structures. Callbacks find their owner from the embedded member
+  (`container_of()`), not through an untyped context pointer.
+- When a function uses part of a structure more than once, take a local
+  pointer to it instead of repeating member-access chains that mix `->` and
+  `.`.
 
 ## Libraries and dependencies
 
@@ -207,4 +214,5 @@ Before declaring work complete:
   same change.
 - Verify release artifacts and their destinations with checksums.
 - Avoid destructive version-control or filesystem commands unless their exact
-  scope is requested and verified.
+  scope is requested and verified. Never rewrite published or shared history;
+  add follow-up commits on top.
