@@ -1,0 +1,37 @@
+ubusd=1022 daemon=11086
+INFO; 2026-10-11-10:47:31; 1791737251.851840; status published on ubus as cake-adapt.main
+10:47:42 ubusd 1022 killed (SIGTERM)
+10:47:44 procd respawned ubusd as 11126
+INFO; 2026-10-11-10:47:31; 1791737251.851840; status published on ubus as cake-adapt.main
+WARNING; 2026-10-11-10:47:42; 1791737262.650767; lost the ubus connection; status cake-adapt.main returns when ubusd does
+INFO; 2026-10-11-10:47:44; 1791737264.656256; status published on ubus as cake-adapt.main
+status call rc=0 after 0 ms (killed by watchdog: rc>=128)
+{
+	"version": "0.3.16-r1",
+	"pid": 11086,
+	"started": 1791737251,
+	"state": "running",
+	"download": {
+		"interface": "ifb4eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15699,
+		"load_e6": 784,
+		"delay_us": 1716,
+		"bufferbloat": false
+	},
+	"upload": {
+		"interface": "eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15699,
+		"load_e6": 784,
+		"delay_us": 1716,
+		"bufferbloat": false
+	}
+}
+daemon still 11086, alive: yes
+Sun Oct 11 10:47:01 2026 daemon.warn cake-adapt[10836]: WARNING: 1791737221.080081 status not on ubus yet (ubusd unavailable?); retrying
+Sun Oct 11 10:47:31 2026 daemon.info cake-adapt[10836]: INFO: 1791737251.111822 Stopped cake-adapt with PID: 10836, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:47:31 2026 daemon.info cake-adapt[11086]: INFO: 1791737251.392711 Starting cake-adapt 0.3.16-r1 with PID: 11086, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:47:42 2026 daemon.warn cake-adapt[11086]: WARNING: 1791737262.650767 lost the ubus connection; status cake-adapt.main returns when ubusd does

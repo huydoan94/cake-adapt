@@ -1,0 +1,5 @@
+7e361b82082419e5fbc172e3b89f79391e6b1423222c11616432ee522dab7765  /tmp/cake-adapt-restart.apk
+  Executing cake-adapt-0.3.16-r1.post-upgrade
+OK: 31.8 MiB in 224 packages
+f8686bb5ee75742b9eeaae671005ee6c78cabbd62ade04440626bc0250049648  /usr/sbin/cake-adapt
+0ba9cc87ff2b33bf2c5286129f087cdfb5539ed15efe364a1f0a180dfd5b5f1b  /etc/init.d/cake-adapt

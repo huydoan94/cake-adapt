@@ -1,0 +1,40 @@
+== before
+2975
+	option base_dl_shaper_rate_kbps '20000'
+== valid change base_dl 25000
+{"jsonrpc":"2.0","id":1,"result":[0]}
+{"jsonrpc":"2.0","id":1,"result":[0]}
+6604
+	option base_dl_shaper_rate_kbps '25000'
+25000
+== refused: min_dl 30000 (> base)
+{"jsonrpc":"2.0","id":1,"result":[0]}
+{"jsonrpc":"2.0","id":1,"result":[0]}
+pid: 
+	option min_dl_shaper_rate_kbps '10000'
+active with no instances
+{
+	"cake-adapt": {
+		"start": 95,
+		"stop": 10,
+		"enabled": true,
+		"running": false
+	}
+}
+Sat Oct 10 22:02:10 2026 daemon.warn cake-adapt[2975]: WARNING: 1791691330.181958 traffic observation unavailable: direction=download interface=ifb4eth1
+Sat Oct 10 22:02:10 2026 daemon.warn cake-adapt[2975]: WARNING: 1791691330.181973 traffic observation unavailable: direction=upload interface=eth1
+Sat Oct 10 22:02:10 2026 daemon.warn cake-adapt[2975]: WARNING: 1791691330.616191 line load unavailable: direction=download
+Sat Oct 10 22:05:25 2026 daemon.info cake-adapt[2975]: INFO: 1791691525.472280 Stopped cake-adapt with PID: 2975, config: /var/run/cake-adapt/main.uci, section: main
+Sat Oct 10 22:05:25 2026 daemon.info cake-adapt[6604]: INFO: 1791691525.665392 Starting cake-adapt 0.3.16-r1 with PID: 6604, config: /var/run/cake-adapt/main.uci, section: main
+Sat Oct 10 22:05:30 2026 daemon.info cake-adapt[6604]: INFO: 1791691530.501682 Stopped cake-adapt with PID: 6604, config: /var/run/cake-adapt/main.uci, section: main
+Sat Oct 10 22:05:30 2026 daemon.err cake-adapt[6809]: ERROR: 1791691530.588144 configuration error: download rates must satisfy minimum <= base <= maximum
+Sat Oct 10 22:05:30 2026 daemon.err cake-adapt: could not generate /var/run/cake-adapt/main.uci; not starting instance 'main'
+== restore
+{"jsonrpc":"2.0","id":1,"result":[0]}
+{"jsonrpc":"2.0","id":1,"result":[0]}
+{"jsonrpc":"2.0","id":1,"result":[0]}
+{"jsonrpc":"2.0","id":1,"result":[0]}
+7305
+	option min_dl_shaper_rate_kbps '10000'
+	option base_dl_shaper_rate_kbps '20000'
+running

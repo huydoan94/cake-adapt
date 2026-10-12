@@ -1,0 +1,16 @@
+config identical to before
+0
+d0a68a8bbe1c78f8d495137c9889b1ca3c1a198f7ab50af439cf33ce101ad6c4  /usr/sbin/cake-adapt
+e8f4fd3eb1e8c43b991c018306d4fb7b79f8ce63640d8d787347eeb8fbe8e9b4  /etc/init.d/cake-adapt
+				"running": true,
+				"pid": 3386,
+drwx------    2 root     root            80 Oct 11 12:13 .
+drwxr-xr-x    7 root     root           280 Oct 11 12:14 ..
+-rw-------    1 root     root             5 Oct 11 12:13 main.lock
+-rw-------    1 root     root          1689 Oct 11 12:13 main.uci
+4754
+0
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 11106Kbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 11106Kbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ls: /tmp/sqm-mon-test.log: No such file or directory
+ 12:16:06 up 2 min,  load average: 0.56, 0.21, 0.07

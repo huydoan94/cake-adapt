@@ -10,7 +10,9 @@ agents use a scoped task brief with the applicable policy excerpts.**
 `cake-adapt` is an OpenWrt-native C daemon for adapting the bandwidth of
 existing CAKE qdiscs. The package, executable, service, syslog identifier, and
 UCI package are all named `cake-adapt`, as is the GitHub repository; a local
-checkout may still be named `sqm-mon` for historical reasons.
+checkout may still be named `sqm-mon` for historical reasons. A second package,
+`luci-app-cake-adapt`, adds the LuCI pages; both are released together with
+the same version.
 
 CAKE remains a Linux kernel qdisc. Never reimplement packet scheduling in
 userspace.
@@ -23,8 +25,10 @@ observe -> verify -> control existing CAKE -> replace cake-autorate behavior
 ```
 
 The current daemon observes and controls CAKE instances created by the existing
-SQM setup. It does not yet own CAKE or IFB creation, ingress redirection,
-`ctinfo`, `mirred`, or cleanup. Do not advance that boundary without an explicit
+SQM setup. A root `cake_mq` (multi-queue CAKE) is controlled like a single
+CAKE through its shared settings; the kernel splits its rate equally among
+busy queues (`profiling/2026-10-10-cake-mq`). It does not yet own CAKE or IFB
+creation, ingress redirection, `ctinfo`, `mirred`, or cleanup. Do not advance that boundary without an explicit
 user decision and verified behavior at the current stage.
 
 Replacing all historical `sqm-scripts` behavior is not a goal. If native SQM
@@ -109,7 +113,9 @@ in that directory and is not included from outside it.
 ### Module boundaries
 
 - `main.c`: CLI, startup, logging initialization, configuration loading,
-  top-level lifecycle, and orderly shutdown only.
+  the per-instance lock (`/var/run/cake-adapt/<section>.lock`, so a second
+  daemon with a running instance's name exits with an error), top-level
+  lifecycle, and orderly shutdown only.
 - `monitor/`: uloop orchestration and coordination between measurements,
   controller decisions, qdisc lifecycle, timers, and signals. All state is one
   `struct monitor` in the private `loop.h`, passed to every function; each
@@ -129,6 +135,12 @@ in that directory and is not included from outside it.
     scheduled comparison and replacement, and health checks.
   - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
     rate, and the timestamp injector's attachment and `TCP_INJECT` records.
+  - `status.c` (`status`): the instance's status snapshot from state the
+    monitor already holds.
+  - `publish.c` (`publish`): the status object on ubus, served from its own
+    thread so a stalled `ubusd` never blocks control; the main thread only
+    copies a snapshot under a mutex each traffic tick and logs what the thread
+    reports.
 - `common/`
   - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
     prose diagnostics, format strings, and module-owned record schemas local.
@@ -192,13 +204,38 @@ in that directory and is not included from outside it.
     floors, window minimums); platform-independent and unit-tested.
   The filter object is installed as `/lib/bpf/cake-adapt-tcpdelay.o`; a filter
   the kernel rejects degrades TCP measurement, never the daemon.
-- `cake/cake.c`: CAKE discovery, state decoding, and CAKE-specific operations.
+- `cake/cake.c`: CAKE and root `cake_mq` discovery, state decoding, and
+  CAKE-specific operations; `cake/accounting.h` holds the upload CAKE's packet
+  charge settings shared with the socket filter.
 - `platform/`
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
   - `traffic.c`: counter samples and achieved-rate calculations only.
   - `cpu.c`: CPU sampling and usage calculations only.
+  - `memory.c`: the daemon's memory sampling from `/proc/self/status`.
 - `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
   export, and reset behavior.
+
+Outside `src/`:
+
+- `files/cake-adapt.init`: the procd service, modelled on dnsmasq. Each
+  instance runs from its own runtime file,
+  `/var/run/cake-adapt/<section>.uci`, which procd watches. Reload restarts
+  only changed instances; reload and restart keep an instance whose new
+  configuration `cake-adapt -V` refuses running its previous file;
+  `start`, `stop`, `restart` and `reload` take an optional section; instances
+  are registered with `respawn 3600 5 0` (never give up).
+- `files/cake-adapt.import` (installed as `/usr/libexec/cake-adapt/import`):
+  builds the runtime file with `uci get`/`uci set`, filling options UCI leaves
+  unset from the standalone shell `config_file`; UCI always wins. The
+  daemon's `-C` takes that one file and makes a relative `-C` or
+  `log_file_path_override` path absolute.
+- `files/cake-adapt.config`: the shipped UCI template.
+- `luci-app-cake-adapt/`: the Status view (per-instance state from procd,
+  actions, and line charts from the ubus status) and the Configuration view
+  (Advanced sub-tabs, on-screen checks of every daemon validation rule). Use
+  stock LuCI widgets and theme classes only, with no custom CSS or third-party
+  JavaScript. `tests/test_luci.sh` checks that the Configuration view names
+  exactly the daemon's options.
 
 Before adding a function, search for an existing equivalent. Consolidate
 duplicate conversions, parsing, percentage, timing, and bounds logic in the
@@ -211,6 +248,7 @@ substitutes:
 
 - `libuci` for configuration;
 - `libubox`/`uloop` for the event loop;
+- `libubus` for the status object;
 - rtnetlink/libnl for interface and qdisc operations;
 - `procd` for service lifecycle; and
 - kernel CAKE, IFB, `ctinfo`, and `mirred` facilities.
@@ -313,6 +351,13 @@ not split a message into fragments that are passed around as values.
 Never pass a literal `true` or `false` as a function argument. Give the call a
 meaning instead: separate functions sharing a static worker, an enum, a
 pointer that is `NULL` or not, or a variable whose name says what it holds.
+
+Objects keep their own settings, set once through an init function or a
+setter (`tcpdelay_estimator_set_bound(estimator, queue_bound_us)`), and are
+passed around instead of long argument lists or values copied between structs.
+Callbacks find their owner with `container_of()`, as uloop does, not through a
+`void *` context. Never mix `->` and `.` in one member-access chain: take a
+local pointer (`struct monitor_tcp *tcp = &monitor->tcp;`).
 
 Write quantities for quick visual understanding. Express durations and rates
 in readable units using the existing unit constants (for example,
@@ -479,12 +524,16 @@ source logs are in `profiling/controller-comparison/`.
 
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
 builds for host-only work. Use the `.vscode/tasks.json` tasks: the host test
-task runs `check`, `check-netlink` and `check-config`, and each SDK build task
-cleans and compiles the package in the SDK beside the repository
-(`../openwrt-sdk-x86`, `../openwrt-sdk-filogic`) or in `OPENWRT_SDK_X86` /
-`OPENWRT_SDK_FILOGIC`. Do not guess other SDK locations, and keep absolute or
-personal paths out of `.vscode/`. OpenWrt 25.12 is the only release target for
-now. Never touch `openwrt-image-builder`.
+task (`tools/host-test.sh`) runs `check`, `check-netlink`, `check-config` and
+`check-tcpdelay`, where `check` also runs the init, import and LuCI script
+tests (`node` and `python3` needed), and each SDK build task
+(`tools/sdk-build.sh`) cleans and compiles the package in the SDK beside the
+repository (`../openwrt-sdk-x86`, `../openwrt-sdk-filogic`) or in
+`OPENWRT_SDK_X86` / `OPENWRT_SDK_FILOGIC`, and `luci-app-cake-adapt` too when
+the SDK's `package/luci-app-cake-adapt` links to this repository's. Do not
+guess other SDK locations, and keep absolute or personal paths out of
+`.vscode/`. OpenWrt 25.12 is the only release target for now. Never touch
+`openwrt-image-builder`.
 
 Do not bump `PKG_VERSION` or `PKG_RELEASE`, copy artifacts, deploy, or publish a
 release unless the user explicitly asks. When asked to build both SDKs, run the
@@ -592,8 +641,15 @@ Do not claim parity for a new behavior from host tests alone. `fping` remains
 the only supported production pinger until every additional backend has
 independent parser, lifecycle, fixture, and runtime verification.
 
-### Current status (2026-10-09)
+### Current status (2026-10-11)
 
+- Both packages are at 0.3.17-r1. The user builds them and runs them on their
+  Filogic routers; the arm64 VM is no longer needed before a deployment.
+- 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
+  `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
+  ubus status object `cake-adapt.<section>` served from its own thread, the
+  per-instance lock, the dnsmasq-style reload/restart and `respawn 3600 5 0`,
+  and `luci-app-cake-adapt` (`2026-10-10-luci-app`, `2026-10-11-*`).
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
@@ -601,15 +657,19 @@ independent parser, lifecycle, fixture, and runtime verification.
   (`5458100`, design, tools and unfinished work archived in
   `2026-10-05-tcp-lifetime-stream`). Do not restart it without a user decision
   and a concrete deployment need.
-- Packages are at 0.3.15-r1, and the user runs them on their Filogic routers;
-  the arm64 VM is no longer needed before a deployment. The x86 test VM runs
-  the 0.3.15 package with `tcp_ts_request` on, and that code passed the
-  lifecycle checks and a controlled run (`2026-10-09-tcp-inject-ipv6`).
-- Waiting on field data from the routers: whether `TCP_INJECT` shows
-  `ACCEPTED` close to `INJECTED` with few `STALLED`, and an on/off testbed
-  comparison of whether injection reduces bufferbloat.
+- Open and waiting on the user:
+  - field data from the routers on whether `TCP_INJECT` shows `ACCEPTED` close
+    to `INJECTED` with few `STALLED`, and an on/off testbed comparison of
+    whether injection reduces bufferbloat;
+  - `cake_mq` on 300-500 Mbit/s sites, observed by the user in the field;
+  - the estimator's sustained change in remote reply timing (the user decides
+    later whether to take it up);
+  - the LuCI pages' look, which the user checks in a browser;
+  - the `MEMORY` record's `PEAK_RSS_KB` (VmHWM) is unreliable: analyses take
+    the maximum `RSS_KB`, and a daemon fix waits for a planned build.
 - The user keeps the version bump, pushing, the router install, fping-ts on
-  internet reflectors, and the root README.
+  internet reflectors, and the root README's own prose. The agent keeps
+  `profiling/README.md` and the flowchart output current.
 
 ## VM testing and delegation
 
@@ -652,11 +712,11 @@ At the beginning of a test:
 Never delete, move, replace, or pipe through `tee` to this file. Do not start or
 stop the user's `tail -f`. At the end, confirm the inode is unchanged.
 
-Before mutating the VM, record its service configuration, running processes,
-installed package/version state, relevant files, and complete CAKE qdisc
-handles, options, and rates. Before replacing an installed package, make sure
-the exact rollback artifact exists. If it does not, extract and run the test
-binary in isolation instead of replacing the package.
+The test VMs are for testing only. Their installed packages, service
+configuration, filter object and files may be changed freely and need not be
+restored; record what was changed (package version, UCI, files, qdisc
+handles, options and rates) in the run's evidence so the user can look back.
+Never run two controllers on one CAKE, whatever is installed.
 
 Bound every transfer and network operation. Prefer a controlled local endpoint
 when public upload/download services are unreliable, verify that `ip route get`
@@ -666,10 +726,13 @@ payload. Exercise sustained download, upload, and bidirectional load; inspect
 qdisc disappearance/reappearance only after capturing enough state to recreate
 the exact original qdisc.
 
-After the test, stop test processes, remove only test-created payloads, and
-restore the exact original service, package, configuration, and qdisc state.
+After the test, stop test processes and remove only test-created payloads.
 Confirm the test-log inode is unchanged and no test-owned daemon or `fping`
-child remains. Use exact executable paths or `pidof` for process checks because
+child remains. After killing or stopping `ubusd`, restart `rpcd`, `dnsmasq`,
+`odhcpd` and `uhttpd` (or reboot) and check LuCI's `getFeatures` through
+`uhttpd` (`curl http://127.0.0.1/ubus`); otherwise LuCI stays broken.
+
+Use exact executable paths or `pidof` for process checks because
 `pgrep -af cake-adapt` can match the audit command itself. Do not kill an
 unrelated legacy process merely because it owns an `fping` child.
 
@@ -679,7 +742,8 @@ All work happens only in WSL and the test VMs. Never read, list, write or run
 anything under `/mnt/c`, `/mnt/d` or any other Windows mount, and never touch
 the Windows host, unless the user says exactly what to do. The only allowed
 access to the Windows host is pinging `192.168.56.1` (also as a test
-reflector).
+reflector). Never connect to the user's production routers, and never write
+their hostnames in any file, commit or report.
 
 - **x86 VM, `192.168.56.2`:** the primary test VM (OpenWrt 25.12 x86, a 32-bit
   kernel). It and its clone panic about once per 25-60 minutes of load in the
@@ -689,10 +753,10 @@ reflector).
   rerun the lost run.
 - **x86 VM clone, `192.168.56.5`:** a second x86 VM for parallel work, such as
   soak tests.
-- **arm64 VM, `192.168.50.5`:** OpenWrt 25.12 `armsr/armv8`, used to run the
-  Filogic build. Its CPU is emulated, so it gives functional results only, never
-  timings. Packages may be installed and files changed freely there, with no
-  rollback: the user resets it.
+- **arm64 VM, `192.168.50.5`:** OpenWrt 25.12 `armsr/armv8`, which ran the
+  Filogic build before the user deployed it on real routers. It is no longer
+  needed before a deployment. Its CPU is emulated, so it gives functional
+  results only, never timings. The user resets it.
 
 During long VM runs, move each run's results to disk (for example under
 `/root`) as soon as it ends, so a panic loses only the run in progress, and
@@ -707,7 +771,8 @@ Permissions the user has granted:
 - restructure `monitor/` and move responsibilities between its files and the
   controller (done on 2026-10-03: one `struct monitor`, a part per file, load
   classification in the controller);
-- install packages on the arm64 VM without restoring them;
+- change packages, configuration and files on the test VMs without restoring
+  them, recording what changed;
 - rebuild the VM image with `openwrt-dev-builder` (never touch
   `openwrt-image-builder`).
 
@@ -721,6 +786,14 @@ and version management stay with the user.
   modify, rewrite, delete, or otherwise touch any other branch or remote.
   Never fetch, pull, push, force-push, or contact a remote; branch and remote
   management belongs exclusively to the user.
+- Never rebase, squash, amend or otherwise rewrite history; a follow-up is a
+  new commit on top.
+- Commit only when asked or as part of an authorised task. Stage with explicit
+  pathspecs, never commit a temporary plan doc (such as
+  `docs/superpowers/plans/`), and add no `Co-Authored-By` or other AI
+  attribution trailer.
+- A temporary plan doc the user keeps in the repository wins over lagging
+  `AGENTS.md` or README text: point out the conflict and follow the plan.
 - Treat `AGENTS.md` as user-owned policy; edit it only when explicitly asked.
 - Inspect `git status` first and preserve unrelated user changes.
 - Verify a surprising observation once before changing known-working code.
@@ -762,3 +835,8 @@ and version management stay with the user.
   scope change or conflict before acting; do not infer permission for branch,
   remote, version, publication, deployment, or Windows operations beyond the
   user's explicit instructions.
+- After laying out options, ask which one the user wants and wait for the
+  answer before acting on any of them.
+- When asked what something means, answer with a concrete worked example.
+- Run long VM runs and builds in the background and wait for their completion
+  instead of blocking or polling.

@@ -1,0 +1,10 @@
+ubusd=1022 daemon=10836
+10:47:22 ubusd stopped
+10:47:31 init stop still waiting after 8 s (it asks procd over ubus); daemon 10836 alive: yes
+10:47:31 ubusd continued
+daemon 10836 exited 110 ms after CONT (8120 ms after the stop command)
+init stop rc=0
+SYSLOG; 2026-10-11-10:46:45; 1791737205.771298; Stopped cake-adapt with PID: 10766, config: /var/run/cake-adapt/main.uci, section: main
+INFO; 2026-10-11-10:47:31; 1791737251.007822; received signal 15; shutting down
+SYSLOG; 2026-10-11-10:47:31; 1791737251.111822; Stopped cake-adapt with PID: 10836, config: /var/run/cake-adapt/main.uci, section: main
+started again: 11086

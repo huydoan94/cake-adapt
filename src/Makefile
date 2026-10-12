@@ -49,6 +49,8 @@ SOURCES := \
 	monitor/pingers.c \
 	monitor/reflectors.c \
 	monitor/tcpdelay.c \
+	monitor/status.c \
+	monitor/publish.c \
 	platform/cpu.c \
 	platform/memory.c \
 	platform/netlink.c \
@@ -66,7 +68,7 @@ DEPENDENCIES := $(OBJECTS:.o=.d) $(BPF_OBJECT:.o=.d)
 all: $(TARGET) $(if $(BPF_CLANG),$(BPF_OBJECT))
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(LDLIBS) -luci -lubox -lz -lbpf $(NETLINK_LIBS)
+	$(CC) $(LDFLAGS) -pthread -o $@ $(OBJECTS) $(LDLIBS) -luci -lubus -lubox -lz -lbpf $(NETLINK_LIBS)
 
 # Subsystem headers are included relative to this source root.
 $(OBJECT_DIR)/%.o: %.c

@@ -129,7 +129,11 @@ void monitor_tick(struct monitor *monitor)
 
 static void handle_traffic_timer(struct uloop_interval *timer)
 {
-	monitor_tick(__extension__ container_of(timer, struct monitor, traffic_timer));
+	struct monitor *monitor = __extension__ container_of(timer, struct monitor, traffic_timer);
+
+	monitor_tick(monitor);
+	/* After the tick, so also while the links are not ready. */
+	publish_update(monitor);
 }
 
 /*
@@ -296,7 +300,7 @@ static void start_activity(struct monitor *monitor)
 	activity_init(&monitor->activity, &activity_config);
 }
 
-int monitor_run(const struct config *config)
+int monitor_run(const struct config *config, const char *section_name)
 {
 	struct monitor monitor = {
 		.config = config,
@@ -363,6 +367,8 @@ int monitor_run(const struct config *config)
 
 	if (links_watch_events(&monitor) != 0)
 		goto uloop_done;
+	/* After uloop_init(): the ubus thread relies on it; see publish.c. */
+	publish_start(&monitor, section_name);
 
 	for (index = 0; index < ARRAY_SIZE(required_timers); ++index) {
 		if (uloop_interval_set(
@@ -402,6 +408,7 @@ uloop_done:
 	(void)uloop_interval_cancel(&monitor.log_timer);
 	(void)uloop_signal_delete(&monitor.log_export_signal);
 	(void)uloop_signal_delete(&monitor.log_reset_signal);
+	publish_stop(&monitor);
 	uloop_done();
 
 done:

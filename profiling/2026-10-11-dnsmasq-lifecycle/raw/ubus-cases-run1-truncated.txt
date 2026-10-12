@@ -1,0 +1,3 @@
+daemon=7601 ubusd=1019
+-- ubus lines since the daemon started (first-try connection is not logged):
+== B1 ubusd killed (cases 1, 2, 3)

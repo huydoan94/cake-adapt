@@ -1,0 +1,43 @@
+ubusd=1022 daemon=10686
+10:46:22 ubusd stopped
+10:46:22 daemon 10686 killed; waiting for procd to respawn it
+10:46:28 respawned as 10766
+10:46:43 lines=6993 DATA=2027 LOAD=525 last=LOAD; 2026-10-11-10:46:42; 1791737202.95
+-- log lines about start, ubus or warnings:
+SYSLOG; 2026-10-11-10:45:55; 1791737155.322542; Starting cake-adapt 0.3.16-r1 with PID: 10686, config: /var/run/cake-adapt/main.uci, section: main
+INFO; 2026-10-11-10:46:00; 1791737160.381536; status published on ubus as cake-adapt.main
+SYSLOG; 2026-10-11-10:46:27; 1791737187.692413; Starting cake-adapt 0.3.16-r1 with PID: 10766, config: /var/run/cake-adapt/main.uci, section: main
+WARNING; 2026-10-11-10:46:37; 1791737197.950083; status not on ubus yet (ubusd unavailable?); retrying
+-- threads of 10766:
+/proc/10766/task/10766 wchan=do_epoll_wait.part.0 State:	S (sleeping)
+/proc/10766/task/10791 wchan=unix_stream_read_generic State:	S (sleeping)
+10766 root      2500 S    /usr/sbin/cake-adapt -C /var/run/cake-adapt/main.uci -S main
+10767 root      1456 S    {cake-adapt} /bin/sh /etc/rc.common /etc/init.d/cake-adapt running
+10785 root      1456 S    {cake-adapt} /bin/sh /etc/rc.common /etc/init.d/cake-adapt running
+10786 root      1456 S    {cake-adapt} /bin/sh /etc/rc.common /etc/init.d/cake-adapt running
+10787 root      1004 S    jsonfilter -l 1 -e @['cake-adapt'].instances[*].running
+10790 root      1120 S    ubus call service list { "name": "cake-adapt" }
+10792 root      1920 S    /usr/bin/fping -I eth1 --timestamp --loop --period 300 --interval 50 --timeout 10000 156.154.71.3 64.6.65
+== step 4: SIGTERM (what procd sends) to 10766 while ubusd is stopped
+10:46:45 daemon 10766 exited 2090 ms after SIGTERM
+WARNING; 2026-10-11-10:46:45; 1791737205.692461; ubus status thread did not stop within 2.0 s; leaving it behind
+INFO; 2026-10-11-10:46:45; 1791737205.692566; Stopped TCP timestamp injection with injected SYNs: 0 and stalls: 0
+SYSLOG; 2026-10-11-10:46:45; 1791737205.771298; Stopped cake-adapt with PID: 10766, config: /var/run/cake-adapt/main.uci, section: main
+10:46:50 procd respawned it as 10836
+10 s warnings logged by 10836: 3 (file holds both runs if not rotated)
+== CONT ubusd
+10:47:02 ubusd continued
+published logged within ~0 s of CONT:
+INFO; 2026-10-11-10:46:00; 1791737160.381536; status published on ubus as cake-adapt.main
+WARNING; 2026-10-11-10:46:37; 1791737197.950083; status not on ubus yet (ubusd unavailable?); retrying
+WARNING; 2026-10-11-10:47:01; 1791737221.080081; status not on ubus yet (ubusd unavailable?); retrying
+status call rc=0 after 0 ms (killed by watchdog: rc>=128)
+	"pid": 10836,
+	"state": "running",
+pid now 10836 / 10836
+Sun Oct 11 10:46:27 2026 daemon.info cake-adapt[10766]: INFO: 1791737187.692413 Starting cake-adapt 0.3.16-r1 with PID: 10766, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:46:37 2026 daemon.warn cake-adapt[10766]: WARNING: 1791737197.950083 status not on ubus yet (ubusd unavailable?); retrying
+Sun Oct 11 10:46:45 2026 daemon.warn cake-adapt[10766]: WARNING: 1791737205.692461 ubus status thread did not stop within 2.0 s; leaving it behind
+Sun Oct 11 10:46:45 2026 daemon.info cake-adapt[10766]: INFO: 1791737205.771298 Stopped cake-adapt with PID: 10766, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:46:50 2026 daemon.info cake-adapt[10836]: INFO: 1791737210.812637 Starting cake-adapt 0.3.16-r1 with PID: 10836, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:47:01 2026 daemon.warn cake-adapt[10836]: WARNING: 1791737221.080081 status not on ubus yet (ubusd unavailable?); retrying

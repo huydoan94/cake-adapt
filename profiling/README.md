@@ -6,6 +6,11 @@ and the scripts that produced it.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-11-restart-respawn`](2026-10-11-restart-respawn/README.md) | `restart` checks the new configuration first (`513eea7`): unchanged restarts with a new pid, a refused one keeps the pid and previous file with the reason in syslog, and without a previous file does not start; respawn registered as `3600 5 0` (never gives up); `connected to ubus` reaches `logread` at info and the log file. A named restart of a deleted or disabled section stops it and removes its file (`6a79733`). `disconnecting from ubus` host-tested only. |
+| [`2026-10-11-luci-checks`](2026-10-11-luci-checks/README.md) | LuCI app 0.3.16-r1 on the x86 VM: `service list` is granted and shows procd's running state and pid (stopped: no object), writes and `network` stay denied; the Configuration checks and the Status state text are covered by host tests. Not a browser. |
+| [`2026-10-11-dnsmasq-lifecycle`](2026-10-11-dnsmasq-lifecycle/README.md) | Service reload and ubus states copied from dnsmasq (`4fbaa0c`, `dabe4d0`): reload restarts only a changed instance, a refused configuration keeps the instance running with its previous file and pid, a removed or disabled section stops, per-instance start/stop/restart work; a killed `ubusd` gave dnsmasq's reconnect, no-connection and connected messages and republishing in 2 s, and control kept ticking through a stopped `ubusd`. |
+| [`2026-10-11-ubus-thread`](2026-10-11-ubus-thread/README.md) | The ubus status thread (`96bbd7b`): control went on through 60 s of a stopped `ubusd` under load, a daemon started without `ubusd` controlled and warned once, SIGTERM with its thread stuck in libubus ended it in 2.1 s, and a `ubusd` restart was followed by republishing. The instance lock (`33646d1`): a second daemon for `main` exited 1 in 10 ms naming the running pid. |
+| [`2026-10-10-luci-app`](2026-10-10-luci-app/README.md) | `luci-app-cake-adapt` 0.3.16-r1 on the x86 VM: ACL grants status, uci and rc list and refuses `network.interface`; views and menu are served; Save & Apply restarts the daemon, and a minimum above the base is refused with the reason in syslog. The visual check is still a person's. |
 | [`2026-10-10-cake-mq`](2026-10-10-cake-mq/README.md) | cake-adapt controls a root `cake_mq` like a single CAKE (901 changes, every per-queue child followed the root); control matched plain CAKE except under bidirectional load, where `cake_mq` passed 3.3 of 6 Mbit/s upload because it splits the rate equally among busy queues. |
 | [`2026-10-09-follower`](2026-10-09-follower/README.md) | Cost of `capture-log.sh`'s follower on the router: about 0.33% of a core plus 0.1% for its SSH session on the x86 VM, twice the daemon's own 0.16%, almost all from starting `ls`, `cat` and `sleep` every second; the POSIX rewrite of its watchdog costs the same, and the one-`cat` follower 68% less. |
 | [`2026-10-09-profile`](2026-10-09-profile/README.md) | **Latest profile.** 0.3.15 against 0.3.12 with flame graphs over seven workloads, two of them IPv6: same CPU (0.15–0.42% of a core) and memory (2.1 MB), injector half the cost per packet on IPv4 traffic and unchanged on IPv6. |
@@ -45,7 +50,7 @@ and the scripts that produced it.
 | [`2026-10-03-ebpf-design-history`](2026-10-03-ebpf-design-history/README.md) | Design record: why fping alone is insufficient, the feasibility spike and CPU cost that justified the eBPF socket filter, the fixed-cap attempt that preceded the dynamic ACK share, and the net before/after numbers. No raw data; links to the two entries below for evidence. |
 | [`2026-10-03-ack-share-dynamic`](2026-10-03-ack-share-dynamic/README.md) | Download ACKs on a 900 kbit/s upload, off vs. `upload_ack_share_min 0.45`: ACKs took 46–74% and a 200 kbit/s UDP stream lost up to 48%; with the option, ACKs use what other upload traffic leaves, down to 45%, the stream loses 0–5.5%, and download gives up 4–12 Mbit/s while held. |
 | [`2026-10-02-tcp-queue-split`](2026-10-02-tcp-queue-split/README.md) | fping alone vs. `tcp_delay_attribution`: the TCP-timestamp queue estimate follows the emulated ISP's real queue under control (correlation 0.85–0.95, against RTT/2's half-size, two-sided reading); splitting fping's delay by it took median added RTT under bidirectional load from 50 to 28 ms and download from 41% to 67% of capacity. |
-| [`2026-09-30`](2026-09-30/README.md) | End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html). |
+| [`2026-09-30`](2026-09-30/README.md) | End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/luci-integration/profiling/2026-09-30/index.html). |
 | [`cake-autorate-resources`](cake-autorate-resources/README.md) | CPU, memory, process and reaction-time comparison with cake-autorate `ac75f49` under the same workload: about 5× less CPU (7.6× with all records enabled), a tenth of the memory, and a 7× faster median reply-to-decision time. |
 | [`controller-comparison`](controller-comparison/README.md) | Side-by-side runs with cake-autorate `ac75f49` and the two traces the controller replays with no mismatching decisions. |
 | [`2026-09-26`](2026-09-26/README.md) | Superseded first flame graphs, from before the optimization pass and the source restructure. |
@@ -55,7 +60,8 @@ Historical reports use `upload_ack_share_min`, now named
 name used when the measurements were collected.
 
 Open `index.html` locally, or use the
-[hosted index](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
-The hosted links read the `main` branch. They use raw.githack because GitHub's
+[hosted index](https://raw.githack.com/huydoan94/cake-adapt/luci-integration/profiling/index.html).
+The hosted links read the branch named in their URL, which a workflow
+rewrites to each pushed branch. They use raw.githack because GitHub's
 raw-file host disables the JavaScript inside FlameGraph SVGs that drives hover,
 search, and click-to-zoom.

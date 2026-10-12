@@ -1,0 +1,2 @@
+old fields == new fields (same order): True
+['version', 'pid', 'started', 'state', 'download', 'download.interface', 'download.available', 'download.shaper_bps', 'download.achieved_bps', 'download.load_e6', 'download.delay_us', 'download.bufferbloat', 'upload', 'upload.interface', 'upload.available', 'upload.shaper_bps', 'upload.achieved_bps', 'upload.load_e6', 'upload.delay_us', 'upload.bufferbloat']
