@@ -60,6 +60,13 @@
 /* Multi-queue CAKE: one cake per transmit queue under a root that holds the shared settings. */
 #define QDISC_KIND_MQ "cake_mq"
 #define UCI_PACKAGE PROGRAM_NAME
+/* The init script's runtime directory; each running instance locks <section>.lock in it. */
+#define RUNTIME_DIRECTORY "/var/run/" PROGRAM_NAME
+#define LOCK_EXTENSION ".lock"
+
+/* ubus: the status object is UBUS_OBJECT_PREFIX "." <section>, method UBUS_METHOD_STATUS. */
+#define UBUS_OBJECT_PREFIX PROGRAM_NAME
+#define UBUS_METHOD_STATUS "status"
 #define UCI_SECTION_TYPE "cake_adapt"
 
 /* Runtime states, directions, timers, and generic text tokens. */
@@ -78,6 +85,8 @@
 #define STATE_RECONCILE "reconcile"
 #define STATE_RECOVERED "recovered"
 #define STATE_RETURN_TO_BASE "return-to-base"
+#define STATE_RUNNING "running"
+#define STATE_STALL "stall"
 #define STATE_RUNNING_UPPER "RUNNING"
 #define STATE_SATURATED "saturated"
 #define STATE_STALL_UPPER "STALL"

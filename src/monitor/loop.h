@@ -13,11 +13,13 @@
 #include "platform/netlink.h"
 #include "platform/traffic.h"
 #include "tcpdelay/capture.h"
+#include "tcpdelay/estimator.h"
 #include "tcpdelay/injector.h"
 
 #include <libubox/uloop.h>
 #include <libubox/ustream.h>
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -143,6 +145,19 @@ struct monitor_tcp {
 	uint64_t upload_rate_bps;
 };
 
+struct publish_shared;
+
+/*
+ * publish.c: the main thread's side of the status object on ubus. A thread of
+ * its own serves it from shared, so the main thread never calls libubus
+ * beyond ubus_strerror().
+ */
+struct monitor_publish {
+	/* NULL while no thread runs. */
+	struct publish_shared *shared;
+	pthread_t thread;
+};
+
 /* The whole daemon state; each part above belongs to the file named on it. */
 struct monitor {
 	const struct config *config;
@@ -153,6 +168,7 @@ struct monitor {
 	struct monitor_pingers pingers;
 	struct monitor_reflectors reflectors;
 	struct monitor_tcp tcp;
+	struct monitor_publish publish;
 	/* monitor.c: the traffic tick, activity state, CPU, memory and log upkeep. */
 	struct controller_activity activity;
 	struct uloop_interval traffic_timer;
@@ -219,6 +235,13 @@ void tcp_close(struct monitor *monitor);
 /* Closes and unloads the capture. */
 void tcp_stop(struct monitor *monitor);
 
+/* The TCP queue estimate now; false while no capture is open. */
+bool tcp_estimate(
+	struct monitor *monitor,
+	uint64_t timestamp_us,
+	struct tcpdelay_estimate *estimate
+);
+
 /* pingers.c */
 
 void pingers_prepare(struct monitor *monitor, uint64_t start_us);
@@ -277,6 +300,50 @@ void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_us);
  * sits too high cannot hold it down.
  */
 int64_t reflectors_recent_delay_us(const struct monitor *monitor, uint64_t timestamp_us);
+
+/* status.c */
+
+struct status_direction {
+	const char *interface;
+	bool available;
+	uint64_t shaper_bps;
+	uint64_t achieved_bps;
+	uint64_t load_e6;
+	int64_t delay_us;
+	bool bufferbloat;
+	bool tcp_queue_valid;
+	int64_t tcp_queue_us;
+};
+
+struct status_snapshot {
+	enum controller_activity_state state;
+	struct status_direction download;
+	struct status_direction upload;
+};
+
+/* One instance's current status, from state the monitor already holds. */
+void status_snapshot(
+	struct monitor *monitor,
+	uint64_t timestamp_us,
+	struct status_snapshot *snapshot
+);
+
+/* publish.c */
+
+/*
+ * Starts the thread that publishes the status object as cake-adapt.<section>
+ * whenever ubus is reachable. Needs uloop_init() first; see publish.c.
+ */
+void publish_start(struct monitor *monitor, const char *section_name);
+
+/*
+ * Hands the thread the current status and logs what it reported since; ends
+ * the run when ubusd refused the object on the first connection.
+ */
+void publish_update(struct monitor *monitor);
+
+/* Stops the thread, waiting a bounded time; safe when publish_start never ran. */
+void publish_stop(struct monitor *monitor);
 
 /* monitor.c */
 
