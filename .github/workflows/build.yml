@@ -153,9 +153,62 @@ jobs:
           name: logs-${{ matrix.arch }}
           path: logs/
 
+  build-luci:
+    name: Build luci-app-cake-adapt
+    needs: [version, test]
+    if: needs.version.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    env:
+      LUCI_PACKAGE: luci-app-cake-adapt
+      # LUCI_PKGARCH:=all, so one SDK builds the package for every router.
+      LUCI_ARCH: x86_64
+    steps:
+      # The same layout as the build job. The feed scan goes five levels
+      # deep, so it finds both cake-adapt/Makefile and
+      # cake-adapt/luci-app-cake-adapt/Makefile: the LuCI package's
+      # +cake-adapt dependency resolves in this feed, and moving the LuCI
+      # folder up would only make a second luci-app-cake-adapt. luci.mk
+      # comes from the SDK's default luci feed, which the action keeps
+      # (NO_DEFAULT_FEEDS unset) and updates with "feeds update -a".
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.PACKAGE_NAME }}
+          fetch-depth: 0
+
+      - name: Build luci-app-cake-adapt
+        uses: openwrt/gh-action-sdk@main
+        env:
+          ARCH: ${{ env.LUCI_ARCH }}${{ env.SDK_VERSION_SUFFIX }}
+          PACKAGES: ${{ env.LUCI_PACKAGE }}
+          NO_REFRESH_CHECK: true
+          IGNORE_ERRORS: n
+
+      # The package has no architecture, so its file name keeps no prefix.
+      - name: Collect luci-app-cake-adapt packages
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          find bin/packages -type f \( -name "$LUCI_PACKAGE-*.apk" -o -name "${LUCI_PACKAGE}_*.ipk" \) -exec cp {} dist/ \;
+          ls -l dist
+          test -n "$(find dist -type f -print -quit)"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-luci
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-luci
+          path: logs/
+
   release:
     name: Publish release assets
-    needs: [version, build]
+    needs: [version, build, build-luci]
     # A push that reached here is a tag or a version change; a manual run
     # releases only when started on a tag.
     if: github.event_name == 'push' || github.ref_type == 'tag'
