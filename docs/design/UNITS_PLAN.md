@@ -7,7 +7,7 @@ Status: implemented on 2026-10-06 in `3ec0d43` and `85a002c`.
 | Quantity | Base unit | Type | Suffix |
 | --- | --- | --- | --- |
 | Data | bits and bytes; 1 byte = 8 bits, 1 KB = 1,024 bytes | integer | `_bits`, `_bytes` |
-| Throughput | bit/s | integer | `_bits_per_second` |
+| Throughput | bit/s | integer | `_bits_per_second` (`_bps` since 2026-10-07, below) |
 | Time | microseconds, sub-microsecond results rounded half up | integer | `_us` |
 | Ratio | per million: `RATIO_ONE_E6` (1,000,000) = 100%, 0.01 = 10,000; may exceed it (load 2,000,000 = 200%, rate factor 1,040,000) | integer | `_e6` (`_ratio_e6`, `_factor_e6`) |
 
