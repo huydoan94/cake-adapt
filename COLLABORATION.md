@@ -3,30 +3,53 @@
 This agreement governs agent roles and handoffs for work in this repository.
 `AGENTS.md` and the user's instructions define project constraints and scope.
 
-## Roles
+## Shared roles
 
 - The primary agent owns diagnosis, evidence review, plans, acceptance criteria,
   file ownership, test requirements, final acceptance, and the user-facing
   explanation.
-- A Claude subagent on the primary agent's own model version (currently
-  Claude Opus 5.5) implements assigned changes and carries out assigned tests,
-  builds, and VM evidence collection.
-- A separate Claude subagent on the same model version reviews the final diff
+- An implementation agent carries out assigned changes, tests, builds, and VM
+  evidence collection.
+- A separate review agent reviews the final diff
   for logic gaps, dead code, duplication, and existing helpers or libraries.
   The implementer addresses review findings; the primary agent makes final
   acceptance.
 
-Use only these designated model choices. If that model version is not
-available to subagents, report that limitation and wait for direction; do not
-silently substitute another model.
+### Claude workflow
+
+For a Claude primary, implementation and review agents use the primary's own
+model version (currently Claude Opus 5.5). If that version is unavailable, report
+the limitation and use any alternative the user has already authorized. Without
+such authorization, wait for direction instead of substituting another model.
+
+### Codex workflow
+
+For a Codex primary, use the current primary model for delegated implementation
+and review. Leave model overrides unset so the agents inherit that model; do not
+require Claude tools or Claude Opus 5.5. The user's instruction to "make your own
+version" authorizes this route. Do not ask again merely because Claude is absent.
+
+For substantial work, use one implementer and one separate bounded reviewer when
+delegation is available. Start them with `fork_turns="none"` and a short task
+brief. The primary can directly handle small changes, including focused
+documentation updates. If delegation is unavailable, implement directly and
+perform a separate review of the final diff against the acceptance criteria.
+Report that review as self-review; do not claim independent review occurred.
+
+Provider-specific tools and skills apply only when available and relevant. Use
+the corresponding Codex tools for filesystem changes, commands and agent
+handoffs. Tool differences do not relax project rules, authorization, coding
+style or verification requirements. If a required capability is missing, finish
+independent authorized work and report the specific remaining limitation.
 
 ## Context and usage budget
 
 The primary agent retains the broader project context. Start delegated work as a
 fresh subagent (not a fork of the conversation) with a path to its task brief;
 do not send the conversation history. Do not have agents independently rediscover the primary agent's diagnosis.
-Use one implementation agent and one bounded review by default, with no nested
-delegation or overlapping audits unless the task needs them.
+For delegated work, use one implementation agent and one bounded review by
+default, with no nested delegation or overlapping audits unless the task needs
+them. The provider workflows above define when direct work is appropriate.
 
 Create a separate short Markdown brief for each delegated work item in a temporary
 directory, for example `/tmp/cake-adapt-tasks/<task>.md`. Use this structure:
@@ -119,7 +142,34 @@ versions, publish, or deploy without the user's explicit authorization.
 Coordinate file ownership and do not run parallel work that writes overlapping
 files. Preserve existing user changes and inspect worktree status before edits.
 
-On every return to an active task, the primary agent reads `AGENTS.md` and this
-agreement, inspects the worktree and identifies unfinished work. Repeat after
-a long break or resumed session. Subagents use their scoped task brief and the
-applicable policy excerpts supplied by the primary agent.
+## Persistent context and authorization
+
+At session start, after a long break, or on resumption after lost context, read
+`AGENTS.md`, this agreement and `HANDOFF.md`, inspect the worktree, and identify
+unfinished work. Read `CODING_STYLE.md` and the documentation relevant to the
+task before editing. During uninterrupted work, reuse established context and
+unchanged checks instead of repeatedly rereading the same files. Subagents use
+their scoped brief and the supplied policy excerpts.
+
+`AGENTS.md` holds standing project rules; this file holds provider workflows;
+`HANDOFF.md` holds the active task, user decisions, scoped approvals, changed
+files, evidence, limitations and next steps. Keep the handoff current at a stop
+point, scope change or completed milestone. Verify its worktree and environment
+claims before relying on them. Do not require the user to reconstruct a chat or
+maintain an agent's private memory. A private memory update is a separate action
+and requires the user's explicit request.
+
+Development, SDK validation, host-test headers, IntelliSense and VM testing
+default to x86. Filogic or arm64 work requires an explicit target-specific
+request. The user's router architecture does not change these defaults.
+
+Before a new download, SDK/feed change or installation, check existing approvals
+and the proposed dependency, destination and side effects. Continue within an
+already authorized scope without asking again. If the scope is new, request
+approval before downloading or changing that environment, after completing any
+independent work. A build command can download dependencies or modify SDK state;
+inspect its effects first. Keep approved local validation dependencies and tool
+caches under ignored `build/` unless another destination was explicitly approved.
+Record what was changed, where it lives and whether it remains. Approval for
+one SDK or dependency does not authorize another SDK, a system installation,
+artifact copying or deployment.

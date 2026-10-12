@@ -212,6 +212,10 @@ fixed.
 - [Development](docs/development.md): building with the OpenWrt SDK, source
   layout and tests.
 - [Flowcharts](flowchart/README.md): the event flow and controller decisions.
+- [Agent guide](AGENTS.md) and [collaboration workflows](COLLABORATION.md):
+  project rules and the Claude and Codex routes. Development defaults to x86.
+- [Current handoff](HANDOFF.md): active work, user decisions, approvals and
+  remaining checks.
 
 ## License
 

@@ -3,6 +3,13 @@
 Status: sketch, 2026-10-06. Nothing is implemented. The decisions in the last
 section are open.
 
+Agent execution: both Claude and Codex use the workflows in
+[COLLABORATION.md](../../COLLABORATION.md) and constraints in
+[AGENTS.md](../../AGENTS.md). This proposal does not authorize implementation,
+router access, downloads or a change from the x86 development default. Preserve
+the open user decisions and consult [HANDOFF.md](../../HANDOFF.md) for active
+work; do not restart this plan merely because a session resumed.
+
 ## Recommendation in short
 
 The measurement can come from the TCP filter that already runs. It records
