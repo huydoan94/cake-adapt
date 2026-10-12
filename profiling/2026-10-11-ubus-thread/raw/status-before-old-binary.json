@@ -1,0 +1,24 @@
+{
+	"version": "0.3.16-r1",
+	"pid": 7305,
+	"started": 1791691541,
+	"state": "running",
+	"download": {
+		"interface": "ifb4eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15911,
+		"load_e6": 795,
+		"delay_us": 758,
+		"bufferbloat": false
+	},
+	"upload": {
+		"interface": "eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15911,
+		"load_e6": 795,
+		"delay_us": 758,
+		"bufferbloat": false
+	}
+}

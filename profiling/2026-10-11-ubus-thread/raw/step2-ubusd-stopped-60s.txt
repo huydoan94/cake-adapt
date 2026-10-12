@@ -1,0 +1,42 @@
+ubusd=1022 daemon=10297
+10:44:00 lines=11918 DATA=3230 LOAD=1915 last=SUMMARY; 2026-10-11-10:44:00; 1791737040
+10:44:00 ubusd stopped: State:	T (stopped)
+10:44:15 lines=12932 DATA=3521 LOAD=1990 last=SUMMARY; 2026-10-11-10:44:14; 1791737054
+LOAD; 2026-10-11-10:44:14; 1791737054.949360; 1791737054.949356; 11; 15; 50000; 20000
+10:44:30 lines=14031 DATA=3818 LOAD=2068 last=LOAD; 2026-10-11-10:44:30; 1791737070.54
+LOAD; 2026-10-11-10:44:30; 1791737070.548801; 1791737070.548797; 44738; 739; 45806; 10721
+10:44:45 lines=504 DATA=141 LOAD=37 last=LOAD; 2026-10-11-10:44:45; 1791737085.55
+LOAD; 2026-10-11-10:44:45; 1791737085.559525; 1791737085.559521; 16930; 332; 50000; 12323
+10:45:00 lines=1519 DATA=432 LOAD=112 last=LOAD; 2026-10-11-10:45:00; 1791737100.55
+LOAD; 2026-10-11-10:45:00; 1791737100.551789; 1791737100.551785; 1788; 90; 50000; 14307
+status call rc=255 after 3010 ms (killed by watchdog: rc>=128)
+10:45:03 ubusd continued
+status call rc=0 after 0 ms (killed by watchdog: rc>=128)
+{
+	"version": "0.3.16-r1",
+	"pid": 10297,
+	"started": 1791736808,
+	"state": "running",
+	"download": {
+		"interface": "ifb4eth1",
+		"available": true,
+		"shaper_bps": 49500000,
+		"achieved_bps": 19349,
+		"load_e6": 390,
+		"delay_us": 33800,
+		"bufferbloat": true
+	},
+	"upload": {
+		"interface": "eth1",
+		"available": true,
+		"shaper_bps": 14593632,
+		"achieved_bps": 15479,
+		"load_e6": 1060,
+		"delay_us": 33800,
+		"bufferbloat": true
+	}
+}
+daemon pid now 10297
+Sat Oct 10 22:05:40 2026 daemon.info cake-adapt[7305]: INFO: 1791691540.914517 Starting cake-adapt 0.3.16-r1 with PID: 7305, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:40:08 2026 daemon.info cake-adapt[7305]: INFO: 1791736808.142009 Stopped cake-adapt with PID: 7305, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:40:08 2026 daemon.info cake-adapt[10297]: INFO: 1791736808.263456 Starting cake-adapt 0.3.16-r1 with PID: 10297, config: /var/run/cake-adapt/main.uci, section: main

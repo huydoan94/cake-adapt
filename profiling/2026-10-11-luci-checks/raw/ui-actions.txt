@@ -1,0 +1,50 @@
+== before
+5
+3357
+sid length 32
+== service list (granted)
+{"jsonrpc":"2.0","id":1,"result":[0,{"cake-adapt":{"instances":{"main":{"running":true,"pid":3357,"command":["/usr/sbin/cake-adapt","-C","/var/run/cake-adapt/ma
+== rc list (no longer granted)
+{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"Access denied"}}
+== rc init (no longer granted)
+{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"Access denied"}}
+== denied exec: whole-service actions and other commands
+-- cake-adapt enable
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- cake-adapt disable
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- cake-adapt stop (no section)
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- cake-adapt reload main
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- cake-adapt (no args)
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- network restart
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- /bin/sh -c id
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- /bin/ls /
+{"jsonrpc":"2.0","id":1,"result":[6]}
+== restart main through file exec (pid before 3357)
+{"jsonrpc":"2.0","id":1,"result":[0,{"code":0}]}
+pid after restart: 5290
+NEW PID
+== stop main
+{"jsonrpc":"2.0","id":1,"result":[0,{"code":0}]}
+pid after stop: ''
+{"jsonrpc":"2.0","id":1,"result":[0,{"cake-adapt":{}}]}
+== start main
+{"jsonrpc":"2.0","id":1,"result":[0,{"code":0}]}
+pid after start: 5523
+{"jsonrpc":"2.0","id":1,"result":[0,{"cake-adapt":{"instances":{"main":{"running":true,"pid":5523,"command":["/usr/sbin/cake-adapt","-C","/var/run/cake-adapt/ma
+-- status
+{"jsonrpc":"2.0","id":1,"result":[0,{"version":"0.3.16-r1","pid":5523,"started":1791762904,"state":"running","download":{"interface":"ifb4eth1","available":true
+== served views
+config.js 200 a7d48c5ad74bee57f65497e15ef486ca03fe6d2116d9c19108d3e0fa5fee5d86
+status.js 200 350998f9e94fbbb29905f5f0b9cd0272f18737ad832d5e6aa8c3e8e413773ad9
+== remove the temporary login
+0
+== after
+uci identical
+5523
+boot enabled

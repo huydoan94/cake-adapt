@@ -1,0 +1,19 @@
+cfe95fc9540df26ee86917ff950669ef1e691ccc8fefa40753df337eaa38765b  /root/rollback/cake-adapt
+2f5a11f3398c864b1943d735d6bfd4031e86f9468a0b7bc89eac1a5b6826b58f  /root/rollback/cake-adapt.config
+05ca9ced9276cd2cfaf3e3a7dff5dbb026f687b4230aa2b8c0842c078e027897  /tmp/cake-adapt-dnsmasq.apk
+  Executing cake-adapt-0.3.16-r1.post-upgrade
+OK: 31.8 MiB in 224 packages
+d0a68a8bbe1c78f8d495137c9889b1ca3c1a198f7ab50af439cf33ce101ad6c4  /usr/sbin/cake-adapt
+e8f4fd3eb1e8c43b991c018306d4fb7b79f8ce63640d8d787347eeb8fbe8e9b4  /etc/init.d/cake-adapt
+				"running": true,
+				"pid": 5205,
+drwx------    2 root     root            80 Oct 11 12:04 .
+drwxr-xr-x    7 root     root           280 Oct 11 11:39 ..
+-rw-------    1 root     root             5 Oct 11 12:04 main.lock
+-rw-------    1 root     root          1689 Oct 11 12:04 main.uci
+Sun Oct 11 11:39:57 2026 daemon.warn cake-adapt[3388]: WARNING: 1791740397.491049 CAKE observation degraded: no CAKE qdisc found on interface=ifb4eth1
+Sun Oct 11 11:39:57 2026 daemon.warn cake-adapt[3388]: WARNING: 1791740397.491136 traffic observation unavailable: direction=download interface=ifb4eth1
+Sun Oct 11 11:39:57 2026 daemon.warn cake-adapt[3388]: WARNING: 1791740397.491150 traffic observation unavailable: direction=upload interface=eth1
+Sun Oct 11 11:39:57 2026 daemon.warn cake-adapt[3388]: WARNING: 1791740397.832461 line load unavailable: direction=download
+Sun Oct 11 12:04:29 2026 daemon.info cake-adapt[3388]: INFO: 1791741869.544304 Stopped cake-adapt with PID: 3388, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 12:04:29 2026 daemon.info cake-adapt[5205]: INFO: 1791741869.593513 Starting cake-adapt 0.3.16-r1 with PID: 5205, config: /var/run/cake-adapt/main.uci, section: main

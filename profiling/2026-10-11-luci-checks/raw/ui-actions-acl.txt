@@ -1,0 +1,52 @@
+69ef784c2ce9afca53bc713b75f3cb661921e185925331955a375fe273fb94df  /tmp/luci-new.apk
+OK: 31.8 MiB in 224 packages
+a7d48c5ad74bee57f65497e15ef486ca03fe6d2116d9c19108d3e0fa5fee5d86  /www/luci-static/resources/view/cake-adapt/config.js
+29b89d8800ec0d1939b68fb6ba3d2a03dc57c753d1f4c1d4aed6feaf7c485862  /www/luci-static/resources/view/cake-adapt/status.js
+63ac055b00aad639df09e4ed529da6b5087ede933c74676ded9610b059f6fa1e  /usr/share/rpcd/acl.d/luci-app-cake-adapt.json
+== before: pid 5523
+sid length 32
+-- stop ''
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- stop ' '
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- stop (none)
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- start ''
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- start ' '
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- start (none)
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- restart ''
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- restart ' '
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- restart (none)
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- enable
+{"jsonrpc":"2.0","id":1,"result":[6]}
+-- /bin/sh -c id
+{"jsonrpc":"2.0","id":1,"result":[6]}
+pid still 5523
+== restart main (pid before 5523)
+{"jsonrpc":"2.0","id":1,"result":[0,{"code":0}]}
+pid after: 6035
+NEW PID
+== stop main / start main
+{"jsonrpc":"2.0","id":1,"result":[0,{"code":0}]}
+pid ''
+{"jsonrpc":"2.0","id":1,"result":[0,{"code":0}]}
+pid 6264
+== remove the temporary login
+0
+== luci getFeatures through uhttpd (unauthenticated session)
+{"jsonrpc":"2.0","id":1,"result":[0,{"firewall":true,"firewall4":true,"opkg":false,"bonding":null,"mii_tool":null,"offlo
+
+== served views
+config.js 200 a7d48c5ad74bee57f65497e15ef486ca03fe6d2116d9c19108d3e0fa5fee5d86
+status.js 200 29b89d8800ec0d1939b68fb6ba3d2a03dc57c753d1f4c1d4aed6feaf7c485862
+== after
+uci identical
+6264
+1019
+boot enabled

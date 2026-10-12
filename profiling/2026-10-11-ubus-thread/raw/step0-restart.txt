@@ -1,0 +1,39 @@
+Sun Oct 11 10:40:08 CST 2026
+10297
+10297
+drwx------    2 root     root            80 Oct 11 10:40 .
+drwxr-xr-x    7 root     root           280 Oct 10 22:03 ..
+-rw-------    1 root     root             6 Oct 11 10:40 main.lock
+-rw-------    1 root     root          1689 Oct 11 10:40 main.uci
+10297
+10323
+Sat Oct 10 22:05:30 2026 daemon.err cake-adapt: could not generate /var/run/cake-adapt/main.uci; not starting instance 'main'
+Sat Oct 10 22:05:35 2026 daemon.info cake-adapt[7088]: INFO: 1791691535.753605 Starting cake-adapt 0.3.16-r1 with PID: 7088, config: /var/run/cake-adapt/main.uci, section: main
+Sat Oct 10 22:05:40 2026 daemon.info cake-adapt[7088]: INFO: 1791691540.692483 Stopped cake-adapt with PID: 7088, config: /var/run/cake-adapt/main.uci, section: main
+Sat Oct 10 22:05:40 2026 daemon.info cake-adapt[7305]: INFO: 1791691540.914517 Starting cake-adapt 0.3.16-r1 with PID: 7305, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:40:08 2026 daemon.info cake-adapt[7305]: INFO: 1791736808.142009 Stopped cake-adapt with PID: 7305, config: /var/run/cake-adapt/main.uci, section: main
+Sun Oct 11 10:40:08 2026 daemon.info cake-adapt[10297]: INFO: 1791736808.263456 Starting cake-adapt 0.3.16-r1 with PID: 10297, config: /var/run/cake-adapt/main.uci, section: main
+{
+	"version": "0.3.16-r1",
+	"pid": 10297,
+	"started": 1791736808,
+	"state": "running",
+	"download": {
+		"interface": "ifb4eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15865,
+		"load_e6": 793,
+		"delay_us": 425,
+		"bufferbloat": false
+	},
+	"upload": {
+		"interface": "eth1",
+		"available": true,
+		"shaper_bps": 20000000,
+		"achieved_bps": 15865,
+		"load_e6": 793,
+		"delay_us": 425,
+		"bufferbloat": false
+	}
+}

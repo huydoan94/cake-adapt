@@ -1,0 +1,10 @@
+== LuCI login as a user with only the luci-app-cake-adapt and luci-base groups: cookie obtained: yes
+status.js: HTTP 200 8057 bytes
+config.js: HTTP 200 17744 bytes
+== menu entries for CAKE Adapt
+true
+cake-adapt/status
+cake-adapt/config
+== page
+admin/services/cake-adapt/status: HTTP 200
+      1 cake-adapt/config

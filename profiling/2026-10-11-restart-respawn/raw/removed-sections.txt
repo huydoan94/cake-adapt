@@ -1,0 +1,24 @@
+== 17:00:57 F0 restart of a section never configured (tmpcheck)
+  rc=0
+  pid=6562 running=true main.uci=823bf1f4de571b4c lock=6562
+  F0 PASS main untouched
+17:00:57 2026 daemon.err procd: instance tmpcheck not found
+17:00:57 2026 daemon.err cake-adapt: no cake_adapt instance 'tmpcheck' configured; not starting
+== 17:00:59 F1 section main deleted, restart main
+  rc=0
+  pid= running= main.uci=none lock=6562
+  F1 PASS stopped, file removed
+17:00:59 2026 daemon.err cake-adapt: no cake_adapt instance 'main' configured; not starting
+17:00:59 2026 daemon.info cake-adapt[6562]: INFO: 1791759659.600960 Stopped cake-adapt with PID: 6562, config: /var/run/cake-adapt/main.uci, section: main
+== 17:01:05 F2 restored, start; then enabled=0, restart main
+  pid=7241 running=true main.uci=823bf1f4de571b4c lock=7241
+  rc=0
+  pid= running= main.uci=none lock=7241
+  F2 PASS stopped, file removed
+17:01:05 2026 daemon.info cake-adapt[7241]: INFO: 1791759665.751714 Starting cake-adapt 0.3.16-r1 with PID: 7241, config: /var/run/cake-adapt/main.uci, section: main
+17:01:10 2026 daemon.notice cake-adapt: instance 'main' disabled by configuration; not starting
+17:01:10 2026 daemon.notice cake-adapt: no cake-adapt instances are enabled; not starting
+17:01:10 2026 daemon.info cake-adapt[7241]: INFO: 1791759670.890994 Stopped cake-adapt with PID: 7241, config: /var/run/cake-adapt/main.uci, section: main
+== 17:01:16 F3 restore configuration, start
+  pid=7532 running=true main.uci=823bf1f4de571b4c lock=7532
+  configuration restored

@@ -1,0 +1,22 @@
+Sun Oct 11 16:52:36 CST 2026
+config-restored
+true
+6562
+{ "threshold": 3600, "timeout": 5, "retry": 0 }
+6620
+6562
+6589
+-rw-------    1 root     root          1689 Oct 11 16:52 cake-adapt
+-rw-------    1 root     root          2936 Oct 11 16:48 cake-adapt.apk-new
+-rw-r--r--    1 root     root           968 Oct 10 22:03 luci
+/var/run/cake-adapt:
+-rw-------    1 root     root             5 Oct 11 16:52 main.lock
+-rw-------    1 root     root          1689 Oct 11 16:52 main.uci
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 19033Kbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 19033Kbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+f8686bb5ee75742b9eeaae671005ee6c78cabbd62ade04440626bc0250049648  /usr/sbin/cake-adapt
+3856c22c49477641b207528b67d2b01b1a907ec3a12e86a6369dbd50495fbf12  /etc/init.d/cake-adapt
+cake-adapt.bin.before-restart
+cake-adapt.config.before-restart
+cake-adapt.init.before-restart
+0
