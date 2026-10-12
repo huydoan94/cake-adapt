@@ -1,0 +1,10 @@
+INFO; 2026-10-12-02:04:50; 1791792290.201148; latency observation initialized: targets=1 interface=eth1
+DEBUG; 2026-10-12-02:04:51; 1791792291.198068; no ping response from reflector: 127.0.0.1 within reflector_response_deadline: 1.000s
+DEBUG; 2026-10-12-02:04:51; 1791792291.198217; reflector=127.0.0.1, sum_reflector_offences=1 and reflector_misbehaving_detection_thr=3
+DEBUG; 2026-10-12-02:04:51; 1791792291.800689; Warning: no reflector response within: 1.50 seconds. Checking loads.
+DEBUG; 2026-10-12-02:04:51; 1791792291.800879; load check is: (( 3 kbps > 10 kbps for download && 3 kbps > 10 kbps for upload ))
+DEBUG; 2026-10-12-02:04:51; 1791792291.800891; Changing main state from: RUNNING to: STALL
+SYSLOG; 2026-10-12-02:05:00; 1791792300.201836; Warning: Configured global ping response timeout: 10.000 seconds exceeded.
+DEBUG; 2026-10-12-02:05:00; 1791792300.201959; Restarting pingers.
+MEMORY; 2026-10-12-02:05:00; 1791792300.202066; 1791792300.202063; 1724; 1724; 256; 632
+INFO; 2026-10-12-02:05:00; 1791792300.203893; latency observation initialized: targets=1 interface=eth1

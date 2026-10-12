@@ -1,0 +1,1 @@
+PASS: real MQTT delivery, exact payload, offline drops, 10-second retries, recovery, authentication, TLS and bounded shutdown

@@ -1,0 +1,38 @@
+{
+  "driver_sha256": "e273b808440c1c70cc9113f5b2ec7a73869d1906367ba85851e3b4655934fb57",
+  "library_sha256": "4c460db8e738d862890332e62a02d0179d67424c30a4d5a214488cb3ba82f304",
+  "cases": [
+    {
+      "name": "silent-peer",
+      "connection_times_sec": [
+        0.0025832970004557865,
+        10.018603110000186,
+        20.033984497000347
+      ],
+      "offline_burst_us": 24,
+      "stop_us": 80545
+    },
+    {
+      "name": "delivery-and-recovery",
+      "recovery_sec": 10.02837812800044,
+      "offline_burst_us": 18,
+      "stop_us": 101311
+    },
+    {
+      "name": "authentication",
+      "stop_us": 10113
+    },
+    {
+      "name": "tls-verification",
+      "stop_us": 61054
+    },
+    {
+      "name": "tls-untrusted-ca",
+      "stop_us": 10159
+    },
+    {
+      "name": "tls-wrong-hostname",
+      "stop_us": 10107
+    }
+  ]
+}

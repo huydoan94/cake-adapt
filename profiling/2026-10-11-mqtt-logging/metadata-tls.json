@@ -1,0 +1,106 @@
+{
+  "mosquitto_version": "2.0.22",
+  "source_archive_sha256": "2f752589ef7db40260b633fbdb536e9a04b446a315138d64a7ff3c14e2de6b68",
+  "source_sha256": {
+    "src/logging/mqtt.c": "6f2a1e956658f6d2c0dfe750a34bdd2aebb6856e31f30940506e2a196956e419",
+    "src/logging/log.c": "8075176b8730c5bc79990620cf28f1ba51c611c9e9862844eb9100594743fb86",
+    "src/config/validate.c": "a158a27a4522f242a8dc52c436fe140e4764b13267c0b55d1d55aacb6c80bf62",
+    "tests/logging/test_mqtt.c": "52c9f8dcbd13462870e83dbb5f2a5915c193f33c9c6527273eb1139829b12b63",
+    "tests/logging/mqtt_driver.c": "1737039316f9eeedf7e0761de348dda67c753fb410178e1eabb4e1292759a2b3",
+    "tests/logging/mqtt_integration.py": "5ff66492cce081634e3d838a1faf6baaaad4b3d114a5d22d7aac939c46e64c6c"
+  },
+  "scope": "native loopback acceptance of production MQTT and logging modules; no router or CAKE control deployment",
+  "compiler_flags": [
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Wformat=2",
+    "-Wshadow",
+    "-Wconversion",
+    "-Werror",
+    "-std=c11",
+    "-pthread"
+  ],
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "target_module_compilation": [
+    "x86",
+    "filogic"
+  ],
+  "flowchart_renderer": {
+    "package": "@hpcc-js/wasm-graphviz",
+    "version": "1.29.2",
+    "graphviz_version": "16.1.0",
+    "download_location": "build/graphviz-renderer",
+    "npm_cache_location": "build/graphviz-npm-cache"
+  },
+  "filogic_sdk": {
+    "result": "daemon and LuCI packages built; no deployment or version change",
+    "dependency_recursion": "disabled for focused final builds",
+    "packages": {
+      "cake-adapt": {
+        "file": "bin/packages/aarch64_cortex-a53/base/cake-adapt-0.3.17-r1.apk",
+        "bytes": 73517,
+        "sha256": "1549a18848228788a8d6fe3d383fcbcc749f63948ccb7dbb8396506da836b0ee",
+        "installed_bytes": 178280,
+        "mqtt_dependencies_verified": [
+          "libmosquitto-ssl",
+          "ca-bundle"
+        ],
+        "daemon_bytes": 118793
+      },
+      "luci-app-cake-adapt": {
+        "file": "bin/packages/aarch64_cortex-a53/base/luci-app-cake-adapt-0.3.17-r1.apk",
+        "bytes": 16620,
+        "sha256": "7ab2f3be39c7d7ba8de9db5fc341c45330c8da3c7eeb5230ad52eba0d2f56ef3",
+        "installed_bytes": 54088
+      },
+      "libmosquitto-ssl": {
+        "file": "bin/packages/aarch64_cortex-a53/packages/libmosquitto-ssl-2.0.22-r2.apk",
+        "bytes": 42747,
+        "sha256": "b91dff7fd69af2a59e810b15d1019bcf610f0ea84e7f5ebcea59515bf6fc00a5",
+        "installed_bytes": 98445
+      },
+      "libopenssl3": {
+        "file": "bin/packages/aarch64_cortex-a53/base/libopenssl3-3.5.7-r1.apk",
+        "bytes": 2016914,
+        "sha256": "2d090d1bd4cb2c070c8440c40f6c7044ff78637d8b486042438264e7f1e833fe",
+        "installed_bytes": 4979481
+      },
+      "libcares": {
+        "file": "bin/packages/aarch64_cortex-a53/packages/libcares-1.34.6-r1.apk",
+        "bytes": 99960,
+        "sha256": "712878d1a035da1696b33bc3e3912af31eb1a2dea8328e9abf4e5ed5aab10b53",
+        "installed_bytes": 225357
+      },
+      "ca-bundle": {
+        "file": "bin/packages/aarch64_cortex-a53/base/ca-bundle-20260601-r1.apk",
+        "bytes": 107742,
+        "sha256": "a9f9d9e884044d4b008fba946c65211cc7eb1bdf419231bfeeb2c218f0708de3",
+        "installed_bytes": 182193
+      }
+    },
+    "source_downloads": {
+      "mosquitto-2.0.22.tar.gz": {
+        "bytes": 805967,
+        "sha256": "2f752589ef7db40260b633fbdb536e9a04b446a315138d64a7ff3c14e2de6b68"
+      },
+      "openssl-3.5.7.tar.gz": {
+        "bytes": 53153930,
+        "sha256": "a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8"
+      },
+      "c-ares-1.34.6.tar.gz": {
+        "bytes": 1017864,
+        "sha256": "912dd7cc3b3e8a79c52fd7fb9c0f4ecf0aaa73e45efda880266a2d6e26b84ef5"
+      },
+      "ca-certificates_20260601.tar.xz": {
+        "bytes": 265368,
+        "sha256": "7ab6301f7f34eef90a4d278647c260bc0762e0e14561f4649854cf4b0d4bea21"
+      }
+    }
+  },
+  "completed_date": "2026-10-12"
+}

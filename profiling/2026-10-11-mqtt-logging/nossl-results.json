@@ -1,0 +1,26 @@
+{
+  "driver_sha256": "8f52d74d4e7ee81c5cab38ed1fe8941cab9484ad433805bf21405d5f1c9b3d4d",
+  "library_sha256": "04ff0c852bad5b5b01655c6c780b3c6c5613e6cf9d63e55bf5ea82213c125ba2",
+  "cases": [
+    {
+      "name": "silent-peer",
+      "connection_times_sec": [
+        0.0033157699999719625,
+        10.01757393600019,
+        20.032541103000767
+      ],
+      "offline_burst_us": 29,
+      "stop_us": 81182
+    },
+    {
+      "name": "delivery-and-recovery",
+      "recovery_sec": 10.023884849999376,
+      "offline_burst_us": 16,
+      "stop_us": 101414
+    },
+    {
+      "name": "authentication",
+      "stop_us": 10195
+    }
+  ]
+}

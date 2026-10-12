@@ -1,0 +1,18 @@
+{
+  "driver_sha256": "da4f319b11b7185e19144fb60a18be0f1731543d0c849252f2ddb3c1ccfafb27",
+  "library_sha256": "4c460db8e738d862890332e62a02d0179d67424c30a4d5a214488cb3ba82f304",
+  "cases": [
+    {
+      "name": "tls-verification",
+      "stop_us": 81056
+    },
+    {
+      "name": "tls-untrusted-ca",
+      "stop_us": 10345
+    },
+    {
+      "name": "tls-wrong-hostname",
+      "stop_us": 10492
+    }
+  ]
+}

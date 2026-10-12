@@ -1,0 +1,4 @@
+make: Entering directory '${REPO}/tests'
+../build/sanitize-mqtt-nossl/bin/test_mqtt
+MQTT disabled, offline, contention, overflow and payload-boundary tests passed
+make: Leaving directory '${REPO}/tests'
