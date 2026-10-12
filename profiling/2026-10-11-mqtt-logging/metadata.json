@@ -1,0 +1,122 @@
+{
+  "completed_date": "2026-10-12",
+  "variant": "libmosquitto-nossl",
+  "mosquitto_version": "2.0.22",
+  "scope": "native non-SSL broker acceptance, focused x86 SDK packages and observation-only packaged-daemon acceptance on authorized x86 VM; no production deployment or resource-cost claim",
+  "source_archive_sha256": "2f752589ef7db40260b633fbdb536e9a04b446a315138d64a7ff3c14e2de6b68",
+  "source_sha256": {
+    "Makefile": "aaf3a7c3bc7168d0df62928da96045eb0fef13bec316e222b14614cbddc83ca4",
+    "src/Makefile": "14c029b13c561af89fd8247eeb9dba80d7488b1a2da3a0699cd0d6f166d56781",
+    "src/logging/mqtt.c": "4bee16ca27dbd40a4ef81045415d8dacebefcc0f48d2ca65b6867ee0c3845244",
+    "src/logging/log.c": "8075176b8730c5bc79990620cf28f1ba51c611c9e9862844eb9100594743fb86",
+    "src/config/config.c": "c1c7fb38ccbec805f31d662206d98d03d04be0ccee03e4cbeb6f686eba13ed72",
+    "src/config/config.h": "5f25a360e645fe2bc934bcbd3e163d7d7dfd56ccac7e6c52d2668fb5d72ac022",
+    "src/config/defaults.c": "65cce67f1a44dd61a5bf7df9c375b1842d007af05326447e164fc138ba41f4b7",
+    "src/config/validate.c": "d1555ef1be5d76a26f86f85fad960953ef79f60f59ac467f9cb41443d5dd1a58",
+    "src/common/constants.h": "a3a7abf9e2a8bee6e5a8089263bed106747110cdbbab81fe052be7c16e433a39",
+    "files/cake-adapt.config": "9a83c882e674711ed9c35df1ebbf24f15e0f627f194741fe41e8d815ef70847e",
+    "luci-app-cake-adapt/htdocs/luci-static/resources/view/cake-adapt/config.js": "3a5f55c7bc965309b12f6c4c704040681d8e7a44e18581306a8b63c834b8173e",
+    "tests/config/test_config.c": "8c8f7f465f08ff9409d2b345d67cd75f559e59961bb65d2ca019700343a9cb50",
+    "tests/logging/test_mqtt.c": "52c9f8dcbd13462870e83dbb5f2a5915c193f33c9c6527273eb1139829b12b63",
+    "tests/logging/mqtt_driver.c": "19f16279d4fff9977477dc16a7e02a5115d02b03d95b994e5133ce65f5fa405a",
+    "tests/logging/mqtt_integration.py": "8824d8f97d845aa0539be3c16ce6492452186909f9567bcf5eace6c1c1e32cb6",
+    "tests/luci_config.js": "49e719704b52ddef2a4bfd58aa57833050749951c0b409397a259ceecdb0fd2f",
+    "tools/sdk-build.sh": "efeff780adb52252a8f707f562a9d77c9e057d2fb04ac925656a7ae268b86a5f"
+  },
+  "native_library_needed": [
+    "libc.so.6"
+  ],
+  "x86_library_needed": [
+    "libcares.so.2",
+    "libgcc_s.so.1",
+    "libc.so"
+  ],
+  "x86_daemon_needed": [
+    "libuci.so.20250120",
+    "libubus.so.20251202",
+    "libubox.so.20260213",
+    "libz.so.1",
+    "libbpf.so.1",
+    "libmosquitto.so.1",
+    "libnl-tiny.so.1",
+    "libgcc_s.so.1",
+    "libc.so"
+  ],
+  "x86_sdk": {
+    "result": "daemon, LuCI, libmosquitto-nossl and libcares packages built",
+    "dependency_recursion": "disabled with NO_DEPS=1",
+    "new_downloads": false,
+    "packages": {
+      "cake-adapt": {
+        "file": "bin/packages/i386_pentium4/base/cake-adapt-0.3.17-r1.apk",
+        "bytes": 73432,
+        "sha256": "5ff9caa90d11a244167b28622c4f79d46346b7aca2841d25222210dab11bd387",
+        "installed_bytes": 178169,
+        "dependencies": [
+          "bash",
+          "fping",
+          "libbpf1",
+          "libc",
+          "libmosquitto-nossl",
+          "libnl-tiny1",
+          "libubox20260213",
+          "libubus20251202",
+          "libuci20250120",
+          "zlib"
+        ]
+      },
+      "luci-app-cake-adapt": {
+        "file": "bin/packages/i386_pentium4/base/luci-app-cake-adapt-0.3.17-r1.apk",
+        "bytes": 16514,
+        "sha256": "00ff322a873c19a1ebd7b52ea3d6aa47817585be9f1cdc67e07d2335630d0692",
+        "installed_bytes": 53608,
+        "dependencies": [
+          "cake-adapt",
+          "libc",
+          "luci-base",
+          "luci-mod-status"
+        ]
+      },
+      "libmosquitto-nossl": {
+        "file": "bin/packages/i386_pentium4/packages/libmosquitto-nossl-2.0.22-r2.apk",
+        "bytes": 34413,
+        "sha256": "ed0b9386ad88e6407a78a90474c1a9dcfa36b2ec959e730bcf7d0313b4fb650f",
+        "installed_bytes": 77958,
+        "dependencies": [
+          "libc",
+          "libcares",
+          "libpthread",
+          "librt"
+        ]
+      },
+      "libcares": {
+        "file": "bin/packages/i386_pentium4/packages/libcares-1.34.6-r1.apk",
+        "bytes": 97443,
+        "sha256": "0a6e15edff3dd0c3704a305f197d0f8653cd671d2d9634f02be8923b7daa9fe9",
+        "installed_bytes": 208961,
+        "dependencies": [
+          "libc"
+        ]
+      }
+    }
+  },
+  "historical_tls_metadata": "metadata-tls.json",
+  "independent_review": "non-SSL source/config/auth transition and bounded VM harness reviewed; no remaining reported blockers",
+  "x86_vm": {
+    "result": "passed",
+    "test_log_inode": 179,
+    "received_records": 10,
+    "qdisc_settings_unchanged": true,
+    "survived_broker_outage": true,
+    "owned_daemon_and_child_exited": true,
+    "installed_service_unchanged": true,
+    "limits": "observation-only; local reflector was unavailable, so activity could enter STALL; no control or performance comparison"
+  },
+  "x86_daemon_bytes": 118789,
+  "vm_harness_sha256": "55689492c8cb4faa77b04eeff0dd15616a0fcdce8ae914a9510fa05c4758d37c",
+  "sdk_build_helper": "pre-staged non-SSL library required; NO_DEPS=1 for daemon and LuCI, including diagnostic retry; real older SSL library rejection passed",
+  "source_commits": {
+    "mqtt_implementation": "0d4803f51e7c9950ba74d04801158b0f19a1f1a8",
+    "sdk_build_helper": "3bb37e5277cee8299d558b270d20beb30eb8e5ce"
+  }
+}
