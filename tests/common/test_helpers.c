@@ -6,8 +6,11 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <unistd.h>
 
 struct random_sequence {
@@ -128,7 +131,13 @@ static void test_timespec_us(void)
 {
 	const struct timespec value = { .tv_sec = 12, .tv_nsec = 345678999 };
 
+	struct timespec converted;
+
 	assert(timespec_to_us(&value) == 12345679U);
+	converted = us_to_timespec(12345679U);
+	assert(converted.tv_sec == 12 && converted.tv_nsec == 345679000);
+	converted = us_to_timespec(999999U);
+	assert(converted.tv_sec == 0 && converted.tv_nsec == 999999000);
 	/* Half a microsecond or more rounds up; the carry reaches the seconds. */
 	assert(ns_to_us(1499U) == 1U);
 	assert(ns_to_us(1500U) == 2U);
@@ -293,6 +302,55 @@ static void test_absolute_path(void)
 	assert(errno == ENAMETOOLONG);
 }
 
+/* A second holder is refused and told the first one's pid; closing releases the lock. */
+static void test_lock_pid_file(void)
+{
+	char directory[] = "/tmp/cake-adapt-lock-test.XXXXXX";
+	char path[PATH_MAX];
+	char link_path[PATH_MAX];
+	char text[32] = { 0 };
+	long holder_pid = -1;
+	int first;
+	int second;
+	int foreign;
+
+	assert(mkdtemp(directory) != NULL);
+	(void)snprintf(path, sizeof(path), "%s/main.lock", directory);
+	(void)snprintf(link_path, sizeof(link_path), "%s/link.lock", directory);
+
+	first = lock_pid_file(path, &holder_pid);
+	assert(first >= 0 && holder_pid == 0);
+	assert((fcntl(first, F_GETFD) & FD_CLOEXEC) != 0);
+	assert(pread(first, text, sizeof(text) - 1U, 0) > 0);
+	assert(strtol(text, NULL, 10) == (long)getpid());
+	assert(text[strlen(text) - 1U] == '\n');
+
+	errno = 0;
+	assert(lock_pid_file(path, &holder_pid) == -1);
+	assert(errno == EWOULDBLOCK && holder_pid == (long)getpid());
+
+	assert(close(first) == 0);
+	second = lock_pid_file(path, &holder_pid);
+	assert(second >= 0);
+	assert(close(second) == 0);
+
+	/* Held by something that wrote no pid. */
+	foreign = open(path, O_RDWR | O_TRUNC);
+	assert(foreign >= 0 && write(foreign, "x\n", 2U) == 2);
+	assert(flock(foreign, LOCK_EX | LOCK_NB) == 0);
+	assert(lock_pid_file(path, &holder_pid) == -1);
+	assert(errno == EWOULDBLOCK && holder_pid == 0);
+	assert(close(foreign) == 0);
+
+	/* No directory, and a symbolic link, are other failures. */
+	assert(symlink(path, link_path) == 0);
+	assert(lock_pid_file(link_path, &holder_pid) == -1 && errno == ELOOP);
+	assert(unlink(link_path) == 0);
+	assert(unlink(path) == 0);
+	assert(rmdir(directory) == 0);
+	assert(lock_pid_file(path, &holder_pid) == -1 && errno == ENOENT);
+}
+
 int main(void)
 {
 	test_percentages_and_rounding();
@@ -310,6 +368,7 @@ int main(void)
 	test_random_selection_and_shuffle();
 	test_response_timestamp_boundaries();
 	test_absolute_path();
+	test_lock_pid_file();
 	(void)puts("helper tests passed");
 	return 0;
 }

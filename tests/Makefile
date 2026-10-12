@@ -49,10 +49,12 @@ UCI_CFLAGS ?= $(shell pkg-config --cflags uci 2>/dev/null)
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
 .PHONY: check-tcpdelay
-check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_reflectors $(BINARY_DIR)/test_filter_accounting
+check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_monitor_status $(BINARY_DIR)/test_monitor_publish
 	$(BINARY_DIR)/test_monitor_tcpdelay
 	$(BINARY_DIR)/test_monitor_reflectors
 	$(BINARY_DIR)/test_filter_accounting
+	$(BINARY_DIR)/test_monitor_status
+	$(BINARY_DIR)/test_monitor_publish
 
 # libbpf map-definition macros require GNU typeof, as in the BPF build.
 $(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE_DIR)/tcpdelay/tcpdelay.bpf.c $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/cake/accounting.h
@@ -66,6 +68,15 @@ $(BINARY_DIR)/test_monitor_reflectors: monitor/test_reflectors.c $(SOURCE_DIR)/m
 $(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/tcpdelay/injector.h $(SOURCE_DIR)/tcpdelay/inject.h $(SOURCE_DIR)/cake/accounting.h $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
+
+$(BINARY_DIR)/test_monitor_status: monitor/test_status.c $(SOURCE_DIR)/monitor/status.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/common/helpers.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
+
+# libubus and blobmsg are replaced by the test's recorders.
+$(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor/publish.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/common/helpers.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 -pthread $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
 CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c logging/log.c common/error.c common/helpers.c)
@@ -99,6 +110,7 @@ check: $(BINARIES)
 	set -e; for binary in $(BINARIES); do $$binary; done
 	sh ./test_init.sh
 	sh ./test_import.sh
+	sh ./test_luci.sh
 
 .SECONDEXPANSION:
 $(BINARIES): $(BINARY_DIR)/%: $$(addprefix $(OBJECT_DIR)/,$$($$*_OBJECTS))
