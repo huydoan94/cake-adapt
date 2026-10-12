@@ -11,7 +11,8 @@ see [development](development.md).
 cake-adapt currently:
 
 - loads typed configuration through `libuci`;
-- discovers existing CAKE qdiscs through rtnetlink;
+- discovers existing CAKE qdiscs through rtnetlink, including a root
+  `cake_mq`, whose shared rate it sets like a single CAKE's;
 - uses the configured `interface` as upload and derives download as
   `ifb4<interface>`, unless both directional interface options override it;
 - measures traffic rates independently for upload and download;
@@ -21,7 +22,10 @@ cake-adapt currently:
 - adjusts upload and download CAKE bandwidth independently when enabled, and
   reads each change back from the kernel to verify it;
 - reacts when CAKE qdiscs disappear or reappear;
-- integrates with OpenWrt `procd`; and
+- integrates with OpenWrt `procd` through a dnsmasq-style init script, one
+  daemon per instance;
+- publishes each instance's status on ubus as `cake-adapt.<section>`, read by
+  the `luci-app-cake-adapt` Status and Configuration pages; and
 - emits cake-autorate-style statistics for compatible analysis workflows.
 
 The daemon does **not** currently create CAKE, IFB, ingress redirection,
@@ -362,6 +366,14 @@ The cake-autorate parity and refactor sequence is complete:
   tenth of the memory, and reacts to a reply 7× faster at the median
   ([comparison](../profiling/cake-autorate-resources/README.md)).
 - Host tests, sanitizer runs, and the x86 SDK build pass.
+- The 0.3.17 service, ubus and LuCI behavior was checked on the x86 VM:
+  reload and restart keep a refused configuration's instance running, control
+  goes on through a stopped `ubusd`, and a second daemon for a running
+  instance exits ([dnsmasq lifecycle](../profiling/2026-10-11-dnsmasq-lifecycle/README.md),
+  [restart and respawn](../profiling/2026-10-11-restart-respawn/README.md),
+  [ubus thread](../profiling/2026-10-11-ubus-thread/README.md),
+  [LuCI app](../profiling/2026-10-10-luci-app/README.md)). These checks do
+  not cover the LuCI pages' appearance in a browser.
 
 Deferred work:
 

@@ -35,7 +35,10 @@ also visit and support
 - OpenWrt 25.12.
 - An SQM setup that creates the CAKE qdiscs: one on the WAN interface for
   upload, and one on its `ifb4<interface>` for download, as `sqm-scripts`
-  does. cake-adapt adjusts these qdiscs; it does not create them.
+  does. cake-adapt adjusts these qdiscs; it does not create them. A root
+  `cake_mq` (multi-queue CAKE) is adjusted like a single CAKE; see the
+  [configuration reference](docs/configuration.md#basic) for how it shares
+  the rate.
 - Hardware flow offloading off: offloaded traffic bypasses CAKE.
 
 The package pulls in its dependencies, including `fping`.
@@ -56,7 +59,8 @@ apk add --allow-untrusted /tmp/cake-adapt.apk
 ```
 
 This installs the daemon, its service `/etc/init.d/cake-adapt` and the
-configuration `/etc/config/cake-adapt`.
+configuration `/etc/config/cake-adapt`. The web interface is a separate
+package, `luci-app-cake-adapt`, installed the same way (see [LuCI](#luci)).
 
 ## Configuration
 
@@ -141,8 +145,8 @@ cake-adapt pauses that direction and resumes when it returns.
 ## LuCI
 
 The `luci-app-cake-adapt` package adds a LuCI interface. Install it next to
-cake-adapt (it depends on `luci-base` and `cake-adapt`), then open
-**Services → CAKE Adapt**. The daemon publishes its state on ubus as
+cake-adapt (it depends on `luci-base`, `luci-mod-status` and `cake-adapt`),
+then open **Services → CAKE Adapt**. The daemon publishes its state on ubus as
 `cake-adapt.<section>`, which the Status page reads every 2 seconds.
 
 **Status** has one block per instance. Its state, in the theme's colours, is

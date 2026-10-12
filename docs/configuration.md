@@ -4,7 +4,9 @@ cake-adapt is configured through UCI in `/etc/config/cake-adapt`. Each
 `config cake_adapt '<name>'` section runs as its own instance. The packaged file
 lists only the common options; everything else uses the defaults below.
 
-Change options with `uci` or by editing the file, then restart the service:
+Change options with `uci`, by editing the file, or in LuCI under
+**Services → CAKE Adapt → Configuration** (package `luci-app-cake-adapt`),
+then reload or restart the service:
 
 ```sh
 uci set cake-adapt.main.adjust_dl_shaper_rate='1'
@@ -12,8 +14,9 @@ uci commit cake-adapt
 /etc/init.d/cake-adapt restart
 ```
 
-An invalid configuration stops that instance from starting, and the reason is
-written to syslog (`logread -e cake-adapt`). Option names and meanings follow
+An invalid configuration is refused, and the reason is written to syslog
+(`logread -e cake-adapt`): a running instance keeps running its previous
+configuration, and one that is not running does not start. Option names and meanings follow
 [cake-autorate](https://github.com/lynxthecat/cake-autorate)'s configuration,
 so its documentation also applies; differences are noted below.
 
