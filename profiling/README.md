@@ -61,6 +61,7 @@ name used when the measurements were collected.
 
 Open `index.html` locally, or use the
 [hosted index](https://raw.githack.com/huydoan94/cake-adapt/luci-integration/profiling/index.html).
-The hosted links read the `main` branch. They use raw.githack because GitHub's
+The hosted links read the branch named in their URL, which a workflow
+rewrites to each pushed branch. They use raw.githack because GitHub's
 raw-file host disables the JavaScript inside FlameGraph SVGs that drives hover,
 search, and click-to-zoom.
