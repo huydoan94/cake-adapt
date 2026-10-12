@@ -1,0 +1,63 @@
+== check
+make: Entering directory '~/cake-adapt/tests'
+set -e; for binary in ../build/tests/bin/test_controller ../build/tests/bin/test_replay ../build/tests/bin/test_reflector ../build/tests/bin/test_latency ../build/tests/bin/test_parser ../build/tests/bin/test_tracker ../build/tests/bin/test_log ../build/tests/bin/test_traffic ../build/tests/bin/test_cpu ../build/tests/bin/test_memory ../build/tests/bin/test_helpers ../build/tests/bin/test_defaults ../build/tests/bin/test_estimator ../build/tests/bin/test_accounting ../build/tests/bin/test_inject; do $binary; done
+controller tests passed
+controller/fixtures/cake-autorate-ac75f49-ab.trace: replayed 2402 samples, 0 mismatching decisions
+controller/fixtures/cake-autorate-ac75f49-congestion.trace: replayed 2301 samples, 0 mismatching decisions
+worst rate difference 1191 per million, worst threshold difference 2 us
+cake-autorate replay tests passed
+reflector tests passed
+latency tests passed
+latency parser tests passed
+latency tracker tests passed
+log tests passed
+traffic tests passed
+CPU tests passed
+memory tests passed
+helper tests passed
+default configuration tests passed
+tcpdelay estimator tests passed
+CAKE packet accounting tests passed
+TCP timestamp injection policy tests passed
+sh ./test_init.sh
+init service tests passed
+sh ./test_import.sh
+standalone configuration import tests passed
+sh ./test_luci.sh
+luci_config.js passed
+LuCI app checks passed
+make: Leaving directory '~/cake-adapt/tests'
+== check passed
+== check-netlink
+make: Entering directory '~/cake-adapt/tests'
+../build/tests/bin/test_cake
+cake parser tests passed
+../build/tests/bin/test_netlink
+netlink request, deadline and event tests passed
+make: Leaving directory '~/cake-adapt/tests'
+== check-netlink passed
+== check-config
+make: Entering directory '~/cake-adapt/tests'
+../build/tests/bin/test_config
+configuration validation tests passed
+make: Leaving directory '~/cake-adapt/tests'
+== check-config passed
+== check-tcpdelay
+make: Entering directory '~/cake-adapt/tests'
+cc -I../src -isystem ~/openwrt-sdk-x86/staging_dir/target-i386_pentium4_musl/usr/include -O2 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Wconversion -Werror -ffunction-sections -fdata-sections -std=c11  -Wl,--gc-sections -o ../build/tests/bin/test_monitor_tcpdelay monitor/test_tcpdelay.c ../src/common/helpers.c 
+cc -I../src -isystem ~/openwrt-sdk-x86/staging_dir/target-i386_pentium4_musl/usr/include -O2 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Wconversion -Werror -ffunction-sections -fdata-sections -std=c11  -Wl,--gc-sections -o ../build/tests/bin/test_monitor_reflectors monitor/test_reflectors.c 
+cc -I../src -isystem ~/openwrt-sdk-x86/staging_dir/target-i386_pentium4_musl/usr/include -O2 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Wconversion -Werror -ffunction-sections -fdata-sections -std=c11  -Wl,--gc-sections -o ../build/tests/bin/test_monitor_status monitor/test_status.c ../src/common/helpers.c 
+../build/tests/bin/test_monitor_tcpdelay
+monitor ACK accounting tests passed
+../build/tests/bin/test_monitor_reflectors
+monitor reflector delay tests passed
+../build/tests/bin/test_filter_accounting
+filter accounting fallback tests passed
+../build/tests/bin/test_monitor_status
+monitor status tests passed
+../build/tests/bin/test_monitor_publish
+publish tests passed
+make: Leaving directory '~/cake-adapt/tests'
+== check-tcpdelay passed
+
+ALL PASSED (headers from ~/openwrt-sdk-x86)

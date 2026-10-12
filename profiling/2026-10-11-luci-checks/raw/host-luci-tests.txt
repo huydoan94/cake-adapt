@@ -1,0 +1,2 @@
+luci_config.js passed
+LuCI app checks passed

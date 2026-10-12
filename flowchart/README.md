@@ -1,9 +1,10 @@
 # cake-adapt current-code flowcharts
 
-[View the rendered flowchart viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html),
+[View the rendered flowchart viewer](https://raw.githack.com/huydoan94/cake-adapt/luci-integration/flowchart/index.html),
 or open `index.html` locally. The viewer contains 16 linked diagrams and works
-without a build step. The hosted link reads the `main` branch, so it shows the
-latest version pushed to GitHub.
+without a build step. The hosted link reads the branch named in its URL, which
+a workflow rewrites to each pushed branch (`tools/githack-links.py`), so it
+shows that branch's latest version on GitHub.
 
 - Structured graph data, the only file edited by hand: `flowchart-data.json`
 - Generator: `generate.mjs`

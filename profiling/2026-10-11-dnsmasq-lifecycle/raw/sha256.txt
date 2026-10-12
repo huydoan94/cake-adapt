@@ -1,0 +1,3 @@
+8541b03ccbf03e47f081d356bd641735804a750f2bd976a8080b3c9a8146fe29  bin/cake-adapt-0.3.16-r1-filogic.apk
+05ca9ced9276cd2cfaf3e3a7dff5dbb026f687b4230aa2b8c0842c078e027897  bin/cake-adapt-0.3.16-r1-x86.apk
+8b272ff084f371d524999332901d822c9c5f42fff989ad586a6338a0bf37c2b6  bin/luci-app-cake-adapt-0.3.16-r1.apk

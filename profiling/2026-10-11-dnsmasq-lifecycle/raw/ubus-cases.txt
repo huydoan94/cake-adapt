@@ -1,0 +1,25 @@
+ 12:15:30 up 1 min,  load average: 0.14, 0.09, 0.03
+0
+daemon=3386 ubusd=1019
+-- ubus lines since the daemon started (first-try connection is not logged):
+== B1 ubusd killed (cases 1, 2, 3)
+after 3070 ms; ubusd now 4754
+ERROR; 2026-10-11-12:15:31; 1791742531.130265; cannot reconnect to ubus: Connection failed
+ERROR; 2026-10-11-12:15:31; 1791742531.130282; cannot publish status on ubus: no connection
+INFO; 2026-10-11-12:15:33; 1791742533.130755; connected to ubus; status published as cake-adapt.main
+{
+	"version": "0.3.16-r1",
+	"pid": 3386,
+	"started": 1791742429,
+daemon 3386 alive: yes
+12:15:31 2026 daemon.err cake-adapt[3386]: ERROR: 1791742531.130265 cannot reconnect to ubus: Connection failed
+12:15:31 2026 daemon.err cake-adapt[3386]: ERROR: 1791742531.130282 cannot publish status on ubus: no connection
+== B2 ubusd stopped 15 s (frozen, not lost)
+DATA records during stop: 0
+{
+	"version": "0.3.16-r1",
+	"pid": 3386,
+	"started": 1791742429,
+new ubus lines:
+daemon 3386 alive: yes
+kernel RCU stall reports: 0

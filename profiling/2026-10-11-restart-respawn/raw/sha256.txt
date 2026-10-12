@@ -1,0 +1,4 @@
+454ffd305d8740684bb519be8a5e09516f6662bb3189f0fa00809dac99f60a3e  openwrt-sdk-x86/bin/packages/i386_pentium4/base/cake-adapt-0.3.16-r1.apk
+d640ef4af38d6f34ae9b3ed4cca9b93604f83ccb3253c520955b5ca2f1d8e197  openwrt-sdk-filogic/bin/packages/aarch64_cortex-a53/base/cake-adapt-0.3.16-r1.apk
+7e361b82082419e5fbc172e3b89f79391e6b1423222c11616432ee522dab7765  fix 6a79733: openwrt-sdk-x86/bin/packages/i386_pentium4/base/cake-adapt-0.3.16-r1.apk
+3550caba8ade0a33be721eafcf1572a7b33d34e7bfcd1a9e54ba202236bc6f9b  fix 6a79733: openwrt-sdk-filogic/bin/packages/aarch64_cortex-a53/base/cake-adapt-0.3.16-r1.apk

@@ -1,0 +1,42 @@
+== 16:51:36 R0 baseline
+  pid=5114 running=true main.uci=823bf1f4de571b4c lock=5114
+== 16:51:36 R1 restart, configuration unchanged
+  rc=0
+  pid=5367 running=true main.uci=823bf1f4de571b4c lock=5367
+  R1 PASS new pid, same file
+16:51:37 2026 daemon.info cake-adapt[5114]: INFO: 1791759097.191136 Stopped cake-adapt with PID: 5114, config: /var/run/cake-adapt/main.uci, section: main
+16:51:37 2026 daemon.info cake-adapt[5367]: INFO: 1791759097.231677 Starting cake-adapt 0.3.16-r1 with PID: 5367, config: /var/run/cake-adapt/main.uci, section: main
+== 16:51:43 R2 refused change min_dl 60000 > max 50000, restart
+ERROR: configuration error: download rates must satisfy minimum <= base <= maximum
+  rc=0
+  pid=5367 running=true main.uci=823bf1f4de571b4c lock=5367
+  R2 PASS pid and file kept
+16:51:43 2026 daemon.err cake-adapt[5595]: ERROR: 1791759103.337667 configuration error: download rates must satisfy minimum <= base <= maximum
+16:51:43 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+16:51:43 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+== 16:51:49 R3 refused, restart main
+ERROR: configuration error: download rates must satisfy minimum <= base <= maximum
+  rc=0
+  pid=5367 running=true main.uci=823bf1f4de571b4c lock=5367
+  R3 PASS pid kept
+16:51:49 2026 daemon.err cake-adapt[5825]: ERROR: 1791759109.572911 configuration error: download rates must satisfy minimum <= base <= maximum
+16:51:49 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+16:51:49 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+== 16:51:55 R4 fixed, restart main
+  rc=0
+  pid=6091 running=true main.uci=823bf1f4de571b4c lock=6091
+  R4 PASS new pid
+16:51:55 2026 daemon.info cake-adapt[5367]: INFO: 1791759115.961727 Stopped cake-adapt with PID: 5367, config: /var/run/cake-adapt/main.uci, section: main
+16:51:56 2026 daemon.info cake-adapt[6091]: INFO: 1791759116.003037 Starting cake-adapt 0.3.16-r1 with PID: 6091, config: /var/run/cake-adapt/main.uci, section: main
+== 16:52:01 R5 refused with no previous file: stop, then restart
+ERROR: configuration error: download rates must satisfy minimum <= base <= maximum
+  rc=0
+  pid= running= main.uci=none lock=6091
+  R5 PASS not started
+16:52:02 2026 daemon.info cake-adapt[6091]: INFO: 1791759122.031988 Stopped cake-adapt with PID: 6091, config: /var/run/cake-adapt/main.uci, section: main
+16:52:05 2026 daemon.err cake-adapt[6336]: ERROR: 1791759125.106054 configuration error: download rates must satisfy minimum <= base <= maximum
+16:52:05 2026 daemon.err cake-adapt: could not generate /var/run/cake-adapt/main.uci; not starting instance 'main'
+== 16:52:09 R6 restore configuration, start
+  pid=6562 running=true main.uci=823bf1f4de571b4c lock=6562
+  configuration restored
+  respawn: { "threshold": 3600, "timeout": 5, "retry": 0 }

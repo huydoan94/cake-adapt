@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 static void print_usage(const char *program_name)
@@ -130,6 +131,61 @@ static int open_log_file(
 		return -1;
 	}
 	return 0;
+}
+
+/*
+ * One daemon per instance name: a second one would control the same CAKE
+ * qdiscs. The lock lasts until the process exits, so its descriptor is never
+ * closed; it is close-on-exec, so pinger children do not hold it.
+ */
+static int lock_instance(const char *section_name)
+{
+	char path[PATH_MAX];
+	long holder_pid;
+	int length = snprintf(
+		path,
+		sizeof(path),
+		"%s/%s" LOCK_EXTENSION,
+		RUNTIME_DIRECTORY,
+		section_name
+	);
+
+	if (length < 0 || (size_t)length >= sizeof(path)) {
+		log_message(LOG_LEVEL_ERROR, "instance '%s': lock path is too long", section_name);
+		return -1;
+	}
+	if (mkdir(RUNTIME_DIRECTORY, 0700) != 0 && errno != EEXIST) {
+		log_message(
+			LOG_LEVEL_ERROR,
+			"could not create %s: %s; exiting",
+			RUNTIME_DIRECTORY,
+			strerror(errno)
+		);
+		return -1;
+	}
+	if (lock_pid_file(path, &holder_pid) >= 0)
+		return 0;
+	if (errno != EWOULDBLOCK)
+		log_message(
+			LOG_LEVEL_ERROR,
+			"could not lock %s: %s; exiting",
+			path,
+			strerror(errno)
+		);
+	else if (holder_pid > 0)
+		log_message(
+			LOG_LEVEL_ERROR,
+			"instance '%s' is already running (pid %ld); exiting",
+			section_name,
+			holder_pid
+		);
+	else
+		log_message(
+			LOG_LEVEL_ERROR,
+			"instance '%s' is already running; exiting",
+			section_name
+		);
+	return -1;
 }
 
 static void log_adjustment(const char *name, const struct config_direction *direction)
@@ -266,6 +322,9 @@ int main(int argc, char **argv)
 		);
 
 	ret = 1;
+	/* Before the log file, which belongs to a running instance of the same name. */
+	if (lock_instance(options.section_name) != 0)
+		goto out;
 	if (open_log_file(&config, options.section_name, log_path, sizeof(log_path)) != 0)
 		goto out;
 	log_configuration(&config, log_path);
@@ -278,7 +337,7 @@ int main(int argc, char **argv)
 		options.section_name
 	);
 	log_control_mode(&config);
-	ret = monitor_run(&config) == 0 ? 0 : 1;
+	ret = monitor_run(&config, options.section_name) == 0 ? 0 : 1;
 	log_system_message(
 		"Stopped cake-adapt with PID: %ld, config: %s, section: %s",
 		(long)getpid(),

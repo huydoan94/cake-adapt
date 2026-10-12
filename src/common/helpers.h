@@ -44,6 +44,14 @@ bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us);
  */
 int absolute_path(const char *path, char *buffer, size_t size);
 
+/*
+ * Takes an exclusive lock on PATH, creating it, and writes this process's pid
+ * into it. Returns the descriptor, which holds the lock until it is closed or
+ * the process exits, or -1 with errno set. EWOULDBLOCK means another process
+ * holds the lock; holder_pid is then its pid, or 0 when that is unreadable.
+ */
+int lock_pid_file(const char *path, long *holder_pid);
+
 /* A counter delta over a positive duration, in bit/s; saturated at UINT64_MAX. */
 uint64_t bps(uint64_t byte_delta, uint64_t elapsed_us);
 

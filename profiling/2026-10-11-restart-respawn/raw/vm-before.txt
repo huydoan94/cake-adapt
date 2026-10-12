@@ -1,0 +1,104 @@
+Sun Oct 11 16:50:49 CST 2026
+ 16:50:49 up 23 min,  load average: 0.00, 0.00, 0.00
+package cake-adapt
+
+config cake_adapt 'main'
+	option enabled '1'
+	option interface 'eth1'
+	option adjust_dl_shaper_rate '1'
+	option min_dl_shaper_rate_kbps '10000'
+	option base_dl_shaper_rate_kbps '20000'
+	option max_dl_shaper_rate_kbps '50000'
+	option adjust_ul_shaper_rate '1'
+	option min_ul_shaper_rate_kbps '10000'
+	option base_ul_shaper_rate_kbps '20000'
+	option max_ul_shaper_rate_kbps '50000'
+	option output_processing_stats '1'
+	option output_load_stats '1'
+	option output_reflector_stats '1'
+	option output_summary_stats '1'
+	option output_cake_changes '1'
+	option output_cpu_stats '0'
+	option output_cpu_raw_stats '0'
+	option debug '1'
+	option log_DEBUG_messages_to_syslog '0'
+	option log_to_file '1'
+	list reflectors '1.1.1.1'
+	list reflectors '1.0.0.1'
+	list reflectors '8.8.8.8'
+	list reflectors '8.8.4.4'
+	list reflectors '9.9.9.9'
+	list reflectors '9.9.9.10'
+	list reflectors '9.9.9.11'
+	list reflectors '94.140.14.15'
+	list reflectors '94.140.14.140'
+	list reflectors '94.140.14.141'
+	list reflectors '94.140.15.15'
+	list reflectors '94.140.15.16'
+	list reflectors '64.6.65.6'
+	list reflectors '156.154.70.1'
+	list reflectors '156.154.70.2'
+	list reflectors '156.154.70.3'
+	list reflectors '156.154.70.4'
+	list reflectors '156.154.70.5'
+	list reflectors '156.154.71.1'
+	list reflectors '156.154.71.2'
+	list reflectors '156.154.71.3'
+	list reflectors '156.154.71.4'
+	list reflectors '156.154.71.5'
+	list reflectors '208.67.220.2'
+	list reflectors '208.67.220.123'
+	list reflectors '208.67.220.220'
+	list reflectors '208.67.222.2'
+	list reflectors '208.67.222.123'
+	list reflectors '185.228.168.9'
+	list reflectors '185.228.168.10'
+	option tcp_delay_attribution '1'
+	option tcp_ts_request '1'
+
+{
+	"cake-adapt": {
+		"instances": {
+			"main": {
+				"running": true,
+				"pid": 3418,
+				"command": [
+					"/usr/sbin/cake-adapt",
+					"-C",
+					"/var/run/cake-adapt/main.uci",
+					"-S",
+					"main"
+				],
+				"term_timeout": 5,
+				"respawn": {
+					"threshold": 3600,
+					"timeout": 5,
+					"retry": 5
+				}
+			}
+		}
+	}
+}
+cake-adapt-0.3.16-r1 i386_pentium4 {~/cake-adapt} (GPL-2.0-only) [installed]
+fping-5.3-r1 i386_pentium4 {feeds/packages/feeds/packages/net/fping} (BSD-4-Clause) [installed]
+libubus20251202-2026.06.28~24864e78-r2 i386_pentium4 {feeds/base/system/ubus} (LGPL-2.1) [installed]
+luci-app-cake-adapt-0.3.16-r1 noarch {~/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+procd-2026.03.13~58eb263d-r1 i386_pentium4 {feeds/base/system/procd} (GPL-2.0) [installed]
+procd-seccomp-2026.03.13~58eb263d-r1 i386_pentium4 {feeds/base/system/procd} (GPL-2.0) [installed]
+procd-ujail-2026.03.13~58eb263d-r1 i386_pentium4 {feeds/base/system/procd} (GPL-2.0) [installed]
+ubus-2026.06.28~24864e78-r2 i386_pentium4 {feeds/base/system/ubus} (LGPL-2.1) [installed]
+ubusd-2026.06.28~24864e78-r2 i386_pentium4 {feeds/base/system/ubus} (LGPL-2.1) [installed]
+ucode-mod-ubus-2026.01.16~85922056-r2 i386_pentium4 {feeds/base/utils/ucode} (ISC) [installed]
+uhttpd-mod-ubus-2026.08.24~373145f7-r1 i386_pentium4 {feeds/base/network/services/uhttpd} (ISC) [installed]
+drwx------    2 root     root            80 Oct 11 12:06 .
+drwxr-xr-x    7 root     root           280 Oct 11 16:27 ..
+-rw-------    1 root     root             5 Oct 11 12:06 main.lock
+-rw-------    1 root     root          1689 Oct 11 12:06 main.uci
+qdisc noqueue 0: dev lo root refcnt 2 
+qdisc fq_codel 0: dev eth0 root refcnt 2 limit 10240p flows 1024 quantum 1514 target 5ms interval 100ms memory_limit 4Mb ecn drop_batch 64 
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 11046Kbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc ingress ffff: dev eth1 parent ffff:fff1 ---------------- 
+qdisc noqueue 0: dev br-lan root refcnt 2 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 11046Kbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+d0a68a8bbe1c78f8d495137c9889b1ca3c1a198f7ab50af439cf33ce101ad6c4  /usr/sbin/cake-adapt
+e8f4fd3eb1e8c43b991c018306d4fb7b79f8ce63640d8d787347eeb8fbe8e9b4  /etc/init.d/cake-adapt
