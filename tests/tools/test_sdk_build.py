@@ -230,6 +230,18 @@ class SDKBuildTests(unittest.TestCase):
         self.assertEqual((self.repo / 'bin/luci-app-cake-adapt-0.3.17-r1.apk').read_text(), 'luci-app-cake-adapt')
         self.assertTrue((self.repo / 'build/sdk-test-luci.log').is_file())
 
+    def test_variant_all_is_the_default(self):
+        self.ssl_feed()
+        self.ready('openssl')
+        # Dependency staging depends on what the previous build left, so compare
+        # only the package builds: the same variants, in the same order.
+        def built(calls):
+            return [value for call in self.app_calls(calls) for value in call if value.startswith('BUILD_VARIANT=')]
+        default = built(self.run_build(variants=()))
+        self.reset_calls()
+        self.assertEqual(built(self.run_build(variants=('all',))), default)
+        self.assertEqual(default[::2], ['BUILD_VARIANT=base', 'BUILD_VARIANT=mqtt', 'BUILD_VARIANT=mqtt-ssl'])
+
     def test_base_variant_needs_no_mqtt_library_or_feed(self):
         for source in ('c-ares', 'mosquitto'):
             _, feed, local, stamp, artifacts = CONTRACTS[source]
@@ -315,7 +327,8 @@ class SDKBuildTests(unittest.TestCase):
 
     def test_invalid_or_duplicate_cli_options_do_not_mutate_sdk(self):
         for arguments in ([], ['ssl=yes', str(self.sdk)], ['ssl=no', str(self.sdk)], ['variant=', str(self.sdk)],
-                          ['variant=ssl', str(self.sdk)], ['variant=all', str(self.sdk)],
+                          ['variant=ssl', str(self.sdk)], ['variant=all', 'variant=mqtt', str(self.sdk)],
+                          ['variant=mqtt', 'variant=all', str(self.sdk)], ['variant=all', 'variant=all', str(self.sdk)],
                           ['variant=mqtt', 'variant=mqtt', str(self.sdk)],
                           ['--prepare-only', '--prepare-only', str(self.sdk)],
                           ['--variant', str(self.sdk)], ['other=yes', str(self.sdk)],

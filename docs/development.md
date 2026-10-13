@@ -73,10 +73,12 @@ example `make package/cake-adapt/compile BUILD_VARIANT=mqtt
 CONFIG_PACKAGE_cake-adapt-mqtt=m NO_DEPS=1`. `package/cake-adapt/clean` removes
 the packages of every variant from the SDK's `bin/`, so copy one out before
 cleaning for the next. The helper builds the variants named by `variant=`
-arguments, or all three in the order above:
+arguments, or all three in the order above (`variant=all` or no `variant=`). The
+VS Code SDK build tasks ask which variant to build, `all` by default:
 
 ```sh
 sh tools/sdk-build.sh x86                                  # all three, then LuCI
+sh tools/sdk-build.sh variant=all x86                      # the same
 sh tools/sdk-build.sh variant=mqtt x86                     # cake-adapt-mqtt only
 sh tools/sdk-build.sh --prepare-only variant=mqtt-ssl x86  # its dependencies only
 ```
