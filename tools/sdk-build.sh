@@ -18,8 +18,10 @@
 # before it is built: the two MQTT variants share the staged libmosquitto, so the
 # last MQTT variant's library is the one left staged.
 #
-# The full output is shown and also kept in build/sdk-<name>-<variant>.log;
-# each built package is copied to bin/ with -<name> before its extension, for
+# The output of make goes only to build/sdk-<name>-<variant>.log; the terminal
+# shows this script's own messages and, when a build fails, the errors found in
+# the log and its last 30 lines. VERBOSE=1 also shows the full make output.
+# Each built package is copied to bin/ with -<name> before its extension, for
 # example bin/cake-adapt-mqtt-0.3.17-r1-x86.apk. When the SDK's
 # package/luci-app-cake-adapt links to this repository's luci-app-cake-adapt,
 # that package is built once after the daemon (log build/sdk-<name>-luci.log)
@@ -67,6 +69,29 @@ fail() { # STATUS MESSAGE...
 	printf '\nCANNOT BUILD (%s): ' "$name${variant:+, $variant}" >&2
 	printf '%s\n' "$@" >&2
 	exit "$status"
+}
+
+quiet() {
+	[ "${VERBOSE:-}" != 1 ]
+}
+
+# Fails like fail, first showing the end of the log when make output was hidden.
+fail_log() { # STATUS MESSAGE...
+	if quiet; then
+		printf '\nLast 30 lines of %s:\n' "$log" >&2
+		tail -n 30 "$log" >&2
+	fi
+	fail "$@"
+}
+
+# Runs make with its output appended to the log, or shown with VERBOSE=1; the
+# caller's tee also appends, so both writers keep to the end of the log.
+sdk_make() { # MAKE-ARGUMENTS...
+	if quiet; then
+		make "$@" >>"$log" 2>&1
+	else
+		make "$@"
+	fi
 }
 
 variant=
@@ -127,13 +152,14 @@ for variant in $selected; do
 	else
 		echo "Building $package in $sdk (log: build/sdk-$name-$variant.log)"
 	fi
+	: >"$log"
 	{
 		(prepare_dependencies)
 		echo $? >"$status_file"
-	} 2>&1 | tee "$log"
+	} 2>&1 | tee -a "$log"
 	status=$(cat "$status_file")
 	rm -f "$status_file"
-	[ "$status" -eq 0 ] || fail "$status" "dependency preparation failed (see $log)"
+	[ "$status" -eq 0 ] || fail_log "$status" "dependency preparation failed (see $log)"
 	if [ -n "$prepare_only" ]; then
 		echo "READY ($name, $package): all daemon headers and libraries staged"
 		continue
@@ -141,8 +167,8 @@ for variant in $selected; do
 	selection="BUILD_VARIANT=$variant CONFIG_PACKAGE_$package=m"
 	{
 		# shellcheck disable=SC2086 # selection holds two words without spaces.
-		make -C "$sdk" package/cake-adapt/clean NO_DEPS=1 $selection &&
-			make -C "$sdk" package/cake-adapt/compile NO_DEPS=1 $selection
+		sdk_make -C "$sdk" package/cake-adapt/clean NO_DEPS=1 $selection &&
+			sdk_make -C "$sdk" package/cake-adapt/compile NO_DEPS=1 $selection
 		echo $? >"$status_file"
 	} 2>&1 | tee -a "$log"
 	status=$(cat "$status_file")
@@ -167,17 +193,17 @@ for variant in $selected; do
 		continue
 	fi
 	[ -z "$libraries" ] ||
-		fail 3 "the package is missing libraries: $libraries" \
+		fail_log 3 "the package is missing libraries: $libraries" \
 			"Install their feed packages in the SDK and rebuild."
 	[ -z "$headers" ] ||
-		fail 3 "headers not found: $headers" \
+		fail_log 3 "headers not found: $headers" \
 			"A staged dependency disappeared or is incompatible; inspect the preflight plan and SDK feeds."
 	errors=$(grep -E '(error|Error):' "$log" | grep -v -E '^make(\[[0-9]+\])?: \*\*\*|^ERROR: package/' | head -n 20)
 	[ -z "$errors" ] ||
-		fail 4 "compile errors:" "$errors"
+		fail_log 4 "compile errors:" "$errors"
 	# Missing runtime packages (fping, bash) only warn, so they do not explain a
 	# failed build; without V=s the compiler's own errors are not in the log.
-	fail 1 "make exited with status $status, and the log shows no compiler error" \
+	fail_log 1 "make exited with status $status, and the log shows no compiler error" \
 		"See the compiler output with: make -C $sdk package/cake-adapt/compile NO_DEPS=1 $selection V=s"
 done
 variant=
@@ -194,12 +220,13 @@ if [ "$luci_link" = "$repo/luci-app-cake-adapt" ]; then
 	log=$repo/build/sdk-$name-luci.log
 	status_file=$repo/build/sdk-$name-luci.status
 	echo "Building luci-app-cake-adapt in $sdk (log: build/sdk-$name-luci.log)"
+	: >"$log"
 	{
-		make -C "$sdk" package/luci-app-cake-adapt/clean NO_DEPS=1 &&
-			make -C "$sdk" package/luci-app-cake-adapt/compile NO_DEPS=1
+		sdk_make -C "$sdk" package/luci-app-cake-adapt/clean NO_DEPS=1 &&
+			sdk_make -C "$sdk" package/luci-app-cake-adapt/compile NO_DEPS=1
 		echo $? >"$status_file"
-	} 2>&1 | tee "$log"
-	[ "$(cat "$status_file")" -eq 0 ] || fail 1 "the luci-app-cake-adapt build failed (see $log)"
+	} 2>&1 | tee -a "$log"
+	[ "$(cat "$status_file")" -eq 0 ] || fail_log 1 "the luci-app-cake-adapt build failed (see $log)"
 	rm -f "$status_file"
 	built=$(newest_package luci-app-cake-adapt)
 	[ -n "$built" ] || fail 1 "make succeeded but no luci-app-cake-adapt package is in $sdk/bin/packages"
