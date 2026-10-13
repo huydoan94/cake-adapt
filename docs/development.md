@@ -3,10 +3,36 @@
 See the [technical overview](technical.md) for the design and the
 [flowcharts](../flowchart/README.md) for the event flow.
 
+## Agent workflows and resumption
+
+Both Claude and Codex follow [AGENTS.md](../AGENTS.md) and
+[CODING_STYLE.md](../CODING_STYLE.md). Their model, delegation and tool choices
+are defined separately in [COLLABORATION.md](../COLLABORATION.md); Codex uses its
+own available tools and current primary model. Read [HANDOFF.md](../HANDOFF.md)
+for the active task, decisions, scoped approvals, evidence and unfinished work.
+Keep it current so a resumed session does not need the user to repeat the chat.
+
+Development, SDK validation, host-test headers, IntelliSense and VM validation
+default to **x86**. Use `OPENWRT_SDK_X86` or `../openwrt-sdk-x86`. Filogic or
+arm64 checks require an explicit target-specific request. The router's
+architecture and another SDK's installed dependencies do not change the default.
+
+Before running a build, check whether it will download dependencies, modify
+feeds or SDK configuration, install tools, or copy artifacts. Obtain approval
+for new downloads and environment changes; continue without asking again when
+the exact scope is already authorized. Approved local validation dependencies,
+tools and their caches belong in ignored `build/` unless another destination
+was approved. A Filogic dependency approval does not authorize x86 SDK changes,
+system installation or deployment. Record downloads and changes in the handoff.
+
 ## Building with an OpenWrt SDK
 
 This repository is an OpenWrt package source tree. Clone it one level below an
-OpenWrt 25.12 SDK's `package` directory and compile only this package:
+OpenWrt 25.12 SDK's `package` directory and compile only this package.
+
+The following is manual setup guidance. Agents working in an existing checkout
+use its package link and selected SDK; cloning, SDK downloads and feed changes
+are separate actions requiring authorization under the agent guide.
 
 ```sh
 cd /path/to/openwrt-sdk
@@ -24,12 +50,118 @@ The LuCI app is a second package in `luci-app-cake-adapt/`. It uses the LuCI
 feed's `luci.mk`, so the SDK needs the `luci` feed installed; link the
 directory as `package/luci-app-cake-adapt` and compile it the same way. It has
 no architecture (`all`). `tools/sdk-build.sh x86` (or `filogic`, or an SDK
-directory) cleans and builds `cake-adapt`, and `luci-app-cake-adapt` too when
-that link exists, copies the packages to `bin/`, and says why a build failed.
+directory) cleans and builds the three daemon variants, and `luci-app-cake-adapt`
+too when that link exists, copies the packages to `bin/`, and says why a build
+failed. `tools/host-test.sh` and `tools/sdk-build.sh` keep the make and
+test output in their `build/` logs and print only their own messages, plus the
+errors and last 30 lines of a failed log; `VERBOSE=1` shows the full output.
+
+### Package variants
+
+The root Makefile builds three variants of the daemon package, each with its
+own build directory (`build_dir/.../cake-adapt-<variant>/`):
+
+| Variant (`BUILD_VARIANT`) | Package | MQTT | Package dependencies |
+| --- | --- | --- | --- |
+| `base` (default variant) | `cake-adapt` | none (`MQTT_SUPPORTED=0`) | no libmosquitto, no c-ares |
+| `mqtt` | `cake-adapt-mqtt` | plain (`MQTT_SUPPORTED=1`) | `+libmosquitto-nossl` |
+| `mqtt-ssl` | `cake-adapt-mqtt-ssl` | plain or TLS (`MQTT_TLS_SUPPORTED=1`) | `+libmosquitto-ssl +ca-bundle` |
+
+`make package/cake-adapt/compile` builds every selected variant; an SDK with
+`CONFIG_ALL` selects all three. To build one, name it on the command line, for
+example `make package/cake-adapt/compile BUILD_VARIANT=mqtt
+CONFIG_PACKAGE_cake-adapt-mqtt=m NO_DEPS=1`. `package/cake-adapt/clean` removes
+the packages of every variant from the SDK's `bin/`, so copy one out before
+cleaning for the next. The helper builds the variants named by `variant=`
+arguments, or all three in the order above (`variant=all` or no `variant=`). The
+VS Code SDK build tasks ask which variant to build, `all` by default:
+
+```sh
+sh tools/sdk-build.sh x86                                  # all three, then LuCI
+sh tools/sdk-build.sh variant=all x86                      # the same
+sh tools/sdk-build.sh variant=mqtt x86                     # cake-adapt-mqtt only
+sh tools/sdk-build.sh --prepare-only variant=mqtt-ssl x86  # its dependencies only
+```
+
+Each variant's dependencies are prepared just before it is built:
+`base` needs no MQTT library, `mqtt` stages `libmosquitto-nossl` and c-ares, and
+`mqtt-ssl` stages OpenSSL first, then `libmosquitto-ssl`. The two Mosquitto
+variants share their staged headers and soname, so building `mqtt` after
+`mqtt-ssl` (or the reverse) rebuilds the staged library, and the last MQTT
+variant built leaves its library staged. The preflight also checks that each
+variant's declared Mosquitto dependency (and `ca-bundle` for `mqtt-ssl`) is the
+one it is built against. Logs are `build/sdk-<name>-<variant>.log` and
+`build/sdk-<name>-luci.log`; copies keep the package name, so they are distinct,
+for example `bin/cake-adapt-mqtt-ssl-0.3.17-r1-x86.apk`. The LuCI package is
+built once: it reads the installed variant's `/usr/share/cake-adapt/features` at
+run time and works with any of them.
+
+Before invoking Make, the helper checks the SDK compiler and BPF tools, the
+daemon's declared dependencies, staged headers and linker libraries, and the
+tools actually used by the linked LuCI package. It reports the full preparation
+plan before building any dependency. Missing target libraries are staged in
+dependency order: UCI, libubox, ubus, libnl-tiny, libbpf, zlib and the selected
+Mosquitto, with their build prerequisites such as libelf, c-ares, Lua and JSON-C.
+Checks include required pkg-config metadata and shared-library ELF class,
+byte order and machine matching the SDK's runtime. An existing stamp cannot hide
+a missing header, broken library link or an SSL Mosquitto library overwriting
+the shared soname. Unrepresented new package/build dependencies fail preflight
+until their staging requirements are added to `tools/sdk-dependencies.sh`.
+
+Command-line package selections avoid manual `.config` edits. All package builds
+use `NO_DEPS=1`, so unrelated selected variants cannot trigger recursive
+OpenSSL/kernel builds. Missing SDK tools or an unavailable local feed stop
+preflight with a diagnostic before dependency builds start. The helper registers
+packages from existing local feeds; it does not fetch or update feeds. Dependency
+compilation can download source archives absent from the SDK's `dl/` cache.
+
+To check and prepare dependency headers, libraries and metadata without building
+the app or copying artifacts, run `sh tools/sdk-build.sh --prepare-only
+variant=<variant> x86` (or `filogic` for that explicitly selected target). The usual VS Code SDK build tasks prepare them
+automatically; no manual dependency selections in `.config` are needed.
+
+SSL dependency builds disable optional OpenSSL engines and retain `NO_DEPS=1` to
+keep kernel packages out of the build. `cake-adapt-mqtt-ssl` supports the
+**MQTT TLS** and **MQTT CA certificate file** settings in LuCI's Advanced Logging
+tab. TLS remains off until enabled there or through `mqtt_tls`; certificate and
+hostname verification are mandatory. The other variants reject enabled TLS
+configuration, and `cake-adapt` rejects enabled MQTT. The default CA file is
+supplied by `ca-bundle`; an absolute path to a custom CA file can be configured
+instead.
+
+For agent validation without authorized artifact copying, run the focused
+`package/cake-adapt/clean` and `package/cake-adapt/compile` Make targets, with
+`BUILD_VARIANT` and the variant's `CONFIG_PACKAGE_` selection, in the
+selected SDK after `--prepare-only` for that variant, and the equivalent LuCI targets when applicable. Package builds
+may recursively download or rebuild dependencies; inspect the selected packages
+and existing staging first. Use `NO_DEPS=1` only after the required dependencies
+are built and staged, when it keeps validation within the approved scope. A
+missing library must be prepared in that selected SDK under an applicable
+approval or reported as a blocker. Do not switch SDKs to obtain a passing build.
+
+`cake-adapt-mqtt` depends on `libmosquitto-nossl`; it does not bring in OpenSSL
+or CA certificates. `cake-adapt-mqtt-ssl` depends on `libmosquitto-ssl`, which
+requires OpenSSL, and on the runtime `ca-bundle`.
+The earlier TLS prototype also used `libmosquitto-ssl`. An SDK
+that selects optional OpenSSL AF_ALG or `/dev/crypto` engines can therefore pull kernel-module package
+targets into an ordinary recursive package build. In the earlier Filogic run,
+the AF_ALG dependency entered `package/kernel/linux/compile`, which repackaged
+many selected modules; the log does not show a full kernel image compilation.
+Inspect the SDK's `tmp/.packagedeps` and engine selection before running a
+recursive build. Only `cake-adapt-mqtt-ssl` has that MQTT dependency chain;
+header-only staging for editor use requires no kernel targets.
+SDKs may still select both Mosquitto variants through `CONFIG_ALL`; our package
+build helper checks the actual staged library, rather than trusting package
+stamps, and repairs it before the app build when necessary. MQTT preparation
+builds only the selected library variant and its required dependencies. Existing source
+archives are reused; approval rules still apply to any new download or SDK modification.
 
 GitHub Actions also discovers the OpenWrt 25.12 architecture list, runs the
-host tests, builds each architecture, and publishes packages as workflow
-artifacts. Tags beginning with `v` additionally publish the packages as GitHub
+host tests, builds the three daemon variants for each architecture (one
+`package/cake-adapt/compile` with the SDK's default `CONFIG_ALL`), checks that
+exactly one package of each variant was built, and publishes them, with the
+LuCI package, as workflow artifacts. Publishing is all or nothing: one variant
+failing on any architecture publishes no release. Tags beginning with `v` additionally publish the packages as GitHub
 release assets.
 
 ## Editor setup
@@ -42,6 +174,13 @@ and `tools/`, including the socket filter with the SDK's BPF clang and the
 kernel headers, so libbpf's `<bpf/...>` and libnl-tiny resolve. The file holds
 absolute paths and is not committed; regenerate it after adding or moving a
 source file.
+
+The database supplies include paths; it does not install headers. For a new
+library such as libmosquitto, verify that its header (for example `mosquitto.h`)
+exists under the selected x86 SDK's staged include directory. If it is missing,
+prepare the dependency there only within an authorized scope, then regenerate
+the database. Do not add Filogic paths to an x86 command or silently change the
+generator's target. Report an unresolved include as unresolved.
 
 ## Source layout
 
@@ -69,7 +208,7 @@ src/
 ├── tcpdelay/           eBPF TCP filter and timestamp injector, their loaders,
 │                       and the per-flow queue estimator
 ├── platform/           rtnetlink transport, traffic rates, CPU and memory sampling
-└── logging/            syslog, structured records, rotation, export, reset
+└── logging/            syslog, records, rotation/export/reset and optional MQTT
 files/
 ├── cake-adapt.init     procd service: runtime files, reload, restart, respawn
 ├── cake-adapt.import   builds /var/run/cake-adapt/<section>.uci from UCI
@@ -114,7 +253,7 @@ make -C tests check-config
 ```
 
 If the host lacks those headers, `UCI_CFLAGS` can point at a directory that
-exposes an OpenWrt SDK's staged `uci.h` and `libubox/` headers:
+exposes the selected x86 SDK's staged `uci.h` and `libubox/` headers:
 
 ```sh
 make -C tests check-config UCI_CFLAGS="-isystem /path/to/uci-headers"
@@ -131,6 +270,21 @@ make -C tests check check-netlink OBJECT_DIR=../build/sanitize \
 The production daemon itself is built with strict warnings, including
 `-Wall`, `-Wextra`, `-Wpedantic`, `-Wformat=2`, `-Wshadow`, `-Wconversion`, and
 `-Werror`.
+
+The ordinary logging tests use an MQTT stub, and `test_mqtt_none` checks the
+`cake-adapt` package's no-op sender. `check-config` builds the configuration
+tests once per variant (`test_config`, `test_config_mqtt`,
+`test_config_mqtt_ssl`). The dedicated queue tests use `make -C tests check-mqtt`,
+which runs them as built for `cake-adapt-mqtt` and for `cake-adapt-mqtt-ssl`, with
+real libmosquitto headers and linkage, configured through `MQTT_CFLAGS` and
+`MQTT_LIBS` when needed. Broker validation uses
+`tests/logging/mqtt_integration.py` with an approved local library and broker
+build. Commands, source identities and validation limits are in the
+[initial MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) and
+[current optional TLS evidence](../profiling/2026-10-12-mqtt-ssl-build/README.md).
+Build `mqtt_driver` with `MQTT_TLS_SUPPORTED=1` for the TLS driver tests and `--tls-only` for the TLS broker
+cases; `--tls-stalled-only` checks the first socket deadline. Native broker
+checks and an SDK build do not establish full-daemon behavior on the x86 VM.
 
 ## Recording a router's log
 

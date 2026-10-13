@@ -15,8 +15,10 @@ digraph G {
   usr2 [label="SIGUSR2",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   reset [label="flush and truncate in place",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   cpu [label="CPU timer (RUNNING only)\n/proc/stat → CPU / CPU_RAW",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  mqtt_queue [label="mqtt_submit\ntry-lock; bounded 32-record queue\noffline/busy/full → silent drop",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  mqtt_send [label="sender + network threads\nQoS 0 publish\nretry every 10 s indefinitely",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   msg -> sys;
-  msg -> time [label="if log file"];
+  msg -> time [label="if file, stdout or MQTT"];
   rec -> time;
   time -> file;
   file -> size;
@@ -25,4 +27,6 @@ digraph G {
   usr1 -> export;
   usr2 -> reset;
   cpu -> rec [style=dashed,color="#64748b"];
+  time -> mqtt_queue [label="if mqtt_enabled",style=dashed,color="#64748b"];
+  mqtt_queue -> mqtt_send;
 }

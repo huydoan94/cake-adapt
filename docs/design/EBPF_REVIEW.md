@@ -1,5 +1,12 @@
 # eBPF TCP-delay review
 
+Agent execution: Claude and Codex follow the matching workflow in
+[COLLABORATION.md](../../COLLABORATION.md), the current restrictions in
+[AGENTS.md](../../AGENTS.md), and [HANDOFF.md](../../HANDOFF.md). Historical
+experiments and commands below are evidence, not standing authorization for
+new experiments, SDK changes or deferred tuple-lifetime work. Current target
+validation defaults to x86; expand it only for the active authorized task.
+
 **2026-10-06 (evening): bound is a median across reflectors.** Router logs
 showed the TCP upload estimate reaching 20-72 ms on idle lines, each time equal
 to the single slowest fping reply of the previous two seconds: one reflector

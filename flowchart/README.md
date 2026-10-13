@@ -18,6 +18,14 @@ charts were drawn.
 
 ## Regenerating
 
+Claude and Codex use the same generator and source rules; their tool workflows
+are in [COLLABORATION.md](../COLLABORATION.md). Check [HANDOFF.md](../HANDOFF.md)
+for an existing approved renderer before fetching another one. Installing a
+renderer or downloading npm packages needs an applicable approval; local tools
+and the npm cache belong in ignored `build/`. Do not install system-wide or
+change SDK targets merely to regenerate documentation. Policy-only edits do not
+require regenerating unchanged source diagrams.
+
 Edit `flowchart-data.json`, then run the generator with Node.js 18 or newer:
 
 ```sh
@@ -35,6 +43,15 @@ GRAPHVIZ_MODULE=/path/to/node_modules/@hpcc-js/wasm-graphviz/dist/index.js \
 
 The committed diagrams were rendered with `@hpcc-js/wasm-graphviz` 1.29.2
 (Graphviz 16.1.0).
+
+The approved local renderer is currently at
+`build/graphviz-renderer/node_modules/@hpcc-js/wasm-graphviz/dist/index.js`, with
+its npm cache in `build/graphviz-npm-cache/`. From the repository root:
+
+```sh
+GRAPHVIZ_MODULE="$PWD/build/graphviz-renderer/node_modules/@hpcc-js/wasm-graphviz/dist/index.js" \
+    node flowchart/generate.mjs
+```
 
 A chart reference is written as `path:function`. The generator resolves it to
 the line of that function's definition, and fails if the function no longer

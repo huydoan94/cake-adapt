@@ -3,8 +3,12 @@
 		"description": "Grant access to cake-adapt configuration and status",
 		"read": {
 			"uci": [ "cake-adapt" ],
+			"file": {
+				"/usr/share/cake-adapt/features": [ "read" ]
+			},
 			"ubus": {
 				"cake-adapt.*": [ "status" ],
+				"file": [ "read" ],
 				"service": [ "list" ]
 			}
 		},

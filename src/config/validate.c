@@ -7,6 +7,9 @@
 #include <limits.h>
 #include <string.h>
 
+#define MQTT_INVALID_HOST_CHARACTERS " /[]\t\r\n"
+#define MQTT_TOPIC_WILDCARDS "+#"
+
 /* A uloop interval: a positive whole number of milliseconds that fits its unsigned argument. */
 static bool timer_interval_valid(uint64_t interval_us)
 {
@@ -283,8 +286,66 @@ static int validate_latency_config(const struct config *config, char *error, siz
 	return validate_monitoring(config, error, error_size);
 }
 
+/* The broker settings an MQTT package connects with. */
+static int validate_mqtt_broker(const struct config_mqtt *mqtt, char *error, size_t error_size)
+{
+	if (mqtt->host[0] == '\0' || strpbrk(mqtt->host, MQTT_INVALID_HOST_CHARACTERS) != NULL)
+		return error_set(
+			error,
+			error_size,
+			"option 'mqtt_host' must be a hostname or IP address"
+		);
+	if (mqtt->port == 0U || mqtt->port > UINT16_MAX)
+		return error_set(
+			error,
+			error_size,
+			"option 'mqtt_port' must be between 1 and 65535"
+		);
+	if (mqtt->topic[0] == '\0' || strpbrk(mqtt->topic, MQTT_TOPIC_WILDCARDS) != NULL)
+		return error_set(
+			error,
+			error_size,
+			"option 'mqtt_topic' must be nonempty and contain no + or #"
+		);
+	if (mqtt->password[0] != '\0' && mqtt->username[0] == '\0')
+		return error_set(error, error_size, "option 'mqtt_password' needs mqtt_username");
+	return 0;
+}
+
+static int validate_mqtt(const struct config_mqtt *mqtt, char *error, size_t error_size)
+{
+	if (!mqtt->enabled)
+		return 0;
+	/*
+	 * The cake-adapt package sends nothing: its sender's start fails, main() warns and the
+	 * instance runs, so the broker settings are not checked. TLS asked for is refused in every
+	 * package without it, never replaced by plain traffic.
+	 */
+	if (MQTT_SUPPORTED && validate_mqtt_broker(mqtt, error, error_size) != 0)
+		return -1;
+	if (mqtt->tls) {
+#if !MQTT_TLS_SUPPORTED
+		return error_set(
+			error,
+			error_size,
+			"option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package"
+		);
+#else
+		if (mqtt->ca_file[0] != '/')
+			return error_set(
+				error,
+				error_size,
+				"option 'mqtt_ca_file' must be an absolute path"
+			);
+#endif
+	}
+	return 0;
+}
+
 int config_validate(const struct config *config, char *error, size_t error_size)
 {
+	if (validate_mqtt(&config->mqtt, error, error_size) != 0)
+		return -1;
 	if ((config->enabled || config->download.adjust || config->upload.adjust) &&
 	    config->interface[0] == '\0') {
 		return error_set(

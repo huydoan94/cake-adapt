@@ -908,8 +908,34 @@ static void test_disabled_output_skips_formatting_clocks(void)
 	log_close();
 }
 
+extern bool test_mqtt_active;
+extern unsigned int test_mqtt_count;
+extern char test_mqtt_line[2048];
+
+static void test_mqtt_without_file(void)
+{
+	bool foreground = false;
+
+	log_init("test", foreground);
+	test_mqtt_active = true;
+	test_mqtt_count = 0U;
+	log_message(LOG_LEVEL_INFO, "MQTT-only message");
+	assert(test_mqtt_count == 1U);
+	assert(strstr(test_mqtt_line, "INFO;") != NULL);
+	assert(strstr(test_mqtt_line, "; MQTT-only message") != NULL);
+	log_system_message("MQTT system message");
+	assert(test_mqtt_count == 2U);
+	assert(strstr(test_mqtt_line, "SYSLOG;") != NULL);
+	log_print_headers(&(struct log_records){ .load = true });
+	assert(test_mqtt_count == 3U);
+	assert(strncmp(test_mqtt_line, "LOAD_HEADER;", 12U) == 0);
+	log_close();
+	assert(!test_mqtt_active);
+}
+
 int main(void)
 {
+	test_mqtt_without_file();
 	test_operational_syslog();
 	test_problems_to_stderr();
 	test_disabled_output_skips_formatting_clocks();
