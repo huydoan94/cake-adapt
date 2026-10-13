@@ -40,6 +40,38 @@ task's relevant docs before continuing. Keep this file current at stop points.
   The user requested automatic dependency staging before SDK builds, without
   manually finding and changing MQTT selections in `.config`.
 
+## Uncommitted follow-up: MQTT sender fixes (2026-10-12)
+
+The user approved three fixes from the primary agent's review of
+`src/logging/mqtt.c`; implemented, not yet committed or reviewed:
+
+- `mqtt_submit` writes the wake eventfd only when the queue goes from empty to
+  non-empty, never for a dropped line. The sender already drains a non-empty
+  queue without waiting; publish/connect callbacks still wake it.
+- No `pthread_cancel`. Each attempt is a `struct mqtt_connection` (client,
+  thread, `stop`/`online`/`pending`), referenced by the sender and its network
+  thread; the last reference destroys the client. The sender joins it for at
+  most 500 ms (`mqtt_join`, the `publish_join` pattern) and otherwise detaches
+  it; the thread also holds a sender-state reference, and the state's last
+  owner runs `mosquitto_lib_cleanup` (`mosquitto_lib_init` runs in
+  `mqtt_start` on the main thread). No new attempt starts while an earlier
+  network thread is alive (`owners > 2`), so at most one is ever left behind.
+  `state->online` is the sender's mirror of the current connection, so a late
+  callback cannot affect a newer one. A clock failure always reaches the poll.
+- Style: local pointers instead of mixed `->`/`.` chains (`mqtt.c`,
+  `defaults.c`); `mqtt_start` takes an error buffer naming the failing step.
+- Checks (after the review round): `tools/host-test.sh x86`, `check-mqtt`
+  (wake, stuck-resolver with one-thread cap and an 8-line batch published
+  within 50 ms via callbacks delivered on the mock network thread, and
+  stop-while-resolving; about 13 s), ASan/UBSan, TSan under `setarch -R`, x86
+  `-fsyntax-only` of the changed daemon sources, and the non-SSL broker
+  integration (20-line batch in 3.8 ms, bound 0.5 s), evidence in
+  `build/mqtt-validation/evidence-fixes/`. A lost-wake-up mutant (no wake in
+  the publish callback, no drain `continue`) fails the batch test. No SDK
+  package build or VM run. `mqtt_join` duplicates `publish_join`; the
+  consolidation is a separate round after this commit. Report:
+  `/tmp/cake-adapt-tasks/mqtt-fixes-report.md`.
+
 ## Completed follow-up: optional SSL builds and TLS settings
 
 `ssl=yes|no` is implemented; no-SSL remains the default. The helper verifies and
