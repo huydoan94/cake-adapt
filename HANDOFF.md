@@ -33,7 +33,7 @@ earlier handoff is [docs/history/handoff-2026-10-12.md](docs/history/handoff-202
   not group/world-writable executables and files; plain fping options), document
   the group as root-equivalent, or both. No change made yet.
 - **Deferred by the user ("circle back later"):** the version/docs mismatch
-  with `main` (v0.3.18 is tagged there; this branch still says 0.3.17-r1) and
+  with `main` (v0.3.18 is tagged there; this branch was bumped to 0.3.19-r1 on 2026-10-13, at the user's request) and
   the size of the SDK dependency helper.
 - **Not yet proven:** `cake-adapt-mqtt-ssl` and LuCI packages not rebuilt
   after the last variants fix round; only a real CI run proves every
