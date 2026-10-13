@@ -1,0 +1,21 @@
+# Search scope for rg-based tools (Codex, Claude Code, editors). Git ignores
+# this file's rules: everything here stays tracked. Read a skipped file by its
+# path, or search it with `rg --no-ignore`.
+
+# Raw evidence: keep each run's README (its findings) and the index searchable.
+profiling/**
+!profiling/**/
+!profiling/README.md
+!profiling/*/README.md
+
+# Generated flowchart output; flowchart-data.json, generate.mjs and the README
+# stay searchable.
+flowchart/diagrams/
+flowchart/index.html
+flowchart/source-manifest.json
+
+# Recorded cake-autorate traces for the replay test.
+tests/controller/fixtures/
+
+# Superseded handoff history, read on demand.
+docs/history/
