@@ -2,15 +2,47 @@
 
 **At session start, resumption after a long break (more than 2 hours), the primary agent reads
 [`COLLABORATION.md`](COLLABORATION.md) and [`HANDOFF.md`](HANDOFF.md) together
-with this guide. Read [`CODING_STYLE.md`](CODING_STYLE.md) and the task's relevant
-documentation before editing. Inspect the current worktree and identify
-unfinished work before continuing. Delegated
-agents use a scoped task brief with the applicable policy excerpts.**
+with this guide; in `COLLABORATION.md`, the shared roles and your own provider's
+workflow are enough at session start. Before editing code, read
+[`CODING_STYLE.md`](CODING_STYLE.md); read the topic files below and other
+documentation only as the task needs them.
+Inspect the current worktree and identify unfinished work before continuing.
+Delegated agents use a scoped task brief with the applicable policy excerpts.**
 
 Claude and Codex each have an explicit workflow in `COLLABORATION.md`. Select
 the workflow for the active primary agent; the Claude model requirement does
 not apply to Codex. Preserve user decisions and scoped approvals in `HANDOFF.md`
 so resumption does not depend on the user repeating earlier instructions.
+
+This file holds the rules that always apply. The detailed rules live in topic
+files under `docs/agents/`; they are as binding as this file. Read the ones a
+task touches before acting:
+
+| Before you… | Read |
+| --- | --- |
+| change controller behaviour, defaults, records or reflectors | [`docs/agents/upstream.md`](docs/agents/upstream.md) |
+| add, move or own code; touch interfaces, ingress or kernel integration | [`docs/agents/modules.md`](docs/agents/modules.md) |
+| edit C | [`docs/agents/c-style.md`](docs/agents/c-style.md) |
+| build, test, change an SDK or the build helpers | [`docs/agents/build-and-tests.md`](docs/agents/build-and-tests.md) |
+| plan controller or TCP-delay estimator work, or pick up an open item | [`docs/agents/status.md`](docs/agents/status.md) |
+| touch a test VM | [`docs/agents/vm-testing.md`](docs/agents/vm-testing.md) |
+
+Searches with `rg` (and tools built on it) skip raw evidence, generated
+flowchart output, replay fixtures and `docs/history/` through `.ignore`; read
+such a file by its path or search it with `rg --no-ignore`.
+
+Rules from those files that apply even when you do not read them:
+
+- Never bump `PKG_VERSION` or `PKG_RELEASE`, copy release artifacts, deploy, or
+  publish unless the user explicitly asks.
+- New downloads, SDK/feed changes and installations need the user's approval
+  for that exact scope; development, SDK validation and VM testing default to
+  x86 (Filogic/arm64 only on an explicit request).
+- Never run cake-autorate and cake-adapt, or any two controllers, against the
+  same CAKE qdiscs.
+- Unit tests are part of every behavioral change; keep strict warnings and
+  clang-format-stable C.
+- Recommend plain CAKE `ack-filter` only; never `ack-filter-aggressive`.
 
 ## Product contract
 
@@ -43,57 +75,17 @@ user decision and verified behavior at the current stage.
 Replacing all historical `sqm-scripts` behavior is not a goal. If native SQM
 ownership is added later, implement only the deployment's required behavior.
 
-## Upstream behavioral reference
 
-[cake-autorate](https://github.com/lynxthecat/cake-autorate) and its community
-are the source of the controller design and operational behavior being ported.
-Honor that work in user-facing documentation and link upstream when describing
-the origin of the algorithm.
+## Upstream behavioral reference (summary)
 
-Treat upstream cake-autorate as the reference for:
-
-- load classification and rate decisions;
-- latency baseline and delta tracking;
-- bufferbloat detection and refractory periods;
-- reflector selection, health, and replacement;
-- idle, sleep, stall, and recovery behavior;
-- defaults and configuration meaning; and
-- profiling/statistics log formats.
-
-Since 2026-10-01 the goal is to minimize bufferbloat, not to port faithfully:
-cake-autorate is the origin of the design and the baseline to beat. Departures
-are allowed when they are opt-in (or a documented deliberate default), measured
-on the testbed against the upstream-identical behavior with raw evidence under
-`profiling/`, and documented in code and user-facing docs. With every departure
-switched off, the replay test must keep matching within its tolerances. Judge a change by latency
-first (added delay percentiles, time bufferbloated) with bounded throughput
-loss (keep at least about 85% of capacity unless the user agrees otherwise).
-
-Port behavior deliberately and verify it. Preserve record names, field order,
-units, headers, and content exactly where cake-autorate log compatibility is
-intended. Document and test intentional differences instead of silently
-diverging or attributing local bugs to upstream.
-
-Keep every supported cake-autorate option in the typed UCI model. Parsing an
-option does not mean its behavior is implemented; do not claim support until
-the corresponding path is tested. `fping` is the only supported pinger for now,
-and reflector targets come from local UCI configuration rather than a remotely
-retrieved list. `fping-ts` is verified on the emulated testbed but not on
-internet reflectors; the IRTT backend is experimental and must be described as
-such.
-
-Upstream may be consulted during implementation, but production code, init
-scripts, and configuration must never source, execute, or read files from an
-installed cake-autorate instance. Use the upstream name for attribution and
-compatibility descriptions, not for local identifiers, filenames, or runtime
-dependencies.
-
-One deliberate default difference is safety-related: upload and download rate
-adjustment remain opt-in.
-
-Do not add `startup_wait_s`. React to interface/qdisc readiness through kernel
-lifecycle state, and let the activity controller idle naturally when no traffic
-is passing.
+[cake-autorate](https://github.com/lynxthecat/cake-autorate) is the origin of
+the controller design and the baseline to beat: since 2026-10-01 the goal is to
+minimize bufferbloat, not to port faithfully. Departures are opt-in (or a
+documented deliberate default), measured on the testbed with raw evidence under
+`profiling/`, and documented; with every departure off, the replay test keeps
+matching within its tolerances. `fping` is the only supported pinger; rate
+adjustment stays opt-in. The full rules are in
+[`docs/agents/upstream.md`](docs/agents/upstream.md).
 
 ## Architecture and ownership
 
@@ -119,200 +111,6 @@ Include project headers relative to `src/`, for example
 `#include "latency/tracker.h"`. A header shared only inside one subsystem stays
 in that directory and is not included from outside it.
 
-### Module boundaries
-
-- `main.c`: CLI, startup, logging initialization, configuration loading,
-  the per-instance lock (`/var/run/cake-adapt/<section>.lock`, so a second
-  daemon with a running instance's name exits with an error), top-level
-  lifecycle, and orderly shutdown only.
-- `monitor/`: uloop orchestration and coordination between measurements,
-  controller decisions, qdisc lifecycle, timers, and signals. All state is one
-  `struct monitor` in the private `loop.h`, passed to every function; each
-  file owns one part of it and prefixes its functions with that part's name.
-  `monitor.h` is the only public header.
-  - `monitor.c`: loop setup and teardown, the traffic tick
-    (`monitor_tick`), the activity state machine, CPU and log timers, and
-    signals.
-  - `links.c` (`links`): both directions' CAKE discovery, achieved rates,
-    compensated traffic cadence, and qdisc lifecycle events.
-  - `control.c` (`control`): controller configuration and input, CAKE
-    bandwidth changes with readback, minimum-rate enforcement, and controller
-    records.
-  - `pingers.c` (`pingers`): pinger start, output, exit, restart, setup grace,
-    and per-reply latency processing.
-  - `reflectors.c` (`reflectors`): latency trackers, reflector ordering,
-    scheduled comparison and replacement, and health checks.
-  - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
-    rate, and the timestamp injector's attachment and `TCP_INJECT` records.
-  - `status.c` (`status`): the instance's status snapshot from state the
-    monitor already holds.
-  - `publish.c` (`publish`): the status object on ubus, served from its own
-    thread so a stalled `ubusd` never blocks control; the main thread only
-    copies a snapshot under a mutex each traffic tick and logs what the thread
-    reports.
-- `common/`
-  - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
-    prose diagnostics, format strings, and module-owned record schemas local.
-  - `utils.h`: trivial operations as `static inline` functions: saturating
-    arithmetic (`saturating_add`, `saturating_sub`, `saturating_mul`,
-    `signed_sum`), `min_u64`, `max_u64`, `mul_div`, rounding
-    (`rounded_divide`, `signed_rounded_divide`), ratios per million
-    (`ratio_of`, `ratio_of_rounded_up`), unit conversions (`byte_to_bit`,
-    `bit_to_kbit`, `byte_to_kbyte`, `us_to_ms`, `ns_to_us`, `timespec_to_us`,
-    `us_to_sec_decimal`), and `ARRAY_SIZE`. A module never keeps its own copy
-    of one.
-  - `helpers.c`: generic operations too large to inline, such as numeric
-    parsing, random selection, clocks (`read_clock_us`), bounded thread joins
-    (`thread_join_within`, for the ubus and MQTT threads), rates from counters
-    (`bps`), and ratios (`fraction_to_ratio_e6`, `load_ratio_e6`).
-  - `error.c`: shared error-buffer formatting.
-- `config/`
-  - `config.c`: typed UCI loading and conversion through `libuci`, driven by
-    one table of typed option bindings (`options[]`, whose order is also the
-    `-L` listing); never parse `/etc/config/cake-adapt` manually.
-  - `validate.c`: cross-option validation of a loaded configuration
-    (`config_validate`), run before control starts.
-  - `defaults.c` and `defaults.h`: built-in application and configuration
-    defaults.
-- `controller/`
-  - `controller.c`: platform-independent load classification, autorate,
-    congestion, and activity policy; keep it directly unit-testable with
-    synthetic inputs.
-  - `reflector.c`: reflector health, comparison, and rotation policy over
-    latency trackers.
-- `latency/`
-  - `latency.c`: pinger session and child-process ownership, line splitting,
-    and dispatch to the active backend. Children are reaped by the monitor
-    through `uloop_process`. The only synchronous, bounded waits are shutdown
-    (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
-  - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
-  - `pinger.h`: private interface between the session and its backends;
-    each backend exports a `struct pinger_ops` (name, line parser, exit
-    handler) that the session calls through.
-  - `parser.c`: pinger output parsing into latency samples.
-  - `tracker.c`: per-reflector baseline and delta EWMA tracking.
-- `tcpdelay/`: passive per-direction queue measurement from TCP timestamps.
-  - `tcpdelay.bpf.c`: `AF_PACKET` socket filter on the upload interface (it
-    sees packets after the root qdisc and before the ingress redirect). It
-    counts upload and pure-ACK bytes, records departures and emits reply
-    samples to a ring buffer, each at most once per flow per
-    `TCPDELAY_SAMPLE_INTERVAL_NS`, without wakeups. The same object holds the
-    experimental `tcp_ts_request` program (`inject_egress`, tcx egress on
-    the upload interface), which only adds a timestamp option to outgoing
-    IPv6 SYNs that lack one and leaves IPv4 untouched; the filter observes
-    the SYN-ACKs, resets and first acknowledged data that answer them.
-  - `record.h`: layouts and limits shared by the filter and userspace.
-  - `inject.h`: the injection maps' layouts and its inject-or-skip policy,
-    unit-tested: each client address gets 1, then 0x80000000 after a stall,
-    then its learned clock; a server (address and port) that refuses or
-    declines a timestamp is skipped for every client. Both last a day.
-  - `capture.c`: loading and attaching the filter with libbpf, draining the
-    ring buffer, and reading the counters.
-  - `injector.c`: attaching the capture's injection program with a tcx link
-    owned by the daemon, its network offset, and summing its counters.
-  - `estimator.c`: per-flow one-way queue estimates (remote clock tick fit,
-    floors, window minimums); platform-independent and unit-tested.
-  The filter object is installed as `/lib/bpf/cake-adapt-tcpdelay.o`; a filter
-  the kernel rejects degrades TCP measurement, never the daemon.
-- `cake/cake.c`: CAKE and root `cake_mq` discovery, state decoding, and
-  CAKE-specific operations; `cake/accounting.h` holds the upload CAKE's packet
-  charge settings shared with the socket filter.
-- `platform/`
-  - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
-  - `traffic.c`: counter samples and achieved-rate calculations only.
-  - `cpu.c`: CPU sampling and usage calculations only.
-  - `memory.c`: the daemon's memory sampling from `/proc/self/status`.
-- `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
-  export, reset behavior, and submission to the optional MQTT sender.
-- `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
-  owns its bounded queue, sender/network threads, connection retries and cleanup. It
-  never cancels a thread: a network thread stuck in name resolution is joined
-  within a bound or left behind with its own references, at most one at a time.
-  It never makes controller decisions. Logging submissions never wait for a broker
-  or queue space; offline, contended, full or oversized submissions drop silently.
-- `logging/mqtt_none.c`: the same interface without libmosquitto, for the
-  `cake-adapt` package (`MQTT_SUPPORTED=0`): sends nothing; a start with MQTT
-  on fails, which `main.c` logs as a warning while the instance runs.
-
-Outside `src/`:
-
-- `files/cake-adapt.init`: the procd service, modelled on dnsmasq. Each
-  instance runs from its own runtime file,
-  `/var/run/cake-adapt/<section>.uci`, which procd watches. Reload restarts
-  only changed instances; reload and restart keep an instance whose new
-  configuration `cake-adapt -V` refuses running its previous file;
-  `start`, `stop`, `restart` and `reload` take an optional section; instances
-  are registered with `respawn 3600 5 0` (never give up).
-- `files/cake-adapt.import` (installed as `/usr/libexec/cake-adapt/import`):
-  builds the runtime file with `uci get`/`uci set`, filling options UCI leaves
-  unset from the standalone shell `config_file`; UCI always wins. The
-  daemon's `-C` takes that one file and makes a relative `-C` or
-  `log_file_path_override` path absolute.
-- `files/cake-adapt.config`: the shipped UCI template.
-- `luci-app-cake-adapt/`: the Status view (per-instance state from procd,
-  actions, and line charts from the ubus status) and the Configuration view
-  (Advanced sub-tabs, on-screen checks of every daemon validation rule). Use
-  stock LuCI widgets and theme classes only, with no custom CSS or third-party
-  JavaScript. `tests/test_luci.sh` checks that the Configuration view names
-  exactly the daemon's options.
-
-Before adding a function, search for an existing equivalent. Consolidate
-duplicate conversions, parsing, percentage, timing, and bounds logic in the
-appropriate existing module.
-
-## OpenWrt and kernel integration
-
-Prefer supported libraries and kernel APIs over handwritten or process-based
-substitutes:
-
-- `libuci` for configuration;
-- `libubox`/`uloop` for the event loop;
-- `libubus` for the status object;
-- rtnetlink/libnl for interface and qdisc operations;
-- `procd` for service lifecycle; and
-- kernel CAKE, IFB, `ctinfo`, and `mirred` facilities.
-
-Do not repeatedly spawn `tc` or `ip` from the daemon. Use them only as external
-diagnostic tools. Prefer event subscriptions such as `RTM_NEWQDISC` and
-`RTM_DELQDISC` over periodic existence polling when the kernel already exposes
-the lifecycle.
-
-Use another OpenWrt feed library when it materially removes correct, maintained
-code. Before adding a dependency, confirm it is available for supported targets
-and that the reduction justifies flash, memory, and maintenance cost. Remove
-dependencies that are no longer used.
-
-### Interface convention
-
-UCI normally contains one interface name:
-
-```text
-upload   = <interface>
-download = ifb4<interface>
-```
-
-Derive the IFB name using Linux interface-size limits. A paired `ul_if` and
-`dl_if` setting may override the derived pair for nonstandard deployments. Both
-must be present; reject a partial pair. If `interface` and both overrides are
-set, use the explicit pair and warn through syslog. Never hardcode a WAN device.
-
-### Future ingress ownership
-
-If cake-adapt later replaces SQM setup, preserve this ingress path:
-
-```text
-WAN ingress -> ctinfo zone 0 -> mirred redirect -> IFB -> CAKE
-```
-
-Outbound DSCP is stored in conntrack mark bits 0-5. Bits 6-31 belong to other
-uses and must remain unchanged:
-
-```text
-ct mark = (ct mark & 0xffffffc0) | dscp
-```
-
-Do not replace this with an ingress path that loses DSCP restoration before
-CAKE.
 
 ## Configuration rules
 
@@ -332,162 +130,6 @@ The shipped UCI file must remain safe and readable:
 Use observation-only mode when either the configuration or runtime behavior has
 not yet been verified. Never run rate control concurrently with cake-autorate
 or another process controlling the same qdiscs.
-
-## C and naming style
-
-Use C11, simple data flow, and explicit ownership. Prefer standard, libc,
-OpenWrt, and kernel APIs over custom equivalents. Avoid clever macros and
-defensive layers for impossible states already excluded by this program's own
-validated call paths.
-
-Use concise module-oriented identifiers:
-
-```c
-config_load();
-controller_update();
-tracker_update();
-log_message();
-```
-
-Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
-`cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
-Move generic names such as `read_u32()` or `fraction_to_ratio_e6()` to
-`common/helpers` when they are shared; keep module-specific helpers local and
-`static`.
-
-Put shared semantic string values in `common/constants.h` and built-in defaults
-in `config/defaults.c`/`config/defaults.h`. Keep complete diagnostics, format
-strings, and module-owned schemas beside the code that uses them. Tests should
-keep literal expected values when importing the production constant would make
-the check tautological.
-
-Every fixed string value, meaning a name, token or label stored or passed as
-data, is a named constant in `common/constants.h`, or a `#define` beside the
-file's other names when only that file uses it (as `capture.c` names the BPF
-program and maps). Only format strings and complete messages stay inline; do
-not split a message into fragments that are passed around as values.
-
-Never pass a literal `true` or `false` as a function argument. Give the call a
-meaning instead: separate functions sharing a static worker, an enum, a
-pointer that is `NULL` or not, or a variable whose name says what it holds.
-
-Objects keep their own settings, set once through an init function or a
-setter (`tcpdelay_estimator_set_bound(estimator, queue_bound_us)`), and are
-passed around instead of long argument lists or values copied between structs.
-Callbacks find their owner with `container_of()`, as uloop does, not through a
-`void *` context. Never mix `->` and `.` in one member-access chain: take a
-local pointer (`struct monitor_tcp *tcp = &monitor->tcp;`).
-
-Write quantities for quick visual understanding. Express durations and rates
-in readable units using the existing unit constants (for example,
-`10U * SECOND` or `5U * MEGABIT`) rather than long digit strings. Derive unit
-conversions from the existing unit table instead of repeating numeric factors
-or inventing another scale. Distinguish a percentage from a ratio and from its
-fixed-point representation; preserve fractional values without integer
-truncation. Names, comments, configuration units, and calculations must agree.
-
-Every computation and comparison uses the base units, as integers:
-
-- data in bits and bytes (a KB is 1,024 bytes) and rates in bit/s;
-- time in microseconds, a fraction of a microsecond rounding to the nearest
-  (half or more up); the TCP filter and estimator keep kernel nanoseconds
-  internally and hand over rounded microseconds;
-- ratios as integers per million (`RATIO_ONE_E6` is 1.0, 0.01 is 10,000),
-  which may exceed one million.
-
-Convert only where a value enters or leaves the daemon (UCI, the kernel,
-uloop, pinger arguments and output, logs), through the named helpers. A name
-holding a quantity ends in its unit: `_us`, `_ns`, `_ms` (boundary only),
-`_sec`, `_bps`, `_kbps` (boundary only), `_byte_ps`, `_bytes`, `_bits`,
-`_ticks` or `_e6`. The unit constants in `constants.h` keep full names
-(`MICROSECOND`, `MILLISECOND`, `SECOND`, `MICROSECONDS_PER_SECOND`,
-`NANOSECONDS_PER_MICROSECOND`); durations use `SECOND`, conversions the
-`*_PER_*` constants. Do not copy upstream's integer truncations (whole kbit/s,
-per-thousand factors, whole-percent loads): exact math wins over matching
-cake-autorate digit for digit.
-
-Do not repeat the program name in every log message because the backend already
-identifies the service.
-
-### Formatting
-
-C follows the Linux kernel style used by OpenWrt's libubox and unetd.
-`.clang-format` is the kernel's own configuration, with checkpatch's 100-column
-limit and one deliberate exception: the parameter and argument layout shown
-below. Format every changed C file with clang-format (the SDK's
-`staging_dir/host/llvm-bpf/bin/clang-format` works) and keep every file
-clang-format-stable: running it again changes nothing. Never hand-format
-against it. Where a preferred layout cannot be expressed in clang-format, take
-clang-format's output and drop the preference.
-
-- tabs for indentation, 8 columns wide, and lines up to 100 columns; string
-  literals are never split;
-- function braces on their own line, other braces on the statement line;
-- no braces around a single-statement body, unless its condition spans lines:
-
-```c
-if (result < 0)
-	return -1;
-```
-
-- a declaration, definition or call whose parameters or arguments do not fit
-  on one line puts each on its own line, one tab in, with the closing
-  parenthesis on its own line:
-
-```c
-int tcpdelay_capture_open(
-	struct tcpdelay_capture *capture,
-	const char *object_path,
-	const char *interface,
-	struct tcpdelay_estimator *estimator,
-	char *error,
-	size_t error_size
-)
-{
-```
-
-```c
-log_message(
-	LOG_LEVEL_WARNING,
-	"TCP measurement degraded: capture failed: %s",
-	strerror(errno)
-);
-```
-
-- compound conditions break after the operator and align with the condition;
-- for a callee name of seven characters or fewer (`memcpy`, `printf`, `read`),
-  clang-format aligns arguments after the parenthesis instead; accept that, and
-  give the project's own helpers longer names;
-- a multi-line top-level initializer ends with a trailing comma, so each entry
-  gets its own line, as in unetd; nested designated initializers keep
-  clang-format's own layout.
-
-Commit a pure reformat on its own, apart from any logic change.
-
-Write code that reads like `unetd`'s `wg-user.c`: small static functions with
-a module prefix that form a little internal API, and trivial operations from
-`common/utils.h` instead of open-coded arithmetic. Comments should explain
-formulas, invariants, units, ownership, or non-obvious kernel/upstream
-behavior. Do not narrate obvious syntax. Do not reformat unrelated working
-code during a focused change.
-
-Keep a call inside its condition. Never add a `ret` or `result` temporary only
-to move a call out of an `if`; solve layout in `.clang-format` or by shortening
-the call itself.
-
-Logic, performance and reliability come before binary size. Measure and report
-size, but accept negligible growth and do not propose size-only changes.
-
-Keep strict warnings enabled:
-
-```text
--Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Wconversion -Werror
-```
-
-Disable a warning only for a narrow, documented reason.
-
-Generated `.o` and `.d` files and test binaries belong in `build/`, never in
-`src/` or `tests/`.
 
 ## Logging and failure behavior
 
@@ -520,227 +162,7 @@ and `/var/log/cake-adapt.<section>.log` for named instances. `SIGUSR1` exports
 the active and retained logs; `SIGUSR2` resets them in place. Compatibility with
 cake-autorate analyzers applies to structured records, not local filenames.
 
-## Build and tests
-
-Use plain Make:
-
-- repository `Makefile`: OpenWrt package definition;
-- `src/Makefile`: daemon build; and
-- `tests/Makefile`: focused host tests.
-
-Test sources mirror the `src/` subsystem directories; move a test with the
-module it covers. Test objects and binaries are written below `build/tests/`.
-
-`tests/controller/test_replay.c` replays recorded cake-autorate `ac75f49`
-traces from `tests/controller/fixtures/`. Delay counts and bufferbloat flags
-must match exactly; because cake-adapt does not copy upstream's truncations,
-average delays may differ by 1 µs, rates by 0.5% and compensated thresholds by
-3 µs. Keep it passing; a controller change that alters a replayed decision
-beyond these tolerances is a divergence from upstream and needs an explicit
-decision and documentation.
-`extract-trace.py` and `scripted-fping.sh` reproduce the fixtures; the raw
-source logs are in `profiling/controller-comparison/`.
-
-Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
-builds for host-only work. Development, SDK validation, host-test headers,
-IntelliSense and the test VM default to **x86**. Use `../openwrt-sdk-x86` or
-`OPENWRT_SDK_X86`. Filogic/arm64 requires an explicit target-specific request;
-the user's Filogic routers do not change the default. Missing x86 dependencies
-are an environment limitation, not permission to switch SDKs or mix headers.
-
-Use the `.vscode/tasks.json` tasks: the host test
-task (`tools/host-test.sh`) runs `check`, `check-netlink`, `check-config` and
-`check-tcpdelay`, where `check` also runs the init, import and LuCI script
-tests (`node` and `python3` needed), and each SDK build task
-(`tools/sdk-build.sh`) cleans and compiles the package in the SDK beside the
-repository (`../openwrt-sdk-x86`, `../openwrt-sdk-filogic`) or in
-`OPENWRT_SDK_X86` / `OPENWRT_SDK_FILOGIC`, and `luci-app-cake-adapt` too when
-the SDK's `package/luci-app-cake-adapt` links to this repository's. Do not
-guess other SDK locations, and keep absolute or personal paths out of
-`.vscode/`. OpenWrt 25.12 is the only release target for now. Never touch
-`openwrt-image-builder`.
-
-Inspect SDK commands for dependency downloads, feed/configuration changes and
-artifact copying before running them. New downloads, SDK/feed modifications or
-installations need explicit authorization for the dependency and destination;
-reuse an existing approval within that exact scope without asking again. Keep
-local validation downloads, tools and caches in ignored `build/` unless a
-different destination is approved. Do not install system-wide or download an
-SDK merely because a build needs it. Record changes and remaining files in
-`HANDOFF.md`.
-
-`tools/sdk-build.sh` also copies successful packages into the repository's
-`bin/`. Before invoking Make it checks declared build dependencies, staged
-headers/libraries, the SDK compiler and BPF tools, and required LuCI processing
-tools when linked. It reports the complete preparation plan first, registers
-missing package links from existing local feeds, and stages missing target
-libraries in dependency order. Check actual artifacts as well as stamps;
-The helper builds the package variants named by `variant=base|mqtt|mqtt-ssl`,
-or all three, preparing each one's dependencies just before it. Mosquitto's shared
-soname must match the variant: `base` (`cake-adapt`) links no MQTT library,
-`mqtt` (`cake-adapt-mqtt`) uses `libmosquitto-nossl`, and `mqtt-ssl`
-(`cake-adapt-mqtt-ssl`) uses `libmosquitto-ssl` and prepares OpenSSL first.
-Package dependencies must agree with the linked variant. `cake-adapt-mqtt-ssl`
-also requires runtime `ca-bundle` and enables TLS support in the daemon; TLS stays
-opt-in and must verify certificate trust and hostname. The other variants must
-reject active TLS configuration without a plaintext fallback; `cake-adapt` with
-MQTT on warns, sends nothing and keeps controlling. LuCI reads the installed variant's
-`/usr/share/cake-adapt/features` and shows only what it supports.
-Use command-line
-package selections and `NO_DEPS=1`, without manual saved-selection edits or
-recursive kernel/toolchain builds. Missing SDK tools or unavailable local feeds
-must stop preflight before dependency Make calls. `--prepare-only` checks and
-prepares dependencies without building or copying app artifacts.
-Keep the preflight staging contracts consistent with package dependencies and
-the headers/libraries the daemon uses; a new unhandled library dependency must
-fail before Make rather than silently bypass preparation.
-For app validation without authorized artifact copying, use focused package
-Make targets in the selected SDK after preparation; see `docs/development.md`. Avoid
-recursive dependency builds when their side effects exceed the approved scope.
-
-Generate `compile_commands.json` with `tools/compile-commands.sh` from the x86
-SDK. Verify that a newly required header exists in that SDK's staged include
-directory before claiming IntelliSense is fixed. Never add a Filogic header
-fallback to conceal a missing x86 dependency. Regenerate the ignored database
-after the selected SDK's headers are ready or source files move.
-
-Do not bump `PKG_VERSION` or `PKG_RELEASE`, copy artifacts, deploy, or publish a
-release unless the user explicitly asks. When asked to build both SDKs, run the
-x86 and Filogic tasks concurrently. Verify the selected artifact and its
-destination with checksums.
-
-The native `check-config` target needs both `libuci` and `libubox` development
-headers but no native libraries. When the host lacks them, point `UCI_CFLAGS` at
-a directory exposing the SDK's staged `uci.h` and `libubox/` headers; otherwise
-treat the missing headers as an environment limitation, but the production SDK
-build must still pass.
-
-Unit tests are part of every behavioral change. Cover the affected branches,
-especially controller state transitions, min/base/max bounds, congestion and
-recovery, missing/invalid samples, counter reset, reflector failure, activity
-state, and qdisc disappearance/reappearance.
-
-Do not weaken correct production code to accommodate a host test environment.
-Use a suitable test seam, mock, adapter, dependency, or on-target integration
-test instead.
-
-Before declaring work complete:
-
-1. inspect existing behavior and relevant upstream behavior;
-2. make the smallest coherent change;
-3. run focused host tests, plus sanitizer builds for structural or
-   memory-sensitive changes;
-4. build the affected SDK package when appropriate;
-5. test on the VM when runtime/kernel behavior changed; and
-6. verify actual service, process, log, and qdisc state.
-
-## Project status and deferred work
-
-The cake-autorate parity and refactor sequence is complete. The controller
-replays two recorded upstream traces with no mismatching decision (within the
-replay's tolerances since the exact-math change of 2026-10-06), live
-side-by-side VM runs agree per phase, and the final end-to-end VM run and
-profiling are recorded under `profiling/` (`controller-comparison/` and
-`2026-09-30/`), as is the resource comparison with cake-autorate
-(`cake-autorate-resources/`). The flowcharts in `flowchart/` are generated from
-`flowchart-data.json` by `generate.mjs`; regenerate them when event ordering or
-module ownership changes.
-
-Since parity, these deliberate departures are implemented, opt-in, and
-measured (evidence directories under `profiling/`, indexed in its README):
-
-- `tcp_delay_attribution` (fping only): the eBPF TCP queue estimate splits
-  fping's round-trip delta between the directions
-  (`2026-10-02-tcp-queue-split`);
-- `ul_congest_ack_share` (named `upload_ack_share_min` until 2026-10-04):
-  download is held so its ACKs leave other upload traffic room, down to the
-  configured share (`2026-10-03-ack-share-dynamic`); since 2026-10-05 its byte
-  counters use the upload CAKE's packet charge (`2026-10-05-ack-accounting`);
-- the filter samples at most every 4 ms per flow
-  (`2026-10-03-sample-thinning`, with its cost in `2026-10-03-ebpf-filter-cost`);
-- `fping-ts` was verified on the testbed (`2026-10-03-fping-ts-testbed`), and
-  the Filogic build ran on an emulated arm64 VM (`2026-10-03-arm64-vm`);
-- `tcp_ts_request` (named `tcp_timestamp_inject` until 0.3.12, needs
-  `tcp_delay_attribution`): timestamps are added to IPv6 SYNs without one, so
-  Windows clients' flows can be measured (`2026-10-07-tcp-timestamp-injection`,
-  `2026-10-08-tcp-inject-clock`, `2026-10-09-tcp-inject-ipv6`). IPv4
-  injection was removed in 0.3.15 because NAT hides which client a SYN came
-  from; IPv4 is being deprecated, so do not bring it back.
-
-`profiling/2026-10-03-ebpf-design-history/` records why these designs were
-chosen.
-
-On 2026-10-03 the C sources moved to the kernel `.clang-format` (`aecacfa`) and
-a cleanup pass removed duplication, dead code and hand-written arithmetic
-(`bdbdfa6`). Host tests, sanitizers, both SDK builds and the replay pass.
-
-The TCP-delay estimator is under review in `docs/design/EBPF_REVIEW.md`, whose section 9 is
-the working order. Findings and their state:
-
-- new flow hiding a queue: fixed, both directions come from one flow (`20cc841`,
-  `2026-10-04-flow-pair`);
-- standing queue becoming the baseline: mitigated, the floor is held while
-  fping sees congestion (`0321661`, `2026-10-05-tcp-confidence`);
-- ACK-byte accounting: fixed, counters use CAKE's packet charge (`bbca799`,
-  `2026-10-05-ack-accounting`);
-- tuple reuse: open and accepted as rare; a reused tuple only removes that
-  flow's estimate. Rejected samples no longer keep a stale slot fresh
-  (`7665e7e`); both full tuple-lifetime designs were reverted (see below);
-- sustained change in remote reply timing read as upload queue: open and
-  uncommon; the user will decide later whether to take it up.
-
-On 2026-10-05 a guard that used TCP queue shares only when they agreed with the
-delivery heuristic caused a measured control regression and was reverted
-(`d6564a6`); the controller matches `518df81` again. Controlled VM comparisons
-with raw evidence are in `profiling/2026-10-05-gpt-work-check/` and
-`profiling/2026-10-05-ack-control/`. The earlier attempted VM run in
-`profiling/2026-10-04-ebpf-vm/` produced no `TCP_QUEUE` records and validates
-nothing; its conclusions are withdrawn.
-
-Recommend plain CAKE `ack-filter` only; never use or recommend
-`ack-filter-aggressive`.
-
-Remaining work must remain behavior-first:
-
-- keep raw logs, traces, profiler output, and reproducibility metadata for any
-  new runtime claim;
-- never run cake-autorate and cake-adapt concurrently against the same qdiscs.
-
-Do not claim parity for a new behavior from host tests alone. `fping` remains
-the only supported production pinger until every additional backend has
-independent parser, lifecycle, fixture, and runtime verification.
-
-### Current status (2026-10-11)
-
-- Both packages are at 0.3.17-r1. The user builds them and runs them on their
-  Filogic routers; the arm64 VM is no longer needed before a deployment.
-- 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
-  `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
-  ubus status object `cake-adapt.<section>` served from its own thread, the
-  per-instance lock, the dnsmasq-style reload/restart and `respawn 3600 5 0`,
-  and `luci-app-cake-adapt` (`2026-10-10-luci-app`, `2026-10-11-*`).
-- Tuple-lifetime handling was tried twice and reverted both times: first an
-  atomics-based design that the 32-bit x86 JIT cannot compile
-  (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
-  measured neutral at about 50-64% more filter time per packet for a rare case
-  (`5458100`, design, tools and unfinished work archived in
-  `2026-10-05-tcp-lifetime-stream`). Do not restart it without a user decision
-  and a concrete deployment need.
-- Open and waiting on the user:
-  - field data from the routers on whether `TCP_INJECT` shows `ACCEPTED` close
-    to `INJECTED` with few `STALLED`, and an on/off testbed comparison of
-    whether injection reduces bufferbloat;
-  - `cake_mq` on 300-500 Mbit/s sites, observed by the user in the field;
-  - the estimator's sustained change in remote reply timing (the user decides
-    later whether to take it up);
-  - the LuCI pages' look, which the user checks in a browser;
-  - the `MEMORY` record's `PEAK_RSS_KB` (VmHWM) is unreliable: analyses take
-    the maximum `RSS_KB`, and a daemon fix waits for a planned build.
-- The user keeps the version bump, pushing, the router install, fping-ts on
-  internet reflectors, and the root README's own prose. The agent keeps
-  `profiling/README.md` and the flowchart output current.
-
-## VM testing and delegation
+## Delegation and sandbox
 
 At session start, resumption, and after a long break, the primary agent reads
 `COLLABORATION.md` and `HANDOFF.md` alongside this guide and inspects the current
@@ -752,7 +174,7 @@ restrictions in this guide.
 
 Use the matching Claude or Codex workflow and context budget in
 `COLLABORATION.md`: short per-task files, context-free delegation when used,
-one implementer and one bounded review for substantial delegated work,
+at most one implementer and one bounded review, as each workflow defines,
 and only the checks selected for the affected behavior. Reports and evidence
 should be sufficient and concise. Broad reviews, exhaustive testing, detailed
 documentation and instructions to finish every plan are task-specific requests,
@@ -763,48 +185,6 @@ Sandbox failures such as `Read-only file system` or `socket: Operation not
 permitted` are not product failures. Use an existing narrow approval or return
 the exact command and justification to the primary agent. Never work around a
 denied approval or request a broad shell/interpreter prefix.
-
-The authorized OpenWrt VM test log is always:
-
-```text
-/tmp/sqm-mon-test.log
-```
-
-At the beginning of a test:
-
-1. stop every process writing that file;
-2. create it once with `touch` if it does not exist, then record its inode;
-3. truncate it in place with `: > /tmp/sqm-mon-test.log`;
-4. create an isolated log directory and hard-link its expected
-   `cake-adapt[.<section>].log` name to that file; and
-5. point `log_file_path_override` at the isolated directory.
-
-Never delete, move, replace, or pipe through `tee` to this file. Do not start or
-stop the user's `tail -f`. At the end, confirm the inode is unchanged.
-
-The test VMs are for testing only. Their installed packages, service
-configuration, filter object and files may be changed freely and need not be
-restored; record what was changed (package version, UCI, files, qdisc
-handles, options and rates) in the run's evidence so the user can look back.
-Never run two controllers on one CAKE, whatever is installed.
-
-Bound every transfer and network operation. Prefer a controlled local endpoint
-when public upload/download services are unreliable, verify that `ip route get`
-selects the intended interface, and confirm the receiver actually got the test
-payload. Exercise sustained download, upload, and bidirectional load; inspect
-`LOAD`, `DATA`, and `SHAPER` records; verify rate bounds and recovery; and test
-qdisc disappearance/reappearance only after capturing enough state to recreate
-the exact original qdisc.
-
-After the test, stop test processes and remove only test-created payloads.
-Confirm the test-log inode is unchanged and no test-owned daemon or `fping`
-child remains. After killing or stopping `ubusd`, restart `rpcd`, `dnsmasq`,
-`odhcpd` and `uhttpd` (or reboot) and check LuCI's `getFeatures` through
-`uhttpd` (`curl http://127.0.0.1/ubus`); otherwise LuCI stays broken.
-
-Use exact executable paths or `pidof` for process checks because
-`pgrep -af cake-adapt` can match the audit command itself. Do not kill an
-unrelated legacy process merely because it owns an `fping` child.
 
 ## Test machines and permissions
 
