@@ -8,6 +8,9 @@ earlier handoff is [docs/history/handoff-2026-10-12.md](docs/history/handoff-202
 
 ## Next and open
 
+- **Done 2026-10-13 (Codex, uncommitted):** `tools/run-bg.sh` and
+  `tools/wait-for.sh` start long work and wait for it in one call;
+  `tests/test_wait.sh` covers them; a real host-test run took four tool calls.
 - **Done 2026-10-13 (committed):** cheaper Codex and Claude sessions, seven
   steps approved one by one: `AGENTS.md` split into a core guide plus
   `docs/agents/*.md`; this short handoff (history in `docs/history/`) and
@@ -32,6 +35,20 @@ earlier handoff is [docs/history/handoff-2026-10-12.md](docs/history/handoff-202
   in the daemon and init script (recommended: absolute, root-owned,
   not group/world-writable executables and files; plain fping options), document
   the group as root-equivalent, or both. No change made yet.
+- **Done 2026-10-13 (uncommitted, user request):** the general working
+  definitions moved to `~/ai-working-definitions/` (outside the repo: working
+  style, change discipline, collaboration and providers, efficiency, engineering
+  principles, test systems, agent-docs layout, handoff template).
+  `AGENTS.md`, `COLLABORATION.md` and `CODING_STYLE.md` now extend them and keep
+  only cake-adapt's rules plus the one-liners that must always hold. The user
+  does not need the repo to work for other people's agents, so referencing
+  `~/ai-working-definitions/` is intended.
+- **Next (planned, not started):** native ICMP probes replacing fping and irtt;
+  plan in `PLAN-native-icmp.md` (temporary, uncommitted). User decisions
+  2026-10-13: native ICMP replaces fping; ICMP timestamps reimplemented natively
+  and kept; irtt dropped; `ping_prefix_string`, `ping_extra_args` and the irtt
+  options deleted (an exception to AGENTS.md's keep-every-option rule); no
+  fallback, the docs point fping users to 0.3.19.
 - **Deferred by the user ("circle back later"):** the version/docs mismatch
   with `main` (v0.3.18 is tagged there; this branch was bumped to 0.3.19-r1 on 2026-10-13, at the user's request) and
   the size of the SDK dependency helper.

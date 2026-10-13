@@ -1,223 +1,53 @@
-# Collaboration Roles and Workflow
+# Collaboration in cake-adapt
 
-This agreement governs agent roles and handoffs for work in this repository.
-`AGENTS.md` and the user's instructions define project constraints and scope.
+This file extends the user's general working definitions in
+`~/ai-working-definitions/` (outside this repository): roles, the Claude and
+Codex workflows, delegation, briefs, efficiency, waiting without polling and
+test-system discipline live there. Here are only cake-adapt's additions; where
+both apply, this repository's rules win. `AGENTS.md` holds the standing project
+rules and `HANDOFF.md` the current state.
 
-What to read: at session start, **Shared roles**, your own provider's
-workflow (Claude or Codex) and **Working efficiently** only. Read **Context and usage budget** before
-delegating, **VM run discipline** before touching a VM, and **Persistent
-context and authorization** before a download, SDK change or installation.
+What to read at session start: in `~/ai-working-definitions/`,
+`working-style.md`, `change-discipline.md`, `efficiency.md` and, in
+`collaboration.md`, the roles and your own provider's workflow; then this file.
+Read the rest of `collaboration.md` before delegating, and `test-systems.md`
+before touching a VM, an SDK or the build environment.
 
-## Shared roles
+## Risky changes in this project
 
-- The primary agent owns diagnosis, evidence review, plans, acceptance criteria,
-  file ownership, test requirements, final acceptance, and the user-facing
-  explanation.
-- An implementation agent carries out assigned changes, tests, builds, and VM
-  evidence collection.
-- A separate review agent reviews the final diff
-  for logic gaps, dead code, duplication, and existing helpers or libraries.
-  The implementer addresses review findings; the primary agent makes final
-  acceptance.
+A change in these areas gets one bounded independent reviewer (model per the
+general provider rules); other changes get a self-review:
 
-At the start of a long task, say who does what: the primary's part and, for
-each delegated agent, its name, model, reasoning effort and scope, and whether
-it is planned or started. When working alone, say so. Announce any later change.
+- C threading, memory or lifetime (the ubus and MQTT threads, the TCP capture);
+- kernel, netlink, qdisc or eBPF interaction;
+- the init script, the importer or service lifecycle;
+- packaging, the SDK helpers (`tools/sdk-build.sh`, `tools/sdk-dependencies.sh`)
+  or CI;
+- the LuCI ACL, credentials, or options that run commands as root.
 
-### Claude workflow
+## Project paths and helpers
 
-For a Claude primary, implementation and review agents use the primary's own
-model version (currently Claude Opus 5.5). If that version is unavailable, report
-the limitation and use any alternative the user has already authorized. Without
-such authorization, wait for direction instead of substituting another model.
+- Briefs for delegated work go in `/tmp/cake-adapt-tasks/<task>.md`.
+- Long work: `sh tools/run-bg.sh build/<name>.log <command>` (one log per job),
+  then `sh tools/wait-for.sh build/<name>.log`; on "still running" (exit 124)
+  call it again. For a long VM job, run the local `ssh` command through
+  `tools/run-bg.sh`.
+- `tools/host-test.sh` and `tools/sdk-build.sh` are quiet by default
+  (`VERBOSE=1` for full output); full logs are in `build/`.
+- Keep `HANDOFF.md` short: finished detail goes to `docs/history/`.
+- The Codex quick profile (`codex --profile quick`) suits docs and small edits
+  here.
 
-Claude follows the same delegation rule as Codex below: work directly by
-default, start one bounded reviewer (given only the brief, the diff file and the
-results) for a risky change, and delegate implementation only for a large,
-self-contained piece whose files do not overlap the primary's. Other changes
-get a self-review of the final diff, reported as self-review.
+## Environment and authorisation
 
-### Codex workflow
-
-For a Codex primary, a delegated implementer inherits the primary model (leave
-its model override unset). The independent reviewer always runs GPT-6 Astra at
-medium reasoning: set `model="gpt-6-astra"` and `reasoning_effort="medium"`
-explicitly. Claude tools and Claude Opus 5.5 are not required. The user's "make
-your own version" authorizes this route, so do not ask again because Claude is
-absent.
-
-Work directly by default: the Codex primary implements and verifies the change
-itself, because every delegated agent starts cold and reloads the project rules
-before reading its brief. Delegate only when it pays for itself:
-
-- **Review:** start one bounded reviewer for a risky change — C threading,
-  memory or lifetime; kernel, netlink or qdisc interaction; the init script or
-  service lifecycle; packaging, SDK helpers or CI; ACLs, credentials or other
-  security-relevant code. Give it only the brief, the diff file and the
-  implementation results; it reviews the affected logic and callers, not the
-  whole codebase. Other changes get a self-review of the final diff against the
-  acceptance criteria, reported as self-review.
-- **Implementation:** delegate only a large, self-contained piece whose files
-  do not overlap the primary's, and only with a short brief.
-
-Start delegated agents with `fork_turns="none"`. Without implementation
-delegation, say so and implement directly; the review rule still applies.
-Without the Astra reviewer, say so and label the review as self-review. Never
-substitute another reviewer model silently or claim an independent review.
-
-Provider-specific tools and skills apply only when available and relevant. Use
-the corresponding Codex tools for filesystem changes, commands and agent
-handoffs. Tool differences do not relax project rules, authorization, coding
-style or verification requirements. If a required capability is missing, finish
-independent authorized work and report the specific remaining limitation.
-
-## Context and usage budget
-
-The primary agent retains the broader project context. Start delegated work as a
-fresh subagent (not a fork of the conversation) with a path to its task brief;
-do not send the conversation history. Do not have agents independently rediscover the primary agent's diagnosis.
-When work is delegated, use at most one implementation agent and one bounded
-review, with no nested delegation or overlapping audits unless the task needs
-them. The provider workflows above define when delegation is used at all.
-
-Create a separate short Markdown brief for each delegated work item in a temporary
-directory, for example `/tmp/cake-adapt-tasks/<task>.md`. Use this structure:
-
-```text
-Objective and current status
-Relevant facts and invariants already established
-Files to read; files permitted to change
-Applicable policy and coding-style excerpts
-Exact implementation or review scope; explicit exclusions
-Acceptance criteria and exact checks to run
-Existing passing results that can be reused
-Expected handoff: changed files, results, blockers
-```
-
-Supply the relevant policy excerpts and necessary callers or interfaces in the
-brief. Subagents read that brief and the named files, then expand reading only
-to resolve a specific missing fact. They do not reread all Markdown files,
-the whole codebase or historical logs by default. A reviewer receives the diff,
-brief and implementation results, and checks the affected logic and callers.
-If policy or context is missing, ask the primary agent for the specific item.
-
-Verification is proportional to the change and its concrete risks. The primary
-agent selects the checks; subagents run those checks without expanding into a
-full test campaign. Reuse passing results while their inputs remain unchanged.
-Keep existing safety rules and required runtime validation for new behavior.
-Run a simple useful runtime check before building a large acceptance harness.
-
-### Working efficiently
-
-Every turn re-sends the conversation, so cost grows with session length and
-output size. Agents follow, and remind the user of, these habits:
-
-- One task per session: at a stop point, update `HANDOFF.md` and suggest a
-  fresh session instead of continuing an unrelated task.
-- Work from named files and functions; ask for a path rather than searching
-  the whole repository when the target is unclear.
-- Run only the checks the task needs, and say which were skipped; use the
-  quiet tool output (`VERBOSE=1` only to diagnose a failure).
-- Report briefly: outcome, files, checks, open items.
-- Use low reasoning effort (Codex `--profile quick`) for docs, renames and
-  small edits; keep medium for C, concurrency, packaging and security.
-- Turn open-ended requests ("review everything") into a named scope, such as
-  the diff of a given commit, and confirm it with the user.
-- Keep `HANDOFF.md` short: move finished detail to `docs/history/`.
-
-### VM run discipline
-
-Before touching a VM, the primary writes a bounded run plan: the question to
-answer, cases and repetition count, required metadata, acceptance criteria,
-deadline, cleanup, and stopping condition. Review the harness locally first:
-compile with strict warnings, check shell syntax and failure cleanup, and check
-that assertions follow the kernel's actual contract rather than assumptions
-such as one-at-a-time LRU eviction. Reuse known VM capabilities and working
-wrappers instead of rediscovering them on each attempt.
-
-Use at most one short preflight for a new harness, then one planned acceptance
-batch combining compatible checks. For performance comparisons, capture object
-identity, CPU affinity, JIT/interpreter mode, actual program run counts, sample
-loss, and the meaning of memory counters from the first run. Isolate background
-traffic before requiring exact packet counts. Select repetitions in advance
-for a stated measurement need; do not add runs simply to collect omitted metadata.
-
-A rerun requires a specific failed check, changed input, or unresolved result
-that matters to acceptance. Diagnose and fix harness failures locally where
-possible, retain their evidence, and rerun only the affected cases. After a
-second harness or environment failure, stop VM execution and reassess the plan
-before another attempt. Never weaken a correct check merely to obtain a pass.
-
-Close out and review each planned batch before expanding into another test
-campaign. A material regression is a diagnosis point, not permission for more
-soak tests. State the result and the next decision plainly. Do not require
-exhaustive scheduler interleavings as an open-ended acceptance gate: identify
-the concurrency invariant, use a bounded targeted test and source review, and
-record the remaining limits. Preserve the VM timeout, log-inode, change
-recording and deployment rules in `AGENTS.md` and
-[`docs/agents/vm-testing.md`](docs/agents/vm-testing.md).
-
-Keep reports short: outcome, changed files, checks, remaining blockers. Preserve
-only the raw evidence needed to substantiate a claim. Detailed reports, exhaustive
-profiling and broad before/after studies are performed when requested or needed
-to resolve a concrete risk. Avoid large tool-output dumps, repeated polling and
-duplicated reviews.
-
-When an authorized command or subagent is running and there is no independent
-work to do, wait using the available completion/mailbox mechanism. Resume on
-completion, a relevant update, user input or the required timeout. Both primary
-and delegated agents follow this rule. Do not repeatedly list agent status,
-probe VM processes or reread unchanged logs just to fill the wait.
-
-For VM jobs, keep a bounded foreground SSH command attached when practical so
-its exit reports completion. For a necessary detached job, record its PID,
-output path and exit status, then use a bounded process/event wait. Retain
-required deadlines and occasional progress updates; do not run a busy polling
-loop. Waiting avoids repeated model work, but does not make agent execution,
-tool outputs or required updates free. Automatic resumption after the session
-ends requires a supported trigger; do not promise one merely because a process
-was started in the background.
-
-Requests such as "plow through all plans", "review the whole codebase", "check
-everything" or "give detailed evidence" apply to that specific task. They do
-not become standing instructions for later tasks unless the user explicitly
-says so. "Continue" resumes the active task within its existing scope.
-
-Agents must not expand the authority granted by the user or this repository's
-instructions. Work only on the currently checked-out local branch. Do not
-inspect or touch other branches or remotes, access Windows mounts, change
-versions, publish, or deploy without the user's explicit authorization.
-Coordinate file ownership and do not run parallel work that writes overlapping
-files. Preserve existing user changes and inspect worktree status before edits.
-
-## Persistent context and authorization
-
-At session start, after a long break, or on resumption after lost context, read
-`AGENTS.md`, this agreement and `HANDOFF.md`, inspect the worktree, and identify
-unfinished work. Read `CODING_STYLE.md` and the documentation relevant to the
-task before editing. During uninterrupted work, reuse established context and
-unchanged checks instead of repeatedly rereading the same files. Subagents use
-their scoped brief and the supplied policy excerpts.
-
-`AGENTS.md` holds standing project rules; this file holds provider workflows;
-`HANDOFF.md` holds the active task, user decisions, scoped approvals, changed
-files, evidence, limitations and next steps. Keep the handoff current at a stop
-point, scope change or completed milestone. Verify its worktree and environment
-claims before relying on them. Do not require the user to reconstruct a chat or
-maintain an agent's private memory. A private memory update is a separate action
-and requires the user's explicit request.
-
-Development, SDK validation, host-test headers, IntelliSense and VM testing
-default to x86. Filogic or arm64 work requires an explicit target-specific
-request. The user's router architecture does not change these defaults.
-
-Before a new download, SDK/feed change or installation, check existing approvals
-and the proposed dependency, destination and side effects. Continue within an
-already authorized scope without asking again. If the scope is new, request
-approval before downloading or changing that environment, after completing any
-independent work. A build command can download dependencies or modify SDK state;
-inspect its effects first. Keep approved local validation dependencies and tool
-caches under ignored `build/` unless another destination was explicitly approved.
-Record what was changed, where it lives and whether it remains. Approval for
-one SDK or dependency does not authorize another SDK, a system installation,
-artifact copying or deployment.
+- Development, SDK validation, host-test headers, IntelliSense and VM testing
+  default to x86 (`OPENWRT_SDK_X86` or `../openwrt-sdk-x86`). Filogic or arm64
+  work needs an explicit target-specific request; the user's router
+  architecture does not change the default.
+- Approved local validation tools and caches stay under ignored `build/` unless
+  another destination was approved; the approvals in force are listed in
+  `HANDOFF.md`.
+- VM work follows `~/ai-working-definitions/test-systems.md` plus this
+  project's rules in `AGENTS.md` (test machines and permissions) and
+  [`docs/agents/vm-testing.md`](docs/agents/vm-testing.md) (the fixed test log
+  and its inode, change recording, ubusd cleanup).
