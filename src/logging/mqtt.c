@@ -2,6 +2,7 @@
 
 #include "logging/mqtt.h"
 #include "config/config.h"
+#include "common/error.h"
 #include "common/helpers.h"
 #include "common/utils.h"
 
@@ -24,20 +25,39 @@
 #define MQTT_WAIT_MS 100
 #define MQTT_STOP_CHECK_US (10U * MILLISECOND)
 #define MQTT_STOP_US SECOND
+/* Shorter than MQTT_STOP_US, so a sender abandoning a connection still stops in time. */
+#define MQTT_NETWORK_STOP_US (500U * MILLISECOND)
 #define MQTT_KEEPALIVE_SEC 30
+/* The main thread's and the sender thread's references; each live network thread adds one. */
+#define MQTT_SENDER_OWNERS 2U
 
+struct mqtt_sender;
+
+/*
+ * One connection attempt: its client, network thread and flags. The sender and the network
+ * thread each hold a reference and the last one destroys the client, so a network thread left
+ * behind in the resolver never touches a destroyed client, and its late callbacks only reach
+ * its own flags, never a newer connection's.
+ */
+struct mqtt_connection {
+	struct mqtt_sender *state;
+	struct mosquitto *client;
+	pthread_t thread;
+	atomic_uint owners;
+	atomic_bool stop;
+	atomic_bool online;
+	atomic_bool pending;
+};
+
+/* The main thread, the sender thread and every network thread each hold a reference. */
 struct mqtt_sender {
 	struct config_mqtt settings;
 	pthread_t thread;
-	pthread_t network_thread;
-	struct mosquitto *client;
 	pthread_mutex_t lock;
 	atomic_uint owners;
 	atomic_bool stopping;
+	/* The sender's view of its current connection; mqtt_submit accepts only while set. */
 	atomic_bool online;
-	atomic_bool pending;
-	atomic_bool connecting;
-	atomic_bool network_stop;
 	int wake_fd;
 	unsigned int first;
 	unsigned int count;
@@ -50,38 +70,51 @@ static void mqtt_release(struct mqtt_sender *state)
 {
 	if (atomic_fetch_sub(&state->owners, 1U) != 1U)
 		return;
+	(void)mosquitto_lib_cleanup();
 	(void)close(state->wake_fd);
 	(void)pthread_mutex_destroy(&state->lock);
 	free(state);
 }
 
+static void mqtt_connection_release(struct mqtt_connection *connection)
+{
+	if (atomic_fetch_sub(&connection->owners, 1U) != 1U)
+		return;
+	if (connection->client != NULL)
+		mosquitto_destroy(connection->client);
+	free(connection);
+}
+
 /* Mosquitto's opaque client exposes its owner through its native callback API. */
 static void mqtt_connected(struct mosquitto *client, void *owner, int result)
 {
-	struct mqtt_sender *state = owner;
+	struct mqtt_connection *connection = owner;
+	struct mqtt_sender *state = connection->state;
 
 	(void)client;
-	atomic_store(&state->online, result == 0);
+	atomic_store(&connection->online, result == 0);
 	(void)eventfd_write(state->wake_fd, 1U);
 }
 
 static void mqtt_disconnected(struct mosquitto *client, void *owner, int result)
 {
-	struct mqtt_sender *state = owner;
+	struct mqtt_connection *connection = owner;
+	struct mqtt_sender *state = connection->state;
 
 	(void)client;
 	(void)result;
-	atomic_store(&state->online, false);
+	atomic_store(&connection->online, false);
 	(void)eventfd_write(state->wake_fd, 1U);
 }
 
 static void mqtt_published(struct mosquitto *client, void *owner, int identifier)
 {
-	struct mqtt_sender *state = owner;
+	struct mqtt_connection *connection = owner;
+	struct mqtt_sender *state = connection->state;
 
 	(void)client;
 	(void)identifier;
-	atomic_store(&state->pending, false);
+	atomic_store(&connection->pending, false);
 	(void)eventfd_write(state->wake_fd, 1U);
 }
 
@@ -94,36 +127,71 @@ static void mqtt_discard(struct mqtt_sender *state)
 	(void)pthread_mutex_unlock(&state->lock);
 }
 
+/*
+ * Waits for a thread to exit for at most bound_us, in MQTT_STOP_CHECK_US steps; the check
+ * count bounds the wait even if the clock cannot be read. False leaves the thread running.
+ */
+static bool mqtt_join(pthread_t thread, uint64_t bound_us)
+{
+	const struct timespec step = us_to_timespec(MQTT_STOP_CHECK_US);
+	uint64_t start_us = 0U;
+	uint64_t now_us;
+	uint64_t check;
+
+	(void)read_clock_us(CLOCK_MONOTONIC, &start_us);
+	for (check = 0U; check <= bound_us / MQTT_STOP_CHECK_US; check++) {
+		if (pthread_tryjoin_np(thread, NULL) == 0)
+			return true;
+		if (read_clock_us(CLOCK_MONOTONIC, &now_us) && now_us - start_us >= bound_us)
+			break;
+		(void)clock_nanosleep(CLOCK_MONOTONIC, 0, &step, NULL);
+	}
+	return false;
+}
+
 static void *mqtt_network(void *argument)
 {
-	struct mqtt_sender *state = argument;
+	struct mqtt_connection *connection = argument;
+	struct mqtt_sender *state = connection->state;
 	const struct config_mqtt *settings = &state->settings;
+	/* Name resolution happens here and can block; the sender never waits for it unbounded. */
 	int result = mosquitto_connect_async(
-		state->client,
+		connection->client,
 		settings->host,
 		(int)settings->port,
 		MQTT_KEEPALIVE_SEC
 	);
 
-	atomic_store(&state->connecting, false);
 	if (result == MOSQ_ERR_SUCCESS || result == MOSQ_ERR_CONN_PENDING)
-		while (!atomic_load(&state->stopping) && !atomic_load(&state->network_stop) &&
-		       mosquitto_loop(state->client, MQTT_WAIT_MS, 1) == MOSQ_ERR_SUCCESS)
+		while (!atomic_load(&connection->stop) &&
+		       mosquitto_loop(connection->client, MQTT_WAIT_MS, 1) == MOSQ_ERR_SUCCESS)
 			;
-	atomic_store(&state->online, false);
+	atomic_store(&connection->online, false);
 	(void)eventfd_write(state->wake_fd, 1U);
+	mqtt_connection_release(connection);
+	mqtt_release(state);
 	return NULL;
 }
 
-static struct mosquitto *mqtt_connect(struct mqtt_sender *state)
+static struct mqtt_connection *mqtt_connect(struct mqtt_sender *state)
 {
 	const struct config_mqtt *settings = &state->settings;
 	bool clean_session = true;
 	bool threaded = true;
-	struct mosquitto *client = mosquitto_new(NULL, clean_session, state);
+	struct mqtt_connection *connection = calloc(1U, sizeof(*connection));
+	struct mosquitto *client;
 
-	if (client == NULL)
+	if (connection == NULL)
 		return NULL;
+	connection->state = state;
+	atomic_init(&connection->owners, 1U);
+	atomic_init(&connection->stop, false);
+	atomic_init(&connection->online, false);
+	atomic_init(&connection->pending, false);
+	client = mosquitto_new(NULL, clean_session, connection);
+	if (client == NULL)
+		goto failed;
+	connection->client = client;
 	mosquitto_connect_callback_set(client, mqtt_connected);
 	mosquitto_disconnect_callback_set(client, mqtt_disconnected);
 	mosquitto_publish_callback_set(client, mqtt_published);
@@ -139,36 +207,41 @@ static struct mosquitto *mqtt_connect(struct mqtt_sender *state)
 				     MOSQ_ERR_SUCCESS)
 		goto failed;
 #endif
-	state->client = client;
-	atomic_store(&state->connecting, true);
-	atomic_store(&state->network_stop, false);
-	if (pthread_create(&state->network_thread, NULL, mqtt_network, state) != 0)
+	/* The network thread's own references; the sender's keeps the state alive meanwhile. */
+	atomic_fetch_add(&connection->owners, 1U);
+	atomic_fetch_add(&state->owners, 1U);
+	if (pthread_create(&connection->thread, NULL, mqtt_network, connection) != 0) {
+		atomic_fetch_sub(&state->owners, 1U);
+		atomic_fetch_sub(&connection->owners, 1U);
 		goto failed;
-	return client;
+	}
+	return connection;
 failed:
-	mosquitto_destroy(client);
+	mqtt_connection_release(connection);
 	return NULL;
 }
 
-static void mqtt_destroy(struct mqtt_sender *state, struct mosquitto *client)
+static void mqtt_destroy(struct mqtt_sender *state, struct mqtt_connection *connection)
 {
 	mqtt_discard(state);
-	atomic_store(&state->network_stop, true);
-	/* TCP connection establishment is nonblocking; only DNS can need cancellation. */
-	if (atomic_load(&state->connecting))
-		(void)pthread_cancel(state->network_thread);
-	(void)pthread_join(state->network_thread, NULL);
-	mosquitto_destroy(client);
-	atomic_store(&state->pending, false);
+	atomic_store(&connection->stop, true);
+	/*
+	 * Never cancel: cancelling inside the resolver can leak. A thread still resolving after
+	 * the bound is left behind with its own references and destroys its client on exit.
+	 */
+	if (!mqtt_join(connection->thread, MQTT_NETWORK_STOP_US))
+		(void)pthread_detach(connection->thread);
+	mqtt_connection_release(connection);
 }
 
-static void mqtt_send(struct mqtt_sender *state, struct mosquitto *client)
+static void mqtt_send(struct mqtt_sender *state, struct mqtt_connection *connection)
 {
+	const struct config_mqtt *settings = &state->settings;
 	char line[MQTT_LINE_SIZE];
 	bool retain = false;
 
 	/* At most one QoS 0 packet can be waiting inside libmosquitto. */
-	if (atomic_load(&state->pending))
+	if (atomic_load(&connection->pending))
 		return;
 	(void)pthread_mutex_lock(&state->lock);
 	if (state->count == 0U) {
@@ -179,17 +252,18 @@ static void mqtt_send(struct mqtt_sender *state, struct mosquitto *client)
 	state->first = (state->first + 1U) % MQTT_QUEUE_RECORDS;
 	state->count--;
 	(void)pthread_mutex_unlock(&state->lock);
-	atomic_store(&state->pending, true);
+	atomic_store(&connection->pending, true);
 	if (mosquitto_publish(
-		    client,
+		    connection->client,
 		    NULL,
-		    state->settings.topic,
+		    settings->topic,
 		    (int)strlen(line),
 		    line,
 		    0,
 		    retain
 	    ) != MOSQ_ERR_SUCCESS) {
-		atomic_store(&state->pending, false);
+		atomic_store(&connection->pending, false);
+		atomic_store(&connection->online, false);
 		atomic_store(&state->online, false);
 	}
 }
@@ -197,7 +271,7 @@ static void mqtt_send(struct mqtt_sender *state, struct mosquitto *client)
 static void *mqtt_thread(void *argument)
 {
 	struct mqtt_sender *state = argument;
-	struct mosquitto *client = NULL;
+	struct mqtt_connection *connection = NULL;
 	uint64_t retry_us = 0U;
 	uint64_t progress_us = 0U;
 	uint64_t now_us;
@@ -205,99 +279,119 @@ static void *mqtt_thread(void *argument)
 	struct pollfd wake = { .fd = state->wake_fd, .events = POLLIN };
 	eventfd_t value;
 
-	if (mosquitto_lib_init() != MOSQ_ERR_SUCCESS)
-		goto out;
 	while (!atomic_load(&state->stopping)) {
 		if (!read_clock_us(CLOCK_MONOTONIC, &now_us))
-			goto wait;
-		if (client == NULL && now_us >= retry_us) {
+			goto idle;
+		/* A thread left behind in the resolver blocks new attempts until it returns. */
+		if (connection == NULL && now_us >= retry_us &&
+		    atomic_load(&state->owners) <= MQTT_SENDER_OWNERS) {
 			retry_us = saturating_add(now_us, MQTT_RETRY_US);
 			progress_us = now_us;
-			client = mqtt_connect(state);
+			connection = mqtt_connect(state);
 		}
-		if (client != NULL) {
-			bool online = atomic_load(&state->online);
+		if (connection != NULL) {
+			bool online = atomic_load(&connection->online);
 
-			if (online && !atomic_load(&state->pending))
+			if (online && !atomic_load(&connection->pending))
 				progress_us = now_us;
 			if ((!online && was_online) || now_us - progress_us >= MQTT_TIMEOUT_US) {
-				mqtt_destroy(state, client);
-				client = NULL;
+				mqtt_destroy(state, connection);
+				connection = NULL;
 				if (was_online)
 					retry_us = saturating_add(now_us, MQTT_RETRY_US);
 				online = false;
-			} else if (online) {
-				mqtt_send(state, client);
+			} else {
+				atomic_store(&state->online, online);
+				if (online)
+					mqtt_send(state, connection);
 			}
 			was_online = online;
 		}
-wait:
-		/* Drain a bounded batch promptly without allowing the library queue to grow. */
-		if (client != NULL && atomic_load(&state->online) &&
-		    !atomic_load(&state->pending)) {
+		/*
+		 * Drain a bounded batch promptly without allowing the library queue to grow.
+		 * mqtt_submit wakes only an empty queue; a line queued meanwhile is sent here or
+		 * after the publish callback's wake.
+		 */
+		if (connection != NULL && atomic_load(&connection->online) &&
+		    !atomic_load(&connection->pending)) {
 			(void)pthread_mutex_lock(&state->lock);
 			bool queued = state->count != 0U;
 			(void)pthread_mutex_unlock(&state->lock);
 			if (queued)
 				continue;
 		}
+idle:
 		if (poll(&wake, 1U, MQTT_WAIT_MS) > 0)
 			(void)eventfd_read(state->wake_fd, &value);
 	}
-	if (client != NULL)
-		mqtt_destroy(state, client);
-	(void)mosquitto_lib_cleanup();
-out:
+	if (connection != NULL)
+		mqtt_destroy(state, connection);
 	mqtt_release(state);
 	return NULL;
 }
 
-int mqtt_start(const struct config_mqtt *settings)
+int mqtt_start(const struct config_mqtt *settings, char *error, size_t error_size)
 {
 	struct mqtt_sender *state;
 	sigset_t all;
 	sigset_t previous;
-	int error;
+	int result;
 
 	if (!settings->enabled)
 		return 0;
 #if !MQTT_TLS_SUPPORTED
-	if (settings->tls) {
-		errno = ENOTSUP;
-		return -1;
-	}
+	if (settings->tls)
+		return error_set(error, error_size, "TLS is not supported by this build");
 #endif
 	state = calloc(1U, sizeof(*state));
 	if (state == NULL)
-		return -1;
+		return error_set(error, error_size, "allocating the sender: %s", strerror(errno));
 	state->settings = *settings;
-	atomic_init(&state->owners, 2U);
+	atomic_init(&state->owners, MQTT_SENDER_OWNERS);
 	atomic_init(&state->stopping, false);
 	atomic_init(&state->online, false);
-	atomic_init(&state->pending, false);
-	atomic_init(&state->connecting, false);
-	atomic_init(&state->network_stop, false);
-	if ((error = pthread_mutex_init(&state->lock, NULL)) != 0) {
+	if ((result = pthread_mutex_init(&state->lock, NULL)) != 0) {
 		free(state);
-		errno = error;
-		return -1;
+		return error_set(error, error_size, "creating the queue lock: %s", strerror(result));
 	}
 	state->wake_fd = eventfd(0U, EFD_CLOEXEC | EFD_NONBLOCK);
 	if (state->wake_fd < 0) {
+		result = errno;
 		(void)pthread_mutex_destroy(&state->lock);
 		free(state);
-		return -1;
+		return error_set(
+			error,
+			error_size,
+			"creating the wake eventfd: %s",
+			strerror(result)
+		);
+	}
+	/* The library's last user is whichever owner releases the state last. */
+	if ((result = mosquitto_lib_init()) != MOSQ_ERR_SUCCESS) {
+		(void)close(state->wake_fd);
+		(void)pthread_mutex_destroy(&state->lock);
+		free(state);
+		return error_set(
+			error,
+			error_size,
+			"initializing libmosquitto: %s",
+			mosquitto_strerror(result)
+		);
 	}
 	/* Signals belong to the monitor, including while the library creates its network thread. */
 	(void)sigfillset(&all);
 	(void)pthread_sigmask(SIG_SETMASK, &all, &previous);
-	error = pthread_create(&state->thread, NULL, mqtt_thread, state);
+	result = pthread_create(&state->thread, NULL, mqtt_thread, state);
 	(void)pthread_sigmask(SIG_SETMASK, &previous, NULL);
-	if (error != 0) {
+	if (result != 0) {
 		atomic_store(&state->owners, 1U);
 		mqtt_release(state);
-		errno = error;
-		return -1;
+		return error_set(
+			error,
+			error_size,
+			"creating the sender thread: %s",
+			strerror(result)
+		);
 	}
 	sender = state;
 	return 0;
@@ -313,6 +407,7 @@ void mqtt_submit(const char *line)
 	struct mqtt_sender *state = sender;
 	size_t length;
 	unsigned int slot;
+	bool wake = false;
 
 	if (state == NULL || !atomic_load(&state->online))
 		return;
@@ -322,31 +417,26 @@ void mqtt_submit(const char *line)
 	if (atomic_load(&state->online) && state->count < MQTT_QUEUE_RECORDS) {
 		slot = (state->first + state->count) % MQTT_QUEUE_RECORDS;
 		memcpy(state->lines[slot], line, length + 1U);
+		/* The sender drains a non-empty queue without waiting, so only the first line wakes. */
+		wake = state->count == 0U;
 		state->count++;
 	}
 	(void)pthread_mutex_unlock(&state->lock);
-	(void)eventfd_write(state->wake_fd, 1U);
+	if (wake)
+		(void)eventfd_write(state->wake_fd, 1U);
 }
 
 void mqtt_stop(void)
 {
 	struct mqtt_sender *state = sender;
-	const struct timespec step = us_to_timespec(MQTT_STOP_CHECK_US);
-	unsigned int check;
 
 	if (state == NULL)
 		return;
 	sender = NULL;
 	atomic_store(&state->stopping, true);
 	(void)eventfd_write(state->wake_fd, 1U);
-	for (check = 0U; check < MQTT_STOP_US / MQTT_STOP_CHECK_US; check++) {
-		if (pthread_tryjoin_np(state->thread, NULL) == 0) {
-			mqtt_release(state);
-			return;
-		}
-		(void)clock_nanosleep(CLOCK_MONOTONIC, 0, &step, NULL);
-	}
 	/* The thread keeps its own reference until it exits; shutdown remains bounded. */
-	(void)pthread_detach(state->thread);
+	if (!mqtt_join(state->thread, MQTT_STOP_US))
+		(void)pthread_detach(state->thread);
 	mqtt_release(state);
 }

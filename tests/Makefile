@@ -69,13 +69,13 @@ $(BINARY_DIR)/test_config $(BINARY_DIR)/test_mqtt $(BINARY_DIR)/mqtt_driver: $(M
 check-mqtt: $(BINARY_DIR)/test_mqtt
 	$(BINARY_DIR)/test_mqtt
 
-$(BINARY_DIR)/test_mqtt: logging/test_mqtt.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_mqtt: logging/test_mqtt.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS)
+	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(MQTT_LIBS)
 
-$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(MQTT_LIBS) -lz
+	$(CC) $(CPPFLAGS) $(MQTT_CPPFLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(MQTT_LIBS) -lz
 
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.

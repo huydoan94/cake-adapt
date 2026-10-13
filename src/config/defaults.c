@@ -6,6 +6,8 @@
 
 void defaults_apply(struct config *config)
 {
+	struct config_mqtt *mqtt = &config->mqtt;
+
 	*config = (struct config){
 		/* Adjustment remains opt-in even though cake-autorate defaults it on. */
 		.download.adjust = false,
@@ -73,6 +75,6 @@ void defaults_apply(struct config *config)
 		.interface_up_check_interval_us = 10U * SECOND
 	};
 	(void)strcpy(config->pinger_method, PINGER_METHOD_FPING);
-	(void)strcpy(config->mqtt.topic, MQTT_DEFAULT_TOPIC);
-	(void)strcpy(config->mqtt.ca_file, DEFAULT_MQTT_CA_FILE);
+	(void)strcpy(mqtt->topic, MQTT_DEFAULT_TOPIC);
+	(void)strcpy(mqtt->ca_file, DEFAULT_MQTT_CA_FILE);
 }
