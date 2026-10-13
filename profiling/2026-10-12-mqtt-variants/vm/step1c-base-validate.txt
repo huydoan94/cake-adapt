@@ -1,0 +1,10 @@
+-- -V cake-adapt.orig:
+rc=0
+-- -V mqtt.uci:
+ERROR: configuration error: option 'mqtt_enabled' requires the cake-adapt-mqtt or cake-adapt-mqtt-ssl package
+rc=1
+-- -V tls.uci:
+rc=1
+ERROR: configuration error: option 'mqtt_enabled' requires the cake-adapt-mqtt or cake-adapt-mqtt-ssl package
+{"jsonrpc":"2.0","id":1,"result":[6]}
+
