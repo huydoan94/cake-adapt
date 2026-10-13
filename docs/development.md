@@ -52,7 +52,9 @@ directory as `package/luci-app-cake-adapt` and compile it the same way. It has
 no architecture (`all`). `tools/sdk-build.sh x86` (or `filogic`, or an SDK
 directory) cleans and builds the three daemon variants, and `luci-app-cake-adapt`
 too when that link exists, copies the packages to `bin/`, and says why a build
-failed.
+failed. `tools/host-test.sh` and `tools/sdk-build.sh` keep the make and
+test output in their `build/` logs and print only their own messages, plus the
+errors and last 30 lines of a failed log; `VERBOSE=1` shows the full output.
 
 ### Package variants
 

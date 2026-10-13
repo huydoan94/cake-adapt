@@ -1,6 +1,6 @@
 # Project-specific OpenWrt 25.12 staging contracts, in build dependency order.
 # Sourced by sdk-build.sh, which sets variant, package and mqtt_variant (empty
-# for the base variant, else nossl or ssl). No recursive dependency or
+# for the base variant, else nossl or ssl) and provides fail and sdk_make. No recursive dependency or
 # toolchain builds.
 sdk_dependencies() {
 	cat <<'DEPENDENCIES'
@@ -311,7 +311,7 @@ sdk_dependency_build() {
 	*) set -- "$@" "CONFIG_PACKAGE_$dependency=m" ;;
 	esac
 	echo "Staging $dependency ($target)"
-	make -C "$sdk" "$target/clean" "$@" && make -C "$sdk" "$target/compile" "$@" ||
+	sdk_make -C "$sdk" "$target/clean" "$@" && sdk_make -C "$sdk" "$target/compile" "$@" ||
 		fail 3 "could not stage $dependency"
 }
 
