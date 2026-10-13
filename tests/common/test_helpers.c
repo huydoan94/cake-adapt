@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -351,6 +353,44 @@ static void test_lock_pid_file(void)
 	assert(lock_pid_file(path, &holder_pid) == -1 && errno == ENOENT);
 }
 
+static atomic_bool thread_release;
+
+static void *thread_quick(void *argument)
+{
+	return argument;
+}
+
+static void *thread_held(void *argument)
+{
+	const struct timespec step = us_to_timespec(MILLISECOND);
+
+	while (!atomic_load(&thread_release))
+		(void)clock_nanosleep(CLOCK_MONOTONIC, 0, &step, NULL);
+	return argument;
+}
+
+static void test_thread_join_within(void)
+{
+	const uint64_t bound_us = 50U * MILLISECOND;
+	pthread_t thread;
+	uint64_t before_us;
+	uint64_t after_us;
+
+	assert(pthread_create(&thread, NULL, thread_quick, NULL) == 0);
+	assert(thread_join_within(thread, SECOND));
+
+	/* A thread outliving the bound stays running and joinable. */
+	atomic_init(&thread_release, false);
+	assert(pthread_create(&thread, NULL, thread_held, NULL) == 0);
+	assert(read_clock_us(CLOCK_MONOTONIC, &before_us));
+	assert(!thread_join_within(thread, bound_us));
+	assert(read_clock_us(CLOCK_MONOTONIC, &after_us));
+	assert(after_us - before_us >= bound_us);
+	assert(after_us - before_us < bound_us + 100U * MILLISECOND);
+	atomic_store(&thread_release, true);
+	assert(pthread_join(thread, NULL) == 0);
+}
+
 int main(void)
 {
 	test_percentages_and_rounding();
@@ -369,6 +409,7 @@ int main(void)
 	test_response_timestamp_boundaries();
 	test_absolute_path();
 	test_lock_pid_file();
+	test_thread_join_within();
 	(void)puts("helper tests passed");
 	return 0;
 }

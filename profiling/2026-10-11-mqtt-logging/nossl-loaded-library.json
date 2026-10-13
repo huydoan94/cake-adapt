@@ -1,0 +1,11 @@
+{
+  "resolved_library": "build/mqtt-validation/nossl/lib/libmosquitto.so.1",
+  "process_maps": [
+    "7c2956b85000-7c2956b89000 r--p 00000000 08:30 1161738                    ${REPO}/build/mqtt-validation/nossl/lib/libmosquitto.so.1",
+    "7c2956b89000-7c2956b96000 r-xp 00004000 08:30 1161738                    ${REPO}/build/mqtt-validation/nossl/lib/libmosquitto.so.1",
+    "7c2956b96000-7c2956b9b000 r--p 00011000 08:30 1161738                    ${REPO}/build/mqtt-validation/nossl/lib/libmosquitto.so.1",
+    "7c2956b9b000-7c2956b9c000 r--p 00016000 08:30 1161738                    ${REPO}/build/mqtt-validation/nossl/lib/libmosquitto.so.1",
+    "7c2956b9c000-7c2956b9d000 rw-p 00017000 08:30 1161738                    ${REPO}/build/mqtt-validation/nossl/lib/libmosquitto.so.1"
+  ],
+  "stop_us": 10148
+}

@@ -1,0 +1,23 @@
+MEMORY_HEADER; LOG_DATETIME; LOG_TIMESTAMP; PROC_TIME_US; RSS_KB; PEAK_RSS_KB; RSS_ANON_KB; DATA_KB
+DEBUG; 2026-10-12-02:04:50; 1791792290.197353; Local list of reflectors contains 1 entries.
+INFO; 2026-10-12-02:04:50; 1791792290.197383; configuration loaded: upload_interface=eth1 download_interface=ifb4eth1 reflectors=1 active_pingers=1 reflector_ping_interval=300000 us traffic_monitor_interval=200000 us debug=1 log_file=/tmp/cake-adapt-mqtt-nossl/logs/cake-adapt.mqtt_nossl_test.log
+SYSLOG; 2026-10-12-02:04:50; 1791792290.197390; Starting cake-adapt 0.3.17-r1 with PID: 5120, config: /tmp/cake-adapt-mqtt-nossl/test.uci, section: mqtt_nossl_test
+INFO; 2026-10-12-02:04:50; 1791792290.197396; started in observation-only mode
+DEBUG; 2026-10-12-02:04:50; 1791792290.197423; Randomizing reflectors.
+INFO; 2026-10-12-02:04:50; 1791792290.199387; CAKE discovered: interface=eth1 qdisc=cake handle=0x800f0000 bandwidth=20000000 bit/s
+INFO; 2026-10-12-02:04:50; 1791792290.199396; CAKE discovered: interface=ifb4eth1 qdisc=cake handle=0x80100000 bandwidth=20000000 bit/s
+INFO; 2026-10-12-02:04:50; 1791792290.199403; traffic observation initialized: direction=download interface=ifb4eth1
+INFO; 2026-10-12-02:04:50; 1791792290.199408; traffic observation initialized: direction=upload interface=eth1
+MEMORY; 2026-10-12-02:04:50; 1791792290.200244; 1791792290.200241; 1692; 1692; 224; 612
+INFO; 2026-10-12-02:04:50; 1791792290.201148; latency observation initialized: targets=1 interface=eth1
+DEBUG; 2026-10-12-02:04:51; 1791792291.198068; no ping response from reflector: 127.0.0.1 within reflector_response_deadline: 1.000s
+DEBUG; 2026-10-12-02:04:51; 1791792291.198217; reflector=127.0.0.1, sum_reflector_offences=1 and reflector_misbehaving_detection_thr=3
+DEBUG; 2026-10-12-02:04:51; 1791792291.800689; Warning: no reflector response within: 1.50 seconds. Checking loads.
+DEBUG; 2026-10-12-02:04:51; 1791792291.800879; load check is: (( 3 kbps > 10 kbps for download && 3 kbps > 10 kbps for upload ))
+DEBUG; 2026-10-12-02:04:51; 1791792291.800891; Changing main state from: RUNNING to: STALL
+SYSLOG; 2026-10-12-02:05:00; 1791792300.201836; Warning: Configured global ping response timeout: 10.000 seconds exceeded.
+DEBUG; 2026-10-12-02:05:00; 1791792300.201959; Restarting pingers.
+MEMORY; 2026-10-12-02:05:00; 1791792300.202066; 1791792300.202063; 1724; 1724; 256; 632
+INFO; 2026-10-12-02:05:00; 1791792300.203893; latency observation initialized: targets=1 interface=eth1
+INFO; 2026-10-12-02:05:01; 1791792301.992800; received signal 15; shutting down
+SYSLOG; 2026-10-12-02:05:02; 1791792302.013180; Stopped cake-adapt with PID: 5120, config: /tmp/cake-adapt-mqtt-nossl/test.uci, section: mqtt_nossl_test

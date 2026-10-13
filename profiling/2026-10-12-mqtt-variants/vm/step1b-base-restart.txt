@@ -1,0 +1,11 @@
+running
+pid=5450
+lrwxrwxrwx    1 root     root             0 Oct 12 20:17 /proc/5450/exe -> /usr/sbin/cake-adapt
+V rc=0
+features bytes: 0
+Mon Oct 12 19:28:24 2026 daemon.warn cake-adapt[3381]: WARNING: 1791854904.108746 traffic observation unavailable: direction=upload interface=eth1
+Mon Oct 12 19:28:24 2026 daemon.warn cake-adapt[3381]: WARNING: 1791854904.498558 line load unavailable: direction=download
+Mon Oct 12 20:17:25 2026 daemon.info cake-adapt[3381]: INFO: 1791857845.798605 Stopped cake-adapt with PID: 3381, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:17:25 2026 daemon.info cake-adapt[5450]: INFO: 1791857845.849209 Starting cake-adapt 0.3.17-r1 with PID: 5450, config: /var/run/cake-adapt/main.uci, section: main
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
