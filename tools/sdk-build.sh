@@ -3,7 +3,7 @@
 # OpenWrt SDK, then says why a build failed, if one did.
 # Preflights and stages each variant's dependencies; never recurses into other packages.
 #
-# Usage: sh tools/sdk-build.sh [--prepare-only] [variant=base|mqtt|mqtt-ssl ...] NAME|DIRECTORY
+# Usage: sh tools/sdk-build.sh [--prepare-only] [variant=all | variant=base|mqtt|mqtt-ssl ...] NAME|DIRECTORY
 #
 # NAME is an SDK as sdk-resolve.sh finds it: x86 is $OPENWRT_SDK_X86 or
 # ../openwrt-sdk-x86, mips is $OPENWRT_SDK_MIPS or ../openwrt-sdk-mips; an
@@ -13,8 +13,8 @@
 # The root Makefile builds three variants of the daemon: base is the package
 # cake-adapt (no MQTT, no libmosquitto), mqtt is cake-adapt-mqtt
 # (libmosquitto-nossl) and mqtt-ssl is cake-adapt-mqtt-ssl (libmosquitto-ssl,
-# OpenSSL and ca-bundle). Each variant= argument selects one; without any, all
-# three are built, in that order. Each variant's dependencies are prepared just
+# OpenSSL and ca-bundle). Each variant= argument selects one; variant=all, or no
+# variant= argument at all, builds all three, in that order. Each variant's dependencies are prepared just
 # before it is built: the two MQTT variants share the staged libmosquitto, so the
 # last MQTT variant's library is the one left staged.
 #
@@ -41,14 +41,18 @@ prepare_only=
 variants=
 sdk_argument=
 usage() {
-	echo "usage: $0 [--prepare-only] [variant=base|mqtt|mqtt-ssl ...] NAME|DIRECTORY   (for example x86 or filogic)" >&2
+	echo "usage: $0 [--prepare-only] [variant=all | variant=base|mqtt|mqtt-ssl ...] NAME|DIRECTORY   (for example x86 or filogic)" >&2
 	exit 1
 }
 for argument in "$@"; do
 	case $argument in
 	--prepare-only) [ -z "$prepare_only" ] || usage; prepare_only=1 ;;
+	variant=all)
+		# The same as no variant= argument; it cannot be combined with another one.
+		[ -z "$variants" ] || usage
+		variants=all ;;
 	variant=base|variant=mqtt|variant=mqtt-ssl)
-		case " $variants " in *" ${argument#variant=} "*) usage ;; esac
+		case " $variants " in *" ${argument#variant=} "* | *" all "*) usage ;; esac
 		variants="$variants ${argument#variant=}" ;;
 	-*|*=*) usage ;;
 	*) [ -z "$sdk_argument" ] && [ -n "$argument" ] || usage; sdk_argument=$argument ;;
@@ -58,7 +62,7 @@ done
 # Always in the same order, whatever the order of the arguments.
 selected=
 for variant in base mqtt mqtt-ssl; do
-	case " ${variants:- base mqtt mqtt-ssl} " in *" $variant "*) selected="$selected $variant" ;; esac
+	case " ${variants:-all} " in *" $variant "* | *" all "*) selected="$selected $variant" ;; esac
 done
 . "$repo/tools/sdk-resolve.sh"
 sdk_resolve "$sdk_argument"

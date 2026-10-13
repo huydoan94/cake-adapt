@@ -60,7 +60,7 @@ tools when linked. It reports the complete preparation plan first, registers
 missing package links from existing local feeds, and stages missing target
 libraries in dependency order. Check actual artifacts as well as stamps;
 The helper builds the package variants named by `variant=base|mqtt|mqtt-ssl`,
-or all three, preparing each one's dependencies just before it. Mosquitto's shared
+or all three (`variant=all` or none; the VS Code tasks ask which), preparing each one's dependencies just before it. Mosquitto's shared
 soname must match the variant: `base` (`cake-adapt`) links no MQTT library,
 `mqtt` (`cake-adapt-mqtt`) uses `libmosquitto-nossl`, and `mqtt-ssl`
 (`cake-adapt-mqtt-ssl`) uses `libmosquitto-ssl` and prepares OpenSSL first.

@@ -3,7 +3,9 @@
     // SDK locations default to siblings of this repository (../openwrt-sdk-x86,
     // ../openwrt-sdk-filogic); set OPENWRT_SDK_X86 or OPENWRT_SDK_FILOGIC to
     // override. The host tests take the uci.h, libubox and libbpf headers from
-    // the x86 SDK.
+    // the x86 SDK. The SDK build tasks ask which package variant to build:
+    // all (default), base (cake-adapt), mqtt (cake-adapt-mqtt) or mqtt-ssl
+    // (cake-adapt-mqtt-ssl).
     "version": "2.0.0",
     "tasks": [
         {
@@ -34,7 +36,7 @@
         {
             "label": "Build cake-adapt (OpenWrt SDK x86)",
             "type": "shell",
-            "command": "sh tools/sdk-build.sh x86",
+            "command": "sh tools/sdk-build.sh variant=${input:variant} x86",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -43,11 +45,25 @@
         {
             "label": "Build cake-adapt (OpenWrt SDK filogic)",
             "type": "shell",
-            "command": "sh tools/sdk-build.sh filogic",
+            "command": "sh tools/sdk-build.sh variant=${input:variant} filogic",
             "options": {
                 "cwd": "${workspaceFolder}"
             },
             "problemMatcher": "$gcc"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "variant",
+            "type": "pickString",
+            "description": "Package variant to build",
+            "options": [
+                "all",
+                "base",
+                "mqtt",
+                "mqtt-ssl"
+            ],
+            "default": "all"
         }
     ]
 }
