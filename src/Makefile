@@ -16,13 +16,21 @@ BPF_STRIP ?=
 BPF_INCLUDES ?=
 # The OpenWrt package passes PKG_VERSION-rPKG_RELEASE.
 VERSION ?= unknown
-ssl ?= no
-ifeq ($(ssl),yes)
-MQTT_TLS_SUPPORTED := 1
-else ifeq ($(ssl),no)
-MQTT_TLS_SUPPORTED := 0
+# The package variant: cake-adapt 0/0, cake-adapt-mqtt 1/0, cake-adapt-mqtt-ssl 1/1.
+# Without MQTT the no-op sender replaces mqtt.c and libmosquitto is not linked.
+# The default is cake-adapt's, as in common/constants.h.
+MQTT_SUPPORTED ?= 0
+MQTT_TLS_SUPPORTED ?= 0
+MQTT_SELECTION := $(MQTT_SUPPORTED)$(MQTT_TLS_SUPPORTED)
+ifneq ($(filter 00 10 11,$(MQTT_SELECTION)),$(MQTT_SELECTION))
+$(error MQTT_SUPPORTED/MQTT_TLS_SUPPORTED must be 0/0, 1/0 or 1/1)
+endif
+ifeq ($(MQTT_SUPPORTED),1)
+MQTT_SOURCE := logging/mqtt.c
+MQTT_LIBS := -lmosquitto
 else
-$(error ssl must be yes or no)
+MQTT_SOURCE := logging/mqtt_none.c
+MQTT_LIBS :=
 endif
 
 WARNINGS := \
@@ -51,7 +59,7 @@ SOURCES := \
 	latency/parser.c \
 	latency/tracker.c \
 	logging/log.c \
-	logging/mqtt.c \
+	$(MQTT_SOURCE) \
 	monitor/control.c \
 	monitor/monitor.c \
 	monitor/links.c \
@@ -71,27 +79,28 @@ OBJECT_DIR ?= ../build
 OBJECTS := $(SOURCES:%.c=$(OBJECT_DIR)/%.o)
 BPF_OBJECT := $(OBJECT_DIR)/tcpdelay.bpf.o
 DEPENDENCIES := $(OBJECTS:.o=.d) $(BPF_OBJECT:.o=.d)
-MQTT_BUILD_CONFIG := $(OBJECT_DIR)/mqtt-tls.config
+MQTT_BUILD_CONFIG := $(OBJECT_DIR)/mqtt.config
+MQTT_FLAGS := -DMQTT_SUPPORTED=$(MQTT_SUPPORTED) -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED)
 
 .PHONY: all clean
 
 all: $(TARGET) $(if $(BPF_CLANG),$(BPF_OBJECT))
 
-# OpenWrt can rerun this Makefile without cleaning after changing ssl.
+# A rerun without cleaning after a change of the MQTT flags rebuilds every object.
 .PHONY: FORCE_MQTT_CONFIG
 $(MQTT_BUILD_CONFIG): FORCE_MQTT_CONFIG
 	@mkdir -p $(@D)
-	@printf '%s\n' '$(MQTT_TLS_SUPPORTED)' | cmp -s - $@ || printf '%s\n' '$(MQTT_TLS_SUPPORTED)' > $@
+	@printf '%s\n' '$(MQTT_FLAGS)' | cmp -s - $@ || printf '%s\n' '$(MQTT_FLAGS)' > $@
 
 $(OBJECTS): $(MQTT_BUILD_CONFIG)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(LDFLAGS) -pthread -o $@ $(OBJECTS) $(LDLIBS) -luci -lubus -lubox -lz -lbpf -lmosquitto $(NETLINK_LIBS)
+	$(CC) $(LDFLAGS) -pthread -o $@ $(OBJECTS) $(LDLIBS) -luci -lubus -lubox -lz -lbpf $(MQTT_LIBS) $(NETLINK_LIBS)
 
 # Subsystem headers are included relative to this source root.
 $(OBJECT_DIR)/%.o: %.c
 	@mkdir -p $(@D)
-	$(CC) -I$(CURDIR) -DPROGRAM_VERSION='"$(VERSION)"' -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED) $(CPPFLAGS) $(NETLINK_CFLAGS) $(OBJECT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
+	$(CC) -I$(CURDIR) -DPROGRAM_VERSION='"$(VERSION)"' $(MQTT_FLAGS) $(CPPFLAGS) $(NETLINK_CFLAGS) $(OBJECT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 $(OBJECT_DIR)/tcpdelay/capture.o $(OBJECT_DIR)/tcpdelay/injector.o: OBJECT_CFLAGS := $(LIBBPF_CFLAGS)
 

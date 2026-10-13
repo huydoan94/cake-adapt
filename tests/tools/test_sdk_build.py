@@ -99,7 +99,9 @@ if target.endswith('/compile'):
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(state)
     else:
-        (sdk / f'bin/packages/{source}-0.3.17-r1.apk').write_text('package')
+        variant = next((value.split('=', 1)[1] for value in args if value.startswith('BUILD_VARIANT=')), None)
+        package = f'{source}-{variant}' if source == 'cake-adapt' and variant != 'base' else source
+        (sdk / f'bin/packages/{package}-0.3.17-r1.apk').write_text(package)
 '''
 
 
@@ -165,12 +167,12 @@ class SDKBuildTests(unittest.TestCase):
     def reset_calls(self):
         (self.sdk / 'calls').write_text('')
 
-    def run_build(self, expected=0, prepare=False, ssl=None, arguments=None):
+    def run_build(self, expected=0, prepare=False, variants=('mqtt',), arguments=None):
+        """Build or prepare the variants; () builds the helper's default, all three."""
         args = ['sh', str(self.repo / 'tools/sdk-build.sh')]
         if prepare:
             args.append('--prepare-only')
-        if ssl is not None:
-            args.append(f'ssl={ssl}')
+        args.extend(f'variant={variant}' for variant in variants)
         args.extend(arguments if arguments is not None else [str(self.sdk)])
         result = subprocess.run(args, env=self.env,
                                 text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -187,52 +189,128 @@ class SDKBuildTests(unittest.TestCase):
     def targets(self, calls):
         return [call[3] for call in calls if call[0] == 'make']
 
+    def app_calls(self, calls):
+        return [call for call in calls if call[0] == 'make' and call[3].startswith('package/cake-adapt/')]
+
     def test_ready_dependencies_skip_preparation(self):
-        self.assertEqual(self.targets(self.run_build()), ['package/cake-adapt/clean', 'package/cake-adapt/compile'])
-        self.assertEqual((self.repo / 'bin/cake-adapt-0.3.17-r1-test.apk').read_text(), 'package')
+        calls = self.run_build()
+        self.assertEqual(self.targets(calls), ['package/cake-adapt/clean', 'package/cake-adapt/compile'])
+        for call in calls:
+            self.assertIn('BUILD_VARIANT=mqtt', call)
+            self.assertIn('CONFIG_PACKAGE_cake-adapt-mqtt=m', call)
+        self.assertEqual((self.repo / 'bin/cake-adapt-mqtt-0.3.17-r1-test.apk').read_text(), 'cake-adapt-mqtt')
+        self.assertTrue((self.repo / 'build/sdk-test-mqtt.log').is_file())
+
+    def test_default_builds_every_variant_in_order_and_luci_once(self):
+        self.ssl_feed()
+        self.ready('openssl')
+        self.link_luci()
+        calls = self.run_build(variants=())
+        self.assertEqual(self.targets(calls), [
+            'package/cake-adapt/clean', 'package/cake-adapt/compile',
+            'package/cake-adapt/clean', 'package/cake-adapt/compile',
+            'package/feeds/packages/mosquitto/clean', 'package/feeds/packages/mosquitto/compile',
+            'package/cake-adapt/clean', 'package/cake-adapt/compile',
+            'package/luci-app-cake-adapt/clean', 'package/luci-app-cake-adapt/compile'])
+        apps = self.app_calls(calls)
+        for calls_of_variant, (variant, package) in zip((apps[0:2], apps[2:4], apps[4:6]), (
+                ('base', 'cake-adapt'), ('mqtt', 'cake-adapt-mqtt'), ('mqtt-ssl', 'cake-adapt-mqtt-ssl'))):
+            for call in calls_of_variant:
+                self.assertIn(f'BUILD_VARIANT={variant}', call)
+                self.assertIn(f'CONFIG_PACKAGE_{package}=m', call)
+            self.assertEqual((self.repo / f'bin/{package}-0.3.17-r1-test.apk').read_text(), package)
+            self.assertTrue((self.repo / f'build/sdk-test-{variant}.log').is_file())
+        self.assertIn('BUILD_VARIANT=ssl', calls[4])
+        for call in calls[-2:]:
+            self.assertFalse(any(value.startswith('BUILD_VARIANT=') for value in call))
+        self.assertEqual((self.repo / 'bin/luci-app-cake-adapt-0.3.17-r1.apk').read_text(), 'luci-app-cake-adapt')
+        self.assertTrue((self.repo / 'build/sdk-test-luci.log').is_file())
+
+    def test_base_variant_needs_no_mqtt_library_or_feed(self):
+        for source in ('c-ares', 'mosquitto'):
+            _, feed, local, stamp, artifacts = CONTRACTS[source]
+            shutil.rmtree(self.sdk / 'package/feeds' / feed / source)
+            shutil.rmtree(self.sdk / 'feeds' / feed / local)
+            for artifact in [f'stamp/.{stamp}_installed', *artifacts]:
+                (self.stage / artifact).unlink()
+        calls = self.run_build(variants=('base',))
+        self.assertEqual(self.targets(calls), ['package/cake-adapt/clean', 'package/cake-adapt/compile'])
+        for call in calls:
+            self.assertIn('BUILD_VARIANT=base', call)
+            self.assertIn('CONFIG_PACKAGE_cake-adapt=m', call)
+        self.assertEqual((self.repo / 'bin/cake-adapt-0.3.17-r1-test.apk').read_text(), 'cake-adapt')
+        self.assertNotIn('libmosquitto', (self.repo / 'build/sdk-test-base.contracts').read_text())
+        self.reset_calls()
+        self.assertEqual(self.run_build(expected=3, prepare=True, variants=('mqtt',)), [])
+
+    def test_failed_variant_stops_the_later_ones(self):
+        self.env['TEST_FAIL'] = 'cake-adapt/compile'
+        calls = self.run_build(expected=1, variants=())
+        self.assertEqual(self.targets(calls), ['package/cake-adapt/clean', 'package/cake-adapt/compile'])
+        self.assertIn('BUILD_VARIANT=base', calls[-1])
+        self.assertFalse((self.repo / 'bin').exists())
+
+    def test_declared_mqtt_dependency_must_match_the_variant(self):
+        p = self.repo / 'Makefile'
+        original = p.read_text()
+        for variant, broken in (('mqtt', original.replace('+libmosquitto-nossl', '+libmosquitto-ssl')),
+                                ('mqtt-ssl', original.replace(' +ca-bundle', '')),
+                                ('base', original.replace('+fping', '+libmosquitto-nossl +fping'))):
+            with self.subTest(variant=variant):
+                p.write_text(broken)
+                self.assertEqual(self.run_build(expected=3, prepare=True, variants=(variant,)), [])
+                self.assertIn('but its variant needs', self.output)
+        p.write_text(original)
 
     def test_cli_options_in_either_order(self):
         self.ssl_feed()
         self.ready('openssl')
         self.ready('mosquitto', 'ssl')
-        for arguments in ([str(self.sdk), 'ssl=yes', '--prepare-only'],
-                          ['--prepare-only', 'ssl=yes', str(self.sdk)],
-                          ['ssl=yes', str(self.sdk), '--prepare-only']):
+        for arguments in ([str(self.sdk), 'variant=mqtt-ssl', '--prepare-only'],
+                          ['--prepare-only', 'variant=mqtt-ssl', str(self.sdk)],
+                          ['variant=mqtt-ssl', str(self.sdk), '--prepare-only']):
             with self.subTest(arguments=arguments):
-                self.assertEqual(self.run_build(arguments=arguments), [])
-                self.assertIn('ssl=yes', self.output)
+                self.assertEqual(self.run_build(variants=(), arguments=arguments), [])
+                self.assertIn('READY (test, cake-adapt-mqtt-ssl)', self.output)
+        self.run_build(variants=(), arguments=['variant=mqtt-ssl', 'variant=base', '--prepare-only', str(self.sdk)])
+        self.assertLess(self.output.index('READY (test, cake-adapt)'), self.output.index('READY (test, cake-adapt-mqtt-ssl)'))
 
     def test_invalid_or_duplicate_cli_options_do_not_mutate_sdk(self):
-        for arguments in ([], ['ssl=true', str(self.sdk)], ['ssl=', str(self.sdk)],
-                          ['ssl=yes', 'ssl=no', str(self.sdk)], ['ssl=no', 'ssl=no', str(self.sdk)],
+        for arguments in ([], ['ssl=yes', str(self.sdk)], ['ssl=no', str(self.sdk)], ['variant=', str(self.sdk)],
+                          ['variant=ssl', str(self.sdk)], ['variant=all', str(self.sdk)],
+                          ['variant=mqtt', 'variant=mqtt', str(self.sdk)],
                           ['--prepare-only', '--prepare-only', str(self.sdk)],
-                          ['--ssl', str(self.sdk)], ['other=yes', str(self.sdk)],
+                          ['--variant', str(self.sdk)], ['other=yes', str(self.sdk)],
                           [str(self.sdk), str(self.sdk)]):
             with self.subTest(arguments=arguments):
-                self.assertEqual(self.run_build(expected=1, arguments=arguments), [])
+                self.assertEqual(self.run_build(expected=1, variants=(), arguments=arguments), [])
                 self.assertFalse((self.repo / 'build').exists())
 
-    def test_default_and_explicit_nossl_need_no_openssl_feed(self):
+    def test_base_and_mqtt_need_no_openssl_feed(self):
         self.assertFalse((self.sdk / 'feeds/base/libs/openssl').exists())
-        for ssl in (None, 'no'):
-            self.assertEqual(self.run_build(prepare=True, ssl=ssl), [])
+        for variants in (('base',), ('mqtt',), ('base', 'mqtt')):
+            with self.subTest(variants=variants):
+                self.assertEqual(self.run_build(prepare=True, variants=variants), [])
 
     def test_ssl_ready_stage_skips_variant_repair_and_labels_copy(self):
         self.ssl_feed()
         self.ready('openssl')
         self.ready('mosquitto', 'ssl')
         self.link_luci()
-        calls = self.run_build(ssl='yes')
+        calls = self.run_build(variants=('mqtt-ssl',))
         self.assertEqual(self.targets(calls), ['package/cake-adapt/clean', 'package/cake-adapt/compile',
                          'package/luci-app-cake-adapt/clean', 'package/luci-app-cake-adapt/compile'])
-        self.assertTrue(all('ssl=yes' in call for call in calls))
-        self.assertTrue((self.repo / 'bin/cake-adapt-0.3.17-r1-test-ssl.apk').is_file())
-        self.assertTrue((self.repo / 'bin/luci-app-cake-adapt-0.3.17-r1-ssl.apk').is_file())
-        self.assertTrue((self.repo / 'build/sdk-test-ssl.log').is_file())
+        self.assertTrue(all('BUILD_VARIANT=mqtt-ssl' in call for call in calls[:2]))
+        self.assertTrue((self.repo / 'bin/cake-adapt-mqtt-ssl-0.3.17-r1-test.apk').is_file())
+        self.assertTrue((self.repo / 'bin/luci-app-cake-adapt-0.3.17-r1.apk').is_file())
+        self.assertTrue((self.repo / 'build/sdk-test-mqtt-ssl.log').is_file())
 
-    def test_native_make_rebuilds_when_tls_capability_changes(self):
+    def test_native_make_rebuilds_when_mqtt_capability_changes(self):
         native = self.root / 'native'
-        self.write(native / 'logging/mqtt.c', '''#if MQTT_TLS_SUPPORTED
+        self.write(native / 'logging/log.c', '''#if MQTT_SUPPORTED
+int mqtt_enabled_build;
+#endif
+#if MQTT_TLS_SUPPORTED
 int tls_enabled;
 #else
 int tls_disabled;
@@ -240,42 +318,57 @@ int tls_disabled;
 ''')
         shutil.copyfile(SOURCE / 'src/Makefile', native / 'Makefile')
         object_dir = native / 'build'
-        obj = object_dir / 'logging/mqtt.o'
+        obj = object_dir / 'logging/log.o'
         command = ['make', '--no-print-directory', '-C', str(native), str(obj),
                    f'OBJECT_DIR={object_dir}', 'NETLINK_CFLAGS=', 'LIBBPF_CFLAGS=']
-        for flag in ('no', 'yes', 'no'):
-            result = subprocess.run([*command, f'ssl={flag}'], text=True, capture_output=True)
+        for mqtt, tls in (('1', '0'), ('1', '1'), ('0', '0'), ('1', '0')):
+            result = subprocess.run([*command, f'MQTT_SUPPORTED={mqtt}', f'MQTT_TLS_SUPPORTED={tls}'],
+                                    text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             symbols = subprocess.check_output(['nm', str(obj)], text=True)
-            self.assertEqual('tls_enabled' in symbols, flag == 'yes')
-            self.assertEqual('tls_disabled' in symbols, flag == 'no')
+            self.assertEqual('mqtt_enabled_build' in symbols, mqtt == '1')
+            self.assertEqual('tls_enabled' in symbols, tls == '1')
+            self.assertEqual('tls_disabled' in symbols, tls == '0')
         unchanged = obj.stat().st_mtime_ns
-        subprocess.run([*command, 'ssl=no'], check=True, capture_output=True)
+        subprocess.run([*command, 'MQTT_SUPPORTED=1', 'MQTT_TLS_SUPPORTED=0'], check=True, capture_output=True)
         self.assertEqual(obj.stat().st_mtime_ns, unchanged)
 
-    def test_luci_prepare_embeds_selected_tls_capability(self):
-        self.write(self.sdk / 'rules.mk', 'PKG_BUILD_DIR:=$(TOPDIR)/build/luci\nSED:=sed -i -e\n')
-        self.write(self.sdk / 'feeds/luci/luci.mk', 'all:\n\t$(call Prepare/mqtt-tls)\n')
-        recipe = self.repo / 'luci.Makefile'
-        shutil.copyfile(SOURCE / 'luci-app-cake-adapt/Makefile', recipe)
-        config = self.sdk / 'build/luci/htdocs/luci-static/resources/view/cake-adapt/config.js'
-        raw = (SOURCE / 'luci-app-cake-adapt/htdocs/luci-static/resources/view/cake-adapt/config.js').read_text()
-        for flag in ('no', 'yes'):
-            self.write(config, raw)
-            result = subprocess.run(['make', '-f', str(recipe), f'TOPDIR={self.sdk}', f'ssl={flag}'],
-                                    text=True, capture_output=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            capability = 'true' if flag == 'yes' else 'false'
-            self.assertIn(f'const mqttTlsSupported = {capability};', config.read_text())
-        for flag in ('', 'true', 'yes no'):
-            result = subprocess.run(['make', '-f', str(recipe), f'TOPDIR={self.sdk}', f'ssl={flag}'],
-                                    text=True, capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn('ssl must be yes or no', result.stderr)
+    def test_native_make_links_libmosquitto_only_with_mqtt(self):
+        native = SOURCE / 'src'
+        dry = ['make', '--no-print-directory', '-n', '-B', '-C', str(native), 'cake-adapt',
+               f'OBJECT_DIR={self.root / "native-build"}', 'NETLINK_CFLAGS=', 'LIBBPF_CFLAGS=']
+        for mqtt, tls, source in (('0', '0', 'mqtt_none.c'), ('1', '0', 'mqtt.c'), ('1', '1', 'mqtt.c')):
+            with self.subTest(mqtt=mqtt, tls=tls):
+                result = subprocess.run([*dry, f'MQTT_SUPPORTED={mqtt}', f'MQTT_TLS_SUPPORTED={tls}'],
+                                        text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                compiled = [line for line in result.stdout.splitlines() if ' -c -o ' in line and '/logging/mqtt' in line]
+                self.assertEqual(len(compiled), 1)
+                self.assertTrue(compiled[0].endswith('logging/' + source))
+                self.assertIn(f'-DMQTT_SUPPORTED={mqtt} -DMQTT_TLS_SUPPORTED={tls}', compiled[0])
+                link = [line for line in result.stdout.splitlines() if ' -o cake-adapt ' in line]
+                self.assertEqual(len(link), 1)
+                self.assertEqual('-lmosquitto' in link[0], mqtt == '1')
+        for mqtt, tls in (('0', '1'), ('2', '0'), ('1', ''), ('yes', 'no')):
+            with self.subTest(mqtt=mqtt, tls=tls):
+                result = subprocess.run([*dry, f'MQTT_SUPPORTED={mqtt}', f'MQTT_TLS_SUPPORTED={tls}'],
+                                        text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('must be 0/0, 1/0 or 1/1', result.stderr)
+
+    def test_luci_package_reads_capabilities_at_run_time(self):
+        recipe = (SOURCE / 'luci-app-cake-adapt/Makefile').read_text()
+        self.assertNotIn('ssl', recipe)
+        self.assertNotIn('Prepare', recipe)
+        self.assertIn('+cake-adapt', recipe)
+        acl = json.loads((SOURCE / 'luci-app-cake-adapt/root/usr/share/rpcd/acl.d/luci-app-cake-adapt.json').read_text())
+        read = acl['luci-app-cake-adapt']['read']
+        self.assertEqual(read['file'], {'/usr/share/cake-adapt/features': ['read']})
+        self.assertIn('read', read['ubus']['file'])
 
     def test_ssl_stages_openssl_before_mosquitto_and_switches_back(self):
         self.ssl_feed()
-        calls = self.run_build(ssl='yes', prepare=True)
+        calls = self.run_build(variants=('mqtt-ssl',), prepare=True)
         self.assertEqual(self.targets(calls), ['package/feeds/base/openssl/clean',
                          'package/feeds/base/openssl/compile', 'package/feeds/packages/mosquitto/clean',
                          'package/feeds/packages/mosquitto/compile'])
@@ -293,7 +386,7 @@ int tls_disabled;
             self.assertIn('CONFIG_PACKAGE_libmosquitto-ssl=m', call)
             self.assertIn('CONFIG_PACKAGE_libmosquitto-nossl=', call)
         self.reset_calls()
-        self.assertEqual(self.targets(self.run_build(ssl='no', prepare=True)),
+        self.assertEqual(self.targets(self.run_build(variants=('mqtt',), prepare=True)),
                          ['package/feeds/packages/mosquitto/clean', 'package/feeds/packages/mosquitto/compile'])
 
     def test_ssl_requires_both_crypto_and_ssl_dynamic_dependencies(self):
@@ -304,7 +397,7 @@ int tls_disabled;
                 self.reset_calls()
                 self.ready('mosquitto', 'ssl')
                 self.write(self.stage / 'usr/lib/libmosquitto.so.1', state)
-                self.assertEqual(self.targets(self.run_build(ssl='yes', prepare=True)),
+                self.assertEqual(self.targets(self.run_build(variants=('mqtt-ssl',), prepare=True)),
                                  ['package/feeds/packages/mosquitto/clean', 'package/feeds/packages/mosquitto/compile'])
 
     def test_ssl_openssl_artifacts_and_stamp_are_repaired(self):
@@ -315,7 +408,7 @@ int tls_disabled;
             with self.subTest(artifact=artifact):
                 self.reset_calls()
                 (self.stage / artifact).unlink()
-                self.assertEqual(self.targets(self.run_build(ssl='yes', prepare=True)),
+                self.assertEqual(self.targets(self.run_build(variants=('mqtt-ssl',), prepare=True)),
                                  ['package/feeds/base/openssl/clean', 'package/feeds/base/openssl/compile'])
 
     def test_ssl_failed_openssl_or_variant_repair_blocks_app(self):
@@ -333,21 +426,21 @@ int tls_disabled;
                     self.env['TEST_BAD_STAGE' if failure.endswith('header') else 'TEST_BAD_ELF'] = 'openssl'
                 else:
                     self.env['TEST_BAD_REPAIR'] = '1'
-                calls = self.run_build(expected=3, ssl='yes')
+                calls = self.run_build(expected=3, variants=('mqtt-ssl',))
                 self.assertFalse(any('/cake-adapt/' in target for target in self.targets(calls)))
                 self.assertFalse((self.repo / 'bin').exists())
 
     def test_ssl_late_missing_feed_or_unusable_perl_blocks_all_preparation(self):
         (self.stage / 'usr/include/lua.h').unlink()
-        self.assertEqual(self.run_build(expected=3, ssl='yes'), [])
+        self.assertEqual(self.run_build(expected=3, variants=('mqtt-ssl',)), [])
         self.ssl_feed()
         self.env['TEST_BAD_TOOL'] = 'perl'
-        self.assertEqual(self.run_build(expected=2, ssl='yes'), [])
+        self.assertEqual(self.run_build(expected=2, variants=('mqtt-ssl',)), [])
 
     def test_sdk_tool_wrappers_receive_package_staging_environment(self):
         self.ssl_feed()
         self.env['TEST_REQUIRE_SDK_ENV'] = '1'
-        calls = self.run_build(ssl='yes', prepare=True)
+        calls = self.run_build(variants=('mqtt-ssl',), prepare=True)
         self.assertEqual(self.targets(calls), ['package/feeds/base/openssl/clean',
                          'package/feeds/base/openssl/compile', 'package/feeds/packages/mosquitto/clean',
                          'package/feeds/packages/mosquitto/compile'])
@@ -359,35 +452,37 @@ int tls_disabled;
         config = self.sdk / '.config'
         config.write_text(config.read_text() + 'CONFIG_arm=y\n')
         self.original_config = config.read_bytes()
-        self.assertEqual(self.run_build(expected=2, ssl='yes', prepare=True), [])
+        self.assertEqual(self.run_build(expected=2, variants=('mqtt-ssl',), prepare=True), [])
         self.write(self.toolchain / 'lib/libatomic.so.1', 'foreign')
-        self.assertEqual(self.run_build(expected=2, ssl='yes', prepare=True), [])
+        self.assertEqual(self.run_build(expected=2, variants=('mqtt-ssl',), prepare=True), [])
         self.write(self.toolchain / 'lib/libatomic.so.1', 'nossl')
-        self.assertEqual(self.run_build(ssl='yes', prepare=True), [])
+        self.assertEqual(self.run_build(variants=('mqtt-ssl',), prepare=True), [])
 
-    def test_package_dependency_matches_selected_build_variant(self):
+    def test_package_variants_declare_their_dependencies_and_capabilities(self):
         self.write(self.sdk / 'rules.mk', 'INCLUDE_DIR:=$(TOPDIR)/include\n')
+        # Each BuildPackage records what its Package/<name> sets, as package-defaults.mk resets it first.
         self.write(self.sdk / 'include/package.mk', '''define BuildPackage
-$(eval $(Package/$(1)))
-.PHONY: print-dependencies
-print-dependencies:
-\t@printf '%s\\n' '$(DEPENDS)'
+$(eval VARIANT:=)$(eval PROVIDES:=)$(eval DEFAULT_VARIANT:=)$(eval $(Package/$(1)))
+INFO += $(1)|$(VARIANT)|$(DEFAULT_VARIANT)|$(strip $(PROVIDES))|$(strip $(DEPENDS));
 endef
+.PHONY: print
+print:
+\t@printf '%s\\n' '$(INFO)' | tr ';' '\\n' | sed 's/^ *//'
+\t@printf 'build=%s/%s features=%s\\n' '$(MQTT_SUPPORTED)' '$(MQTT_TLS_SUPPORTED)' '$(strip $(FEATURES))'
 ''')
-        for selection, dependency in (([], 'libmosquitto-nossl'), (['ssl=no'], 'libmosquitto-nossl'),
-                                     (['ssl=yes'], 'libmosquitto-ssl')):
-            with self.subTest(selection=selection):
+        common = '+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping +bash'
+        expected = [f'cake-adapt|base|1||{common}',
+                    f'cake-adapt-mqtt|mqtt||cake-adapt|{common} +libmosquitto-nossl',
+                    f'cake-adapt-mqtt-ssl|mqtt-ssl||cake-adapt|{common} +libmosquitto-ssl +ca-bundle']
+        for variant, build, features in (('base', '0/0', ''), ('mqtt', '1/0', 'mqtt'), ('mqtt-ssl', '1/1', 'mqtt tls')):
+            with self.subTest(variant=variant):
                 result = subprocess.run(['make', '--no-print-directory', '-f', str(self.repo / 'Makefile'),
-                                         f'TOPDIR={self.sdk}', 'print-dependencies', *selection],
+                                         f'TOPDIR={self.sdk}', 'print', f'BUILD_VARIANT={variant}'],
                                         cwd=self.repo, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                mqtt = [value for value in result.stdout.split() if value.startswith('+libmosquitto-')]
-                self.assertEqual(mqtt, ['+' + dependency])
-                self.assertEqual('+ca-bundle' in result.stdout.split(), selection == ['ssl=yes'])
-        result = subprocess.run(['make', '-f', str(self.repo / 'Makefile'), f'TOPDIR={self.sdk}',
-                                 'print-dependencies', 'ssl=true'], cwd=self.repo, text=True, capture_output=True)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('ssl must be yes or no', result.stderr)
+                lines = [line for line in result.stdout.splitlines() if line]
+                self.assertEqual(lines[:3], expected)
+                self.assertEqual(lines[3], f'build={build} features={features}')
 
     def test_each_direct_library_stamp_header_and_linker_repaired(self):
         for source in ('uci', 'libubox', 'ubus', 'libnl-tiny', 'libbpf', 'zlib', 'mosquitto'):

@@ -10,8 +10,16 @@ for view in "$app"/htdocs/luci-static/resources/view/cake-adapt/*.js; do
 	node --check "$view"
 done
 node ./luci_status.js "$app/htdocs/luci-static/resources/view/cake-adapt/status.js"
-node ./luci_config.js "$app/htdocs/luci-static/resources/view/cake-adapt/config.js"
-node ./luci_config.js "$app/htdocs/luci-static/resources/view/cake-adapt/config.js" ssl=yes
+# Once per package's features file: cake-adapt (also with MQTT left on in an
+# instance), cake-adapt-mqtt and cake-adapt-mqtt-ssl.
+config=$app/htdocs/luci-static/resources/view/cake-adapt/config.js
+node ./luci_config.js "$config" ''
+node ./luci_config.js "$config" '' stored
+node ./luci_config.js "$config" 'mqtt
+'
+node ./luci_config.js "$config" 'mqtt
+tls
+'
 # Every daemon option is in the Configuration view, and nothing else: the
 # constants named in the options[] table, plus reflectors, which config.c reads
 # outside the table. The view names each option on the line of its
