@@ -78,6 +78,8 @@ if kind == 'feeds':
             (directory / 'Makefile').touch()
     sys.exit(0)
 target = args[2]
+print(f'fake-make stdout {target}')
+print(f'fake-make stderr {target}', file=sys.stderr)
 if os.environ.get('TEST_FAIL') and os.environ['TEST_FAIL'] in target:
     sys.exit(1)
 if target.endswith('/compile'):
@@ -140,6 +142,8 @@ class SDKBuildTests(unittest.TestCase):
             self.write(self.toolchain / 'include' / header)
         self.env = {**os.environ, 'PATH': f'{self.commands}:{os.environ["PATH"]}',
                     'TEST_SDK': str(self.sdk), 'TEST_CONTRACTS': json.dumps({**CONTRACTS, 'openssl': OPENSSL})}
+        # The tests choose the output mode themselves.
+        self.env.pop('VERBOSE', None)
         for source, (dependency, feed, local, stamp, artifacts) in CONTRACTS.items():
             self.write(self.sdk / 'feeds' / feed / local / 'Makefile')
             self.write(self.sdk / 'package/feeds' / feed / source / 'Makefile')
@@ -249,6 +253,40 @@ class SDKBuildTests(unittest.TestCase):
         self.assertEqual(self.targets(calls), ['package/cake-adapt/clean', 'package/cake-adapt/compile'])
         self.assertIn('BUILD_VARIANT=base', calls[-1])
         self.assertFalse((self.repo / 'bin').exists())
+
+    def test_quiet_default_keeps_make_output_in_the_log(self):
+        (self.stage / 'usr/include/ares.h').unlink()
+        self.link_luci()
+        self.run_build()
+        for line in ('libcares: stage', 'Preflight complete', 'Staging libcares', 'BUILT (test, cake-adapt-mqtt)',
+                     'Building luci-app-cake-adapt'):
+            self.assertIn(line, self.output)
+        self.assertNotIn('fake-make', self.output)
+        log = (self.repo / 'build/sdk-test-mqtt.log').read_text()
+        for target in ('package/feeds/packages/c-ares/compile', 'package/cake-adapt/compile'):
+            self.assertIn(f'fake-make stdout {target}', log)
+            self.assertIn(f'fake-make stderr {target}', log)
+        self.assertIn('Preflight complete', log)
+        self.assertIn('fake-make stdout package/luci-app-cake-adapt/compile',
+                      (self.repo / 'build/sdk-test-luci.log').read_text())
+
+    def test_verbose_shows_make_output(self):
+        self.env['VERBOSE'] = '1'
+        self.run_build()
+        self.assertIn('fake-make stdout package/cake-adapt/compile', self.output)
+        self.assertIn('fake-make stderr package/cake-adapt/compile', self.output)
+        self.assertIn('fake-make stdout package/cake-adapt/compile',
+                      (self.repo / 'build/sdk-test-mqtt.log').read_text())
+
+    def test_failed_make_shows_the_end_of_the_log(self):
+        self.env['TEST_FAIL'] = 'cake-adapt/compile'
+        self.run_build(expected=1)
+        self.assertIn('Last 30 lines of', self.output)
+        self.assertIn('fake-make stdout package/cake-adapt/compile', self.output)
+        self.assertIn('the log shows no compiler error', self.output)
+        self.env['VERBOSE'] = '1'
+        self.run_build(expected=1)
+        self.assertNotIn('Last 30 lines of', self.output)
 
     def test_declared_mqtt_dependency_must_match_the_variant(self):
         p = self.repo / 'Makefile'

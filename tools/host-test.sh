@@ -7,8 +7,9 @@
 #
 # The uci.h, libubox and libbpf headers come from an OpenWrt SDK's staged
 # includes: NAME or DIRECTORY as sdk-resolve.sh finds it, x86 by default.
-# libnl-3 and zlib come from the host. The full output is shown and also kept
-# in build/host-test.log.
+# libnl-3 and zlib come from the host. Each suite's output goes to
+# build/host-test.log; the terminal shows it only for a failed suite (its last
+# 30 lines) or with VERBOSE=1 (all of it).
 #
 # Exit status: 0 all passed, 2 SDK or host headers missing, 4 compile error,
 # 5 a test failed, 1 any other failure.
@@ -52,7 +53,11 @@ for suite in check check-netlink check-config check-tcpdelay; do
 		result=FAILED
 		failed="$failed $suite"
 	fi
-	cat "$log.part"
+	if [ "${VERBOSE:-}" = 1 ]; then
+		cat "$log.part"
+	elif [ "$result" = FAILED ]; then
+		tail -n 30 "$log.part"
+	fi
 	cat "$log.part" >>"$log"
 	rm -f "$log.part"
 	echo "== $suite $result" | tee -a "$log"
