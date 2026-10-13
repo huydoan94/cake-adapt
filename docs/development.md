@@ -6,9 +6,10 @@ See the [technical overview](technical.md) for the design and the
 ## Agent workflows and resumption
 
 Both Claude and Codex follow [AGENTS.md](../AGENTS.md) and
-[CODING_STYLE.md](../CODING_STYLE.md). Their model, delegation and tool choices
-are defined separately in [COLLABORATION.md](../COLLABORATION.md); Codex uses its
-own available tools and current primary model. Read [HANDOFF.md](../HANDOFF.md)
+[CODING_STYLE.md](../CODING_STYLE.md), which extend the user's general working
+definitions in `~/ai-working-definitions/` (outside this repository): roles,
+model and delegation rules, efficiency and test-system discipline.
+[COLLABORATION.md](../COLLABORATION.md) holds cake-adapt's additions. Read [HANDOFF.md](../HANDOFF.md)
 for the active task, decisions, scoped approvals, evidence and unfinished work.
 Keep it current so a resumed session does not need the user to repeat the chat.
 

@@ -2,6 +2,11 @@
 
 Read before touching a test VM. Part of [AGENTS.md](../../AGENTS.md); the test machines and permissions stay in AGENTS.md.
 
+For long VM jobs, run the local bounded `ssh` command through
+`sh tools/run-bg.sh build/<name>.log <ssh-command>` and observe completion with
+`sh tools/wait-for.sh build/<name>.log` per [COLLABORATION.md](../../COLLABORATION.md),
+retaining the VM-side deadline and cleanup traps.
+
 The authorized OpenWrt VM test log is always:
 
 ```text
