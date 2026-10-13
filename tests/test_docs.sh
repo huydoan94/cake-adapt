@@ -13,6 +13,7 @@ limit() { # FILE BYTES
 	fi
 }
 limit AGENTS.md 24576
-limit HANDOFF.md 8192
+# HANDOFF.md is local to the user's machine and not tracked; check it when present.
+[ ! -f HANDOFF.md ] || limit HANDOFF.md 8192
 [ "$status" -eq 0 ] && printf '%s\n' 'agent docs within size limits'
 exit "$status"
