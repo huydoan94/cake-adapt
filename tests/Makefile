@@ -151,6 +151,7 @@ check: $(BINARIES)
 	sh ./test_init.sh
 	sh ./test_import.sh
 	sh ./test_luci.sh
+	sh ./test_docs.sh
 	python3 tools/test_sdk_build.py
 
 .PHONY: check-sdk-build

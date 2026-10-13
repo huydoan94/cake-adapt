@@ -27,6 +27,12 @@ model version (currently Claude Opus 5.5). If that version is unavailable, repor
 the limitation and use any alternative the user has already authorized. Without
 such authorization, wait for direction instead of substituting another model.
 
+Claude follows the same delegation rule as Codex below: work directly by
+default, start one bounded reviewer (given only the brief, the diff file and the
+results) for a risky change, and delegate implementation only for a large,
+self-contained piece whose files do not overlap the primary's. Other changes
+get a self-review of the final diff, reported as self-review.
+
 ### Codex workflow
 
 For a Codex primary, use the current primary model for delegated implementation
