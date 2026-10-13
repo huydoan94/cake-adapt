@@ -1,0 +1,22 @@
+enabled
+running
+5870
+mqtt
+-- -V cake-adapt.orig:
+rc=0
+-- -V mqtt.uci:
+rc=0
+-- -V tls.uci:
+ERROR: configuration error: option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package
+rc=1
+login: ok
+file.read features: {"jsonrpc":"2.0","id":1,"result":[0,{"data":"mqtt\n"}]}
+file.read other (must be denied): {"jsonrpc":"2.0","id":1,"result":[6]}
+uci get mqtt_enabled: {"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"Access denied"}}
+installed config.js sha256: b603cb50fa98304df85b90347bfeb18588150ebdc2b6ed09843c0b8aa3df33e7
+luci getFeatures as anonymous: {"jsonrpc":"2.0","id":1,"result":[0,{"firewall":true,"firewall4":true,"opkg":false,"bonding":null,"mii_tool":null,"offlo
+Mon Oct 12 20:18:17 2026 daemon.info cake-adapt[5450]: INFO: 1791857897.687784 Stopped cake-adapt with PID: 5450, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:18:17 2026 daemon.info cake-adapt[5870]: INFO: 1791857897.869850 Starting cake-adapt 0.3.17-r1 with PID: 5870, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:18:26 2026 daemon.err cake-adapt[5957]: ERROR: 1791857906.754619 configuration error: option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 

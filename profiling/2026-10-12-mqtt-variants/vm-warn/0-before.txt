@@ -1,0 +1,11 @@
+2549a7c0fe88b6afa8f6dfe5ea7405211467713389914608b64182ff5d9a5eeb  /tmp/cake-adapt-0.3.17-r1.apk
+ad8e13d660ed66f9bf1fa9aef32110e40ae670717929d9658ad7b22d59b23d15  /tmp/cake-adapt-mqtt-0.3.17-r1.apk
+e1df11a31d530391ff86ea4b8703f55009e6fd24401b1e9fd48e65b0552dba69  /etc/config/cake-adapt
+cake-adapt-mqtt-0.3.17-r1 i386_pentium4 {/home/huydoan94/cake-adapt} (GPL-2.0-only) [installed]
+libcares-1.34.6-r1 i386_pentium4 {feeds/packages/feeds/packages/libs/c-ares} (MIT) [installed]
+libmosquitto-nossl-2.0.22-r2 i386_pentium4 {feeds/packages/feeds/packages/net/mosquitto} (EPL-2.0) [installed]
+luci-app-cake-adapt-0.3.17-r1 noarch {/home/huydoan94/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+5870
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+mqtt_enabled unset
