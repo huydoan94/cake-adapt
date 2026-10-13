@@ -1,18 +1,16 @@
 # cake-adapt — Agent Guide
 
-**At session start, resumption after a long break (more than 2 hours), the primary agent reads
-[`COLLABORATION.md`](COLLABORATION.md) and [`HANDOFF.md`](HANDOFF.md) together
-with this guide; in `COLLABORATION.md`, the shared roles and your own provider's
-workflow are enough at session start. Before editing code, read
-[`CODING_STYLE.md`](CODING_STYLE.md); read the topic files below and other
-documentation only as the task needs them.
+**This guide extends the user's general working definitions in
+`~/ai-working-definitions/` (outside this repository; see its `README.md`).
+Where both apply, this repository's rules win.** At session start, resumption
+after a long break (more than 2 hours), or after lost context, the primary agent
+reads this guide, [`HANDOFF.md`](HANDOFF.md) and
+[`COLLABORATION.md`](COLLABORATION.md), which names the general files to read
+at session start. Before editing code, read [`CODING_STYLE.md`](CODING_STYLE.md).
 Inspect the current worktree and identify unfinished work before continuing.
-Delegated agents use a scoped task brief with the applicable policy excerpts.**
-
-Claude and Codex each have an explicit workflow in `COLLABORATION.md`. Select
-the workflow for the active primary agent; the Claude model requirement does
-not apply to Codex. Preserve user decisions and scoped approvals in `HANDOFF.md`
-so resumption does not depend on the user repeating earlier instructions.
+Delegated agents use a scoped task brief with the applicable policy excerpts.
+Preserve user decisions and scoped approvals in `HANDOFF.md` so resumption does
+not depend on the user repeating earlier instructions.
 
 This file holds the rules that always apply. The detailed rules live in topic
 files under `docs/agents/`; they are as binding as this file. Read the ones a
@@ -125,7 +123,9 @@ The shipped UCI file must remain safe and readable:
 - Require `minimum <= base <= maximum` and values representable by CAKE.
 - Validate configuration before starting control.
 - Never embed developer-specific paths, usernames, SDK locations, or secrets in
-  committed files.
+  committed files. References to `~/ai-working-definitions/` are intended: the
+  repository serves the user's own agents, and other people bring their own
+  rules (user decision 2026-10-13).
 
 Use observation-only mode when either the configuration or runtime behavior has
 not yet been verified. Never run rate control concurrently with cake-autorate
@@ -164,27 +164,11 @@ cake-autorate analyzers applies to structured records, not local filenames.
 
 ## Delegation and sandbox
 
-At session start, resumption, and after a long break, the primary agent reads
-`COLLABORATION.md` and `HANDOFF.md` alongside this guide and inspects the current
-worktree and unfinished work. Follow the matching provider's roles and handoff
-workflow for diagnosis, implementation, review, verification, and acceptance. Do not run parallel
-writers on overlapping files. Delegation does not expand the user's granted
-authority or override the branch, remote, Windows, version, and deployment
-restrictions in this guide.
-
-Use the matching Claude or Codex workflow and context budget in
-`COLLABORATION.md`: short per-task files, context-free delegation when used,
-at most one implementer and one bounded review, as each workflow defines,
-and only the checks selected for the affected behavior. Reports and evidence
-should be sufficient and concise. Broad reviews, exhaustive testing, detailed
-documentation and instructions to finish every plan are task-specific requests,
-not standing rules unless the user explicitly makes them so. Preserve required
-safety checks and runtime evidence for behavioral claims.
-
-Sandbox failures such as `Read-only file system` or `socket: Operation not
-permitted` are not product failures. Use an existing narrow approval or return
-the exact command and justification to the primary agent. Never work around a
-denied approval or request a broad shell/interpreter prefix.
+Follow the general collaboration rules (roles, direct work by default, one
+bounded reviewer for risky changes, briefs, sandbox failures) and this
+project's risky areas and helpers in `COLLABORATION.md`. Delegation never
+expands the user's authority or overrides this guide's branch, remote, Windows,
+version and deployment limits.
 
 ## Test machines and permissions
 
@@ -233,66 +217,28 @@ and version management stay with the user.
 
 ## Change discipline
 
-- Work only on the currently checked-out local branch. Never inspect, switch,
-  modify, rewrite, delete, or otherwise touch any other branch or remote.
-  Never fetch, pull, push, force-push, or contact a remote; branch and remote
-  management belongs exclusively to the user.
-- Never rebase, squash, amend or otherwise rewrite history; a follow-up is a
-  new commit on top.
-- Commit only when asked or as part of an authorised task. Stage with explicit
-  pathspecs, never commit a temporary plan doc (such as
-  `docs/superpowers/plans/`), and add no `Co-Authored-By` or other AI
-  attribution trailer.
-- A temporary plan doc the user keeps in the repository wins over lagging
-  `AGENTS.md` or README text: point out the conflict and follow the plan.
-- Treat `AGENTS.md` as user-owned policy; edit it only when explicitly asked.
+The general rules are in `~/ai-working-definitions/change-discipline.md`. These
+must hold even when that file is not read:
+
+- Work only on the checked-out local branch; never touch another branch or a
+  remote, and never fetch, pull or push.
+- Never rebase, squash, amend or otherwise rewrite history.
+- Commit only when asked or as part of an authorised task, with explicit paths;
+  never commit a temporary plan document (such as `PLAN-*.md` at the root or
+  `docs/superpowers/plans/`) or `HANDOFF.md` (it serves only the user's own
+  agents); no `Co-Authored-By` or other AI trailer.
+- `AGENTS.md` is user-owned policy: edit it only when asked. Explain a conflict
+  between a request and this guide before changing direction.
 - Inspect `git status` first and preserve unrelated user changes.
-- Verify a surprising observation once before changing known-working code.
-- Keep targeted changes reviewable; do not mix an unrelated refactor into a
-  feature or bug fix.
-- During an explicit cleanup pass, remove duplication and unreachable checks,
-  but retain guards for real external failures.
-- Do not silently change architecture, defaults, or compatibility behavior.
-- If a request conflicts with this guide, explain the conflict before changing
-  direction.
-- Do not commit machine-specific files or build outputs. Maintain the tracked
-  generated flowcharts when their sources change; include them in a commit only
-  when committing that change is authorized.
+- Keep the tracked generated flowcharts current when their sources change;
+  commit them only when that change is authorised.
 
-## Working style and collaboration
+## Working style
 
-- Optimize for quick comprehension: small functions, clear ownership, readable
-  units, and an execution path that can be followed without unnecessary
-  indirection. Use `CODING_STYLE.md` for the reusable engineering principles;
-  this guide and `.clang-format` govern the current project's conventions.
-- During cleanup, prove callers and validated invariants before deleting a
-  condition or code path. Check resource lifetime, leaks, memory corruption,
-  and performance as well as behavior; code movement alone is not evidence
-  that the result is equivalent.
-- Plan substantial work in an explicit order with acceptance criteria and
-  evidence requirements. When a milestone or stop point is agreed, track it,
-  report completion and remaining work, and honor the requested stopping point.
-  Keep commits focused when committing is authorized.
-- Verify changes in increasing realism as appropriate: focused host tests,
-  sanitizers, SDK builds, controlled VM runs, then real-world validation.
-  Simulation identifies candidates; replay checks matching decisions; live
-  tests establish runtime behavior. State the limits of each result.
-- Preserve raw graphs, logs, traces, and before/after measurements so the user
-  can independently judge conclusions. Update documentation and generated
-  flowcharts when the documented behavior or ownership changes.
-- Lead reports with the outcome and explain consequential decisions with
-  concrete evidence. Separate observations, assumptions, and unverified
-  claims; identify completed work, remaining work, and blockers plainly.
-  Keep updates concise and avoid filler or unsupported praise.
-- Continue authorized work without repeated confirmation. Explain a material
-  scope change or conflict before acting; do not infer permission for branch,
-  remote, version, publication, deployment, or Windows operations beyond the
-  user's explicit instructions.
-- Keep `HANDOFF.md` current with decisions, approvals, verified results and
-  unfinished work. Follow the Codex workflow in `COLLABORATION.md` when using
-  Codex; unavailable Claude tools do not require a repeated permission question.
-- After laying out options, ask which one the user wants and wait for the
-  answer before acting on any of them.
-- When asked what something means, answer with a concrete worked example.
-- Run long VM runs and builds in the background and wait for their completion
-  instead of blocking or polling.
+The general style is in `~/ai-working-definitions/working-style.md` (report
+outcome first with evidence; ask after laying out options and wait; explain with
+worked examples; verify in increasing realism; keep raw evidence) and
+`efficiency.md` (one task per session, quiet tools, waiting without polling).
+In this project: state the limits of each result (simulation finds candidates,
+replay checks matching decisions, live runs establish behaviour), and update the
+documentation and generated flowcharts when behaviour or ownership changes.
