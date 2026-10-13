@@ -20,6 +20,18 @@ earlier handoff is [docs/history/handoff-2026-10-12.md](docs/history/handoff-202
   `use_memories = false` (backup `~/.codex/config.toml.bak-2026-10-13`), and
   `~/.codex/quick.config.toml` sets `model_reasoning_effort = "low"` for
   `codex --profile quick`.
+- **Tidy-up (2026-10-13, uncommitted):** Claude now works directly by default
+  too (`COLLABORATION.md`), and `tests/test_docs.sh` (in `make check`) fails when
+  `AGENTS.md` exceeds 24 KiB or `HANDOFF.md` 8 KiB. Claude's private memory was
+  cut, at the user's request, to the three notes the repository must not or
+  cannot hold.
+- **Open decision (security):** `ping_prefix_string`, `ping_extra_args` and
+  `config_file` make the daemon run a command or a Bash file as root, and the
+  `luci-app-cake-adapt` ACL grants write access to UCI `cake-adapt`, so that
+  group is root-equivalent. Options laid out to the user: restrict the values
+  in the daemon and init script (recommended: absolute, root-owned,
+  not group/world-writable executables and files; plain fping options), document
+  the group as root-equivalent, or both. No change made yet.
 - **Deferred by the user ("circle back later"):** the version/docs mismatch
   with `main` (v0.3.18 is tagged there; this branch still says 0.3.17-r1) and
   the size of the SDK dependency helper.
