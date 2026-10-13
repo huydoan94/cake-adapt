@@ -17,8 +17,10 @@ so resumption does not depend on the user repeating earlier instructions.
 `cake-adapt` is an OpenWrt-native C daemon for adapting the bandwidth of
 existing CAKE qdiscs. The package, executable, service, syslog identifier, and
 UCI package are all named `cake-adapt`, as is the GitHub repository; a local
-checkout may still be named `sqm-mon` for historical reasons. A second package,
-`luci-app-cake-adapt`, adds the LuCI pages; both are released together with
+checkout may still be named `sqm-mon` for historical reasons. The daemon
+package is built in three variants that each provide `cake-adapt`: `cake-adapt`
+(no MQTT), `cake-adapt-mqtt` and `cake-adapt-mqtt-ssl`. A second package,
+`luci-app-cake-adapt`, adds the LuCI pages; all are released together with
 the same version.
 
 CAKE remains a Linux kernel qdisc. Never reimplement packet scheduling in
@@ -225,6 +227,9 @@ in that directory and is not included from outside it.
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
   never makes controller decisions. Logging submissions never wait for a broker
   or queue space; offline, contended, full or oversized submissions drop silently.
+- `logging/mqtt_none.c`: the same interface without libmosquitto, for the
+  `cake-adapt` package (`MQTT_SUPPORTED=0`): sends nothing; a start with MQTT
+  on fails, which `main.c` logs as a warning while the instance runs.
 
 Outside `src/`:
 
@@ -567,12 +572,17 @@ headers/libraries, the SDK compiler and BPF tools, and required LuCI processing
 tools when linked. It reports the complete preparation plan first, registers
 missing package links from existing local feeds, and stages missing target
 libraries in dependency order. Check actual artifacts as well as stamps;
-Mosquitto's shared soname must match the selected variant: default `ssl=no` uses
-`libmosquitto-nossl`; optional `ssl=yes` uses `libmosquitto-ssl` and prepares OpenSSL
-first. Package dependencies must agree with the linked variant. SSL builds also
-require runtime `ca-bundle`, enable TLS support in the daemon and expose LuCI
-TLS/CA controls; TLS stays opt-in and must verify certificate trust and hostname.
-Non-SSL builds must reject active TLS configuration without a plaintext fallback.
+The helper builds the package variants named by `variant=base|mqtt|mqtt-ssl`,
+or all three, preparing each one's dependencies just before it. Mosquitto's shared
+soname must match the variant: `base` (`cake-adapt`) links no MQTT library,
+`mqtt` (`cake-adapt-mqtt`) uses `libmosquitto-nossl`, and `mqtt-ssl`
+(`cake-adapt-mqtt-ssl`) uses `libmosquitto-ssl` and prepares OpenSSL first.
+Package dependencies must agree with the linked variant. `cake-adapt-mqtt-ssl`
+also requires runtime `ca-bundle` and enables TLS support in the daemon; TLS stays
+opt-in and must verify certificate trust and hostname. The other variants must
+reject active TLS configuration without a plaintext fallback; `cake-adapt` with
+MQTT on warns, sends nothing and keeps controlling. LuCI reads the installed variant's
+`/usr/share/cake-adapt/features` and shows only what it supports.
 Use command-line
 package selections and `NO_DEPS=1`, without manual saved-selection edits or
 recursive kernel/toolchain builds. Missing SDK tools or unavailable local feeds

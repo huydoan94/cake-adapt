@@ -50,8 +50,48 @@ The LuCI app is a second package in `luci-app-cake-adapt/`. It uses the LuCI
 feed's `luci.mk`, so the SDK needs the `luci` feed installed; link the
 directory as `package/luci-app-cake-adapt` and compile it the same way. It has
 no architecture (`all`). `tools/sdk-build.sh x86` (or `filogic`, or an SDK
-directory) cleans and builds `cake-adapt`, and `luci-app-cake-adapt` too when
-that link exists, copies the packages to `bin/`, and says why a build failed.
+directory) cleans and builds the three daemon variants, and `luci-app-cake-adapt`
+too when that link exists, copies the packages to `bin/`, and says why a build
+failed.
+
+### Package variants
+
+The root Makefile builds three variants of the daemon package, each with its
+own build directory (`build_dir/.../cake-adapt-<variant>/`):
+
+| Variant (`BUILD_VARIANT`) | Package | MQTT | Package dependencies |
+| --- | --- | --- | --- |
+| `base` (default variant) | `cake-adapt` | none (`MQTT_SUPPORTED=0`) | no libmosquitto, no c-ares |
+| `mqtt` | `cake-adapt-mqtt` | plain (`MQTT_SUPPORTED=1`) | `+libmosquitto-nossl` |
+| `mqtt-ssl` | `cake-adapt-mqtt-ssl` | plain or TLS (`MQTT_TLS_SUPPORTED=1`) | `+libmosquitto-ssl +ca-bundle` |
+
+`make package/cake-adapt/compile` builds every selected variant; an SDK with
+`CONFIG_ALL` selects all three. To build one, name it on the command line, for
+example `make package/cake-adapt/compile BUILD_VARIANT=mqtt
+CONFIG_PACKAGE_cake-adapt-mqtt=m NO_DEPS=1`. `package/cake-adapt/clean` removes
+the packages of every variant from the SDK's `bin/`, so copy one out before
+cleaning for the next. The helper builds the variants named by `variant=`
+arguments, or all three in the order above:
+
+```sh
+sh tools/sdk-build.sh x86                                  # all three, then LuCI
+sh tools/sdk-build.sh variant=mqtt x86                     # cake-adapt-mqtt only
+sh tools/sdk-build.sh --prepare-only variant=mqtt-ssl x86  # its dependencies only
+```
+
+Each variant's dependencies are prepared just before it is built:
+`base` needs no MQTT library, `mqtt` stages `libmosquitto-nossl` and c-ares, and
+`mqtt-ssl` stages OpenSSL first, then `libmosquitto-ssl`. The two Mosquitto
+variants share their staged headers and soname, so building `mqtt` after
+`mqtt-ssl` (or the reverse) rebuilds the staged library, and the last MQTT
+variant built leaves its library staged. The preflight also checks that each
+variant's declared Mosquitto dependency (and `ca-bundle` for `mqtt-ssl`) is the
+one it is built against. Logs are `build/sdk-<name>-<variant>.log` and
+`build/sdk-<name>-luci.log`; copies keep the package name, so they are distinct,
+for example `bin/cake-adapt-mqtt-ssl-0.3.17-r1-x86.apk`. The LuCI package is
+built once: it reads the installed variant's `/usr/share/cake-adapt/features` at
+run time and works with any of them.
+
 Before invoking Make, the helper checks the SDK compiler and BPF tools, the
 daemon's declared dependencies, staged headers and linker libraries, and the
 tools actually used by the linked LuCI package. It reports the full preparation
@@ -72,48 +112,39 @@ packages from existing local feeds; it does not fetch or update feeds. Dependenc
 compilation can download source archives absent from the SDK's `dl/` cache.
 
 To check and prepare dependency headers, libraries and metadata without building
-the app or copying artifacts, run `sh tools/sdk-build.sh --prepare-only x86`
-(or `filogic` for that explicitly selected target). The usual VS Code SDK build tasks prepare them
+the app or copying artifacts, run `sh tools/sdk-build.sh --prepare-only
+variant=<variant> x86` (or `filogic` for that explicitly selected target). The usual VS Code SDK build tasks prepare them
 automatically; no manual dependency selections in `.config` are needed.
 
-Non-SSL is the default. Select the SSL-capable Mosquitto library with:
-
-```sh
-sh tools/sdk-build.sh x86 ssl=yes
-sh tools/sdk-build.sh --prepare-only x86 ssl=yes
-```
-
-Use `ssl=no`, or omit the argument, for `libmosquitto-nossl`. The helper verifies
-and stages the selected variant, prepares OpenSSL first for `ssl=yes`, and passes
-the selection to package builds so their dependencies match. Direct SDK package
-Make targets accept `ssl=yes` as well. SSL dependency builds disable optional
-OpenSSL engines and retain `NO_DEPS=1` to keep kernel packages out of the build.
-SSL builds support the **MQTT TLS** and **MQTT CA certificate file** settings in
-LuCI's Advanced Logging tab. TLS remains off until enabled there or through
-`mqtt_tls`; certificate and hostname verification are mandatory. Non-SSL builds
-reject enabled TLS configuration. The default CA file is supplied by `ca-bundle`;
-an absolute path to a custom CA file can be configured instead. Copied SSL daemon
-and LuCI APK filenames include `-ssl` so they do not replace the default copies.
+SSL dependency builds disable optional OpenSSL engines and retain `NO_DEPS=1` to
+keep kernel packages out of the build. `cake-adapt-mqtt-ssl` supports the
+**MQTT TLS** and **MQTT CA certificate file** settings in LuCI's Advanced Logging
+tab. TLS remains off until enabled there or through `mqtt_tls`; certificate and
+hostname verification are mandatory. The other variants reject enabled TLS
+configuration, and `cake-adapt` rejects enabled MQTT. The default CA file is
+supplied by `ca-bundle`; an absolute path to a custom CA file can be configured
+instead.
 
 For agent validation without authorized artifact copying, run the focused
-`package/cake-adapt/clean` and `package/cake-adapt/compile` Make targets in the
-selected SDK, and the equivalent LuCI targets when applicable. Package builds
+`package/cake-adapt/clean` and `package/cake-adapt/compile` Make targets, with
+`BUILD_VARIANT` and the variant's `CONFIG_PACKAGE_` selection, in the
+selected SDK after `--prepare-only` for that variant, and the equivalent LuCI targets when applicable. Package builds
 may recursively download or rebuild dependencies; inspect the selected packages
 and existing staging first. Use `NO_DEPS=1` only after the required dependencies
 are built and staged, when it keeps validation within the approved scope. A
 missing library must be prepared in that selected SDK under an applicable
 approval or reported as a blocker. Do not switch SDKs to obtain a passing build.
 
-The default MQTT dependency is `libmosquitto-nossl`; it does not bring in OpenSSL
-or CA certificates. `ssl=yes` chooses `libmosquitto-ssl`, requires OpenSSL and
-adds the runtime `ca-bundle` dependency.
+`cake-adapt-mqtt` depends on `libmosquitto-nossl`; it does not bring in OpenSSL
+or CA certificates. `cake-adapt-mqtt-ssl` depends on `libmosquitto-ssl`, which
+requires OpenSSL, and on the runtime `ca-bundle`.
 The earlier TLS prototype also used `libmosquitto-ssl`. An SDK
 that selects optional OpenSSL AF_ALG or `/dev/crypto` engines can therefore pull kernel-module package
 targets into an ordinary recursive package build. In the earlier Filogic run,
 the AF_ALG dependency entered `package/kernel/linux/compile`, which repackaged
 many selected modules; the log does not show a full kernel image compilation.
 Inspect the SDK's `tmp/.packagedeps` and engine selection before running a
-recursive build. The non-SSL switch removes that MQTT dependency chain;
+recursive build. Only `cake-adapt-mqtt-ssl` has that MQTT dependency chain;
 header-only staging for editor use requires no kernel targets.
 SDKs may still select both Mosquitto variants through `CONFIG_ALL`; our package
 build helper checks the actual staged library, rather than trusting package
@@ -122,8 +153,11 @@ builds only the selected library variant and its required dependencies. Existing
 archives are reused; approval rules still apply to any new download or SDK modification.
 
 GitHub Actions also discovers the OpenWrt 25.12 architecture list, runs the
-host tests, builds each architecture, and publishes packages as workflow
-artifacts. Tags beginning with `v` additionally publish the packages as GitHub
+host tests, builds the three daemon variants for each architecture (one
+`package/cake-adapt/compile` with the SDK's default `CONFIG_ALL`), checks that
+exactly one package of each variant was built, and publishes them, with the
+LuCI package, as workflow artifacts. Publishing is all or nothing: one variant
+failing on any architecture publishes no release. Tags beginning with `v` additionally publish the packages as GitHub
 release assets.
 
 ## Editor setup
@@ -233,14 +267,18 @@ The production daemon itself is built with strict warnings, including
 `-Wall`, `-Wextra`, `-Wpedantic`, `-Wformat=2`, `-Wshadow`, `-Wconversion`, and
 `-Werror`.
 
-The ordinary logging tests use an MQTT stub. The dedicated queue tests use
-`make -C tests check-mqtt` with real libmosquitto headers and linkage, configured
-through `MQTT_CFLAGS` and `MQTT_LIBS` when needed. Broker validation uses
+The ordinary logging tests use an MQTT stub, and `test_mqtt_none` checks the
+`cake-adapt` package's no-op sender. `check-config` builds the configuration
+tests once per variant (`test_config`, `test_config_mqtt`,
+`test_config_mqtt_ssl`). The dedicated queue tests use `make -C tests check-mqtt`,
+which runs them as built for `cake-adapt-mqtt` and for `cake-adapt-mqtt-ssl`, with
+real libmosquitto headers and linkage, configured through `MQTT_CFLAGS` and
+`MQTT_LIBS` when needed. Broker validation uses
 `tests/logging/mqtt_integration.py` with an approved local library and broker
 build. Commands, source identities and validation limits are in the
 [initial MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) and
 [current optional TLS evidence](../profiling/2026-10-12-mqtt-ssl-build/README.md).
-Select `ssl=yes` for TLS driver/config tests and `--tls-only` for the TLS broker
+Build `mqtt_driver` with `MQTT_TLS_SUPPORTED=1` for the TLS driver tests and `--tls-only` for the TLS broker
 cases; `--tls-stalled-only` checks the first socket deadline. Native broker
 checks and an SDK build do not establish full-daemon behavior on the x86 VM.
 

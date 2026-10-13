@@ -315,12 +315,30 @@ All records still enter through `logging/log.c`. When MQTT is enabled, it
 submits the same log lines to `logging/mqtt.c` through a try-lock and a bounded
 queue. The control thread never resolves the broker, opens its connection,
 waits for queue space or publishes on the network. Separate sender and network
-threads own those operations through libmosquitto (`libmosquitto-nossl` by
-default, `libmosquitto-ssl` with the optional `ssl=yes` build). TLS setup and CA
-file loading also stay in the sender thread. SSL builds can enable TLS with
-mandatory certificate and hostname verification; failed verification never
-falls back to plain TCP. Non-SSL builds reject TLS configuration before control
-starts. Username/password authentication works with either transport.
+threads own those operations through libmosquitto. TLS setup and CA file loading
+also stay in the sender thread.
+
+The root Makefile builds three package variants, set by `BUILD_VARIANT` and
+passed to `src/Makefile` as `MQTT_SUPPORTED` and `MQTT_TLS_SUPPORTED`:
+
+| Package | Variant | `MQTT_SUPPORTED`/`MQTT_TLS_SUPPORTED` | Sender | MQTT library |
+| --- | --- | --- | --- | --- |
+| `cake-adapt` | `base` | 0/0 | `logging/mqtt_none.c` | none |
+| `cake-adapt-mqtt` | `mqtt` | 1/0 | `logging/mqtt.c` | `libmosquitto-nossl` |
+| `cake-adapt-mqtt-ssl` | `mqtt-ssl` | 1/1 | `logging/mqtt.c` | `libmosquitto-ssl`, `ca-bundle` |
+
+`mqtt_none.c` has the sender's interface and sends nothing: `mqtt_enabled()` is
+false and a start with MQTT on fails with `ENOTSUP`, which `main()` logs as the
+warning `MQTT logging degraded: ...` before control starts normally, so an enabled
+setting is never silently ignored. `config_validate` checks the broker settings
+only in the MQTT packages, and refuses `mqtt_tls` without TLS in every package,
+so TLS never falls back to plain TCP; the typed options are the same in every
+variant. The variants install the
+same files and each provides `cake-adapt` (the base one is the default variant),
+so one at a time is installed and `luci-app-cake-adapt`'s `+cake-adapt` takes any
+of them. Each writes `/usr/share/cake-adapt/features` (no words, `mqtt`, or
+`mqtt` and `tls`), which LuCI reads to show and check only what the installed
+daemon supports. Username/password authentication works with either transport.
 
 MQTT is off by default. It publishes with QoS 0 and no retention. Disconnected,
 contended, full and oversized submissions are silently dropped; offline records
@@ -331,7 +349,7 @@ available in LuCI and the [configuration reference](configuration.md#output-and-
 
 [MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) records the
 initial non-SSL transition. The [optional TLS follow-up](../profiling/2026-10-12-mqtt-ssl-build/README.md)
-records current certificate checks and both x86 package variants. These checks
+records current certificate checks and the two earlier x86 MQTT builds. These checks
 cover transport behavior and isolated observation, without a CAKE performance claim.
 Field resource usage and frequent-record overhead during control remain open.
 Earlier passing x86 builds below predate this change.
