@@ -1,4 +1,5 @@
-#define _POSIX_C_SOURCE 200809L
+/* pthread_tryjoin_np */
+#define _GNU_SOURCE
 
 #include "common/helpers.h"
 #include "common/constants.h"
@@ -11,10 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/file.h>
+#include <time.h>
 #include <unistd.h>
 
 /* A pid in decimal, its newline and the terminator. */
 #define LOCK_PID_TEXT_SIZE 24U
+#define THREAD_JOIN_CHECK_US (10U * MILLISECOND)
 
 bool parse_unsigned(const char *start, const char *end, uint64_t *value)
 {
@@ -127,6 +130,26 @@ bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us)
 		return false;
 	*timestamp_us = timespec_to_us(&value);
 	return true;
+}
+
+bool thread_join_within(pthread_t thread, uint64_t bound_us)
+{
+	const struct timespec step = us_to_timespec(THREAD_JOIN_CHECK_US);
+	uint64_t start_us = 0U;
+	uint64_t now_us;
+	uint64_t check;
+	/* Without a start time, only the number of checks bounds the wait. */
+	bool timed = read_clock_us(CLOCK_MONOTONIC, &start_us);
+
+	for (check = 0U; check <= bound_us / THREAD_JOIN_CHECK_US; check++) {
+		if (pthread_tryjoin_np(thread, NULL) == 0)
+			return true;
+		if (timed && read_clock_us(CLOCK_MONOTONIC, &now_us) &&
+		    now_us - start_us >= bound_us)
+			break;
+		(void)clock_nanosleep(CLOCK_MONOTONIC, 0, &step, NULL);
+	}
+	return false;
 }
 
 uint64_t fraction_to_ratio_e6(uint64_t part, uint64_t whole)

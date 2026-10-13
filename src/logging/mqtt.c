@@ -23,7 +23,6 @@
 #define MQTT_RETRY_US (10U * SECOND)
 #define MQTT_TIMEOUT_US (5U * SECOND)
 #define MQTT_WAIT_MS 100
-#define MQTT_STOP_CHECK_US (10U * MILLISECOND)
 #define MQTT_STOP_US SECOND
 /* Shorter than MQTT_STOP_US, so a sender abandoning a connection still stops in time. */
 #define MQTT_NETWORK_STOP_US (500U * MILLISECOND)
@@ -127,28 +126,6 @@ static void mqtt_discard(struct mqtt_sender *state)
 	(void)pthread_mutex_unlock(&state->lock);
 }
 
-/*
- * Waits for a thread to exit for at most bound_us, in MQTT_STOP_CHECK_US steps; the check
- * count bounds the wait even if the clock cannot be read. False leaves the thread running.
- */
-static bool mqtt_join(pthread_t thread, uint64_t bound_us)
-{
-	const struct timespec step = us_to_timespec(MQTT_STOP_CHECK_US);
-	uint64_t start_us = 0U;
-	uint64_t now_us;
-	uint64_t check;
-
-	(void)read_clock_us(CLOCK_MONOTONIC, &start_us);
-	for (check = 0U; check <= bound_us / MQTT_STOP_CHECK_US; check++) {
-		if (pthread_tryjoin_np(thread, NULL) == 0)
-			return true;
-		if (read_clock_us(CLOCK_MONOTONIC, &now_us) && now_us - start_us >= bound_us)
-			break;
-		(void)clock_nanosleep(CLOCK_MONOTONIC, 0, &step, NULL);
-	}
-	return false;
-}
-
 static void *mqtt_network(void *argument)
 {
 	struct mqtt_connection *connection = argument;
@@ -229,7 +206,7 @@ static void mqtt_destroy(struct mqtt_sender *state, struct mqtt_connection *conn
 	 * Never cancel: cancelling inside the resolver can leak. A thread still resolving after
 	 * the bound is left behind with its own references and destroys its client on exit.
 	 */
-	if (!mqtt_join(connection->thread, MQTT_NETWORK_STOP_US))
+	if (!thread_join_within(connection->thread, MQTT_NETWORK_STOP_US))
 		(void)pthread_detach(connection->thread);
 	mqtt_connection_release(connection);
 }
@@ -436,7 +413,7 @@ void mqtt_stop(void)
 	atomic_store(&state->stopping, true);
 	(void)eventfd_write(state->wake_fd, 1U);
 	/* The thread keeps its own reference until it exits; shutdown remains bounded. */
-	if (!mqtt_join(state->thread, MQTT_STOP_US))
+	if (!thread_join_within(state->thread, MQTT_STOP_US))
 		(void)pthread_detach(state->thread);
 	mqtt_release(state);
 }

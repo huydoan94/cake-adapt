@@ -68,8 +68,13 @@ The user approved three fixes from the primary agent's review of
   integration (20-line batch in 3.8 ms, bound 0.5 s), evidence in
   `build/mqtt-validation/evidence-fixes/`. A lost-wake-up mutant (no wake in
   the publish callback, no drain `continue`) fails the batch test. No SDK
-  package build or VM run. `mqtt_join` duplicates `publish_join`; the
-  consolidation is a separate round after this commit. Report:
+  package build or VM run. Committed as `12046bc`.
+- Uncommitted refactor after `12046bc` (no behaviour change): the bounded
+  join is one helper, `thread_join_within()` in `common/helpers.c` (10 ms
+  checks), replacing `mqtt_join` and `publish_join`; if the first clock read
+  fails, only the check count bounds it. Unit-tested in `test_helpers`;
+  `tools/host-test.sh x86`, `check-mqtt` (plain, TSan) and x86
+  `-fsyntax-only` pass. No flowchart references these names. Report:
   `/tmp/cake-adapt-tasks/mqtt-fixes-report.md`.
 
 ## Completed follow-up: optional SSL builds and TLS settings
