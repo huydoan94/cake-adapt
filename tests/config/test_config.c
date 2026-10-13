@@ -81,6 +81,13 @@ static void test_scalar_option_types(void)
 	option.e.name = "interface";
 	assert(load_options(&loader) == 0);
 	assert(strcmp(config.interface, "1") == 0);
+	option.e.name = "mqtt_tls";
+	assert(load_options(&loader) == 0);
+	assert(config.mqtt.tls);
+	option.e.name = "mqtt_ca_file";
+	option.v.string = "/tmp/fixture-ca.pem";
+	assert(load_options(&loader) == 0);
+	assert(strcmp(config.mqtt.ca_file, "/tmp/fixture-ca.pem") == 0);
 	lookup_option = NULL;
 }
 
@@ -360,6 +367,93 @@ static void test_option_copy_boundaries(void)
 	assert(value[0] == '\0');
 }
 
+#if MQTT_SUPPORTED
+/* The MQTT rules of the cake-adapt-mqtt and cake-adapt-mqtt-ssl packages. */
+static void test_mqtt_rules(struct config_mqtt *mqtt)
+{
+	char error[256];
+
+	mqtt->enabled = true;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strstr(error, "mqtt_host") != NULL);
+	(void)strcpy(mqtt->host, "broker.example");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->port = 65536U;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	mqtt->port = 0U;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	mqtt->port = 65535U;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	(void)strcpy(mqtt->host, "mqtt://broker");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->host, "2001:db8::1");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	(void)strcpy(mqtt->topic, "logs/+");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->topic, "logs/#");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	mqtt->topic[0] = '\0';
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->topic, "logs/router");
+	(void)strcpy(mqtt->password, "test-password");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->username, "test-user");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->tls = true;
+#if MQTT_TLS_SUPPORTED
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	(void)strcpy(mqtt->ca_file, "relative-ca.pem");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strstr(error, "absolute path") != NULL);
+	mqtt->ca_file[0] = '\0';
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	(void)strcpy(mqtt->ca_file, "/tmp/fixture-ca.pem");
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+#else
+	/* Never plain traffic in place of the TLS asked for. */
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strcmp(error, "option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package") == 0);
+#endif
+	mqtt->enabled = false;
+	mqtt->ca_file[0] = '\0';
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	mqtt->enabled = true;
+	mqtt->tls = false;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+}
+#endif
+
+static void test_mqtt_validation(void)
+{
+	struct config config;
+	struct config_mqtt *mqtt = &config.mqtt;
+	char error[256];
+
+	defaults_apply(&config);
+	assert(!mqtt->enabled);
+	assert(!mqtt->tls);
+	assert(strcmp(mqtt->ca_file, "/etc/ssl/certs/ca-certificates.crt") == 0);
+	assert(mqtt->port == 1883U);
+	assert(strcmp(mqtt->topic, "cake-adapt/log") == 0);
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+#if MQTT_SUPPORTED
+	test_mqtt_rules(mqtt);
+#else
+	/* The cake-adapt package keeps the settings and checks no broker setting: it sends nothing. */
+	(void)strcpy(mqtt->host, "mqtt://broker");
+	mqtt->enabled = true;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	config.enabled = false;
+	assert(config_validate(&config, error, sizeof(error)) == 0);
+	/* TLS asked for is still refused, never replaced by plain traffic. */
+	mqtt->tls = true;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strcmp(error, "option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package") == 0);
+	mqtt->enabled = false;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+#endif
+}
+
 int main(void)
 {
 	struct config_direction rates;
@@ -409,6 +503,7 @@ int main(void)
 	assert(validate_rate_range(&rates, "download", error, sizeof(error)) == 0);
 
 	test_supported_pinger_methods();
+	test_mqtt_validation();
 	test_ul_congest_ack_share();
 	test_tcp_ts_request();
 	test_option_copy_boundaries();

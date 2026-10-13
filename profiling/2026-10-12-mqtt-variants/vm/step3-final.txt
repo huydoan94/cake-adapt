@@ -1,0 +1,12 @@
+/usr/lib/libcares.so.2.19.5
+/usr/lib/libmosquitto.so.2.0.22
+0
+e1df11a31d530391ff86ea4b8703f55009e6fd24401b1e9fd48e65b0552dba69  /etc/config/cake-adapt
+uci: Entry not found
+cake-adapt-mqtt-0.3.17-r1 i386_pentium4 {/home/huydoan94/cake-adapt} (GPL-2.0-only) [installed]
+libcares-1.34.6-r1 i386_pentium4 {feeds/packages/feeds/packages/libs/c-ares} (MIT) [installed]
+libmosquitto-nossl-2.0.22-r2 i386_pentium4 {feeds/packages/feeds/packages/net/mosquitto} (EPL-2.0) [installed]
+luci-app-cake-adapt-0.3.17-r1 noarch {/home/huydoan94/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+running
+1
+{"jsonrpc":"2.0","id":1,"result":[0,{"firewall":true,"firewa

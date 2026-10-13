@@ -1,0 +1,6 @@
+login: ok
+file.read features: {"jsonrpc":"2.0","id":1,"result":[0,{"data":""}]}
+file.read other (must be denied): {"jsonrpc":"2.0","id":1,"result":[6]}
+uci get mqtt_enabled: {"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"Access denied"}}
+installed config.js sha256: b603cb50fa98304df85b90347bfeb18588150ebdc2b6ed09843c0b8aa3df33e7
+luci getFeatures as anonymous: {"jsonrpc":"2.0","id":1,"result":[0,{"firewall":true,"firewall4":true,"opkg":false,"bonding":null,"mii_tool":null,"offlo

@@ -2,7 +2,10 @@
 
 Use this guide as the default for implementation, refactoring, review, and
 testing. Project-specific architecture and repository instructions take
-precedence when they are more restrictive.
+precedence. In cake-adapt, read [AGENTS.md](AGENTS.md), the matching Claude or
+Codex workflow in [COLLABORATION.md](COLLABORATION.md), and the current
+[handoff](HANDOFF.md). These engineering principles apply to both workflows;
+provider-specific delegation and tool choices belong in the collaboration guide.
 
 ## Core principles
 
@@ -53,6 +56,11 @@ precedence when they are more restrictive.
   impact before adding a library.
 - Do not add a library for a trivial operation that is already clear and safe.
 - Remove dependencies when their final use disappears.
+- Follow the project's target default and authorization rules before fetching
+  dependencies, changing an SDK or installing tools. In cake-adapt, x86 is the
+  default; new downloads require approval and approved local tools/caches stay
+  under ignored `build/` unless another destination was authorized. Do not switch
+  architectures to conceal a missing development header.
 
 ## C language conventions
 
@@ -186,7 +194,9 @@ int tcpdelay_capture_open(
 - Confirm the test exercised the intended path and produced real data; process
   existence alone is not sufficient evidence.
 - After testing, stop test-owned processes, remove only test-created data, and
-  restore the exact original state.
+  restore the exact original state unless the project explicitly permits leaving
+  test-system changes in place. cake-adapt's test VMs permit those changes with
+  a recorded inventory; process cleanup and log-inode checks still apply.
 
 Before declaring work complete:
 
@@ -207,7 +217,9 @@ Before declaring work complete:
   retain guards for genuine external failures.
 - Do not silently change architecture, defaults, compatibility, or public
   behavior.
-- Do not commit generated files, machine-specific files, or secrets.
+- Do not commit build outputs, machine-specific files, or secrets. Follow the
+  project's instructions for tracked generated documentation; cake-adapt keeps
+  its generated flowcharts current and commits them only when authorized.
 - Do not bump versions, copy artifacts, deploy, publish, or commit unless the
   task explicitly requests it.
 - When a version is bumped, update every versioned artifact reference in the
@@ -216,3 +228,6 @@ Before declaring work complete:
 - Avoid destructive version-control or filesystem commands unless their exact
   scope is requested and verified. Never rewrite published or shared history;
   add follow-up commits on top.
+- At a stop point, save decisions, scoped approvals, verified checks and
+  unfinished work in the repository handoff. Report self-review accurately when
+  an independent reviewer was unavailable.

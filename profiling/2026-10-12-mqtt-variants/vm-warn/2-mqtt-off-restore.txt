@@ -1,0 +1,30 @@
+SHAPER; 2026-10-12-20:41:53; 1791859313.774020; tc qdisc change root dev ifb4eth1 cake bandwidth 20000Kbit
+SHAPER; 2026-10-12-20:41:53; 1791859313.774155; tc qdisc change root dev eth1 cake bandwidth 20000Kbit
+Mon Oct 12 20:42:23 2026 daemon.info cake-adapt[6604]: INFO: 1791859343.078212 Stopped cake-adapt with PID: 6604, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:42:23 2026 daemon.info cake-adapt[6862]: INFO: 1791859343.120285 Starting cake-adapt 0.3.17-r1 with PID: 6862, config: /var/run/cake-adapt/main.uci, section: main
+World updated, but the following packages are not removed due to:
+  cake-adapt: luci-app-cake-adapt
+
+OK: 32.1 MiB in 226 packages
+(1/2) Purging cake-adapt (0.3.17-r1)
+  Executing cake-adapt-0.3.17-r1.pre-deinstall
+(2/2) Installing cake-adapt-mqtt (0.3.17-r1)
+  Installing file to etc/config/cake-adapt.apk-new
+  Executing cake-adapt-mqtt-0.3.17-r1.post-install
+OK: 32.1 MiB in 226 packages
+rc=0
+e1df11a31d530391ff86ea4b8703f55009e6fd24401b1e9fd48e65b0552dba69  /etc/config/cake-adapt
+mqtt_enabled unset
+cake-adapt-mqtt-0.3.17-r1 i386_pentium4 {/home/huydoan94/cake-adapt} (GPL-2.0-only) [installed]
+libcares-1.34.6-r1 i386_pentium4 {feeds/packages/feeds/packages/libs/c-ares} (MIT) [installed]
+libmosquitto-nossl-2.0.22-r2 i386_pentium4 {feeds/packages/feeds/packages/net/mosquitto} (EPL-2.0) [installed]
+luci-app-cake-adapt-0.3.17-r1 noarch {/home/huydoan94/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+pid=7147
+5
+mqtt
+Mon Oct 12 20:42:26 2026 daemon.info cake-adapt[6862]: INFO: 1791859346.297530 Stopped cake-adapt with PID: 6862, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:42:26 2026 daemon.info cake-adapt[7147]: INFO: 1791859346.430638 Starting cake-adapt 0.3.17-r1 with PID: 7147, config: /var/run/cake-adapt/main.uci, section: main
+cake-adapt
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 
+{"jsonrpc":"2.0","id":1,"result":[0,{"firewall":tr

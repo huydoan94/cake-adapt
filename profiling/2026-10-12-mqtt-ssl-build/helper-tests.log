@@ -1,0 +1,8 @@
+make: Entering directory '/home/huydoan94/cake-adapt/tests'
+python3 tools/test_sdk_build.py
+.......................................
+----------------------------------------------------------------------
+Ran 39 tests in 153.497s
+
+OK
+make: Leaving directory '/home/huydoan94/cake-adapt/tests'

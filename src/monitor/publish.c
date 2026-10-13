@@ -42,7 +42,6 @@
 #define PUBLISH_WAIT_US SECOND
 /* How long shutdown waits for the thread before leaving it behind, checked this often. */
 #define PUBLISH_STOP_US (2U * SECOND)
-#define PUBLISH_STOP_CHECK_US (10U * MILLISECOND)
 
 /* Whether the thread should keep running; the zeroed state is running. */
 enum publish_run {
@@ -502,29 +501,6 @@ void publish_update(struct monitor *monitor)
 	publish_report(monitor, atomic_exchange(&publish->shared->events, 0U));
 }
 
-/*
- * Joins the thread within PUBLISH_STOP_US of CLOCK_MONOTONIC, so a step of the
- * wall clock cannot stretch the wait. The number of checks also bounds it, in
- * case the clock cannot be read.
- */
-static bool publish_join(pthread_t thread)
-{
-	const struct timespec step = us_to_timespec(PUBLISH_STOP_CHECK_US);
-	uint64_t start_us = 0U;
-	uint64_t now_us;
-	uint64_t check;
-
-	(void)read_clock_us(CLOCK_MONOTONIC, &start_us);
-	for (check = 0U; check <= PUBLISH_STOP_US / PUBLISH_STOP_CHECK_US; check++) {
-		if (pthread_tryjoin_np(thread, NULL) == 0)
-			return true;
-		if (read_clock_us(CLOCK_MONOTONIC, &now_us) && now_us - start_us >= PUBLISH_STOP_US)
-			break;
-		(void)clock_nanosleep(CLOCK_MONOTONIC, 0, &step, NULL);
-	}
-	return false;
-}
-
 void publish_stop(struct monitor *monitor)
 {
 	struct monitor_publish *publish = &monitor->publish;
@@ -536,7 +512,7 @@ void publish_stop(struct monitor *monitor)
 	atomic_store(&shared->run, PUBLISH_STOP);
 	/* Without the wake, the thread still sees the stop within PUBLISH_WAIT_US. */
 	(void)eventfd_write(shared->wake_fd, 1U);
-	if (publish_join(publish->thread)) {
+	if (thread_join_within(publish->thread, PUBLISH_STOP_US)) {
 		publish_free(shared);
 		return;
 	}

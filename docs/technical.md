@@ -309,6 +309,72 @@ or touches a qdisc; the first one keeps running. The kernel drops the lock when
 the process exits, so procd's restart and respawn work as before. Validation
 (`-V`) and listing (`-L`) take no lock.
 
+## Optional MQTT logging (current development work)
+
+All records still enter through `logging/log.c`. When MQTT is enabled, it
+submits the same log lines to `logging/mqtt.c` through a try-lock and a bounded
+queue. The control thread never resolves the broker, opens its connection,
+waits for queue space or publishes on the network. Separate sender and network
+threads own those operations through libmosquitto. TLS setup and CA file loading
+also stay in the sender thread; only `mosquitto_lib_init` runs on the main
+thread, in `mqtt_start`, so a failure is reported there.
+
+The main thread wakes the sender (an `eventfd` write) only when the queue goes
+from empty to non-empty; the sender then drains the queue one QoS 0 publish at a
+time, woken again by libmosquitto's publish callback. Each connection is an
+object owned by the sender and its network thread, and whichever releases it
+last destroys the libmosquitto client. Threads are never cancelled: name
+resolution (`getaddrinfo` inside `mosquitto_connect_async`) cannot be
+interrupted, and cancelling inside it or inside libmosquitto's loop could leak or
+hang. To stop a connection the sender sets a stop flag and joins the network
+thread within 500 ms (`thread_join_within`, also used for the ubus thread); a
+thread still resolving is detached and finishes on its own, keeping its own
+references, so it never touches a freed or newer connection. No new connection
+starts while such a thread is alive, so at most one is ever left behind. For
+example, with an unreachable DNS server: connection A starts at 0 s, is stopped
+at 5 s (no connection within `MQTT_TIMEOUT_US`) and left behind at 5.5 s; the
+retry due at 10 s is skipped while A still resolves; when the resolver gives up
+at, say, 12 s, A's thread exits and destroys its client, and the sender starts
+connection B within 100 ms. At shutdown the main thread waits at most 1 s for
+the sender and the sender at most 500 ms for a network thread; a thread still
+resolving ends with the process.
+
+The root Makefile builds three package variants, set by `BUILD_VARIANT` and
+passed to `src/Makefile` as `MQTT_SUPPORTED` and `MQTT_TLS_SUPPORTED`:
+
+| Package | Variant | `MQTT_SUPPORTED`/`MQTT_TLS_SUPPORTED` | Sender | MQTT library |
+| --- | --- | --- | --- | --- |
+| `cake-adapt` | `base` | 0/0 | `logging/mqtt_none.c` | none |
+| `cake-adapt-mqtt` | `mqtt` | 1/0 | `logging/mqtt.c` | `libmosquitto-nossl` |
+| `cake-adapt-mqtt-ssl` | `mqtt-ssl` | 1/1 | `logging/mqtt.c` | `libmosquitto-ssl`, `ca-bundle` |
+
+`mqtt_none.c` has the sender's interface and sends nothing: `mqtt_enabled()` is
+false and a start with MQTT on fails with `ENOTSUP`, which `main()` logs as the
+warning `MQTT logging degraded: ...` before control starts normally, so an enabled
+setting is never silently ignored. `config_validate` checks the broker settings
+only in the MQTT packages, and refuses `mqtt_tls` without TLS in every package,
+so TLS never falls back to plain TCP; the typed options are the same in every
+variant. The variants install the
+same files and each provides `cake-adapt` (the base one is the default variant),
+so one at a time is installed and `luci-app-cake-adapt`'s `+cake-adapt` takes any
+of them. Each writes `/usr/share/cake-adapt/features` (no words, `mqtt`, or
+`mqtt` and `tls`), which LuCI reads to show and check only what the installed
+daemon supports. Username/password authentication works with either transport.
+
+MQTT is off by default. It publishes with QoS 0 and no retention. Disconnected,
+contended, full and oversized submissions are silently dropped; offline records
+are not replayed. Failed connections retry every 10 seconds indefinitely, with
+bounded waits and bounded main-thread shutdown. Existing output flags and record
+schemas remain in effect. Broker, topic and authentication settings are
+available in LuCI and the [configuration reference](configuration.md#output-and-logging).
+
+[MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) records the
+initial non-SSL transition. The [optional TLS follow-up](../profiling/2026-10-12-mqtt-ssl-build/README.md)
+records current certificate checks and the two earlier x86 MQTT builds. These checks
+cover transport behavior and isolated observation, without a CAKE performance claim.
+Field resource usage and frequent-record overhead during control remain open.
+Earlier passing x86 builds below predate this change.
+
 ## Evidence and design documents
 
 - [Current-code flowcharts](../flowchart/README.md) — architecture, event flow,
@@ -326,6 +392,9 @@ the process exits, so procd's restart and respawn work as before. Validation
   capture.
 - [TCP-delay review](design/EBPF_REVIEW.md) — the eBPF queue estimator's findings
   and their state.
+- [Development](development.md) — x86 defaults and SDK/editor setup.
+  [Collaboration](../COLLABORATION.md) defines the Claude and Codex workflows;
+  [HANDOFF.md](../HANDOFF.md) records the active task and scoped approvals.
 
 ## Project direction
 

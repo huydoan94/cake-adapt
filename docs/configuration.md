@@ -4,6 +4,11 @@ cake-adapt is configured through UCI in `/etc/config/cake-adapt`. Each
 `config cake_adapt '<name>'` section runs as its own instance. The packaged file
 lists only the common options; everything else uses the defaults below.
 
+For development or agent work, follow the [development guide](development.md)
+and the Claude or Codex route in [COLLABORATION.md](../COLLABORATION.md).
+The [handoff](../HANDOFF.md) distinguishes current development changes from
+released behavior and records their remaining validation.
+
 Change options with `uci`, by editing the file, or in LuCI under
 **Services → CAKE Adapt → Configuration** (package `luci-app-cake-adapt`),
 then reload or restart the service:
@@ -111,6 +116,14 @@ RAM, so the defaults never write to flash.
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `log_to_file` | boolean | `1` | Write the log file. |
+| `mqtt_enabled` | boolean | `0` | Forward generated cake-adapt records to MQTT on a background sender; requires the `cake-adapt-mqtt` or `cake-adapt-mqtt-ssl` package. |
+| `mqtt_host` | string | *(empty)* | Broker hostname or IPv4/IPv6 address, without a URL scheme, brackets or port. Required when MQTT is enabled. |
+| `mqtt_port` | integer | `1883` | Broker TCP port, 1–65535. Set the broker's TLS port when TLS is enabled (commonly 8883). |
+| `mqtt_topic` | string | `cake-adapt/log` | Publish topic, without MQTT wildcards (`+`, `#`). Use distinct topics for instances or routers as needed. |
+| `mqtt_username` | string | *(empty)* | Optional broker username. |
+| `mqtt_password` | string | *(empty)* | Optional password; requires a username. Stored in UCI and the instance runtime file. |
+| `mqtt_tls` | boolean | `0` | Use certificate-verified TLS; requires the `cake-adapt-mqtt-ssl` package. |
+| `mqtt_ca_file` | string | `/etc/ssl/certs/ca-certificates.crt` | CA certificate file for TLS; an absolute path is required when TLS is enabled. |
 | `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
 | `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
@@ -126,6 +139,58 @@ RAM, so the defaults never write to flash.
 | `output_cpu_stats` | boolean | `0` | Log CPU usage. |
 | `output_cpu_raw_stats` | boolean | `0` | Log raw CPU counters. |
 | `output_memory_stats` | boolean | `0` | Not in cake-autorate: log the daemon's own memory every 10 s as a `MEMORY` record: resident (`RSS_KB`), peak resident (`PEAK_RSS_KB`), resident heap (`RSS_ANON_KB`) and data size (`DATA_KB`), from `/proc/self/status`. About 60,000 lines a week; use it to spot leaks on long runs. |
+
+MQTT settings are in LuCI under **Advanced → Logging**. Each MQTT message is
+one generated log line, unchanged, without the terminating newline: structured
+records, headers, and messages allowed by the existing output and debug options.
+It sends only this instance's cake-adapt records, independently of `log_to_file`;
+it does not collect other services' syslog or replay existing log files.
+
+What MQTT can do depends on the installed package variant; every variant keeps
+all the MQTT options in its configuration:
+
+| Package | `mqtt_enabled '1'` | `mqtt_tls '1'` (with MQTT on) | LuCI shows |
+| --- | --- | --- | --- |
+| `cake-adapt` | warning, nothing sent | refused | no MQTT settings |
+| `cake-adapt-mqtt` (`libmosquitto-nossl`) | plain MQTT | refused | MQTT settings without TLS |
+| `cake-adapt-mqtt-ssl` (`libmosquitto-ssl`) | plain MQTT or TLS | verified TLS | MQTT and TLS settings |
+
+With `cake-adapt`, `mqtt_enabled '1'` does not stop the instance: it starts,
+controls CAKE as usual, sends nothing, and logs the warning `MQTT logging
+degraded: this package was built without MQTT support; install cake-adapt-mqtt or
+cake-adapt-mqtt-ssl`; its broker settings are not checked. A refused TLS setting
+stops `cake-adapt -V` and the start of that instance with `option 'mqtt_tls'
+requires the cake-adapt-mqtt-ssl package`; the daemon never sends plain traffic in
+place of TLS. Settings a package cannot use are kept in UCI, and are checked
+again only once MQTT is on. LuCI reads the installed variant from
+`/usr/share/cake-adapt/features` (empty, `mqtt`, or `mqtt` and `tls`), hides
+what it cannot use, and applies the same rules on screen; while an instance of
+`cake-adapt` still has `mqtt_enabled` on, LuCI shows that switch with a warning
+(saving is not blocked) so it can be turned off. A daemon older than the
+variants has no features file, so LuCI hides its MQTT settings; install the
+daemon and LuCI packages of the same release.
+
+With `cake-adapt-mqtt-ssl`, enable `mqtt_tls`, set the broker's TLS port, and use
+`mqtt_ca_file` for the CA certificate file. Its default is supplied by the
+package's `ca-bundle` dependency. Custom CA files must use absolute paths.
+Certificates and broker hostnames are always verified; there is no insecure mode
+or plaintext fallback.
+
+TLS remains off by default. Plain connections send traffic, including
+username/password credentials, unencrypted. `cake-adapt-mqtt` has no OpenSSL or
+CA-bundle dependency, and `cake-adapt` no MQTT library at all.
+
+The main thread only tries to copy a record into a 32-record queue (64 KiB when
+enabled). A sender thread and a network thread using libmosquitto handle publishing,
+DNS and authentication. Disconnected, busy or full queues silently drop
+records. Delivery uses QoS 0 with no retained messages or disk spool; records
+longer than 2047 bytes are also dropped. Each connection attempt has a five-second
+handshake deadline; attempts start every ten seconds while disconnected, with
+no retry limit. DNS resolution and network-thread cleanup stay off the control
+thread: a broker name that cannot be resolved delays only MQTT, never rate
+control, and at most one such lookup is left running. Shutdown waits at most
+about one second for the sender. Queued records
+are discarded on disconnect, so reconnect does not replay stale logs.
 
 The structured records keep cake-autorate's names, fields and units, so its
 log analysis tools work on them. The `output_*` records are frequent: enable

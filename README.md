@@ -48,17 +48,41 @@ CAKE qdiscs) at the same time.
 
 ## Installation
 
-Download the APK for your router's architecture from the
+Each release has three variants of the daemon for every architecture; install
+one of them:
+
+| Package | MQTT log forwarding | Extra dependencies |
+| --- | --- | --- |
+| `cake-adapt` | no | none |
+| `cake-adapt-mqtt` | yes, plain MQTT | `libmosquitto-nossl` |
+| `cake-adapt-mqtt-ssl` | yes, plain or TLS | `libmosquitto-ssl`, OpenSSL, `ca-bundle` |
+
+Pick `cake-adapt` unless you want its logs sent to an MQTT broker. Download the
+APK of that variant for your router's architecture from the
 [GitHub releases](https://github.com/huydoan94/cake-adapt/releases), copy it
-to the router, and install it:
+to the router, and install it, for example:
 
 ```sh
-scp cake-adapt-*.apk root@router:/tmp/cake-adapt.apk
+scp x86_64_cake-adapt-0.3.19-r1.apk root@router:/tmp/cake-adapt.apk
 ssh root@router
 apk add --allow-untrusted /tmp/cake-adapt.apk
 ```
 
-This installs the daemon, its service `/etc/init.d/cake-adapt` and the
+The variants install the same files and each provides `cake-adapt`, so only
+one can be installed. To switch to another variant from a downloaded file:
+
+```sh
+apk del cake-adapt && apk add --allow-untrusted ./<variant>.apk
+```
+
+Use the name of the installed variant in `apk del` (for example
+`cake-adapt-mqtt`). The two steps are needed because a package installed from a
+local file is pinned to that file; a variant installed from a package feed can be
+switched with one `apk add`. Without `luci-app-cake-adapt` installed, the
+service is down between the two commands. A modified `/etc/config/cake-adapt` is
+kept, with the new default beside it as `/etc/config/cake-adapt.apk-new`.
+
+Installing a variant installs the daemon, its service `/etc/init.d/cake-adapt` and the
 configuration `/etc/config/cake-adapt`. The web interface is a separate
 package, `luci-app-cake-adapt`, installed the same way (see [LuCI](#luci)).
 
@@ -142,6 +166,22 @@ Logs live in `/var/log`, which on OpenWrt is RAM, so nothing is written to
 flash by default. If a CAKE qdisc disappears, for example while SQM restarts,
 cake-adapt pauses that direction and resumes when it returns.
 
+The current development work also adds optional MQTT log forwarding, disabled
+by default and configurable in LuCI. It sends logs asynchronously, drops them
+silently while offline or when its bounded queue cannot accept them, and retries
+connections every 10 seconds indefinitely. See the
+[MQTT configuration](docs/configuration.md#output-and-logging) and
+[validation limits](profiling/2026-10-12-mqtt-ssl-build/README.md). The non-SSL
+packages passed x86 builds and a bounded observation-only daemon check on the
+x86 VM; production resource usage remains unmeasured.
+
+MQTT needs the `cake-adapt-mqtt` or `cake-adapt-mqtt-ssl` package; with
+`mqtt_enabled` on, `cake-adapt` runs as usual, sends nothing and logs a warning,
+and LuCI hides its MQTT settings. Only
+`cake-adapt-mqtt-ssl` adds TLS settings in LuCI, with broker certificate and
+hostname verification. TLS is opt-in; plain connections send log data and
+optional username/password credentials unencrypted.
+
 ## LuCI
 
 The `luci-app-cake-adapt` package adds a LuCI interface. Install it next to
@@ -200,6 +240,10 @@ fixed.
 - [Development](docs/development.md): building with the OpenWrt SDK, source
   layout and tests.
 - [Flowcharts](flowchart/README.md): the event flow and controller decisions.
+- [Agent guide](AGENTS.md) and [collaboration workflows](COLLABORATION.md):
+  project rules and the Claude and Codex routes. Development defaults to x86.
+- [Current handoff](HANDOFF.md): active work, user decisions, approvals and
+  remaining checks.
 
 ## License
 

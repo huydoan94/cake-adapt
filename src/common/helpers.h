@@ -1,6 +1,7 @@
 #ifndef HELPERS_H
 #define HELPERS_H
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -36,6 +37,13 @@ uint64_t response_monotonic_us(
 bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us);
 
 bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us);
+
+/*
+ * Joins THREAD if it exits within bound_us of CLOCK_MONOTONIC, checking every 10 ms, so a
+ * step of the wall clock cannot stretch the wait. The number of checks also bounds it when
+ * the clock cannot be read. False leaves the thread running and joinable.
+ */
+bool thread_join_within(pthread_t thread, uint64_t bound_us);
 
 /*
  * PATH as an absolute path in BUFFER: copied when it is absolute, otherwise

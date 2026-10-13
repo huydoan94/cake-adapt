@@ -1,0 +1,38 @@
+World updated, but the following packages are not removed due to:
+  cake-adapt-mqtt: luci-app-cake-adapt
+
+OK: 32.1 MiB in 226 packages
+(1/2) Purging cake-adapt-mqtt (0.3.17-r1)
+  Executing cake-adapt-mqtt-0.3.17-r1.pre-deinstall
+(2/2) Installing cake-adapt (0.3.17-r1)
+  Installing file to etc/config/cake-adapt.apk-new
+  Executing cake-adapt-0.3.17-r1.post-install
+OK: 32.1 MiB in 226 packages
+rc=0
+cake-adapt-0.3.17-r1 i386_pentium4 {/home/huydoan94/cake-adapt} (GPL-2.0-only) [installed]
+libcares-1.34.6-r1 i386_pentium4 {feeds/packages/feeds/packages/libs/c-ares} (MIT) [installed]
+libmosquitto-nossl-2.0.22-r2 i386_pentium4 {feeds/packages/feeds/packages/net/mosquitto} (EPL-2.0) [installed]
+luci-app-cake-adapt-0.3.17-r1 noarch {/home/huydoan94/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+6359
+V rc=0
+pid=6604
+0
+Mon Oct 12 20:41:50 2026 daemon.info cake-adapt[5870]: INFO: 1791859310.798990 Stopped cake-adapt with PID: 5870, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:41:50 2026 daemon.info cake-adapt[6359]: INFO: 1791859310.908317 Starting cake-adapt 0.3.17-r1 with PID: 6359, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:41:53 2026 daemon.info cake-adapt[6359]: INFO: 1791859313.268596 Stopped cake-adapt with PID: 6359, config: /var/run/cake-adapt/main.uci, section: main
+Mon Oct 12 20:41:53 2026 daemon.warn cake-adapt[6604]: WARNING: 1791859313.309399 MQTT logging degraded: this package was built without MQTT support; install cake-adapt-mqtt or cake-adapt-mqtt-ssl
+Mon Oct 12 20:41:53 2026 daemon.info cake-adapt[6604]: INFO: 1791859313.309450 Starting cake-adapt 0.3.17-r1 with PID: 6604, config: /var/run/cake-adapt/main.uci, section: main
+records after start:
+    376 TCP_QUEUE
+    376 SUMMARY
+    376 DATA
+     97 LOAD
+     12 INFO
+      2 SHAPER
+      1 TCP_INJECT
+      1 SYSLOG
+      1 DEBUG
+LOAD; 2026-10-12-20:42:12; 1791859332.771045; 1791859332.771042; 15; 15; 20000; 20000
+LOAD; 2026-10-12-20:42:12; 1791859332.972763; 1791859332.972759; 11; 15; 20000; 20000
+qdisc cake 800f: dev eth1 root refcnt 2 bandwidth 20Mbit diffserv3 triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+qdisc cake 8010: dev ifb4eth1 root refcnt 2 bandwidth 20Mbit besteffort triple-isolate nat wash no-ack-filter split-gso rtt 100ms raw overhead 0 

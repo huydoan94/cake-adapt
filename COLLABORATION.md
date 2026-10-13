@@ -3,30 +3,74 @@
 This agreement governs agent roles and handoffs for work in this repository.
 `AGENTS.md` and the user's instructions define project constraints and scope.
 
-## Roles
+What to read: at session start, **Shared roles**, your own provider's
+workflow (Claude or Codex) and **Working efficiently** only. Read **Context and usage budget** before
+delegating, **VM run discipline** before touching a VM, and **Persistent
+context and authorization** before a download, SDK change or installation.
+
+## Shared roles
 
 - The primary agent owns diagnosis, evidence review, plans, acceptance criteria,
   file ownership, test requirements, final acceptance, and the user-facing
   explanation.
-- A Claude subagent on the primary agent's own model version (currently
-  Claude Opus 5.5) implements assigned changes and carries out assigned tests,
-  builds, and VM evidence collection.
-- A separate Claude subagent on the same model version reviews the final diff
+- An implementation agent carries out assigned changes, tests, builds, and VM
+  evidence collection.
+- A separate review agent reviews the final diff
   for logic gaps, dead code, duplication, and existing helpers or libraries.
   The implementer addresses review findings; the primary agent makes final
   acceptance.
 
-Use only these designated model choices. If that model version is not
-available to subagents, report that limitation and wait for direction; do not
-silently substitute another model.
+### Claude workflow
+
+For a Claude primary, implementation and review agents use the primary's own
+model version (currently Claude Opus 5.5). If that version is unavailable, report
+the limitation and use any alternative the user has already authorized. Without
+such authorization, wait for direction instead of substituting another model.
+
+Claude follows the same delegation rule as Codex below: work directly by
+default, start one bounded reviewer (given only the brief, the diff file and the
+results) for a risky change, and delegate implementation only for a large,
+self-contained piece whose files do not overlap the primary's. Other changes
+get a self-review of the final diff, reported as self-review.
+
+### Codex workflow
+
+For a Codex primary, use the current primary model for delegated implementation
+and review. Leave model overrides unset so the agents inherit that model; do not
+require Claude tools or Claude Opus 5.5. The user's instruction to "make your own
+version" authorizes this route. Do not ask again merely because Claude is absent.
+
+Work directly by default: the Codex primary implements and verifies the change
+itself, because every delegated agent starts cold and reloads the project rules
+before reading its brief. Delegate only when it pays for itself:
+
+- **Review:** start one bounded reviewer for a risky change — C threading,
+  memory or lifetime; kernel, netlink or qdisc interaction; the init script or
+  service lifecycle; packaging, SDK helpers or CI; ACLs, credentials or other
+  security-relevant code. Give it only the brief, the diff file and the
+  implementation results; it reviews the affected logic and callers, not the
+  whole codebase. Other changes get a self-review of the final diff against the
+  acceptance criteria, reported as self-review.
+- **Implementation:** delegate only a large, self-contained piece whose files
+  do not overlap the primary's, and only with a short brief.
+
+Start delegated agents with `fork_turns="none"`. If delegation is unavailable,
+implement directly and self-review; do not claim independent review occurred.
+
+Provider-specific tools and skills apply only when available and relevant. Use
+the corresponding Codex tools for filesystem changes, commands and agent
+handoffs. Tool differences do not relax project rules, authorization, coding
+style or verification requirements. If a required capability is missing, finish
+independent authorized work and report the specific remaining limitation.
 
 ## Context and usage budget
 
 The primary agent retains the broader project context. Start delegated work as a
 fresh subagent (not a fork of the conversation) with a path to its task brief;
 do not send the conversation history. Do not have agents independently rediscover the primary agent's diagnosis.
-Use one implementation agent and one bounded review by default, with no nested
-delegation or overlapping audits unless the task needs them.
+When work is delegated, use at most one implementation agent and one bounded
+review, with no nested delegation or overlapping audits unless the task needs
+them. The provider workflows above define when delegation is used at all.
 
 Create a separate short Markdown brief for each delegated work item in a temporary
 directory, for example `/tmp/cake-adapt-tasks/<task>.md`. Use this structure:
@@ -54,6 +98,24 @@ agent selects the checks; subagents run those checks without expanding into a
 full test campaign. Reuse passing results while their inputs remain unchanged.
 Keep existing safety rules and required runtime validation for new behavior.
 Run a simple useful runtime check before building a large acceptance harness.
+
+### Working efficiently
+
+Every turn re-sends the conversation, so cost grows with session length and
+output size. Agents follow, and remind the user of, these habits:
+
+- One task per session: at a stop point, update `HANDOFF.md` and suggest a
+  fresh session instead of continuing an unrelated task.
+- Work from named files and functions; ask for a path rather than searching
+  the whole repository when the target is unclear.
+- Run only the checks the task needs, and say which were skipped; use the
+  quiet tool output (`VERBOSE=1` only to diagnose a failure).
+- Report briefly: outcome, files, checks, open items.
+- Use low reasoning effort (Codex `--profile quick`) for docs, renames and
+  small edits; keep medium for C, concurrency, packaging and security.
+- Turn open-ended requests ("review everything") into a named scope, such as
+  the diff of a given commit, and confirm it with the user.
+- Keep `HANDOFF.md` short: move finished detail to `docs/history/`.
 
 ### VM run discipline
 
@@ -84,7 +146,8 @@ soak tests. State the result and the next decision plainly. Do not require
 exhaustive scheduler interleavings as an open-ended acceptance gate: identify
 the concurrency invariant, use a bounded targeted test and source review, and
 record the remaining limits. Preserve the VM timeout, log-inode, change
-recording and deployment rules in `AGENTS.md`.
+recording and deployment rules in `AGENTS.md` and
+[`docs/agents/vm-testing.md`](docs/agents/vm-testing.md).
 
 Keep reports short: outcome, changed files, checks, remaining blockers. Preserve
 only the raw evidence needed to substantiate a claim. Detailed reports, exhaustive
@@ -119,7 +182,34 @@ versions, publish, or deploy without the user's explicit authorization.
 Coordinate file ownership and do not run parallel work that writes overlapping
 files. Preserve existing user changes and inspect worktree status before edits.
 
-On every return to an active task, the primary agent reads `AGENTS.md` and this
-agreement, inspects the worktree and identifies unfinished work. Repeat after
-a long break or resumed session. Subagents use their scoped task brief and the
-applicable policy excerpts supplied by the primary agent.
+## Persistent context and authorization
+
+At session start, after a long break, or on resumption after lost context, read
+`AGENTS.md`, this agreement and `HANDOFF.md`, inspect the worktree, and identify
+unfinished work. Read `CODING_STYLE.md` and the documentation relevant to the
+task before editing. During uninterrupted work, reuse established context and
+unchanged checks instead of repeatedly rereading the same files. Subagents use
+their scoped brief and the supplied policy excerpts.
+
+`AGENTS.md` holds standing project rules; this file holds provider workflows;
+`HANDOFF.md` holds the active task, user decisions, scoped approvals, changed
+files, evidence, limitations and next steps. Keep the handoff current at a stop
+point, scope change or completed milestone. Verify its worktree and environment
+claims before relying on them. Do not require the user to reconstruct a chat or
+maintain an agent's private memory. A private memory update is a separate action
+and requires the user's explicit request.
+
+Development, SDK validation, host-test headers, IntelliSense and VM testing
+default to x86. Filogic or arm64 work requires an explicit target-specific
+request. The user's router architecture does not change these defaults.
+
+Before a new download, SDK/feed change or installation, check existing approvals
+and the proposed dependency, destination and side effects. Continue within an
+already authorized scope without asking again. If the scope is new, request
+approval before downloading or changing that environment, after completing any
+independent work. A build command can download dependencies or modify SDK state;
+inspect its effects first. Keep approved local validation dependencies and tool
+caches under ignored `build/` unless another destination was explicitly approved.
+Record what was changed, where it lives and whether it remains. Approval for
+one SDK or dependency does not authorize another SDK, a system installation,
+artifact copying or deployment.

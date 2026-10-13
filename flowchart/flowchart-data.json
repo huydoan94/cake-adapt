@@ -12,7 +12,8 @@
         "src/monitor/monitor.c:monitor_run",
         "src/monitor/pingers.c:process_latency_line",
         "src/monitor/control.c:control_update",
-        "src/cake/cake.c:cake_set_bandwidth"
+        "src/cake/cake.c:cake_set_bandwidth",
+        "src/logging/mqtt.c:mqtt_submit"
       ],
       "notes": [
         "The pipeline is measurement → controller decision → desired CAKE state → verified kernel update. Each stage lives in its own subsystem directory under src/.",
@@ -74,6 +75,11 @@
         {
           "id": "log",
           "label": "logging/log.c\nsyslog + cake-autorate-compatible records",
+          "kind": "io"
+        },
+        {
+          "id": "mqtt",
+          "label": "logging/mqtt.c (cake-adapt-mqtt[-ssl]; opt-in, TCP or verified TLS)\nnonblocking queue → sender/network threads\nMQTT broker\n(cake-adapt: logging/mqtt_none.c sends nothing)",
           "kind": "io"
         }
       ],
@@ -149,6 +155,12 @@
           "to": "log",
           "label": "",
           "style": "dashed"
+        },
+        {
+          "from": "log",
+          "to": "mqtt",
+          "label": "silently drop when offline or busy",
+          "style": "dashed"
         }
       ]
     },
@@ -167,7 +179,9 @@
         "src/main.c:lock_instance",
         "src/config/config.c:config_load",
         "src/config/config.c:resolve_interfaces",
-        "src/config/validate.c:config_validate"
+        "src/config/validate.c:config_validate",
+        "src/logging/mqtt.c:mqtt_start",
+        "src/logging/mqtt_none.c:mqtt_start"
       ],
       "notes": [
         "The init script generates a private runtime file for each instance, /var/run/cake-adapt/<section>.uci. It builds and validates it with the daemon itself (-V) in a staging directory, then moves it into place before procd sees the instance, which runs with -C pointing at that file. As in dnsmasq, procd watches that generated file, and reload registers the instances again without stopping anything: procd restarts only an instance whose command or runtime file changed, and stops instances no longer registered (removed or disabled sections). A configuration that fails to build or validate leaves the previous runtime file in place, so the instance is registered unchanged and keeps running; with no previous file (a first start, or after stop, which removes it) the instance does not start. restart checks each requested instance's new configuration first: a valid one stops the instance and starts it again (new pid, even if unchanged); a refused one keeps it running its previous file, as on a reload; a named restart of a disabled or removed section stops it and removes its file, and an instance procd could not stop is logged and fails the restart. start, stop and restart take an optional section name and then act on that instance only. Each instance is registered with respawn 3600 5 0: procd starts an exited instance again after 5 s and never gives up (retry 0).",
@@ -175,7 +189,8 @@
         "config_load applies built-in defaults first, then reads the typed UCI options, resolves the interface pair, and runs config_validate.",
         "A disabled configuration is reported to syslog and exits successfully. An invalid configuration is reported and exits with status 1.",
         "Before the log file, main takes an exclusive non-blocking lock on /var/run/cake-adapt/<section>.lock and writes its pid there. A second daemon with a running instance's name logs \"instance '<section>' is already running (pid N); exiting\" and exits with status 1; the first keeps running. The kernel releases the lock when the process exits, so procd respawn and restart work. -V and -L take no lock.",
-        "Rate control stays opt-in. With both adjust flags off, the daemon runs in observation-only mode."
+        "Rate control stays opt-in. With both adjust flags off, the daemon runs in observation-only mode.",
+        "After opening the instance log file, main starts the optional MQTT sender before startup records. MQTT defaults off and its configuration is validated with the other UCI settings. Network failures do not stop the daemon. In the cake-adapt package (no MQTT) a start with mqtt_enabled on fails and main logs \"MQTT logging degraded: ...\" as a warning; the instance runs and controls as usual."
       ],
       "nodes": [
         {
@@ -2623,7 +2638,10 @@
         "src/logging/log.c:rotate_log_file",
         "src/logging/log.c:log_export_file",
         "src/logging/log.c:log_reset_file",
-        "src/monitor/monitor.c:handle_cpu_timer"
+        "src/monitor/monitor.c:handle_cpu_timer",
+        "src/logging/mqtt.c:mqtt_submit",
+        "src/logging/mqtt.c:mqtt_thread",
+        "src/logging/mqtt.c:mqtt_network"
       ],
       "notes": [
         "Record names, field order, units and headers follow cake-autorate's DATA, LOAD, REFLECTOR, SUMMARY, SHAPER and CPU formats so its analysis tools work on cake-adapt logs.",
@@ -2631,7 +2649,8 @@
         "The local date and time text is formatted once per second and reused. The file uses a 16 KiB stdio buffer flushed by the log timer every log_file_buffer_timeout_ms.",
         "Rotation copies the active log to cake-adapt[.<section>].log.old and truncates the active file in place. The inode is preserved, so tail -f stays attached.",
         "SIGUSR1 exports the active and retained logs (optionally compressed with zlib). SIGUSR2 flushes and truncates them in place.",
-        "CPU records are written only while RUNNING. A failed /proc/stat read is reported once as degraded and once on recovery."
+        "CPU records are written only while RUNNING. A failed /proc/stat read is reported once as degraded and once on recovery.",
+        "MQTT is an independent opt-in sink for generated records. The logging thread uses a try-lock to copy into a bounded 32-record queue; offline, full or contended queues drop silently. Sender and network threads handle QoS 0 delivery without retention, a five-second connection deadline, and ten-second retries indefinitely. Only the cake-adapt-mqtt-ssl package can enable TLS: the sender loads the CA file and configures certificate/hostname verification before starting the network thread; the other packages reject TLS settings. The cake-adapt package is built with logging/mqtt_none.c instead: no libmosquitto, nothing is queued or sent. Existing output and debug flags still govern which records are generated."
       ],
       "nodes": [
         {
@@ -2698,6 +2717,16 @@
           "id": "cpu",
           "label": "CPU timer (RUNNING only)\n/proc/stat → CPU / CPU_RAW",
           "kind": "process"
+        },
+        {
+          "id": "mqtt_queue",
+          "label": "mqtt_submit\ntry-lock; bounded 32-record queue\noffline/busy/full → silent drop",
+          "kind": "process"
+        },
+        {
+          "id": "mqtt_send",
+          "label": "sender + network threads\nQoS 0 publish\nretry every 10 s indefinitely",
+          "kind": "io"
         }
       ],
       "edges": [
@@ -2710,7 +2739,7 @@
         {
           "from": "msg",
           "to": "time",
-          "label": "if log file",
+          "label": "if file, stdout or MQTT",
           "style": ""
         },
         {
@@ -2760,6 +2789,18 @@
           "to": "rec",
           "label": "",
           "style": "dashed"
+        },
+        {
+          "from": "time",
+          "to": "mqtt_queue",
+          "label": "if mqtt_enabled",
+          "style": "dashed"
+        },
+        {
+          "from": "mqtt_queue",
+          "to": "mqtt_send",
+          "label": "",
+          "style": ""
         }
       ]
     },
@@ -2774,7 +2815,8 @@
         "src/monitor/publish.c:publish_stop",
         "src/monitor/publish.c:publish_update",
         "src/monitor/reflectors.c:reflectors_stop",
-        "src/main.c:main"
+        "src/main.c:main",
+        "src/logging/mqtt.c:mqtt_stop"
       ],
       "notes": [
         "procd stops the instance with SIGTERM and allows 5 s. uloop_run returns the signal number, and SIGINT or SIGTERM count as a clean shutdown.",
@@ -2782,7 +2824,8 @@
         "After the loop stops, pinger shutdown is synchronous and bounded: SIGTERM to each process group, up to 50 × 10 ms waitpid checks, then SIGKILL and a final reap.",
         "Fatal conditions: invalid configuration, controller, tracker or health allocation failure, uloop or required timer setup, qdisc event subscription, qdisc event socket failure, and ubusd refusing the status object on the first connection (as dnsmasq exits then; procd respawns the daemon every 5 s without limit).",
         "Degraded but continuing: missing CAKE or interface, netlink dump or change failures, pinger spawn, exit or parse failures, clock failures, CPU sampling, and log maintenance. Each is logged once and again on recovery.",
-        "The daemon never removes or recreates CAKE, and leaves the last verified rate in place on exit."
+        "The daemon never removes or recreates CAKE, and leaves the last verified rate in place on exit.",
+        "log_close stops the optional MQTT sender. It wakes the worker and waits at most about one second; a stuck worker is detached and retains its state until it exits. Queued MQTT records are discarded at shutdown."
       ],
       "nodes": [
         {
@@ -2817,7 +2860,7 @@
         },
         {
           "id": "log",
-          "label": "syslog: Stopped cake-adapt …\nlog_close",
+          "label": "syslog: Stopped cake-adapt …\nlog_close; mqtt_stop (≤1 s, else detach)",
           "kind": "io"
         },
         {

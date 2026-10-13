@@ -1,0 +1,16 @@
+ERROR: unable to select packages:
+  cake-adapt-0.3.17-r1:
+    conflicts: cake-adapt-mqtt-0.3.17-r1
+    satisfies: world[cake-adapt><Q14sc7y9GMAAlw/9eQqltVcZGftfs=]
+               luci-app-cake-adapt-0.3.17-r1[cake-adapt]
+  cake-adapt-mqtt-0.3.17-r1:
+    conflicts: cake-adapt-0.3.17-r1[cake-adapt=0.3.17-r1]
+    breaks: world[cake-adapt><Q14sc7y9GMAAlw/9eQqltVcZGftfs=]
+    satisfies: world[cake-adapt-mqtt><Q1OX4aSxweZphrGn+W2RIKWuqh1sI=]
+               luci-app-cake-adapt-0.3.17-r1[cake-adapt]
+rc=3
+cake-adapt-0.3.17-r1 i386_pentium4 {/home/huydoan94/cake-adapt} (GPL-2.0-only) [installed]
+luci-app-cake-adapt-0.3.17-r1 noarch {/home/huydoan94/cake-adapt/luci-app-cake-adapt} (GPL-2.0-only) [installed]
+cake-adapt><Q14sc7y9GMAAlw/9eQqltVcZGftfs=
+kmod-sched-cake
+luci-app-cake-adapt><Q1OVPa9FNPD1DqaHN0sgJUChRHslk=

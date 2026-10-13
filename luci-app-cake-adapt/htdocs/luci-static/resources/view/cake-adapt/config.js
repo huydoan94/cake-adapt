@@ -1,7 +1,21 @@
 'use strict';
 'require view';
 'require form';
+'require fs';
 'require uci';
+
+/*
+ * What the installed daemon package was built with, one word per line:
+ * nothing in cake-adapt, mqtt in cake-adapt-mqtt, mqtt and tls in
+ * cake-adapt-mqtt-ssl. A missing file reads as nothing.
+ */
+const FEATURES_FILE = '/usr/share/cake-adapt/features';
+
+function parseFeatures(text) {
+	const words = String(text ?? '').split(/\s+/);
+
+	return { mqtt: words.includes('mqtt'), tls: words.includes('tls') };
+}
 
 /*
  * What the daemon uses for an option left empty (src/config/defaults.c), in the
@@ -14,6 +28,11 @@ const defaults = {
 	enable_sleep_function: '1',
 	tcp_delay_attribution: '0',
 	tcp_ts_request: '0',
+	mqtt_enabled: '0',
+	mqtt_tls: '0',
+	mqtt_ca_file: '/etc/ssl/certs/ca-certificates.crt',
+	mqtt_port: '1883',
+	mqtt_topic: 'cake-adapt/log',
 	output_cpu_stats: '0',
 	output_cpu_raw_stats: '0',
 	pinger_method: 'fping',
@@ -76,6 +95,7 @@ const defaults = {
 const KILO = 1000n, MILLI = 1000n, SECOND = 1000000n, MINUTE = 60n * SECOND;
 const RATIO_ONE = 1000000n;
 const scales = {
+	mqtt_port: 1n,
 	no_pingers: 1n,
 	reflector_ping_interval_s: SECOND,
 	irtt_session_duration_m: MINUTE,
@@ -132,7 +152,9 @@ const IFNAME_SIZE = 16, STRING_SIZE = 512, REFLECTOR_SIZE = 256, MAX_REFLECTORS 
 const textSizes = {
 	interface: IFNAME_SIZE, ul_if: IFNAME_SIZE, dl_if: IFNAME_SIZE,
 	config_file: STRING_SIZE, log_file_path_override: STRING_SIZE, pinger_method: STRING_SIZE,
-	ping_extra_args: STRING_SIZE, ping_prefix_string: STRING_SIZE
+	ping_extra_args: STRING_SIZE, ping_prefix_string: STRING_SIZE,
+	mqtt_host: STRING_SIZE, mqtt_topic: STRING_SIZE, mqtt_username: STRING_SIZE,
+	mqtt_password: STRING_SIZE, mqtt_ca_file: STRING_SIZE
 };
 const pingerMethods = [ 'fping', 'fping-ts', 'irtt' ];
 const UINT_MAX = 4294967295n, UINT64_MAX = (1n << 64n) - 1n;
@@ -212,10 +234,11 @@ function latencyChecked(screen) {
  * Every rule the daemon checks when it loads a section (config.c) and starts
  * (validate.c config_validate), on what is shown. screen(name) returns the
  * value on screen, or nothing when the field is empty, which stands for the
- * default of the table above; reflectors come as a list. Returns a list of
+ * default of the table above; reflectors come as a list. features is what
+ * the installed package supports (parseFeatures). Returns a list of
  * { option, message }: one entry for each option a failing rule names.
  */
-function instanceErrors(screen) {
+function instanceErrors(screen, features) {
 	const errors = [];
 	const fail = (message, ...names) => names.forEach((option) => errors.push({ option, message }));
 	const text = (name) => {
@@ -271,7 +294,27 @@ function instanceErrors(screen) {
 
 	const adjusting = on('adjust_dl_shaper_rate') || on('adjust_ul_shaper_rate');
 
-	/* validate.c config_validate. */
+	/*
+	 * validate.c config_validate. Without MQTT (cake-adapt) nothing is sent and
+	 * the daemon only warns, so the broker settings are not checked; TLS asked
+	 * for is refused in every package without it.
+	 */
+	if (on('mqtt_enabled')) {
+		if (features.mqtt && (text('mqtt_host') == '' || /[ /\[\]\t\r\n]/.test(text('mqtt_host'))))
+			fail(_("option 'mqtt_host' must be a hostname or IP address"), 'mqtt_host');
+		if (features.mqtt && known('mqtt_port') && (num.mqtt_port == 0n || num.mqtt_port > 65535n))
+			fail(_("option 'mqtt_port' must be between 1 and 65535"), 'mqtt_port');
+		if (features.mqtt && (text('mqtt_topic') == '' || /[+#]/.test(text('mqtt_topic'))))
+			fail(_("option 'mqtt_topic' must be nonempty and contain no + or #"), 'mqtt_topic');
+		if (features.mqtt && text('mqtt_password') != '' && text('mqtt_username') == '')
+			fail(_("option 'mqtt_password' needs mqtt_username"), 'mqtt_password', 'mqtt_username');
+		if (on('mqtt_tls')) {
+			if (!features.tls)
+				fail(_("option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package"), 'mqtt_tls', 'mqtt_enabled');
+			else if (!text('mqtt_ca_file').startsWith('/'))
+				fail(_("option 'mqtt_ca_file' must be an absolute path"), 'mqtt_ca_file');
+		}
+	}
 	if ((on('enabled') || adjusting) && !partial && pair[0] == '' && text('interface') == '')
 		fail(_("set either option 'interface' or both options 'ul_if' and 'dl_if' when cake-adapt is enabled or rate adjustment is configured"), 'interface', 'ul_if', 'dl_if');
 
@@ -438,13 +481,25 @@ const AdvancedSection = form.NamedSection.extend({
 
 return view.extend({
 	/* Exposed for tests/luci_config.js. */
-	instanceErrors, reflectorError, reflectorTooLong, latencyChecked, defaults, scales,
+	instanceErrors, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures,
 
 	load() {
-		return uci.load('cake-adapt');
+		return Promise.all([
+			uci.load('cake-adapt'),
+			L.resolveDefault(fs.read(FEATURES_FILE), '')
+		]);
 	},
 
-	render() {
+	render(data) {
+		const features = parseFeatures(data[1]);
+		/*
+		 * Settings the package cannot use stay in UCI, unshown. The MQTT switch
+		 * still shows while an instance has it on, with a warning, so it can be
+		 * turned off.
+		 */
+		const mqttStored = uci.sections('cake-adapt', 'cake_adapt').some((section) => section.mqtt_enabled == '1');
+		const hidden = [];
+
 		const m = new form.Map('cake-adapt', _('CAKE Adapt'),
 			_('Adapts the bandwidth of the CAKE qdiscs that SQM creates to the measured latency. Each section is one instance with its own pair of CAKE qdiscs.'));
 
@@ -518,6 +573,43 @@ return view.extend({
 			_('Length of each IRTT session (irtt only).'));
 
 		/* Advanced: Output and logging */
+		if (features.mqtt || mqttStored) {
+			o = a.taboption('logging', form.Flag, 'mqtt_enabled', _('Send logs to MQTT'),
+				features.mqtt ? _('Off by default. Send generated cake-adapt log records without waiting for the broker. Disconnected or overloaded senders silently discard records. Retry every 10 seconds indefinitely.') :
+					_('Warning: this package has no MQTT support. While this is on, cake-adapt sends no logs to MQTT and logs a warning at start; turn it off, or install cake-adapt-mqtt or cake-adapt-mqtt-ssl.'));
+			o.rmempty = false;
+		}
+		else {
+			hidden.push('mqtt_enabled');
+		}
+		if (features.mqtt) {
+			o = a.taboption('logging', form.Value, 'mqtt_host', _('MQTT broker host'),
+				_('Hostname or IPv4/IPv6 address, without a URL scheme or port.'));
+			o = a.taboption('logging', form.Value, 'mqtt_port', _('MQTT broker port'),
+				features.tls ? _('Usually 1883 for plain MQTT or 8883 for TLS.') : _('Usually 1883.'));
+			o = a.taboption('logging', form.Value, 'mqtt_topic', _('MQTT topic'),
+				_('One plain-text log record per message. Use a different topic for each instance if needed.'));
+			o = a.taboption('logging', form.Value, 'mqtt_username', _('MQTT username'));
+			o = a.taboption('logging', form.Value, 'mqtt_password', _('MQTT password'));
+			o.password = true;
+		}
+		else {
+			hidden.push('mqtt_host', 'mqtt_port', 'mqtt_topic', 'mqtt_username', 'mqtt_password');
+		}
+		if (features.tls) {
+			o = a.taboption('logging', form.Flag, 'mqtt_tls', _('Encrypt MQTT with TLS'),
+				_('Verify the broker certificate and hostname. Without TLS, MQTT traffic and credentials are unencrypted.'));
+			o.rmempty = false;
+			o.retain = true;
+			o.depends('mqtt_enabled', '1');
+			o = a.taboption('logging', form.Value, 'mqtt_ca_file', _('MQTT trusted CA file'),
+				_('Absolute path to a trusted CA bundle on the router.'));
+			o.retain = true;
+			o.depends({ mqtt_enabled: '1', mqtt_tls: '1' });
+		}
+		else {
+			hidden.push('mqtt_tls', 'mqtt_ca_file');
+		}
 		o = a.taboption('logging', form.Flag, 'log_to_file', _('Log to file'),
 			_('Write the log file.'));
 		o.default = o.enabled;
@@ -675,8 +767,10 @@ return view.extend({
 
 			const values = valuesOf(section_id);
 
-			values.latency_target = uci.get('cake-adapt', section_id, 'latency_target');
-			const errors = instanceErrors((name) => values[name]);
+			/* Options without a field are checked as stored, as the daemon will read them. */
+			for (const name of [ 'latency_target', ...hidden ])
+				values[name] = uci.get('cake-adapt', section_id, name);
+			const errors = instanceErrors((name) => values[name], features);
 
 			cache[section_id] = errors;
 			setTimeout(() => delete cache[section_id], 0);

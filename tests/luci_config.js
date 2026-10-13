@@ -6,6 +6,13 @@
  */
 const assert = require('assert');
 const fs = require('fs');
+/*
+ * argv[3] is the installed package's features file ('' for cake-adapt, 'mqtt'
+ * for cake-adapt-mqtt, 'mqtt tls' for cake-adapt-mqtt-ssl); argv[4] 'stored'
+ * stores an instance with MQTT on.
+ */
+const featureText = process.argv[3] ?? '';
+const mqttStored = process.argv[4] === 'stored';
 const src = fs.readFileSync(process.argv[2], 'utf8');
 
 String.prototype.format = function(...a) {
@@ -14,10 +21,27 @@ String.prototype.format = function(...a) {
 
 /* Just enough of form.* to build the view and see which options it declares. */
 class Option {
-	constructor(section, option) { this.section = section; this.option = option; this.checks = 0; this.loaded = {}; this.parsed = []; }
+	constructor(section, option, title, description) {
+		Object.assign(this, { section, option, title, description, checks: 0, loaded: {}, parsed: [] });
+	}
 	triggerValidation() { this.checks++; }
 	cfgvalue(sid, value) { this.loaded[sid] = value; }
-	parse(sid) { this.parsed.push(sid); return Promise.resolve(); }
+	parse(sid) {
+		this.parsed.push(sid);
+		if (this.persisted) {
+			const deps = typeof this.dependencies?.[0] === 'string' ?
+				{ [this.dependencies[0]]: this.dependencies[1] } : (this.dependencies?.[0] ?? {});
+			const active = Object.entries(deps).every(([ name, value ]) =>
+				(screen[name] ?? this.persisted[name]) === value);
+			/* Stock form.js AbstractValue and Flag remove inactive values unless retain is set. */
+			if (active)
+				this.persisted[this.option] = screen[this.option] ?? this.persisted[this.option];
+			else if (!this.retain)
+				delete this.persisted[this.option];
+		}
+		return Promise.resolve();
+	}
+	depends(...values) { this.dependencies = values; }
 }
 class Value extends Option {}
 class Flag extends Value { constructor(...a) { super(...a); this.enabled = '1'; } }
@@ -75,9 +99,36 @@ global.E = (tag, attrs, nodes) => ({ tag, attrs, nodes });
 const realSetTimeout = global.setTimeout;
 global.setTimeout = (fn) => fn();
 const stored = {};
-const view = new Function('view', 'form', 'uci', '_', src)(
-	{ extend: (o) => o }, form, { get: (config, sid, name) => stored[name] }, (s) => s);
-const { instanceErrors, reflectorError, reflectorTooLong, latencyChecked, defaults, scales } = view;
+const uciSections = [ { '.name': 'main' }, { '.name': 'guest', mqtt_enabled: mqttStored ? '1' : '0' } ];
+const files = { '/usr/share/cake-adapt/features': featureText };
+const fsStub = {
+	read: (path) => (path in files) ? Promise.resolve(files[path]) : Promise.reject(new Error('NotFoundError'))
+};
+const uciStub = {
+	load: (config) => Promise.resolve(config),
+	get: (config, sid, name) => stored[name],
+	sections: (config, type) => (config == 'cake-adapt' && type == 'cake_adapt') ? uciSections : []
+};
+global.L = { resolveDefault: (promise, fallback) => promise.catch(() => fallback) };
+const view = new Function('view', 'form', 'fs', 'uci', '_', src)(
+	{ extend: (o) => o }, form, fsStub, uciStub, (s) => s);
+const { instanceErrors: errorsWith, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures } = view;
+const features = parseFeatures(featureText);
+const instanceErrors = (screen) => errorsWith(screen, features);
+
+/* The features file: its words, and nothing when it is missing or empty. */
+assert.deepStrictEqual(parseFeatures(''), { mqtt: false, tls: false });
+assert.deepStrictEqual(parseFeatures(undefined), { mqtt: false, tls: false });
+assert.deepStrictEqual(parseFeatures('mqtt\n'), { mqtt: true, tls: false });
+assert.deepStrictEqual(parseFeatures('mqtt\ntls\n'), { mqtt: true, tls: true });
+const loaded = view.load().then((data) => {
+	assert.deepStrictEqual(parseFeatures(data[1]), features);
+	delete files['/usr/share/cake-adapt/features'];
+	return view.load();
+}).then((data) => {
+	assert.strictEqual(data[1], '', 'a missing features file reads as nothing');
+	files['/usr/share/cake-adapt/features'] = featureText;
+});
 
 /* A valid, running configuration; values are in the form's units. */
 const good = {
@@ -97,6 +148,40 @@ const fails = (changes, option, text) => {
 	assert.ok(found.length, `${option} should fail for ${JSON.stringify(changes)}`);
 	assert.ok(found[0].message.includes(text), `${option}: "${found[0].message}" lacks "${text}"`);
 };
+
+ok({ mqtt_enabled: '0', mqtt_host: '', mqtt_topic: '#', mqtt_port: '0' });
+ok({ mqtt_enabled: '0', mqtt_tls: '1', mqtt_ca_file: 'relative.pem' });
+if (!features.mqtt) {
+	/* cake-adapt only warns about MQTT (the daemon runs), checks no broker setting, and refuses TLS. */
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example' });
+	ok({ mqtt_enabled: '1', mqtt_host: 'mqtt://broker', mqtt_topic: '#' });
+	fails({ mqtt_enabled: '1', mqtt_tls: '1' }, 'mqtt_tls', 'cake-adapt-mqtt-ssl package');
+	fails({ mqtt_enabled: '1', mqtt_tls: '1' }, 'mqtt_enabled', 'cake-adapt-mqtt-ssl package');
+} else {
+	fails({ mqtt_enabled: '1' }, 'mqtt_host', 'hostname or IP');
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example' });
+	ok({ mqtt_enabled: '1', mqtt_host: '2001:db8::1', mqtt_port: '65535' });
+	fails({ mqtt_enabled: '1', mqtt_host: 'mqtt://broker' }, 'mqtt_host', 'hostname or IP');
+	fails({ mqtt_enabled: '1', mqtt_port: '0' }, 'mqtt_port', 'between 1 and 65535');
+	fails({ mqtt_enabled: '1', mqtt_port: '65536' }, 'mqtt_port', 'between 1 and 65535');
+	fails({ mqtt_enabled: '1', mqtt_port: '1.5' }, 'mqtt_port', 'more precision');
+	fails({ mqtt_enabled: '1', mqtt_topic: 'logs/+' }, 'mqtt_topic', 'no + or #');
+	fails({ mqtt_enabled: '1', mqtt_topic: 'logs/#' }, 'mqtt_topic', 'no + or #');
+	fails({ mqtt_enabled: '1', mqtt_password: 'test' }, 'mqtt_password', 'needs mqtt_username');
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_username: 'user', mqtt_password: 'test' });
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '0', mqtt_ca_file: 'relative.pem' });
+}
+fails({ mqtt_username: 'x'.repeat(512) }, 'mqtt_username', 'too long');
+if (features.tls) {
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '1' });
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/private-ca.pem' });
+	fails({ mqtt_enabled: '1', mqtt_tls: '1', mqtt_ca_file: 'relative.pem' }, 'mqtt_ca_file', 'absolute path');
+	/* Empty form values use the daemon's CA bundle default. */
+	ok({ mqtt_enabled: '1', mqtt_host: 'broker.example', mqtt_tls: '1', mqtt_ca_file: '' });
+} else if (features.mqtt) {
+	fails({ mqtt_enabled: '1', mqtt_tls: '1' }, 'mqtt_tls', 'cake-adapt-mqtt-ssl package');
+	fails({ mqtt_enabled: '1', mqtt_tls: '1' }, 'mqtt_enabled', 'cake-adapt-mqtt-ssl package');
+}
 
 ok({}, 'the reference configuration is clean');
 
@@ -304,7 +389,7 @@ assert.deepStrictEqual(instanceErrors((name) => ({
 })[name]), [], 'every default at once is valid');
 
 /* Drift: the view declares every option the rules and the table mention, and builds its widgets. */
-const rendered = view.render();
+const rendered = view.render([ 'cake-adapt', featureText ]);
 const [ outer, advanced ] = sections;
 const declared = sections.flatMap((sec) => sec.children);
 const allOptions = declared.filter((o) => !o.option.startsWith('_'));
@@ -312,12 +397,30 @@ const options = allOptions.map((o) => o.option);
 const option = (name) => allOptions.find((o) => o.option == name);
 /* Each option is declared once, across both sections. */
 assert.strictEqual(new Set(options).size, options.length, `duplicates: ${options.filter((n, i) => options.indexOf(n) != i)}`);
+/* What the package cannot use is not shown; the MQTT switch only while an instance has it on. */
+const unshown = [
+	...(features.mqtt || mqttStored ? [] : [ 'mqtt_enabled' ]),
+	...(features.mqtt ? [] : [ 'mqtt_host', 'mqtt_port', 'mqtt_topic', 'mqtt_username', 'mqtt_password' ]),
+	...(features.tls ? [] : [ 'mqtt_tls', 'mqtt_ca_file' ])
+];
 const asked = new Set();
 instanceErrors((name) => { asked.add(name); return undefined; });
+errorsWith((name) => { asked.add(name); return name == 'mqtt_enabled' ? '1' : undefined; }, { mqtt: true, tls: true });
+errorsWith((name) => { asked.add(name); return [ 'mqtt_enabled', 'mqtt_tls' ].includes(name) ? '1' : undefined; }, { mqtt: true, tls: true });
 /* The legacy single target is read from the stored section; the form has no field for it. */
 asked.delete('latency_target');
-for (const name of new Set([ ...asked, ...Object.keys(defaults), ...Object.keys(scales) ]))
-	assert.ok(options.includes(name), `${name} is an option of the view`);
+for (const name of new Set([ ...asked, ...Object.keys(defaults), ...Object.keys(scales) ])) {
+	if (unshown.includes(name))
+		assert.ok(!options.includes(name), `${name} is not shown by this package`);
+	else
+		assert.ok(options.includes(name), `${name} is an option of the view`);
+}
+for (const name of unshown)
+	assert.ok(!options.includes(name), `${name} is not shown by this package`);
+if (features.tls) {
+	assert.deepStrictEqual(option('mqtt_tls').dependencies, [ 'mqtt_enabled', '1' ]);
+	assert.deepStrictEqual(option('mqtt_ca_file').dependencies, [ { mqtt_enabled: '1', mqtt_tls: '1' } ]);
+}
 for (const option of allOptions) {
 	assert.strictEqual(typeof option.validate, 'function', `${option.option} is validated`);
 	if (!(option instanceof Flag) && defaults[option.option] != null)
@@ -355,9 +458,31 @@ const nested = advanced.load('guest').then(() => {
 		assert.ok(!('main' in o.loaded), `${o.option} loads only the instance asked`);
 	}
 	return advanced.parse('main');
-}).then(() => {
+}).then(async () => {
 	for (const o of advanced.children)
 		assert.deepStrictEqual(o.parsed, [ 'main' ], `${o.option} parses only the instance asked`);
+	if (features.tls) {
+		const savedScreen = screen;
+		const persisted = { mqtt_enabled: '1', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/custom-mqtt-ca.pem' };
+		const fields = [ option('mqtt_enabled'), option('mqtt_tls'), option('mqtt_ca_file') ];
+		fields.forEach((field) => { field.persisted = persisted; });
+		/* Save with MQTT disabled: dependent fields are inactive and absent from form values. */
+		screen = { mqtt_enabled: '0' };
+		await Promise.all(fields.map((field) => field.parse('main')));
+		assert.deepStrictEqual(persisted, { mqtt_enabled: '0', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/custom-mqtt-ca.pem' });
+		/* The seam exercises stock removal too; an ordinary inactive option is deleted. */
+		const probe = new Value(advanced, 'inactive_probe');
+		probe.persisted = { inactive_probe: 'saved', mqtt_enabled: '1' };
+		probe.depends('mqtt_enabled', '1');
+		await probe.parse('main');
+		assert.ok(!('inactive_probe' in probe.persisted));
+		/* Reload the saved values, enable MQTT and save: TLS and the custom CA survive. */
+		screen = { ...persisted, mqtt_enabled: '1' };
+		await Promise.all(fields.map((field) => field.parse('main')));
+		assert.deepStrictEqual(persisted, { mqtt_enabled: '1', mqtt_tls: '1', mqtt_ca_file: '/etc/ssl/custom-mqtt-ca.pem' });
+		fields.forEach((field) => { delete field.persisted; });
+		screen = savedScreen;
+	}
 	return advanced.render('guest');
 }).then((node) => {
 	assert.strictEqual(node.attrs['data-section-id'], 'guest');
@@ -371,6 +496,25 @@ const show = (values, name, value) => {
 	return option(name).validate.call(option(name), 'main', value);
 };
 assert.strictEqual(show({}, 'base_dl_shaper_rate_kbps', '20000'), true);
+/* Unshown settings are checked as stored, and the error shows on the MQTT switch. */
+if (features.mqtt && !features.tls) {
+	stored.mqtt_tls = '1';
+	assert.ok(show({ mqtt_enabled: '1', mqtt_host: 'broker.example' }, 'mqtt_enabled', '1').includes('cake-adapt-mqtt-ssl package'));
+	delete stored.mqtt_tls;
+}
+if (!features.mqtt && mqttStored) {
+	/* A warning, not an error: saving is not blocked. */
+	stored.mqtt_host = 'mqtt://broker';
+	assert.strictEqual(show({ mqtt_enabled: '1' }, 'mqtt_enabled', '1'), true, 'MQTT on only warns');
+	assert.ok(option('mqtt_enabled').description.startsWith('Warning: this package has no MQTT support'));
+	stored.mqtt_tls = '1';
+	assert.ok(show({ mqtt_enabled: '1' }, 'mqtt_enabled', '1').includes('cake-adapt-mqtt-ssl package'), 'stored TLS is refused');
+	assert.strictEqual(show({ mqtt_enabled: '0' }, 'mqtt_enabled', '0'), true, 'off, the stored settings are not checked');
+	delete stored.mqtt_tls;
+	delete stored.mqtt_host;
+}
+if (features.mqtt)
+	assert.ok(!option('mqtt_enabled').description.includes('Warning'));
 assert.ok(show({ min_dl_shaper_rate_kbps: '30000' }, 'min_dl_shaper_rate_kbps', '30000').includes('minimum <= base'));
 assert.ok(show({ min_dl_shaper_rate_kbps: '30000' }, 'max_dl_shaper_rate_kbps', '50000').includes('minimum <= base'));
 assert.strictEqual(show({ tcp_ts_request: '1' }, 'tcp_delay_attribution', '0') === true, false, 'the attribution is named too');
@@ -392,7 +536,7 @@ assert.strictEqual(show({ reflectors: [], no_pingers: '' }, 'reflectors', ''), t
 delete stored.latency_target;
 
 /* A change in one field checks every field of its instance again. */
-Promise.all([ rendered, nested ]).then(() => {
+Promise.all([ rendered, nested, loaded ]).then(() => {
 	for (const type of [ 'keyup', 'change', 'widget-change', 'cbi-dynlist-change', 'input' ])
 		assert.strictEqual(typeof nodeHandlers[type], 'function', `${type} rechecks`);
 	declared.forEach((o) => { o.checks = 0; });
