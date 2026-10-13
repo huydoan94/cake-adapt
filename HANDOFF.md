@@ -5,6 +5,20 @@ and environment facts before relying on them. Read [AGENTS.md](AGENTS.md),
 [COLLABORATION.md](COLLABORATION.md), [CODING_STYLE.md](CODING_STYLE.md) and the
 task's relevant docs before continuing. Keep this file current at stop points.
 
+## Next and open (2026-10-12)
+
+- The user has a question to ask next; nothing is in progress.
+- Deferred by the user ("circle back later"): the version/docs mismatch with
+  `main` (v0.3.18 is tagged there; this branch's packages and AGENTS.md still say
+  0.3.17-r1) and the size of the SDK dependency helper.
+- Not yet proven: the `cake-adapt-mqtt-ssl` and LuCI packages were not rebuilt
+  after the last variants fix round (host tests cover the changed validation and
+  LuCI warning); only a real CI run proves every architecture builds OpenSSL and
+  the SSL variant; the stuck-DNS path was tested with a simulated resolver, not a
+  real hung `getaddrinfo`; MQTT overhead during live rate control is unmeasured.
+- VM 192.168.56.2 runs `cake-adapt-mqtt` with its original configuration (MQTT
+  off) and LuCI installed.
+
 ## Standing user decisions
 
 - Work on the current local branch only. No other branches, remotes, commits,
@@ -48,7 +62,11 @@ task's relevant docs before continuing. Keep this file current at stop points.
   The user requested automatic dependency staging before SDK builds, without
   manually finding and changing MQTT selections in `.config`.
 
-## Uncommitted: three cake-adapt package variants (2026-10-12)
+## Committed: three cake-adapt package variants (2026-10-12)
+
+Committed as `f6cd35b` (program), `71a0eaf` (docs) and `906e4eb` (evidence)
+after one review round; the user then chose: the base package warns and keeps
+controlling with `mqtt_enabled` on, and CI stays all-or-nothing.
 
 User decision (2026-10-12): one root Makefile builds `cake-adapt` (no MQTT, no
 libmosquitto/c-ares), `cake-adapt-mqtt` (`+libmosquitto-nossl`) and
@@ -97,10 +115,13 @@ libmosquitto/c-ares), `cake-adapt-mqtt` (`+libmosquitto-nossl`) and
   evaluations ("No rule to make target .prepared_..."); seen once while host
   tests ran concurrently. Browser check of the LuCI pages remains with the user.
 
-## Uncommitted follow-up: MQTT sender fixes (2026-10-12)
+## Committed follow-up: MQTT sender fixes (2026-10-12)
 
+Committed as `12046bc` after review (the review's lost-wake-up test gap and
+minor items were fixed first), followed by `7a10482`, which moved the bounded
+join into `common/helpers` (`thread_join_within`) for the ubus and MQTT threads.
 The user approved three fixes from the primary agent's review of
-`src/logging/mqtt.c`; implemented, not yet committed or reviewed:
+`src/logging/mqtt.c`:
 
 - `mqtt_submit` writes the wake eventfd only when the queue goes from empty to
   non-empty, never for a dropped line. The sender already drains a non-empty
