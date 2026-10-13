@@ -367,19 +367,12 @@ static void test_option_copy_boundaries(void)
 	assert(value[0] == '\0');
 }
 
-static void test_mqtt_validation(void)
+#if MQTT_SUPPORTED
+/* The MQTT rules of the cake-adapt-mqtt and cake-adapt-mqtt-ssl packages. */
+static void test_mqtt_rules(struct config_mqtt *mqtt)
 {
-	struct config config;
-	struct config_mqtt *mqtt = &config.mqtt;
 	char error[256];
 
-	defaults_apply(&config);
-	assert(!mqtt->enabled);
-	assert(!mqtt->tls);
-	assert(strcmp(mqtt->ca_file, "/etc/ssl/certs/ca-certificates.crt") == 0);
-	assert(mqtt->port == 1883U);
-	assert(strcmp(mqtt->topic, "cake-adapt/log") == 0);
-	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
 	mqtt->enabled = true;
 	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
 	assert(strstr(error, "mqtt_host") != NULL);
@@ -417,8 +410,9 @@ static void test_mqtt_validation(void)
 	(void)strcpy(mqtt->ca_file, "/tmp/fixture-ca.pem");
 	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
 #else
+	/* Never plain traffic in place of the TLS asked for. */
 	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
-	assert(strstr(error, "SSL-enabled package") != NULL);
+	assert(strcmp(error, "option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package") == 0);
 #endif
 	mqtt->enabled = false;
 	mqtt->ca_file[0] = '\0';
@@ -426,6 +420,38 @@ static void test_mqtt_validation(void)
 	mqtt->enabled = true;
 	mqtt->tls = false;
 	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+}
+#endif
+
+static void test_mqtt_validation(void)
+{
+	struct config config;
+	struct config_mqtt *mqtt = &config.mqtt;
+	char error[256];
+
+	defaults_apply(&config);
+	assert(!mqtt->enabled);
+	assert(!mqtt->tls);
+	assert(strcmp(mqtt->ca_file, "/etc/ssl/certs/ca-certificates.crt") == 0);
+	assert(mqtt->port == 1883U);
+	assert(strcmp(mqtt->topic, "cake-adapt/log") == 0);
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+#if MQTT_SUPPORTED
+	test_mqtt_rules(mqtt);
+#else
+	/* The cake-adapt package keeps the settings and checks no broker setting: it sends nothing. */
+	(void)strcpy(mqtt->host, "mqtt://broker");
+	mqtt->enabled = true;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+	config.enabled = false;
+	assert(config_validate(&config, error, sizeof(error)) == 0);
+	/* TLS asked for is still refused, never replaced by plain traffic. */
+	mqtt->tls = true;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) != 0);
+	assert(strcmp(error, "option 'mqtt_tls' requires the cake-adapt-mqtt-ssl package") == 0);
+	mqtt->enabled = false;
+	assert(validate_mqtt(mqtt, error, sizeof(error)) == 0);
+#endif
 }
 
 int main(void)

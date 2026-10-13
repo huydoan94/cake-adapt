@@ -120,7 +120,13 @@ jobs:
           path: ${{ env.PACKAGE_NAME }}
           fetch-depth: 0
 
-      - name: Build cake-adapt for ${{ matrix.arch }}
+      # PACKAGES names the source package (its directory). The SDK's default
+      # configuration selects every package (CONFIG_ALL), so its compile
+      # builds all three variants from the one Makefile: cake-adapt (no MQTT),
+      # cake-adapt-mqtt (libmosquitto-nossl) and cake-adapt-mqtt-ssl
+      # (libmosquitto-ssl, OpenSSL, ca-bundle); their dependencies come from
+      # the SDK's default feeds.
+      - name: Build cake-adapt variants for ${{ matrix.arch }}
         uses: openwrt/gh-action-sdk@main
         env:
           ARCH: ${{ matrix.arch }}${{ env.SDK_VERSION_SUFFIX }}
@@ -128,16 +134,25 @@ jobs:
           NO_REFRESH_CHECK: true
           IGNORE_ERRORS: n
 
+      # All or nothing: a variant missing or failed on any architecture fails
+      # this job, and the release then publishes nothing.
+      # Exactly one package of each variant. The version follows the name, so
+      # cake-adapt-[0-9]* never matches cake-adapt-mqtt-*.
       - name: Collect cake-adapt packages
         env:
           PACKAGE_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           mkdir -p dist
-          while IFS= read -r -d '' package; do
-            cp "$package" "dist/${PACKAGE_ARCH}_$(basename "$package")"
-          done < <(find "bin/packages/$PACKAGE_ARCH" -type f \( -name 'cake-adapt-*.apk' -o -name 'cake-adapt_*.ipk' \) -print0)
-          test -n "$(find dist -type f -print -quit)"
+          for name in cake-adapt cake-adapt-mqtt cake-adapt-mqtt-ssl; do
+            mapfile -d '' found < <(find "bin/packages/$PACKAGE_ARCH" -type f \( -name "$name-[0-9]*.apk" -o -name "${name}_[0-9]*.ipk" \) -print0)
+            if [ "${#found[@]}" -ne 1 ]; then
+              echo "expected one $name package, found ${#found[@]}: ${found[*]}" >&2
+              exit 1
+            fi
+            cp "${found[0]}" "dist/${PACKAGE_ARCH}_$(basename "${found[0]}")"
+          done
+          ls -l dist
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
@@ -166,7 +181,8 @@ jobs:
       # The same layout as the build job. The feed scan goes five levels
       # deep, so it finds both cake-adapt/Makefile and
       # cake-adapt/luci-app-cake-adapt/Makefile: the LuCI package's
-      # +cake-adapt dependency resolves in this feed, and moving the LuCI
+      # +cake-adapt dependency resolves in this feed (any of the three
+      # variants provides cake-adapt on the router), and moving the LuCI
       # folder up would only make a second luci-app-cake-adapt. luci.mk
       # comes from the SDK's default luci feed, which the action keeps
       # (NO_DEFAULT_FEEDS unset) and updates with "feeds update -a".
