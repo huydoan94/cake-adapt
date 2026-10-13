@@ -162,7 +162,8 @@ in that directory and is not included from outside it.
     `us_to_sec_decimal`), and `ARRAY_SIZE`. A module never keeps its own copy
     of one.
   - `helpers.c`: generic operations too large to inline, such as numeric
-    parsing, random selection, clocks (`read_clock_us`), rates from counters
+    parsing, random selection, clocks (`read_clock_us`), bounded thread joins
+    (`thread_join_within`, for the ubus and MQTT threads), rates from counters
     (`bps`), and ratios (`fraction_to_ratio_e6`, `load_ratio_e6`).
   - `error.c`: shared error-buffer formatting.
 - `config/`
@@ -225,7 +226,9 @@ in that directory and is not included from outside it.
   export, reset behavior, and submission to the optional MQTT sender.
 - `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
-  never makes controller decisions. Logging submissions never wait for a broker
+  never cancels a thread: a network thread stuck in name resolution is joined
+  within a bound or left behind with its own references, at most one at a time.
+  It never makes controller decisions. Logging submissions never wait for a broker
   or queue space; offline, contended, full or oversized submissions drop silently.
 - `logging/mqtt_none.c`: the same interface without libmosquitto, for the
   `cake-adapt` package (`MQTT_SUPPORTED=0`): sends nothing; a start with MQTT

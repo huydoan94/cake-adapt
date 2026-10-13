@@ -187,7 +187,9 @@ records. Delivery uses QoS 0 with no retained messages or disk spool; records
 longer than 2047 bytes are also dropped. Each connection attempt has a five-second
 handshake deadline; attempts start every ten seconds while disconnected, with
 no retry limit. DNS resolution and network-thread cleanup stay off the control
-thread; shutdown waits at most about one second for the sender. Queued records
+thread: a broker name that cannot be resolved delays only MQTT, never rate
+control, and at most one such lookup is left running. Shutdown waits at most
+about one second for the sender. Queued records
 are discarded on disconnect, so reconnect does not replay stale logs.
 
 The structured records keep cake-autorate's names, fields and units, so its
