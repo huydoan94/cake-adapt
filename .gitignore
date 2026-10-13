@@ -8,3 +8,6 @@ tests/test_*
 compile_commands.json
 src/compile_commands.json
 /bin/
+
+# Local agent handoff: serves only the user's own agents, never committed.
+/HANDOFF.md

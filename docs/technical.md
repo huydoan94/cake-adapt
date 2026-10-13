@@ -393,7 +393,8 @@ Earlier passing x86 builds below predate this change.
 - [TCP-delay review](design/EBPF_REVIEW.md) — the eBPF queue estimator's findings
   and their state.
 - [Development](development.md) — x86 defaults and SDK/editor setup.
-  [Collaboration](../COLLABORATION.md) defines the Claude and Codex workflows;
+  [Collaboration](../COLLABORATION.md) holds the project's additions to the
+  general Claude and Codex workflows in `~/ai-working-definitions/`;
   [HANDOFF.md](../HANDOFF.md) records the active task and scoped approvals.
 
 ## Project direction

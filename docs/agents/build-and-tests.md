@@ -10,6 +10,10 @@ Use plain Make:
 - `src/Makefile`: daemon build; and
 - `tests/Makefile`: focused host tests.
 
+For long builds or host-test runs, use `sh tools/run-bg.sh build/<name>.log <command>`
+then `sh tools/wait-for.sh build/<name>.log`, following the tool-wait and timeout
+rules in [COLLABORATION.md](../../COLLABORATION.md).
+
 Test sources mirror the `src/` subsystem directories; move a test with the
 module it covers. Test objects and binaries are written below `build/tests/`.
 
