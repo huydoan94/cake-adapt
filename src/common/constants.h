@@ -217,6 +217,13 @@
 #define OPTION_MQTT_TLS "mqtt_tls"
 #define OPTION_MQTT_CA_FILE "mqtt_ca_file"
 #define MQTT_DEFAULT_TOPIC "cake-adapt/log"
+/*
+ * The package variant sets both: cake-adapt 0/0, cake-adapt-mqtt 1/0, cake-adapt-mqtt-ssl 1/1.
+ * The default is cake-adapt's, as in src/Makefile.
+ */
+#ifndef MQTT_SUPPORTED
+#define MQTT_SUPPORTED 0
+#endif
 #ifndef MQTT_TLS_SUPPORTED
 #define MQTT_TLS_SUPPORTED 0
 #endif

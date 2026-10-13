@@ -7,25 +7,13 @@ PKG_RELEASE:=1
 
 LUCI_TITLE:=LuCI support for cake-adapt
 LUCI_DESCRIPTION:=Configure cake-adapt and watch each instance's status
-LUCI_DEPENDS:=+luci-base +luci-mod-status +cake-adapt
+# Any cake-adapt variant provides cake-adapt. OpenWrt's metadata turns that
+# into a select guarded by this package's own symbol and copies cake-adapt's
+# @HAS_BPF_TOOLCHAIN under the same guard, which Kconfig rejects as a recursive
+# dependency; naming it here, unguarded, avoids that. Any future @ dependency
+# of cake-adapt (in the root Makefile) must be mirrored here the same way.
+LUCI_DEPENDS:=+luci-base +luci-mod-status +cake-adapt @HAS_BPF_TOOLCHAIN
 LUCI_PKGARCH:=all
-
-ssl ?= no
-ifeq ($(ssl),yes)
-  MQTT_TLS_SUPPORTED:=true
-else ifeq ($(ssl),no)
-  MQTT_TLS_SUPPORTED:=false
-else
-  $(error ssl must be yes or no)
-endif
-PKG_CONFIG_DEPENDS:=ssl
-PKG_PREPARED_DEPENDS:=ssl
-
-define Prepare/mqtt-tls
-	$(SED) 's/^const mqttTlsSupported = false;/const mqttTlsSupported = $(MQTT_TLS_SUPPORTED);/' \
-		$(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/cake-adapt/config.js
-endef
-Hooks/Prepare/Post += Prepare/mqtt-tls
 
 include $(TOPDIR)/feeds/luci/luci.mk
 

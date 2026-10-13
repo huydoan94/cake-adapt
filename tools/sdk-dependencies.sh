@@ -1,5 +1,7 @@
 # Project-specific OpenWrt 25.12 staging contracts, in build dependency order.
-# Sourced by sdk-build.sh. No recursive dependency or toolchain builds.
+# Sourced by sdk-build.sh, which sets variant, package and mqtt_variant (empty
+# for the base variant, else nossl or ssl). No recursive dependency or
+# toolchain builds.
 sdk_dependencies() {
 	cat <<'DEPENDENCIES'
 liblua|lua|base|utils/lua|lua|usr/include/lua.h usr/include/lauxlib.h usr/lib/liblua.so
@@ -19,9 +21,11 @@ DEPENDENCIES
 	cat <<'DEPENDENCIES'
 libelf|elfutils|base|libs/elfutils|elfutils|usr/include/libelf.h usr/include/gelf.h usr/lib/pkgconfig/libelf.pc usr/lib/libelf.so
 libbpf|libbpf|base|libs/libbpf|libbpf|usr/include/bpf/libbpf.h usr/include/bpf/bpf.h usr/include/bpf/bpf_helpers.h usr/include/bpf/bpf_endian.h usr/lib/libbpf.so
-libcares|c-ares|packages|libs/c-ares|c-ares|usr/include/ares.h usr/lib/libcares.so
 DEPENDENCIES
-	if [ "$ssl" = yes ]; then
+	# The base variant links no MQTT library.
+	[ -n "$mqtt_variant" ] || return 0
+	printf '%s\n' 'libcares|c-ares|packages|libs/c-ares|c-ares|usr/include/ares.h usr/lib/libcares.so'
+	if [ "$mqtt_variant" = ssl ]; then
 		printf '%s\n' 'libopenssl|openssl|base|libs/openssl|openssl|usr/include/openssl/ssl.h usr/include/openssl/crypto.h usr/lib/libssl.so usr/lib/libcrypto.so usr/lib/pkgconfig/openssl.pc usr/lib/pkgconfig/libssl.pc usr/lib/pkgconfig/libcrypto.pc'
 	fi
 	printf '%s\n' "libmosquitto-$mqtt_variant|mosquitto|packages|net/mosquitto|mosquitto.$mqtt_variant|usr/include/mosquitto.h usr/lib/libmosquitto.so usr/lib/libmosquitto.so.1"
@@ -192,15 +196,29 @@ sdk_luci_check() {
 sdk_dependencies_preflight() {
 	# This is an explicit contract, not a Make/Kconfig dependency resolver.
 	# Fail on new direct dependencies until their build/runtime role is recorded.
-	declared=$(sed -n '/^define Package\/cake-adapt$/,/^endef$/p' "$repo/Makefile" |
+	# Every variant takes the common DEPENDS and adds its own.
+	declared=$(sed -n '/^define Package\/cake-adapt\/Default$/,/^endef$/p' "$repo/Makefile" |
 		sed -n 's/^[[:space:]]*DEPENDS[[:space:]]*[+:]*=[[:space:]]*//p')
-	for dependency in $declared; do
+	[ -n "$declared" ] || fail 3 "could not read cake-adapt's dependency contract"
+	own=$(sed -n "/^define Package\/$package\$/,/^endef\$/p" "$repo/Makefile")
+	printf '%s\n' "$own" | grep -q '^\$(call Package/cake-adapt/Default)$' ||
+		fail 3 "could not read the $package package's dependency contract"
+	own=$(printf '%s\n' "$own" | sed -n 's/^[[:space:]]*DEPENDS[[:space:]]*[+:]*=[[:space:]]*//p')
+	for dependency in $declared $own; do
 		case $dependency in
-		+libuci|+libubox|+libubus|+libnl-tiny|+libbpf|+zlib|'+libmosquitto-$(MQTT_VARIANT)'|'$(MQTT_RUNTIME_DEPENDS)'|+fping|+bash|'$(BPF_DEPENDS)') ;;
+		+libuci|+libubox|+libubus|+libnl-tiny|+libbpf|+zlib|+libmosquitto-nossl|+libmosquitto-ssl|+ca-bundle|+fping|+bash|'$(BPF_DEPENDS)') ;;
 		*) fail 3 "unrepresented cake-adapt dependency: $dependency; update tools/sdk-dependencies.sh" ;;
 		esac
 	done
-	[ -n "$declared" ] || fail 3 "could not read cake-adapt's dependency contract"
+	# The declared MQTT library is the one this variant is built against.
+	expected=${mqtt_variant:++libmosquitto-$mqtt_variant}${mqtt_variant:+ }
+	[ "$mqtt_variant" != ssl ] || expected="$expected+ca-bundle "
+	actual=
+	for dependency in $declared $own; do
+		case $dependency in +libmosquitto-*|+ca-bundle) actual="$actual$dependency " ;; esac
+	done
+	[ "$actual" = "$expected" ] ||
+		fail 3 "$package declares '${actual% }' but its variant needs '${expected% }'"
 	command -v readelf >/dev/null || fail 2 "readelf is needed to verify the staged MQTT library"
 	set -- "$sdk"/staging_dir/target-*
 	[ "$#" -eq 1 ] && [ -d "$1" ] || fail 2 "expected one target staging directory in $sdk"
@@ -208,7 +226,7 @@ sdk_dependencies_preflight() {
 	sdk_toolchain_check
 	# OpenSSL requires libatomic on these targets; it must come from the
 	# existing toolchain, never from a recursive toolchain build.
-	if [ "$ssl" = yes ] && grep -Eq '^CONFIG_(arm|armeb|mips|mipsel|powerpc|arc)=y$' "$sdk/.config"; then
+	if [ "$mqtt_variant" = ssl ] && grep -Eq '^CONFIG_(arm|armeb|mips|mipsel|powerpc|arc)=y$' "$sdk/.config"; then
 		atomic_elf=$(sdk_elf_signature "$toolchain/lib/libatomic.so.1") ||
 			fail 2 "OpenSSL needs a staged toolchain libatomic.so.1 on this target"
 		[ "$atomic_elf" = "$target_elf" ] || fail 2 "the toolchain libatomic.so.1 has the wrong target"
