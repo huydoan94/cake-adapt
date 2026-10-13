@@ -225,7 +225,8 @@ must hold even when that file is not read:
 - Never rebase, squash, amend or otherwise rewrite history.
 - Commit only when asked or as part of an authorised task, with explicit paths;
   never commit a temporary plan document (such as `PLAN-*.md` at the root or
-  `docs/superpowers/plans/`); no `Co-Authored-By` or other AI trailer.
+  `docs/superpowers/plans/`) or `HANDOFF.md` (it serves only the user's own
+  agents); no `Co-Authored-By` or other AI trailer.
 - `AGENTS.md` is user-owned policy: edit it only when asked. Explain a conflict
   between a request and this guide before changing direction.
 - Inspect `git status` first and preserve unrelated user changes.
