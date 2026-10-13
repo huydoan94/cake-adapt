@@ -5,8 +5,9 @@ TCP, isolated from the VM's own WAN and SQM.
 
 Agent runs default to the x86 test VM. Filogic/arm64 validation requires an
 explicit target-specific request. Both Claude and Codex follow
-[AGENTS.md](../../AGENTS.md) for VM permissions, the fixed test-log inode and
-cleanup, and [COLLABORATION.md](../../COLLABORATION.md) for a bounded run plan,
+[AGENTS.md](../../AGENTS.md) for VM permissions and
+[docs/agents/vm-testing.md](../../docs/agents/vm-testing.md) for the fixed
+test-log inode and cleanup, and [COLLABORATION.md](../../COLLABORATION.md) for a bounded run plan,
 harness review and the matching provider workflow. Read and update
 [HANDOFF.md](../../HANDOFF.md) with the selected target, approvals, evidence and
 remaining checks. Installing missing packages or fetching dependencies requires
