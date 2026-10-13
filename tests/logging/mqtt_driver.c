@@ -12,6 +12,7 @@ int main(int argc, char **argv)
 		.host = "localhost",
 		.topic = "cake-adapt/test",
 	};
+	char error[ERROR_SIZE] = { 0 };
 	char *line = NULL;
 	size_t capacity = 0U;
 	bool foreground = false;
@@ -39,7 +40,7 @@ int main(int argc, char **argv)
 		}
 	}
 	log_init("mqtt-test", foreground);
-	assert(mqtt_start(&settings) == 0);
+	assert(mqtt_start(&settings, error, sizeof(error)) == 0);
 	(void)puts("ready");
 	(void)fflush(stdout);
 	while (getline(&line, &capacity, stdin) >= 0) {
@@ -51,6 +52,16 @@ int main(int argc, char **argv)
 			(void)puts("sent");
 		} else if (strncmp(line, "message ", 8U) == 0) {
 			log_message(LOG_LEVEL_INFO, "%s", line + 8U);
+			(void)puts("sent");
+		} else if (strncmp(line, "sequence ", 9U) == 0) {
+			/* Fewer lines than the queue holds, submitted without a pause between them. */
+			char record[64];
+			unsigned long total = strtoul(line + 9U, NULL, 10);
+
+			for (unsigned long index = 0U; index < total; index++) {
+				(void)snprintf(record, sizeof(record), "SEQUENCE; %lu", index);
+				mqtt_submit(record);
+			}
 			(void)puts("sent");
 		} else if (strcmp(line, "burst") == 0) {
 			assert(read_clock_us(CLOCK_MONOTONIC, &before_us));

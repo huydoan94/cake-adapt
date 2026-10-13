@@ -389,6 +389,16 @@ try:
         driver.command('message MQTT-only logging')
         _, payload = receive(subscriber)
         assert b'INFO; ' in payload and payload.endswith(b'; MQTT-only logging')
+        # Only the first line of a batch wakes the sender; all must still arrive in order.
+        # A lost wake-up would cost a 100 ms poll timeout per line.
+        sequence_start = time.monotonic()
+        driver.command('sequence 20')
+        for index in range(20):
+            _, payload = receive(subscriber)
+            topic_size = struct.unpack('!H', payload[:2])[0]
+            assert payload[2 + topic_size:] == f'SEQUENCE; {index}'.encode(), payload
+        sequence_sec = time.monotonic() - sequence_start
+        assert sequence_sec < 0.5, sequence_sec
         subscriber.close()
         broker.close()
         driver.online(False)
@@ -406,7 +416,7 @@ try:
         _, payload = receive(subscriber)
         assert payload.endswith(b'RECOVERED'), 'offline logs were replayed'
         subscriber.close()
-        evidence['cases'].append({'name': 'delivery-and-recovery', 'recovery_sec': recovery_sec,
+        evidence['cases'].append({'name': 'delivery-and-recovery', 'recovery_sec': recovery_sec, 'sequence_sec': sequence_sec,
                                   'offline_burst_us': burst_us, 'stop_us': driver.close()})
         broker.close()
 

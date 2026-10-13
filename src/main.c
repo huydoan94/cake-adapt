@@ -328,8 +328,8 @@ int main(int argc, char **argv)
 		goto out;
 	if (open_log_file(&config, options.section_name, log_path, sizeof(log_path)) != 0)
 		goto out;
-	if (mqtt_start(&config.mqtt) != 0)
-		log_message(LOG_LEVEL_WARNING, "MQTT logging degraded: %s", strerror(errno));
+	if (mqtt_start(&config.mqtt, error, sizeof(error)) != 0)
+		log_message(LOG_LEVEL_WARNING, "MQTT logging degraded: %s", error);
 	log_configuration(&config, log_path);
 
 	log_system_message(
