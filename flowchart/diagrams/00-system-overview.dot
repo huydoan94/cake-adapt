@@ -13,7 +13,7 @@ digraph G {
   apply [label="cake_set_bandwidth\n+ readback verification",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   kernel [label="Kernel CAKE qdiscs\nroot of <ul_if> and ifb4<if>\n(created by SQM)",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
   log [label="logging/log.c\nsyslog + cake-autorate-compatible records",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
-  mqtt [label="logging/mqtt.c (opt-in, TCP or verified TLS)\nnonblocking queue → sender/network threads\nMQTT broker",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
+  mqtt [label="logging/mqtt.c (cake-adapt-mqtt[-ssl]; opt-in, TCP or verified TLS)\nnonblocking queue → sender/network threads\nMQTT broker\n(cake-adapt: logging/mqtt_none.c sends nothing)",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   procd -> main [label="one instance per enabled section\n-C runtime dir -S section"];
   uci -> main [label="validated with -V before spawn",style=dashed,color="#64748b"];
   main -> loop [label="monitor_run()"];

@@ -36,9 +36,66 @@ task's relevant docs before continuing. Keep this file current at stop points.
   as the default, and explicitly confirmed restoring TLS broker settings in
   LuCI. SSL builds must support verified TLS connections; non-SSL builds must
   reject TLS configuration rather than silently sending plain traffic.
+  *Superseded on 2026-10-12 by the three package variants below; the TLS rule
+  stands for every package without TLS.*
+- 2026-10-12, decision A: in the base `cake-adapt` package, `mqtt_enabled=1`
+  warns and the instance keeps running and controlling; only `mqtt_tls` without
+  TLS is refused, in every variant (no plaintext fallback). LuCI shows a
+  warning, not a save-blocking error, and keeps the switch visible.
+- 2026-10-12, decision B: CI stays all-or-nothing; one variant failing on any
+  architecture publishes nothing.
 - The subsequent Filogic kernel-build report was withdrawn as a false alarm.
   The user requested automatic dependency staging before SDK builds, without
   manually finding and changing MQTT selections in `.config`.
+
+## Uncommitted: three cake-adapt package variants (2026-10-12)
+
+User decision (2026-10-12): one root Makefile builds `cake-adapt` (no MQTT, no
+libmosquitto/c-ares), `cake-adapt-mqtt` (`+libmosquitto-nossl`) and
+`cake-adapt-mqtt-ssl` (`+libmosquitto-ssl +ca-bundle`). This supersedes the
+`ssl=yes|no` make argument. Implemented by a delegated implementer; reviewed
+(packaging approved) and fixed in a second round; not yet committed. Brief and report: `/tmp/cake-adapt-tasks/mqtt-variants.md`,
+`/tmp/cake-adapt-tasks/mqtt-variants-report.md`.
+
+- Variants `base` (DEFAULT_VARIANT), `mqtt`, `mqtt-ssl`; the two MQTT ones
+  `PROVIDES:=cake-adapt`, so apk installs one at a time. `src/Makefile` takes
+  `MQTT_SUPPORTED`/`MQTT_TLS_SUPPORTED` (0/0, 1/0, 1/1); without MQTT,
+  `logging/mqtt_none.c` replaces `mqtt.c`. `config_validate` refuses
+  `mqtt_enabled` without MQTT and `mqtt_tls` without TLS. Each package writes
+  `/usr/share/cake-adapt/features`; LuCI reads it (read-only ACL for that path),
+  hides what the package cannot use, keeps stored values, and checks them as
+  stored. Fix round (decisions A and B): the base package now warns about
+  `mqtt_enabled` (`mqtt_start` fails, `main.c` logs `MQTT logging degraded:
+  this package was built without MQTT support; install ...`) and keeps
+  controlling; broker settings are checked only in MQTT packages; LuCI shows a
+  warning on the switch. `MQTT_SUPPORTED` defaults to 0 in both `src/Makefile`
+  and `constants.h`. Also: README switching commands, the stale template
+  comment, the CI all-or-nothing comment, the LuCI `@` dependency comment, and
+  regenerated flowcharts (approved renderer, 16 charts). VM re-run: base with
+  MQTT on ran pid 6604 with LOAD/DATA/SHAPER records and the syslog warning;
+  evidence in `profiling/2026-10-12-mqtt-variants/vm-warn/`. The LuCI build-time sed and its `ssl` variable are gone;
+  `LUCI_DEPENDS` gained `@HAS_BPF_TOOLCHAIN` to avoid a Kconfig recursive
+  dependency that the provider-guarded `+cake-adapt` otherwise produces.
+- `tools/sdk-build.sh [--prepare-only] [variant=base|mqtt|mqtt-ssl ...] SDK`
+  builds all three by default, preparing each variant's dependencies just
+  before it; logs `build/sdk-<name>-<variant>.log`. CI builds all three from
+  `PACKAGES=cake-adapt` and collects exactly one APK per variant; only a real
+  CI run can prove the SDK action builds `libopenssl`/`libmosquitto-ssl`.
+- Checks: `tools/host-test.sh x86` (44 helper tests), `check-mqtt` (both MQTT
+  builds), ASan/UBSan config/no-MQTT tests, x86 SDK builds of all three variants
+  and LuCI, and an x86 VM switch base -> mqtt. Evidence:
+  `profiling/2026-10-12-mqtt-variants/`.
+- x86 SDK changes: its `.config` gained the three `CONFIG_PACKAGE_cake-adapt*=m`
+  symbols when OpenWrt re-ran oldconfig (checksum `b9716f92...` ->
+  `018de6b8...`); mosquitto was rebuilt as SSL and then restaged as non-SSL from
+  existing sources; variant APKs remain in its `bin/`. No downloads.
+- VM 192.168.56.2 now runs `cake-adapt-mqtt` 0.3.17-r1 (plus `libcares`,
+  `libmosquitto-nossl`) and `luci-app-cake-adapt` 0.3.17-r1 with its original
+  configuration (MQTT off); a temporary rpcd login was added and removed.
+- Open: a build writing into the repository (logs under `build/`) while the
+  SDK compiles the package can change OpenWrt's source hash between two
+  evaluations ("No rule to make target .prepared_..."); seen once while host
+  tests ran concurrently. Browser check of the LuCI pages remains with the user.
 
 ## Uncommitted follow-up: MQTT sender fixes (2026-10-12)
 
@@ -78,6 +135,9 @@ The user approved three fixes from the primary agent's review of
   `/tmp/cake-adapt-tasks/mqtt-fixes-report.md`.
 
 ## Completed follow-up: optional SSL builds and TLS settings
+
+*Superseded on 2026-10-12: `ssl=yes|no` was replaced by the package variants
+(see above). Kept as the record of that work.*
 
 `ssl=yes|no` is implemented; no-SSL remains the default. The helper verifies and
 stages all build dependencies before Make, repairs the actual selected Mosquitto
@@ -330,7 +390,8 @@ dependencies and `NO_DEPS=1`, with unneeded OpenSSL engines excluded for those
 commands. Do not remove dependencies while still promising the behavior that
 requires them.
 The initial user-directed non-SSL switch removed TLS support and that OpenSSL
-dependency chain; the follow-up restores them only for optional `ssl=yes` builds. The existing SDK's unrelated OpenSSL packages
+dependency chain; the follow-up restored them only for optional `ssl=yes` builds,
+now the `cake-adapt-mqtt-ssl` package variant. The existing SDK's unrelated OpenSSL packages
 and historical Filogic outputs have not been removed.
 
 ## Local commit authorization
