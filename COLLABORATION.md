@@ -3,6 +3,11 @@
 This agreement governs agent roles and handoffs for work in this repository.
 `AGENTS.md` and the user's instructions define project constraints and scope.
 
+What to read: at session start, **Shared roles**, your own provider's
+workflow (Claude or Codex) and **Working efficiently** only. Read **Context and usage budget** before
+delegating, **VM run discipline** before touching a VM, and **Persistent
+context and authorization** before a download, SDK change or installation.
+
 ## Shared roles
 
 - The primary agent owns diagnosis, evidence review, plans, acceptance criteria,
@@ -29,12 +34,22 @@ and review. Leave model overrides unset so the agents inherit that model; do not
 require Claude tools or Claude Opus 5.5. The user's instruction to "make your own
 version" authorizes this route. Do not ask again merely because Claude is absent.
 
-For substantial work, use one implementer and one separate bounded reviewer when
-delegation is available. Start them with `fork_turns="none"` and a short task
-brief. The primary can directly handle small changes, including focused
-documentation updates. If delegation is unavailable, implement directly and
-perform a separate review of the final diff against the acceptance criteria.
-Report that review as self-review; do not claim independent review occurred.
+Work directly by default: the Codex primary implements and verifies the change
+itself, because every delegated agent starts cold and reloads the project rules
+before reading its brief. Delegate only when it pays for itself:
+
+- **Review:** start one bounded reviewer for a risky change — C threading,
+  memory or lifetime; kernel, netlink or qdisc interaction; the init script or
+  service lifecycle; packaging, SDK helpers or CI; ACLs, credentials or other
+  security-relevant code. Give it only the brief, the diff file and the
+  implementation results; it reviews the affected logic and callers, not the
+  whole codebase. Other changes get a self-review of the final diff against the
+  acceptance criteria, reported as self-review.
+- **Implementation:** delegate only a large, self-contained piece whose files
+  do not overlap the primary's, and only with a short brief.
+
+Start delegated agents with `fork_turns="none"`. If delegation is unavailable,
+implement directly and self-review; do not claim independent review occurred.
 
 Provider-specific tools and skills apply only when available and relevant. Use
 the corresponding Codex tools for filesystem changes, commands and agent
@@ -47,9 +62,9 @@ independent authorized work and report the specific remaining limitation.
 The primary agent retains the broader project context. Start delegated work as a
 fresh subagent (not a fork of the conversation) with a path to its task brief;
 do not send the conversation history. Do not have agents independently rediscover the primary agent's diagnosis.
-For delegated work, use one implementation agent and one bounded review by
-default, with no nested delegation or overlapping audits unless the task needs
-them. The provider workflows above define when direct work is appropriate.
+When work is delegated, use at most one implementation agent and one bounded
+review, with no nested delegation or overlapping audits unless the task needs
+them. The provider workflows above define when delegation is used at all.
 
 Create a separate short Markdown brief for each delegated work item in a temporary
 directory, for example `/tmp/cake-adapt-tasks/<task>.md`. Use this structure:
@@ -77,6 +92,24 @@ agent selects the checks; subagents run those checks without expanding into a
 full test campaign. Reuse passing results while their inputs remain unchanged.
 Keep existing safety rules and required runtime validation for new behavior.
 Run a simple useful runtime check before building a large acceptance harness.
+
+### Working efficiently
+
+Every turn re-sends the conversation, so cost grows with session length and
+output size. Agents follow, and remind the user of, these habits:
+
+- One task per session: at a stop point, update `HANDOFF.md` and suggest a
+  fresh session instead of continuing an unrelated task.
+- Work from named files and functions; ask for a path rather than searching
+  the whole repository when the target is unclear.
+- Run only the checks the task needs, and say which were skipped; use the
+  quiet tool output (`VERBOSE=1` only to diagnose a failure).
+- Report briefly: outcome, files, checks, open items.
+- Use low reasoning effort (Codex `--profile quick`) for docs, renames and
+  small edits; keep medium for C, concurrency, packaging and security.
+- Turn open-ended requests ("review everything") into a named scope, such as
+  the diff of a given commit, and confirm it with the user.
+- Keep `HANDOFF.md` short: move finished detail to `docs/history/`.
 
 ### VM run discipline
 
@@ -107,7 +140,8 @@ soak tests. State the result and the next decision plainly. Do not require
 exhaustive scheduler interleavings as an open-ended acceptance gate: identify
 the concurrency invariant, use a bounded targeted test and source review, and
 record the remaining limits. Preserve the VM timeout, log-inode, change
-recording and deployment rules in `AGENTS.md`.
+recording and deployment rules in `AGENTS.md` and
+[`docs/agents/vm-testing.md`](docs/agents/vm-testing.md).
 
 Keep reports short: outcome, changed files, checks, remaining blockers. Preserve
 only the raw evidence needed to substantiate a claim. Detailed reports, exhaustive
