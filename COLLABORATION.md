@@ -20,6 +20,10 @@ context and authorization** before a download, SDK change or installation.
   The implementer addresses review findings; the primary agent makes final
   acceptance.
 
+At the start of a long task, say who does what: the primary's part and, for
+each delegated agent, its name, model, reasoning effort and scope, and whether
+it is planned or started. When working alone, say so. Announce any later change.
+
 ### Claude workflow
 
 For a Claude primary, implementation and review agents use the primary's own
@@ -35,10 +39,12 @@ get a self-review of the final diff, reported as self-review.
 
 ### Codex workflow
 
-For a Codex primary, use the current primary model for delegated implementation
-and review. Leave model overrides unset so the agents inherit that model; do not
-require Claude tools or Claude Opus 5.5. The user's instruction to "make your own
-version" authorizes this route. Do not ask again merely because Claude is absent.
+For a Codex primary, a delegated implementer inherits the primary model (leave
+its model override unset). The independent reviewer always runs GPT-6 Astra at
+medium reasoning: set `model="gpt-6-astra"` and `reasoning_effort="medium"`
+explicitly. Claude tools and Claude Opus 5.5 are not required. The user's "make
+your own version" authorizes this route, so do not ask again because Claude is
+absent.
 
 Work directly by default: the Codex primary implements and verifies the change
 itself, because every delegated agent starts cold and reloads the project rules
@@ -54,8 +60,10 @@ before reading its brief. Delegate only when it pays for itself:
 - **Implementation:** delegate only a large, self-contained piece whose files
   do not overlap the primary's, and only with a short brief.
 
-Start delegated agents with `fork_turns="none"`. If delegation is unavailable,
-implement directly and self-review; do not claim independent review occurred.
+Start delegated agents with `fork_turns="none"`. Without implementation
+delegation, say so and implement directly; the review rule still applies.
+Without the Astra reviewer, say so and label the review as self-review. Never
+substitute another reviewer model silently or claim an independent review.
 
 Provider-specific tools and skills apply only when available and relevant. Use
 the corresponding Codex tools for filesystem changes, commands and agent

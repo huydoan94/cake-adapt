@@ -59,6 +59,9 @@ earlier handoff is [docs/history/handoff-2026-10-12.md](docs/history/handoff-202
 - Codex follows the Codex workflow in `COLLABORATION.md` ("make your own
   version"); do not ask again merely because Claude is unavailable. Report
   self-review as self-review.
+- 2026-10-13: Codex reviews risky changes with GPT-6 Astra at medium reasoning
+  (self-review otherwise, or when Astra is unavailable), and every long task
+  starts by saying who does what. Both rules are in `COLLABORATION.md`.
 - MQTT ships as three package variants: `cake-adapt` (no MQTT),
   `cake-adapt-mqtt` (non-SSL, the default MQTT choice) and
   `cake-adapt-mqtt-ssl` (verified TLS). In the base package `mqtt_enabled=1`
