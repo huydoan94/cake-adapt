@@ -80,7 +80,7 @@ independent parser, lifecycle, fixture, and runtime verification.
 
 ### Current status (2026-10-11)
 
-- Both packages are at 0.3.17-r1. The user builds them and runs them on their
+- This branch's packages are at 0.3.19-r1 (`main` has v0.3.18). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
