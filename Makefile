@@ -22,7 +22,7 @@ define Package/cake-adapt/Default
   SECTION:=net
   CATEGORY:=Network
   TITLE:=CAKE monitoring and autorate daemon
-  DEPENDS:=+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping +bash $(BPF_DEPENDS)
+  DEPENDS:=+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping $(BPF_DEPENDS)
 endef
 
 define Package/cake-adapt
@@ -100,6 +100,7 @@ define Package/cake-adapt/install
 	$(INSTALL_BIN) ./files/cake-adapt.init $(1)/etc/init.d/cake-adapt
 	$(INSTALL_DIR) $(1)/usr/libexec/cake-adapt
 	$(INSTALL_BIN) ./files/cake-adapt.import $(1)/usr/libexec/cake-adapt/import
+	$(INSTALL_BIN) ./files/cake-adapt.import-bash $(1)/usr/libexec/cake-adapt/import-bash
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/cake-adapt.config $(1)/etc/config/cake-adapt
 	$(INSTALL_DIR) $(1)/usr/share/cake-adapt
