@@ -110,8 +110,9 @@ const uciStub = {
 	sections: (config, type) => (config == 'cake-adapt' && type == 'cake_adapt') ? uciSections : []
 };
 global.L = { resolveDefault: (promise, fallback) => promise.catch(() => fallback) };
-const view = new Function('view', 'form', 'fs', 'uci', '_', src)(
-	{ extend: (o) => o }, form, fsStub, uciStub, (s) => s);
+const view = new Function('view', 'form', 'fs', 'uci', '_', 'validation', src)(
+	{ extend: (o) => o }, form, fsStub, uciStub, (s) => s,
+	{ parseIPv4: (s) => require('net').isIP(s) == 4, parseIPv6: (s) => require('net').isIP(s) == 6 });
 const { instanceErrors: errorsWith, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures } = view;
 const features = parseFeatures(featureText);
 const instanceErrors = (screen) => errorsWith(screen, features);
@@ -253,10 +254,17 @@ const idle = { enabled: '0', adjust_dl_shaper_rate: '0', adjust_ul_shaper_rate: 
 ok(Object.assign({ pinger_method: 'ping', reflectors: [], monitor_achieved_rates_interval_ms: '0' }, idle));
 ok(Object.assign({ pinger_method: 'ping' }, idle), 'nothing enabled, nothing checked');
 for (const [ flag, value ] of [ [ 'enabled', '1' ], [ 'adjust_dl_shaper_rate', '1' ], [ 'adjust_ul_shaper_rate', '1' ] ])
-	fails(Object.assign({ pinger_method: 'ping' }, idle, { [flag]: value }), 'pinger_method', "must be 'fping', 'fping-ts' or 'irtt'");
+	fails(Object.assign({ pinger_method: 'ping' }, idle, { [flag]: value }), 'pinger_method', "must be 'fping', 'fping-ts', 'irtt', 'native' or 'native-ts'");
 
 /* validate.c validate_pinger. */
 ok({ pinger_method: 'fping-ts' });
+ok({ pinger_method: 'native' });
+ok({ pinger_method: 'native-ts' });
+ok({ pinger_method: 'native', tcp_delay_attribution: '1' });
+fails({ pinger_method: 'native', ping_extra_args: '-q' }, 'ping_extra_args', 'do not use');
+fails({ pinger_method: 'native', ping_prefix_string: 'wrapper' }, 'ping_prefix_string', 'do not use');
+fails({ pinger_method: 'native', reflectors: [ 'example.com' ], no_pingers: '1' }, 'reflectors', 'numeric IP address');
+fails({ pinger_method: 'native-ts', reflectors: [ '::1' ], no_pingers: '1' }, 'reflectors', 'IPv4-only');
 ok({ pinger_method: 'irtt', irtt_session_duration_m: '5' });
 fails({ pinger_method: 'irtt', irtt_session_duration_m: '0' }, 'irtt_session_duration_m', 'must be positive for irtt');
 ok({ pinger_method: 'fping', irtt_session_duration_m: '0' });
