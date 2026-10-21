@@ -521,7 +521,7 @@ print:
 \t@printf '%s\\n' '$(INFO)' | tr ';' '\\n' | sed 's/^ *//'
 \t@printf 'build=%s/%s features=%s\\n' '$(MQTT_SUPPORTED)' '$(MQTT_TLS_SUPPORTED)' '$(strip $(FEATURES))'
 ''')
-        common = '+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping +bash'
+        common = '+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping'
         expected = [f'cake-adapt|base|1||{common}',
                     f'cake-adapt-mqtt|mqtt||cake-adapt|{common} +libmosquitto-nossl',
                     f'cake-adapt-mqtt-ssl|mqtt-ssl||cake-adapt|{common} +libmosquitto-ssl +ca-bundle']

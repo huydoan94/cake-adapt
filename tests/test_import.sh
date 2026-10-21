@@ -40,9 +40,20 @@ exit 1
 EOF
 chmod +x "$temporary_directory/uci"
 
+# A stand-in logger that records what would reach syslog.
+cat > "$temporary_directory/logger" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >> "$SYSLOG"
+EOF
+chmod +x "$temporary_directory/logger"
+: > "$temporary_directory/syslog"
+
+# Plain sh, as on a router without Bash; Bash runs only to read a file.
 run_import() {
     CALL_LOG="$temporary_directory/calls" UCI="$temporary_directory/uci" \
-        bash ../files/cake-adapt.import \
+        LOGGER="$temporary_directory/logger" SYSLOG="$temporary_directory/syslog" \
+        BASH_READER=../files/cake-adapt.import-bash \
+        sh ../files/cake-adapt.import \
         "$temporary_directory/stage" "$temporary_directory/options" "$@"
 }
 called() { grep -Fq -- "$1" "$temporary_directory/calls"; }
@@ -87,6 +98,46 @@ fi
 UCI_VALUES='enabled=1' run_import primary "$temporary_directory/source/config.primary.sh"
 called 'add_list cake-adapt.primary.reflectors=9.9.9.9'
 called 'add_list cake-adapt.primary.reflectors=149.112.112.112'
+
+# What the file prints is never read as values, even enabled.
+cat > "$temporary_directory/source/noisy.sh" <<'EOF'
+echo "s dl_if=injected"
+echo "s enabled=1"
+ul_if=eth1
+EOF
+: > "$temporary_directory/calls"
+UCI_VALUES='reflectors=1.1.1.1' run_import primary "$temporary_directory/source/noisy.sh" 2> /dev/null
+called 'set cake-adapt.primary.ul_if=eth1'
+if called 'injected' || called 'enabled=1'; then exit 1; fi
+
+# A file that exits early is refused, not imported without its values.
+printf '%s\n' 'ul_if=eth1' 'exit 0' > "$temporary_directory/source/exits.sh"
+: > "$temporary_directory/calls"
+if run_import primary "$temporary_directory/source/exits.sh" 2> /dev/null; then exit 1; fi
+if called 'commit cake-adapt'; then exit 1; fi
+
+# The reader's reason for refusing a file reaches syslog.
+printf '%s\n' 'reflectors=()' > "$temporary_directory/source/empty.sh"
+if UCI_VALUES='enabled=1' run_import primary "$temporary_directory/source/empty.sh" 2> /dev/null; then
+    exit 1
+fi
+grep -Fq 'reflectors is empty' "$temporary_directory/syslog"
+
+# A file without Bash installed: refused, with the reason in syslog.
+: > "$temporary_directory/calls"
+if BASH_PROGRAM=/nonexistent/bash UCI_VALUES='enabled=1' \
+    run_import primary "$temporary_directory/source/config.primary.sh" 2> /dev/null; then
+    exit 1
+fi
+grep -Fq "cannot read Bash file $temporary_directory/source/config.primary.sh: bash is not installed" \
+    "$temporary_directory/syslog"
+if called 'commit cake-adapt'; then exit 1; fi
+
+# Without a file, Bash is never needed.
+: > "$temporary_directory/calls"
+BASH_PROGRAM=/nonexistent/bash UCI_VALUES='enabled=1;reflectors=1.1.1.1' run_import primary
+called 'add_list cake-adapt.primary.reflectors=1.1.1.1'
+called 'commit cake-adapt'
 
 # Refused: a bad section name, a relative or unreadable file, invalid syntax,
 # an array for a scalar, and a cake-adapt that cannot list its options.

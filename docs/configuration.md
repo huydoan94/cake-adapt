@@ -396,4 +396,8 @@ How the file is handled:
   not watched: it is picked up at the next `/etc/init.d/cake-adapt reload` or
   `restart`.
 
-The file is executable Bash: use only a trusted, root-owned file.
+The file is executable Bash: use only a trusted, root-owned file. Bash is not
+a package dependency, so install it (`bash`) to use `config_file`. Without
+it, the instance does not start and syslog says `cannot read Bash file
+<path>: bash is not installed`; instances configured only in UCI never need
+Bash.
