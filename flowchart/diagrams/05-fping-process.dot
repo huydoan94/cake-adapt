@@ -1,11 +1,17 @@
 digraph G {
-  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="05 — Pinger process ownership and reply parsing",labelloc=t,fontsize=22,fontcolor="#0f172a"];
+  graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="05 — Pinger processes and native probes",labelloc=t,fontsize=22,fontcolor="#0f172a"];
   node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
   watch [label="pingers_watch",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   ready [label="CAKE ready, no old children\nstopping, retry time reached?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   wait [label="return; retried on the\nnext tick or child exit",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   method [label="pinger_method",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  native [label="native_open + icmp_open\nbind interface; filter ID/type;\ntime64 kernel receive timestamps",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  nativeok [label="sockets and watches ready?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  nativewatch [label="uloop_fd + probe timer\nno child or output pipe",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  nativetick [label="expire requests; send at most one\nadvance evenly-spaced target",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  nativereply [label="recvmsg: parse wire + timestamp\nmatch address/ID/sequence,\ntoken/serial or originate",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  nativeignore [label="ignore foreign, duplicate\nor expired datagram",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   fping [label="fping_open\none fping for all active targets",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   irtt [label="irtt_open\none irtt per target,\nstarts aligned to ping slots",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   spawnok [label="spawned?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
@@ -14,7 +20,7 @@ digraph G {
   read [label="handle_pinger_output\nlatency_next_line (≤512 B, CRLF ok)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   parse [label="latency_handle_line",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   timeout [label="timeout / pending:\nno sample",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
-  sample [label="sample: target, seq,\ntimestamp, OWD = RTT/2",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  sample [label="sample: target, seq, timestamp\nOWD = RTT/2 or timestamp split",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   bad [label="invalid line or unknown\nreflector → degraded;\nrestart via 0 ms timer",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   exit [label="handle_pinger_exit\ndrain output, then classify",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   exitkind [label="exit kind",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
@@ -24,6 +30,15 @@ digraph G {
   watch -> ready;
   ready -> wait [label="no"];
   ready -> method [label="yes"];
+  method -> native [label="native / native-ts"];
+  native -> nativeok;
+  nativeok -> degraded [label="no"];
+  nativeok -> nativewatch [label="yes"];
+  nativewatch -> nativetick [label="timer"];
+  nativewatch -> nativereply [label="socket readable"];
+  nativetick -> nativewatch [label="reschedule"];
+  nativereply -> nativeignore [label="no match"];
+  nativereply -> sample [label="valid sample"];
   method -> fping [label="fping"];
   method -> irtt [label="irtt"];
   fping -> spawnok;
