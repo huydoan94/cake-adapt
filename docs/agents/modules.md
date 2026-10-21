@@ -64,6 +64,12 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `reflector.c`: reflector health, comparison, and rotation policy over
     latency trackers.
 - `latency/`
+  - `icmp.c`: experimental native IPv4/IPv6 raw sockets, wire packets,
+    identifier filters and fixed-width kernel receive timestamps.
+  - `native.c`: experimental probe scheduling, outstanding requests, expiry
+    and reply matching; its samples use the existing logging/tracker contract.
+    `monitor/pingers.c` registers its sockets and timer with uloop. Legacy
+    backends remain until the native live comparison passes.
   - `latency.c`: pinger session and child-process ownership, line splitting,
     and dispatch to the active backend. Children are reaped by the monitor
     through `uloop_process`. The only synchronous, bounded waits are shutdown

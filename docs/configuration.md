@@ -107,6 +107,15 @@ for choosing them.
 Reflectors come only from this list; cake-autorate's remote reflector list is
 not supported. An instance whose pinger executable is missing does not start.
 
+The experimental `native` and `native-ts` methods measure latency inside the
+daemon, without a pinger child. `native` sends IPv4/IPv6 echo requests and can
+use `tcp_delay_attribution`; `native-ts` sends IPv4 timestamp requests and
+retains the existing signed one-way delays and midnight-rollover handling.
+Both currently require numeric IP addresses and empty `ping_extra_args` and
+`ping_prefix_string`. They never fall back to another backend. `fping` remains
+the default until the native backend's live comparison passes. See
+[native ICMP validation](design/native-icmp.md) for the current limits.
+
 ## Output and logging
 
 Logs go to `/var/log/cake-adapt.log` for the `main` section and
