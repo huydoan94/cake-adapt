@@ -82,9 +82,17 @@ struct pinger_watch {
 	bool reading;
 };
 
+struct native_watch {
+	struct uloop_fd socket;
+	struct monitor *monitor;
+	size_t channel;
+};
+
 /* pingers.c: the pinger session, its children and its restart timing. */
 struct monitor_pingers {
 	struct latency latency;
+	struct native_watch native_watches[NATIVE_CHANNELS];
+	struct uloop_timeout native_timer;
 	struct pinger_watch watches[CONFIG_MAX_REFLECTORS];
 	struct uloop_timeout stop_timer;
 	struct uloop_timeout failure_timer;

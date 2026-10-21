@@ -3,6 +3,7 @@
 'require form';
 'require fs';
 'require uci';
+'require validation';
 
 /*
  * What the installed daemon package was built with, one word per line:
@@ -156,7 +157,7 @@ const textSizes = {
 	mqtt_host: STRING_SIZE, mqtt_topic: STRING_SIZE, mqtt_username: STRING_SIZE,
 	mqtt_password: STRING_SIZE, mqtt_ca_file: STRING_SIZE
 };
-const pingerMethods = [ 'fping', 'fping-ts', 'irtt' ];
+const pingerMethods = [ 'fping', 'fping-ts', 'irtt', 'native', 'native-ts' ];
 const UINT_MAX = 4294967295n, UINT64_MAX = (1n << 64n) - 1n;
 /* The daemon's size_t; the smaller, 32-bit one, as the x86 and 32-bit builds have it. */
 const SIZE_MAX = UINT_MAX;
@@ -352,7 +353,7 @@ function instanceErrors(screen, features) {
 	const active = num.no_pingers;
 
 	if (!methodKnown)
-		fail(_("option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'"), 'pinger_method');
+		fail(_("option 'pinger_method' must be 'fping', 'fping-ts', 'irtt', 'native' or 'native-ts'"), 'pinger_method');
 	if (method == 'irtt' && known('irtt_session_duration_m') && num.irtt_session_duration_m == 0n)
 		fail(_("option 'irtt_session_duration_m' must be positive for irtt"), 'irtt_session_duration_m');
 	if (reflectors.length == 0)
@@ -368,15 +369,23 @@ function instanceErrors(screen, features) {
 		}
 	}
 	/* fping sends ICMP timestamp requests over IPv4 only. */
-	if (method == 'fping-ts') {
+	if (method == 'fping-ts' || method == 'native-ts') {
 		const v6 = reflectors.find((target) => target.includes(':'));
 
 		if (v6 !== undefined)
-			fail(_("pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6").format(v6), 'reflectors', 'pinger_method');
+			fail(_("pinger_method '%s' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6").format(method, v6), 'reflectors', 'pinger_method');
 	}
 	/* Only fping reports one shared delay that needs attributing. */
-	if (on('tcp_delay_attribution') && methodKnown && method != 'fping')
-		fail(_("option 'tcp_delay_attribution' needs pinger_method 'fping'"), 'tcp_delay_attribution', 'pinger_method');
+	if (on('tcp_delay_attribution') && methodKnown && method != 'fping' && method != 'native')
+		fail(_("option 'tcp_delay_attribution' needs pinger_method 'fping' or 'native'"), 'tcp_delay_attribution', 'pinger_method');
+	if (method == 'native' || method == 'native-ts') {
+		if (text('ping_extra_args') != '' || text('ping_prefix_string') != '')
+			fail(_('native probes do not use ping_extra_args or ping_prefix_string'), 'ping_extra_args', 'ping_prefix_string');
+		for (const target of reflectors) {
+			if (!validation.parseIPv4(target) && !validation.parseIPv6(target))
+				fail(_("native reflector '%s' must be a numeric IP address").format(target), 'reflectors');
+		}
+	}
 	/* Injected timestamps serve only the queue estimate of the attribution. */
 	if (on('tcp_ts_request') && !on('tcp_delay_attribution'))
 		fail(_("option 'tcp_ts_request' needs tcp_delay_attribution"), 'tcp_ts_request', 'tcp_delay_attribution');
@@ -564,7 +573,7 @@ return view.extend({
 		o.default = o.enabled;
 		o.rmempty = false;
 		o = a.taboption('pinger', form.Value, 'pinger_method', _('Pinger method'),
-			_('fping, fping-ts (IPv4 only, test bench only) or irtt (experimental).'));
+			_('fping (default), fping-ts (IPv4 only), irtt, or experimental native / native-ts (numeric addresses, no prefix or extra arguments).'));
 		o = a.taboption('pinger', form.Value, 'ping_extra_args', _('Extra pinger arguments'),
 			_('Extra arguments for the pinger.'));
 		o = a.taboption('pinger', form.Value, 'ping_prefix_string', _('Pinger prefix'),

@@ -55,6 +55,8 @@ SOURCES := \
 	controller/reflector.c \
 	latency/fping.c \
 	latency/irtt.c \
+	latency/icmp.c \
+	latency/native.c \
 	latency/latency.c \
 	latency/parser.c \
 	latency/tracker.c \
