@@ -40,6 +40,10 @@ Rules from those files that apply even when you do not read them:
   same CAKE qdiscs.
 - Unit tests are part of every behavioral change; keep strict warnings and
   clang-format-stable C.
+- Before reporting or committing a C change, run `sh tools/style-check.sh` and
+  fix what it reports: no member-access chain mixing `->` and `.` (take a local
+  pointer), no literal `true`/`false` argument, clang-format-stable files. These
+  are the findings review keeps repeating.
 - Recommend plain CAKE `ack-filter` only; never `ack-filter-aggressive`.
 
 ## Product contract
