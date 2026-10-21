@@ -1,0 +1,136 @@
+{
+  "fping-ts": {
+    "start": {
+      "samples": 294,
+      "per_target_reply_gap_ms": {
+        "median": 308.51495265960693,
+        "p95": 318.5100555419922
+      },
+      "arrival_to_data_ms": {
+        "median": 0.49495697021484375,
+        "p95": 1.5819072723388672
+      },
+      "sample_weighted_median_dl_kbit_s": 30000.0,
+      "sample_weighted_median_ul_kbit_s": 6000.0
+    },
+    "upload-steady": {
+      "samples": 1174,
+      "per_target_reply_gap_ms": {
+        "median": 308.7151050567627,
+        "p95": 345.6599712371826
+      },
+      "arrival_to_data_ms": {
+        "median": 0.5481243133544922,
+        "p95": 1.8768310546875
+      },
+      "sample_weighted_median_dl_kbit_s": 30000.0,
+      "sample_weighted_median_ul_kbit_s": 7220.0
+    },
+    "upload-step": {
+      "samples": 1169,
+      "per_target_reply_gap_ms": {
+        "median": 308.2599639892578,
+        "p95": 351.97997093200684
+      },
+      "arrival_to_data_ms": {
+        "median": 0.553131103515625,
+        "p95": 1.6400814056396484
+      },
+      "sample_weighted_median_dl_kbit_s": 30000,
+      "sample_weighted_median_ul_kbit_s": 6009
+    },
+    "download-steady": {
+      "samples": 1169,
+      "per_target_reply_gap_ms": {
+        "median": 308.4900379180908,
+        "p95": 327.2700309753418
+      },
+      "arrival_to_data_ms": {
+        "median": 0.6349086761474609,
+        "p95": 2.5098323822021484
+      },
+      "sample_weighted_median_dl_kbit_s": 46293,
+      "sample_weighted_median_ul_kbit_s": 6084
+    },
+    "bidirectional": {
+      "samples": 1173,
+      "per_target_reply_gap_ms": {
+        "median": 309.00001525878906,
+        "p95": 341.09997749328613
+      },
+      "arrival_to_data_ms": {
+        "median": 0.6730556488037109,
+        "p95": 2.3069381713867188
+      },
+      "sample_weighted_median_dl_kbit_s": 47228,
+      "sample_weighted_median_ul_kbit_s": 7723
+    }
+  },
+  "native-ts": {
+    "start": {
+      "samples": 294,
+      "per_target_reply_gap_ms": {
+        "median": 307.62219429016113,
+        "p95": 320.83892822265625
+      },
+      "arrival_to_data_ms": {
+        "median": 0.21350383758544922,
+        "p95": 0.7472038269042969
+      },
+      "sample_weighted_median_dl_kbit_s": 30000.0,
+      "sample_weighted_median_ul_kbit_s": 6000.0
+    },
+    "upload-steady": {
+      "samples": 1164,
+      "per_target_reply_gap_ms": {
+        "median": 311.1274242401123,
+        "p95": 349.6840000152588
+      },
+      "arrival_to_data_ms": {
+        "median": 0.2651214599609375,
+        "p95": 0.9131431579589844
+      },
+      "sample_weighted_median_dl_kbit_s": 30000.0,
+      "sample_weighted_median_ul_kbit_s": 7092.5
+    },
+    "upload-step": {
+      "samples": 1169,
+      "per_target_reply_gap_ms": {
+        "median": 308.9179992675781,
+        "p95": 351.00293159484863
+      },
+      "arrival_to_data_ms": {
+        "median": 0.26297569274902344,
+        "p95": 0.8759498596191406
+      },
+      "sample_weighted_median_dl_kbit_s": 30000,
+      "sample_weighted_median_ul_kbit_s": 6181
+    },
+    "download-steady": {
+      "samples": 1165,
+      "per_target_reply_gap_ms": {
+        "median": 310.37402153015137,
+        "p95": 326.30109786987305
+      },
+      "arrival_to_data_ms": {
+        "median": 0.2770423889160156,
+        "p95": 0.9548664093017578
+      },
+      "sample_weighted_median_dl_kbit_s": 46761,
+      "sample_weighted_median_ul_kbit_s": 6000
+    },
+    "bidirectional": {
+      "samples": 1172,
+      "per_target_reply_gap_ms": {
+        "median": 309.4581365585327,
+        "p95": 341.25709533691406
+      },
+      "arrival_to_data_ms": {
+        "median": 0.30601024627685547,
+        "p95": 1.096963882446289
+      },
+      "sample_weighted_median_dl_kbit_s": 49407.0,
+      "sample_weighted_median_ul_kbit_s": 7802.5
+    }
+  }
+}

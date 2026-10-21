@@ -1,0 +1,2 @@
+Tue Oct 13 13:38:07 2026 daemon.err cake-adapt[12541]: ERROR: 1791920287.963643 instance 'main' is already running (pid 3420); exiting
+Kernel task-directory inspection also confirmed that the children entry is absent.

@@ -13,6 +13,8 @@ changing SDKs, downloading dependencies or accessing production systems.
 
 | Directory | What it shows |
 | --- | --- |
+| [`2026-10-13-native-icmp`](2026-10-13-native-icmp/README.md) | Four-case comparison exposed a native timestamp epoch bug, now fixed and target-tested. Corrected timestamp pair uses 37.56% less combined daemon/pinger CPU, with matched health; some latency/throughput metrics still fail the control gate. Fping remains default. |
+| [`2026-10-13-native-icmp-spike`](2026-10-13-native-icmp-spike/README.md) | Native IPv4/IPv6 echo and ICMP timestamps work on i386. Revised timing gates pass; the serialized network batch gives a 65-µs median gap within a 150-µs baseline spread. Control comparisons and the default switch are pending. |
 | [`2026-10-12-mqtt-ssl-build`](2026-10-12-mqtt-ssl-build/README.md) | Optional `ssl=yes` packages, verified TLS broker settings, inactive LuCI setting retention, dependency staging and bounded TLS connection/shutdown checks. Default remains no-SSL. |
 | [`2026-10-12-mqtt-variants`](2026-10-12-mqtt-variants/README.md) | Three daemon packages (`cake-adapt` without MQTT, `cake-adapt-mqtt`, `cake-adapt-mqtt-ssl`): x86 package metadata and linkage, the features file LuCI reads, and an x86 VM switch from the base to the MQTT variant. |
 | [`2026-10-11-mqtt-logging`](2026-10-11-mqtt-logging/README.md) | Optional MQTT forwarding: silent offline/overflow drops, exact QoS 0 payloads, retries every 10 s, recovery, authentication and bounded shutdown. Current non-SSL validation is separated from superseded TLS-prototype evidence. No router deployment or CAKE performance claim. |

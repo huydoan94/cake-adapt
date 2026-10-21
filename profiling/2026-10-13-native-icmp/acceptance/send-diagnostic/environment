@@ -1,0 +1,16 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+41490fdc-fa1d-4190-89f8-684d6078a14b
+0.00 0.02 0.04 1/109 9071
+Cpus_allowed_list:	0-3
+tsc
+USER_HZ=100 (Linux i386 procfs ABI, not CONFIG_HZ)
+3388
+15edd174325120f035efc494f4bbe51630b594c9499bbe92417b0917f5e3d8d7  /tmp/native-icmp-phase3/cake-adapt
+f2f7a9af56f16094d76750fcaea8451f4d38c1f9e51c49b79d94b3997132522c  /usr/sbin/cake-adapt
+82e7d239880caa3422ab677aa6630e2b00ae003ffd0080471d60c2b25d769464  /usr/bin/fping
+2b6a0b440c4da86c91f78d7864557ceadf2dd32f6b73de75fe598b346bd13988  /tmp/native-icmp-phase3/run.sh
+0ef068d7c126f89fcb528ecffcd39941096ff40941db958b91cac79574178dfb  /tmp/native-icmp-phase3/testbed.sh
+3217c47d9267264bad2d2535a4c93b09894cbfc29e3d00f3d19030b26133f85c  /tmp/native-icmp-phase3/batch.sh
+2a3a3e154608719606d6a8a77119bfcbb779f5c555010ad8d69f8e20e15a967b  /tmp/native-icmp-phase3/instrumented-batch.sh
+5513f987ecd195b671c513e60498f0d0520c8466c05953c4a453082cbc900883  /tmp/native-icmp-phase3/children.sh
+f630cc3dc8c480ad47c9d63db79e31104467e0a451f5a4664dfc6a9df99f7aad  /tmp/native-icmp-phase3/log-inode.sh

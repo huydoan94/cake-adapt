@@ -1,0 +1,512 @@
+{
+  "native-ts": {
+    "reference": "fping-ts",
+    "metrics": {
+      "upload-steady: added_rtt_p50_ms": {
+        "fping-ts": [
+          5.0,
+          4.7,
+          4.5
+        ],
+        "native-ts": [
+          4.7,
+          6.7,
+          4.0
+        ],
+        "median_delta": 0.0,
+        "reference_range": 0.5,
+        "passed": true
+      },
+      "upload-steady: added_rtt_p95_ms": {
+        "fping-ts": [
+          67.6,
+          75.1,
+          77.2
+        ],
+        "native-ts": [
+          77.6,
+          68.3,
+          76.3
+        ],
+        "median_delta": 1.2,
+        "reference_range": 9.6,
+        "passed": true
+      },
+      "upload-steady: over15_pct": {
+        "fping-ts": [
+          36.54485049833887,
+          35.04983388704319,
+          29.40199335548173
+        ],
+        "native-ts": [
+          29.900332225913623,
+          36.7109634551495,
+          28.903654485049834
+        ],
+        "median_delta": -5.1495,
+        "reference_range": 7.1429,
+        "passed": true
+      },
+      "upload-steady: over30_pct": {
+        "fping-ts": [
+          27.408637873754152,
+          26.245847176079735,
+          23.25581395348837
+        ],
+        "native-ts": [
+          23.588039867109636,
+          26.411960132890364,
+          22.92358803986711
+        ],
+        "median_delta": -2.6578,
+        "reference_range": 4.1528,
+        "passed": true
+      },
+      "upload-steady: ul_received_mbit_s": {
+        "fping-ts": [
+          7.004348726996332,
+          6.27155003032575,
+          6.82990980938206
+        ],
+        "native-ts": [
+          6.846821802761454,
+          7.035377595028914,
+          6.811837524710205
+        ],
+        "median_delta": 0.0169,
+        "reference_range": 0.7328,
+        "passed": true
+      },
+      "upload-steady: added_rtt_p99_ms": {
+        "fping-ts": [
+          89.1,
+          96.3,
+          91.3
+        ],
+        "native-ts": [
+          94.8,
+          89.8,
+          87.3
+        ],
+        "median_delta": -1.5,
+        "reference_range": 7.2,
+        "passed": null
+      },
+      "upload-steady: lost": {
+        "fping-ts": [
+          0,
+          0,
+          0
+        ],
+        "native-ts": [
+          0,
+          0,
+          0
+        ],
+        "median_delta": 0,
+        "reference_range": 0,
+        "passed": null
+      },
+      "upload-step: added_rtt_p50_ms": {
+        "fping-ts": [
+          2.8,
+          2.5,
+          3.8
+        ],
+        "native-ts": [
+          5.4,
+          4.9,
+          3.3
+        ],
+        "median_delta": 2.1,
+        "reference_range": 1.3,
+        "passed": false
+      },
+      "upload-step: added_rtt_p95_ms": {
+        "fping-ts": [
+          153.1,
+          152.3,
+          202.3
+        ],
+        "native-ts": [
+          144.8,
+          122.8,
+          131.3
+        ],
+        "median_delta": -21.8,
+        "reference_range": 50.0,
+        "passed": true
+      },
+      "upload-step: over15_pct": {
+        "fping-ts": [
+          28.571428571428573,
+          28.571428571428573,
+          29.235880398671096
+        ],
+        "native-ts": [
+          29.021558872305143,
+          29.900332225913623,
+          28.35820895522388
+        ],
+        "median_delta": 0.4501,
+        "reference_range": 0.6645,
+        "passed": true
+      },
+      "upload-step: over30_pct": {
+        "fping-ts": [
+          22.92358803986711,
+          22.425249169435215,
+          23.754152823920265
+        ],
+        "native-ts": [
+          23.71475953565506,
+          23.920265780730897,
+          24.046434494195687
+        ],
+        "median_delta": 0.9967,
+        "reference_range": 1.3289,
+        "passed": true
+      },
+      "upload-step: ul_received_mbit_s": {
+        "fping-ts": [
+          5.50207048856174,
+          5.572699058260187,
+          5.67684171041536
+        ],
+        "native-ts": [
+          5.620614815073024,
+          5.450171871913352,
+          5.3925218711201355
+        ],
+        "median_delta": -0.1225,
+        "reference_range": 0.1748,
+        "passed": true
+      },
+      "upload-step: added_rtt_p99_ms": {
+        "fping-ts": [
+          228.1,
+          256.3,
+          270.3
+        ],
+        "native-ts": [
+          336.8,
+          186.8,
+          452.3
+        ],
+        "median_delta": 80.5,
+        "reference_range": 42.2,
+        "passed": null
+      },
+      "upload-step: lost": {
+        "fping-ts": [
+          0,
+          0,
+          0
+        ],
+        "native-ts": [
+          0,
+          0,
+          0
+        ],
+        "median_delta": 0,
+        "reference_range": 0,
+        "passed": null
+      },
+      "download-steady: added_rtt_p50_ms": {
+        "fping-ts": [
+          16.7,
+          18.3,
+          20.2
+        ],
+        "native-ts": [
+          14.6,
+          21.2,
+          20.6
+        ],
+        "median_delta": 2.3,
+        "reference_range": 3.5,
+        "passed": true
+      },
+      "download-steady: added_rtt_p95_ms": {
+        "fping-ts": [
+          42.3,
+          39.2,
+          43.7
+        ],
+        "native-ts": [
+          44.8,
+          41.2,
+          39.4
+        ],
+        "median_delta": -1.1,
+        "reference_range": 4.5,
+        "passed": true
+      },
+      "download-steady: over15_pct": {
+        "fping-ts": [
+          53.98671096345515,
+          57.711442786069654,
+          62.35489220563847
+        ],
+        "native-ts": [
+          48.33887043189369,
+          64.22628951747089,
+          65.33996683250415
+        ],
+        "median_delta": 6.5148,
+        "reference_range": 8.3682,
+        "passed": true
+      },
+      "download-steady: over30_pct": {
+        "fping-ts": [
+          19.93355481727575,
+          21.22719734660033,
+          24.212271973466002
+        ],
+        "native-ts": [
+          17.774086378737543,
+          23.62728785357737,
+          20.398009950248756
+        ],
+        "median_delta": -0.8292,
+        "reference_range": 4.2787,
+        "passed": true
+      },
+      "download-steady: dl_received_mbit_s": {
+        "fping-ts": [
+          32.34751507100869,
+          33.25576413181144,
+          32.26041939333779
+        ],
+        "native-ts": [
+          31.12442221709606,
+          32.55769821880376,
+          32.837271854607735
+        ],
+        "median_delta": 0.2102,
+        "reference_range": 0.9953,
+        "passed": true
+      },
+      "download-steady: added_rtt_p99_ms": {
+        "fping-ts": [
+          53.4,
+          48.2,
+          51.6
+        ],
+        "native-ts": [
+          61.1,
+          51.9,
+          52.6
+        ],
+        "median_delta": 1.0,
+        "reference_range": 5.2,
+        "passed": null
+      },
+      "download-steady: lost": {
+        "fping-ts": [
+          0,
+          0,
+          0
+        ],
+        "native-ts": [
+          0,
+          0,
+          0
+        ],
+        "median_delta": 0,
+        "reference_range": 0,
+        "passed": null
+      },
+      "bidirectional: added_rtt_p50_ms": {
+        "fping-ts": [
+          28.0,
+          24.7,
+          24.7
+        ],
+        "native-ts": [
+          21.4,
+          27.5,
+          27.1
+        ],
+        "median_delta": 2.4,
+        "reference_range": 3.3,
+        "passed": true
+      },
+      "bidirectional: added_rtt_p95_ms": {
+        "fping-ts": [
+          75.2,
+          66.1,
+          74.5
+        ],
+        "native-ts": [
+          79.8,
+          71.2,
+          67.2
+        ],
+        "median_delta": -3.3,
+        "reference_range": 9.1,
+        "passed": true
+      },
+      "bidirectional: over15_pct": {
+        "fping-ts": [
+          70.93023255813954,
+          69.60132890365449,
+          72.80265339966833
+        ],
+        "native-ts": [
+          62.62458471760797,
+          74.58471760797342,
+          76.0797342192691
+        ],
+        "median_delta": 3.6545,
+        "reference_range": 3.2013,
+        "passed": false
+      },
+      "bidirectional: over30_pct": {
+        "fping-ts": [
+          47.3421926910299,
+          40.033222591362126,
+          38.80597014925373
+        ],
+        "native-ts": [
+          36.37873754152824,
+          42.35880398671096,
+          43.68770764119601
+        ],
+        "median_delta": 2.3256,
+        "reference_range": 8.5362,
+        "passed": true
+      },
+      "bidirectional: ul_received_mbit_s": {
+        "fping-ts": [
+          6.65553349136057,
+          6.6558903121750905,
+          6.66416162515583
+        ],
+        "native-ts": [
+          6.637195698146967,
+          6.583311887904967,
+          6.620403959112154
+        ],
+        "median_delta": -0.0355,
+        "reference_range": 0.0086,
+        "passed": false
+      },
+      "bidirectional: dl_received_mbit_s": {
+        "fping-ts": [
+          25.654248740836366,
+          28.695206314245446,
+          28.363159213821437
+        ],
+        "native-ts": [
+          25.270401940885186,
+          28.170978433151127,
+          28.536424882144992
+        ],
+        "median_delta": -0.1922,
+        "reference_range": 3.041,
+        "passed": true
+      },
+      "bidirectional: added_rtt_p99_ms": {
+        "fping-ts": [
+          95.1,
+          89.3,
+          93.3
+        ],
+        "native-ts": [
+          96.8,
+          88.8,
+          89.3
+        ],
+        "median_delta": -4.0,
+        "reference_range": 5.8,
+        "passed": null
+      },
+      "bidirectional: lost": {
+        "fping-ts": [
+          0,
+          0,
+          0
+        ],
+        "native-ts": [
+          0,
+          1,
+          0
+        ],
+        "median_delta": 0,
+        "reference_range": 0,
+        "passed": null
+      }
+    },
+    "failed_metrics": [
+      "upload-step: added_rtt_p50_ms",
+      "bidirectional: over15_pct",
+      "bidirectional: ul_received_mbit_s"
+    ],
+    "cpu_one_core_pct": {
+      "fping-ts": [
+        1.0926944516224293,
+        1.575994685170148,
+        0.9994836615770455
+      ],
+      "native-ts": [
+        1.017849240300929,
+        1.8118081180811823,
+        0.7673011657075404
+      ]
+    },
+    "cpu_lower": true,
+    "health": {
+      "loss_one_detect_s": {
+        "fping-ts": [
+          1.9818379878997803,
+          1.7374351024627686,
+          1.7449839115142822
+        ],
+        "native-ts": [
+          1.6765050888061523,
+          0.7382068634033203,
+          1.7869160175323486
+        ]
+      },
+      "loss_all_stall_check_s": {
+        "fping-ts": [
+          0.36446690559387207,
+          0.3198530673980713,
+          0.32529497146606445
+        ],
+        "native-ts": [
+          0.42064595222473145,
+          0.3201720714569092,
+          0.36435914039611816
+        ]
+      },
+      "loss_all_global_timeout_s": {
+        "fping-ts": [
+          10.161696910858154,
+          10.118316173553467,
+          10.125030040740967
+        ],
+        "native-ts": [
+          10.02104902267456,
+          10.12081503868103,
+          9.963850021362305
+        ]
+      },
+      "first_data_after_recovery_s": {
+        "fping-ts": [
+          0.024298906326293945,
+          0.05231499671936035,
+          0.03089594841003418
+        ],
+        "native-ts": [
+          0.005033016204833984,
+          0.03152108192443848,
+          0.028555870056152344
+        ]
+      }
+    },
+    "slower_health": [],
+    "passed": false
+  }
+}
