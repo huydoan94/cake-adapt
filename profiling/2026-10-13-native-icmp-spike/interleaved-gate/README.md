@@ -1,6 +1,6 @@
 # Native ICMP: revised network timing gate
 
-2026-10-13, branch `icmp-native`, source commit `12ef66a`. One unloaded
+2026-10-13, branch `icmp-native`, source commit `12ef66a` (before the 2026-10-21 history rewrite; that code is in `8ef4417`). One unloaded
 acceptance batch on the OpenWrt i386 test VM passes the revised phase-1 gate.
 The daemon implementation and installed service were unchanged.
 

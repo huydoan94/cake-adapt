@@ -8,7 +8,8 @@ echo fails steady-download goodput (about 6% lower in all rounds) and, by a
 small margin, bidirectional p95 and upload goodput. Both use about a third
 less combined daemon + pinger CPU, and reflector-loss detection matches.
 
-Binary: `cde7c67`/`a3c13a6` (x86 SDK base package, SHA256
+Binary: `cde7c67`/`a3c13a6`, before the 2026-10-21 history rewrite (that code is
+in `2134628` and `8ef4417`, before that day's refactor; x86 SDK base package, SHA256
 `cc140526769d2ea5a3295557a80081e764591bcf7abd44c1c5a9a5992e93e52b`), with the
 due-time scheduling fix: native per-reflector reply spacing is now 300.0 ms
 (310.0 ms before the fix; fping-ts 307.5 ms).

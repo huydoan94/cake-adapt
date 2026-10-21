@@ -2,7 +2,7 @@
 
 2026-10-13, OpenWrt 25.12 i386 VM. The original four-case batch completed;
 its native timestamp regression was traced to a saturated epoch conversion and
-fixed in `c1b2110`. A fresh timestamp reference/candidate pair confirms realistic
+fixed in `c1b2110` (before the 2026-10-21 history rewrite; now part of `8ef4417`). A fresh timestamp reference/candidate pair confirms realistic
 one-way samples and normal upload throughput. **Neither backend has passed the
 full no-worse control gate. Fping remains the default; migration is blocked.**
 

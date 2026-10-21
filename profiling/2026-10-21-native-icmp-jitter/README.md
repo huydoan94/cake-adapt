@@ -21,7 +21,8 @@ phase (`run.sh`, a copy of Codex's harness with this one change):
 3 timestamp pairs on VM .2, alternating which method goes first, all on one
 boot (no panic). Binary SHA256
 `cc140526769d2ea5a3295557a80081e764591bcf7abd44c1c5a9a5992e93e52b`
-(`cde7c67`/`a3c13a6`). Scored with `../2026-10-20-native-icmp-gate/gate.py
+(`cde7c67`/`a3c13a6` before the 2026-10-21 history rewrite, the same code as the
+fixed-drop batch). Scored with `../2026-10-20-native-icmp-gate/gate.py
 --pairs ts`; per-drop view from [`drops.py`](drops.py).
 
 ## Gate
