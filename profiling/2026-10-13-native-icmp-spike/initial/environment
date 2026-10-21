@@ -1,0 +1,8 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+82903aec-ba8d-4f8b-8a93-0fd0f9d08b79
+ea2523e8afdb864ce10f994233a802dfa2abe6e0270bb8eafa3d67f168fc8aa0  /tmp/cake-adapt-test/icmp-driver
+05d5a191816244bcb63af539bb8a192843c0567dfbe502fdaae9c20396c088fc  /tmp/cake-adapt-test/candidate
+f2f7a9af56f16094d76750fcaea8451f4d38c1f9e51c49b79d94b3997132522c  /usr/sbin/cake-adapt
+10.99.0.11 via 10.98.0.1 dev cwan src 10.98.0.2 uid 0 
+    cache 
+fd99::11 from :: via fd98::1 dev cwan src fd98::2 metric 1024 pref medium

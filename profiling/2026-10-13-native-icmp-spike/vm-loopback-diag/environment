@@ -1,0 +1,4 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+clocksource: tsc
+available: tsc kvm-clock acpi_pm 
+0bdcbe37169efdfc0e5b3b1cf666661d7904aae8f6c9ca528d99ef69f201c408  /tmp/cake-adapt-diag/icmp-driver

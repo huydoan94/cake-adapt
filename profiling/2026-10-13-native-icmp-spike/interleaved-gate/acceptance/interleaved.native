@@ -1,0 +1,900 @@
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918415507390,21950,10975,10975,1,0,0,0,37662648283,37662670264,1791918415507421
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918415706976,23737,11869,11869,1,0,0,0,37662846083,37662869872,1791918415707028
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918415904297,21375,10688,10688,1,0,0,0,37663045765,37663067172,1791918415904329
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918416123241,22010,11005,11005,1,0,0,0,37663264074,37663286137,1791918416123294
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918416324716,21701,10851,10851,1,0,0,0,37663465859,37663487641,1791918416324797
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918416538506,20745,10373,10373,1,0,0,0,37663680604,37663701405,1791918416538562
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918416743896,31513,15757,15757,1,0,0,0,37663875227,37663906769,1791918416743925
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918416959323,29943,14972,14972,1,0,0,0,37664092223,37664122201,1791918416959358
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918417153806,23535,11768,11768,1,0,0,0,37664293115,37664316700,1791918417153856
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918417368668,21005,10503,10503,1,0,0,0,37664510506,37664531541,1791918417368698
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918417566917,24622,12311,12311,1,0,0,0,37664705138,37664729793,1791918417566950
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918417776981,26852,13426,13426,1,0,0,0,37664912973,37664939942,1791918417777098
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918417970022,21319,10660,10660,1,0,0,0,37665111546,37665132895,1791918417970052
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918418172038,21646,10823,10823,1,0,0,0,37665313235,37665334912,1791918418172069
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918418380934,20669,10335,10335,1,0,0,0,37665523108,37665543807,1791918418380964
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918418588009,25029,12515,12515,1,0,0,0,37665725823,37665750931,1791918418588088
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918418787354,25546,12773,12773,1,0,0,0,37665924651,37665950258,1791918418787415
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918418997221,26648,13324,13324,1,0,0,0,37666133417,37666160100,1791918418997256
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918419196954,21718,10859,10859,1,0,0,0,37666338079,37666359828,1791918419196985
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918419397009,23003,11502,11502,1,0,0,0,37666536849,37666559894,1791918419397051
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918419605868,26291,13146,13146,1,0,0,0,37666742420,37666768809,1791918419605966
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918419797302,22564,11282,11282,1,0,0,0,37666937582,37666960180,1791918419797336
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918420002095,23923,11962,11962,1,0,0,0,37667141015,37667164968,1791918420002125
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918420196148,21821,10911,10911,1,0,0,0,37667337171,37667359033,1791918420196189
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918420397828,22995,11498,11498,1,0,0,0,37667537676,37667560699,1791918420397856
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918420598049,26631,13316,13316,1,0,0,0,37667734261,37667760920,1791918420598077
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918420801034,20787,10394,10394,1,0,0,0,37667943091,37667963906,1791918420801062
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918421005440,22122,11061,11061,1,0,0,0,37668146162,37668168324,1791918421005480
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918421218805,20801,10401,10401,1,0,0,0,37668360848,37668381683,1791918421218839
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918421421835,20996,10498,10498,1,0,0,0,37668563682,37668584715,1791918421421872
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918421636236,34831,17416,17416,1,0,0,0,37668764248,37668799114,1791918421636271
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918421840431,20529,10265,10265,1,0,0,0,37668982745,37669003310,1791918421840467
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918422041866,21447,10724,10724,1,0,0,0,37669183263,37669204740,1791918422041896
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918422252018,23888,11944,11944,1,0,0,0,37669390974,37669414907,1791918422252063
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918422447689,23488,11744,11744,1,0,0,0,37669587044,37669610569,1791918422447726
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918422645318,21085,10543,10543,1,0,0,0,37669787077,37669808191,1791918422645347
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918422862033,22041,11021,11021,1,0,0,0,37670002836,37670024915,1791918422862071
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918423075210,28305,14153,14153,1,0,0,0,37670209748,37670238090,1791918423075247
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918423268120,27063,13532,13532,1,0,0,0,37670403901,37670431044,1791918423268200
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918423474093,24891,12446,12446,1,0,0,0,37670612045,37670636966,1791918423474123
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918423685302,25972,12986,12986,1,0,0,0,37670822174,37670848180,1791918423685336
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918423896514,21806,10903,10903,1,0,0,0,37671037552,37671059422,1791918423896578
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918424097060,23960,11980,11980,1,0,0,0,37671235944,37671260135,1791918424097291
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918424306440,25280,12640,12640,1,0,0,0,37671444004,37671469319,1791918424306475
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918424510737,20896,10448,10448,1,0,0,0,37671652685,37671673612,1791918424510768
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918424703071,20511,10256,10256,1,0,0,0,37671845404,37671865944,1791918424703100
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918424917456,24701,12351,12351,1,0,0,0,37672055599,37672080360,1791918424917516
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918425121060,22001,11001,11001,1,0,0,0,37672261902,37672283947,1791918425121104
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918425322617,20739,10370,10370,1,0,0,0,37672464721,37672485500,1791918425322657
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918425538325,21405,10703,10703,1,0,0,0,37672679764,37672701200,1791918425538356
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918425740424,21166,10583,10583,1,0,0,0,37672882101,37672903298,1791918425740455
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918425935492,20789,10395,10395,1,0,0,0,37673077546,37673098370,1791918425935527
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918426147014,21675,10838,10838,1,0,0,0,37673288182,37673309904,1791918426147061
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918426343183,20695,10348,10348,1,0,0,0,37673485332,37673506060,1791918426343216
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918426550439,20764,10382,10382,1,0,0,0,37673692519,37673713319,1791918426550475
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918426753090,21026,10513,10513,1,0,0,0,37673894907,37673915963,1791918426753120
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918426955213,21114,10557,10557,1,0,0,0,37674096942,37674118106,1791918426955263
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918427167165,20576,10288,10288,1,0,0,0,37674309432,37674330044,1791918427167201
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918427367232,24931,12466,12466,1,0,0,0,37674505145,37674530111,1791918427367267
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918427566935,20965,10483,10483,1,0,0,0,37674708813,37674729814,1791918427566971
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918427771028,21104,10552,10552,1,0,0,0,37674912767,37674933917,1791918427771074
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918427966209,21174,10587,10587,1,0,0,0,37675107878,37675129084,1791918427966241
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918428176915,22202,11101,11101,1,0,0,0,37675317556,37675339786,1791918428176943
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918428373190,20692,10346,10346,1,0,0,0,37675515342,37675536069,1791918428373225
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918428577412,21312,10656,10656,1,0,0,0,37675718943,37675740294,1791918428577451
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918428774076,20873,10437,10437,1,0,0,0,37675916046,37675936954,1791918428774111
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918428993882,21519,10760,10760,1,0,0,0,37676135207,37676156756,1791918428993912
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918429197375,21713,10857,10857,1,0,0,0,37676338505,37676360263,1791918429197420
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918429398995,21126,10563,10563,1,0,0,0,37676540713,37676561873,1791918429399029
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918429602258,22281,11141,11141,1,0,0,0,37676742820,37676765137,1791918429602294
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918429809535,21351,10676,10676,1,0,0,0,37676951028,37676972401,1791918429809557
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918430004424,21419,10710,10710,1,0,0,0,37677145848,37677167301,1791918430004458
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918430217844,20951,10476,10476,1,0,0,0,37677359736,37677380749,1791918430217906
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918430416224,20394,10197,10197,1,0,0,0,37677558673,37677579102,1791918430416259
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918430628701,29145,14573,14573,1,0,0,0,37677762399,37677791578,1791918430628735
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918430832923,22488,11244,11244,1,0,0,0,37677973278,37677995827,1791918430832984
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918431047935,28817,14409,14409,1,0,0,0,37678181962,37678210933,1791918431048089
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918431237095,22597,11299,11299,1,0,0,0,37678377341,37678400017,1791918431237174
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918431432050,20347,10174,10174,1,0,0,0,37678574547,37678594922,1791918431432078
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918431636594,21171,10586,10586,1,0,0,0,37678778266,37678799466,1791918431636623
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918431839395,21937,10969,10969,1,0,0,0,37678980301,37679002267,1791918431839424
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918432037189,24722,12361,12361,1,0,0,0,37679175311,37679200062,1791918432037218
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918432236795,22177,11089,11089,1,0,0,0,37679377462,37679399670,1791918432236826
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918432439983,21173,10587,10587,1,0,0,0,37679581653,37679602871,1791918432440028
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918432635909,21794,10897,10897,1,0,0,0,37679776959,37679798779,1791918432635935
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918432848678,21576,10788,10788,1,0,0,0,37679989945,37680011554,1791918432848711
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918433053064,21056,10528,10528,1,0,0,0,37680194851,37680215938,1791918433053095
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918433255257,20769,10385,10385,1,0,0,0,37680397332,37680418147,1791918433255303
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918433469724,27691,13846,13846,1,0,0,0,37680604876,37680632595,1791918433469752
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918433663748,20980,10490,10490,1,0,0,0,37680805611,37680826617,1791918433663774
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918433870452,22205,11103,11103,1,0,0,0,37681011091,37681033330,1791918433870486
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918434063174,20939,10470,10470,1,0,0,0,37681205078,37681226158,1791918434063315
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918434262184,20801,10401,10401,1,0,0,0,37681404226,37681425055,1791918434262212
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918434466785,21683,10842,10842,1,0,0,0,37681607946,37681629655,1791918434466811
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918434676033,26519,13260,13260,1,0,0,0,37681812357,37681838920,1791918434676077
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918434880948,20597,10299,10299,1,0,0,0,37682023194,37682043824,1791918434880981
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918435085923,24464,12232,12232,1,0,0,0,37682224303,37682248796,1791918435085952
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918435297491,21765,10883,10883,1,0,0,0,37682438569,37682460368,1791918435297525
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918435506457,27061,13531,13531,1,0,0,0,37682642239,37682669329,1791918435506486
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918435698644,24676,12338,12338,1,0,0,0,37682836811,37682861574,1791918435698731
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918435902557,20524,10262,10262,1,0,0,0,37683044876,37683065493,1791918435902650
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918436105052,20938,10469,10469,1,0,0,0,37683246957,37683267948,1791918436105105
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918436325944,27446,13723,13723,1,0,0,0,37683461342,37683488832,1791918436325988
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918436532717,22460,11230,11230,1,0,0,0,37683673100,37683695595,1791918436532752
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918436735714,20878,10439,10439,1,0,0,0,37683877679,37683898609,1791918436735766
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918436951229,23330,11665,11665,1,0,0,0,37684090742,37684114108,1791918436951265
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918437144405,20905,10453,10453,1,0,0,0,37684286343,37684307276,1791918437144433
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918437358385,20521,10261,10261,1,0,0,0,37684500708,37684521260,1791918437358416
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918437553278,20804,10402,10402,1,0,0,0,37684695317,37684716169,1791918437553326
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918437754954,21268,10634,10634,1,0,0,0,37684896529,37684917842,1791918437754999
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918437969201,20500,10250,10250,1,0,0,0,37685111544,37685132078,1791918437969235
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918438165199,20539,10270,10270,1,0,0,0,37685307503,37685328078,1791918438165235
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918438377041,25012,12506,12506,1,0,0,0,37685514872,37685539912,1791918438377069
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918438580277,21308,10654,10654,1,0,0,0,37685721812,37685743150,1791918438580307
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918438773372,20806,10403,10403,1,0,0,0,37685915410,37685936251,1791918438773407
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918438985516,28485,14243,14243,1,0,0,0,37686119874,37686148389,1791918438985546
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918439188913,21702,10851,10851,1,0,0,0,37686330054,37686351784,1791918439188941
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918439385111,20418,10209,10209,1,0,0,0,37686527536,37686547985,1791918439385142
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918439600125,20775,10388,10388,1,0,0,0,37686742193,37686763013,1791918439600170
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918439793178,21102,10551,10551,1,0,0,0,37686934919,37686956064,1791918439793221
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918439997715,23240,11620,11620,1,0,0,0,37687137318,37687160588,1791918439997745
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918440193356,20964,10482,10482,1,0,0,0,37687335236,37687356257,1791918440193413
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918440397547,20976,10488,10488,1,0,0,0,37687539414,37687560416,1791918440397573
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918440598637,20946,10473,10473,1,0,0,0,37687740534,37687761509,1791918440598666
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918440796969,23547,11774,11774,1,0,0,0,37687936265,37687959851,1791918440797008
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918440996974,25272,12636,12636,1,0,0,0,37688134544,37688159864,1791918440997022
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918441197327,24506,12253,12253,1,0,0,0,37688335664,37688360198,1791918441197355
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918441395682,22575,11288,11288,1,0,0,0,37688535950,37688558577,1791918441395734
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918441610369,21538,10769,10769,1,0,0,0,37688751674,37688773244,1791918441610401
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918441802945,20457,10229,10229,1,0,0,0,37688945331,37688965824,1791918441802981
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918442006444,24225,12113,12113,1,0,0,0,37689145063,37689169323,1791918442006479
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918442207732,20974,10487,10487,1,0,0,0,37689349601,37689370605,1791918442207762
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918442411015,20692,10346,10346,1,0,0,0,37689553167,37689573894,1791918442411050
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918442616327,20478,10239,10239,1,0,0,0,37689758692,37689779212,1791918442616369
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918442820067,20967,10484,10484,1,0,0,0,37689961943,37689982946,1791918442820103
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918443015881,20379,10190,10190,1,0,0,0,37690158345,37690178757,1791918443015914
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918443226825,24563,12282,12282,1,0,0,0,37690365105,37690389714,1791918443226871
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918443419574,22559,11280,11280,1,0,0,0,37690559855,37690582749,1791918443419909
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918443623622,21686,10843,10843,1,0,0,0,37690764779,37690786592,1791918443623749
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918443838084,21892,10946,10946,1,0,0,0,37690979036,37691000963,1791918443838119
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918444041143,21276,10638,10638,1,0,0,0,37691182710,37691204029,1791918444041186
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918444238940,21998,10999,10999,1,0,0,0,37691379785,37691401842,1791918444238999
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918444432159,20616,10308,10308,1,0,0,0,37691574386,37691595032,1791918444432189
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918444637387,23351,11676,11676,1,0,0,0,37691776879,37691800261,1791918444637418
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918444839868,21496,10748,10748,1,0,0,0,37691981216,37692002748,1791918444839904
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918445044663,24807,12404,12404,1,0,0,0,37692182700,37692207535,1791918445044691
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918445263254,23993,11997,11997,1,0,0,0,37692402105,37692426135,1791918445263291
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918445464454,21599,10800,10800,1,0,0,0,37692605699,37692627334,1791918445464490
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918445678812,20993,10497,10497,1,0,0,0,37692820663,37692841690,1791918445678846
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918445883102,21624,10812,10812,1,0,0,0,37693024321,37693045985,1791918445883142
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918446093691,20512,10256,10256,1,0,0,0,37693236022,37693256562,1791918446093719
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918446299550,21172,10586,10586,1,0,0,0,37693441222,37693462428,1791918446299584
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918446505657,24567,12284,12284,1,0,0,0,37693643934,37693668538,1791918446505694
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918446716838,20923,10462,10462,1,0,0,0,37693858758,37693879724,1791918446716881
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918446932064,20240,10120,10120,1,0,0,0,37694074668,37694094935,1791918446932091
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918447140465,20622,10311,10311,1,0,0,0,37694282686,37694303342,1791918447140499
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918447347097,23054,11527,11527,1,0,0,0,37694486886,37694510005,1791918447347162
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918447550561,20438,10219,10219,1,0,0,0,37694692966,37694713435,1791918447550592
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918447767552,24957,12479,12479,1,0,0,0,37694905438,37694930438,1791918447767595
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918447964321,22064,11032,11032,1,0,0,0,37695105101,37695127198,1791918447964354
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918448167541,21291,10646,10646,1,0,0,0,37695309093,37695330436,1791918448167593
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918448364473,21504,10752,10752,1,0,0,0,37695505812,37695527395,1791918448364552
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918448577963,21344,10672,10672,1,0,0,0,37695719463,37695740843,1791918448577999
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918448774221,20965,10483,10483,1,0,0,0,37695916099,37695937094,1791918448774251
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918448986379,23595,11798,11798,1,0,0,0,37696125627,37696149278,1791918448986435
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918449197348,26160,13080,13080,1,0,0,0,37696334031,37696360223,1791918449197380
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918449401280,21135,10568,10568,1,0,0,0,37696542988,37696564176,1791918449401333
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918449605532,20772,10386,10386,1,0,0,0,37696747603,37696768407,1791918449605564
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918449826336,27537,13769,13769,1,0,0,0,37696961643,37696989216,1791918449826372
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918450027707,21899,10950,10950,1,0,0,0,37697168651,37697190584,1791918450027741
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918450229688,22333,11167,11167,1,0,0,0,37697370199,37697392555,1791918450229711
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918450431945,21156,10578,10578,1,0,0,0,37697573632,37697594820,1791918450431977
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918450643670,21371,10686,10686,1,0,0,0,37697785142,37697806554,1791918450643711
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918450858392,21412,10706,10706,1,0,0,0,37697999823,37698021269,1791918450858426
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918451057608,22591,11296,11296,1,0,0,0,37698197860,37698220496,1791918451057653
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918451262117,20964,10482,10482,1,0,0,0,37698403996,37698424999,1791918451262156
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918451467439,22111,11056,11056,1,0,0,0,37698608171,37698630325,1791918451467482
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918451676301,25551,12776,12776,1,0,0,0,37698813593,37698839183,1791918451676340
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918451897330,26275,13138,13138,1,0,0,0,37699033899,37699060207,1791918451897363
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918452106639,26230,13115,13115,1,0,0,0,37699243253,37699269518,1791918452106674
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918452293480,21368,10684,10684,1,0,0,0,37699434955,37699456353,1791918452293510
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918452496256,20420,10210,10210,1,0,0,0,37699638679,37699659128,1791918452496285
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918452700051,22571,11286,11286,1,0,0,0,37699840323,37699862934,1791918452700091
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918452893525,20872,10436,10436,1,0,0,0,37700035496,37700056404,1791918452893561
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918453106497,20300,10150,10150,1,0,0,0,37700249041,37700269376,1791918453106532
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918453305245,22013,11007,11007,1,0,0,0,37700446075,37700468134,1791918453305291
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918453527002,28061,14031,14031,1,0,0,0,37700661784,37700689893,1791918453527050
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918453722187,21757,10879,10879,1,0,0,0,37700863273,37700885091,1791918453722248
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918453914207,20339,10170,10170,1,0,0,0,37701056712,37701077083,1791918453914239
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918454127593,21135,10568,10568,1,0,0,0,37701269302,37701290479,1791918454127635
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918454330434,20788,10394,10394,1,0,0,0,37701472489,37701493317,1791918454330474
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918454553945,25032,12516,12516,1,0,0,0,37701691756,37701716832,1791918454553989
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918454762209,21562,10781,10781,1,0,0,0,37701903490,37701925113,1791918454762270
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918454968845,22780,11390,11390,1,0,0,0,37702108908,37702131757,1791918454968914
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918455176047,30929,15465,15465,1,0,0,0,37702307962,37702338929,1791918455176085
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918455379664,21202,10601,10601,1,0,0,0,37702521306,37702542536,1791918455379692
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918455582927,20473,10237,10237,1,0,0,0,37702725297,37702745803,1791918455582960
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918455785801,21083,10542,10542,1,0,0,0,37702927561,37702948682,1791918455785839
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918456006464,25500,12750,12750,1,0,0,0,37703143807,37703169341,1791918456006498
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918456209839,21665,10833,10833,1,0,0,0,37703351018,37703372715,1791918456209871
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918456408297,26099,13050,13050,1,0,0,0,37703545041,37703571186,1791918456408343
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918456604482,20842,10421,10421,1,0,0,0,37703746483,37703767359,1791918456604516
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918456817005,20519,10260,10260,1,0,0,0,37703959330,37703979878,1791918456817034
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918457014168,20928,10464,10464,1,0,0,0,37704156083,37704177044,1791918457014201
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918457217039,24872,12436,12436,1,0,0,0,37704355010,37704379912,1791918457217069
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918457426623,28324,14162,14162,1,0,0,0,37704561142,37704589505,1791918457426662
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918457622316,22248,11124,11124,1,0,0,0,37704762912,37704785222,1791918457622378
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918457827613,23264,11632,11632,1,0,0,0,37704967192,37704990493,1791918457827650
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918458025188,21985,10993,10993,1,0,0,0,37705166046,37705188079,1791918458025236
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918458240041,21944,10972,10972,1,0,0,0,37705380940,37705402921,1791918458240078
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918458432206,20859,10430,10430,1,0,0,0,37705574190,37705595078,1791918458432235
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918458633510,21041,10521,10521,1,0,0,0,37705775312,37705796388,1791918458633545
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918458836368,20946,10473,10473,1,0,0,0,37705978265,37705999253,1791918458836410
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918459039923,21272,10636,10636,1,0,0,0,37706181494,37706202874,1791918459040031
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918459235132,21249,10625,10625,1,0,0,0,37706376726,37706398020,1791918459235177
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918459464328,21807,10904,10904,1,0,0,0,37706605364,37706627208,1791918459464365
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918459681917,20722,10361,10361,1,0,0,0,37706824038,37706844790,1791918459681947
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918459878401,23355,11678,11678,1,0,0,0,37707017889,37707041278,1791918459878435
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918460077557,24541,12271,12271,1,0,0,0,37707215859,37707240499,1791918460077656
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918460276253,22030,11015,11015,1,0,0,0,37707417066,37707439140,1791918460276297
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918460488652,21761,10881,10881,1,0,0,0,37707629734,37707651548,1791918460488705
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918460685061,21599,10800,10800,1,0,0,0,37707826305,37707847959,1791918460685116
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918460895627,20334,10167,10167,1,0,0,0,37708038137,37708058506,1791918460895662
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918461103143,21991,10996,10996,1,0,0,0,37708243996,37708266039,1791918461103195
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918461310135,21237,10619,10619,1,0,0,0,37708451741,37708473012,1791918461310169
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918461508204,20390,10195,10195,1,0,0,0,37708650658,37708671072,1791918461508228
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918461712430,21031,10516,10516,1,0,0,0,37708854242,37708875308,1791918461712465
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918461920615,20807,10404,10404,1,0,0,0,37709062651,37709083492,1791918461920649
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918462128780,22779,11390,11390,1,0,0,0,37709268844,37709291652,1791918462128809
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918462326925,24725,12363,12363,1,0,0,0,37709465043,37709489801,1791918462326958
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918462536484,26790,13395,13395,1,0,0,0,37709672538,37709699369,1791918462536525
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918462735906,27695,13848,13848,1,0,0,0,37709871055,37709898806,1791918462735962
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918462938071,20953,10477,10477,1,0,0,0,37710079962,37710100954,1791918462938110
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918463142666,21950,10975,10975,1,0,0,0,37710283559,37710305595,1791918463142752
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918463349113,21687,10844,10844,1,0,0,0,37710490269,37710511987,1791918463349144
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918463551410,21489,10745,10745,1,0,0,0,37710692764,37710714315,1791918463551472
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918463760825,21436,10718,10718,1,0,0,0,37710902232,37710923696,1791918463760853
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918463972746,25442,12721,12721,1,0,0,0,37711110147,37711135613,1791918463972770
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918464174534,21132,10566,10566,1,0,0,0,37711316245,37711337407,1791918464174564
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918464386305,20725,10363,10363,1,0,0,0,37711528424,37711549204,1791918464386360
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918464600585,20589,10295,10295,1,0,0,0,37711742839,37711763457,1791918464600614
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918464807315,22717,11359,11359,1,0,0,0,37711947441,37711970192,1791918464807349
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918465018141,21368,10684,10684,1,0,0,0,37712159616,37712181018,1791918465018175
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918465207442,22014,11007,11007,1,0,0,0,37712348272,37712370311,1791918465207467
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918465418268,21438,10719,10719,1,0,0,0,37712559673,37712581162,1791918465418319
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918465618456,22001,11001,11001,1,0,0,0,37712759298,37712781340,1791918465618497
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918465822464,21423,10712,10712,1,0,0,0,37712963884,37712985374,1791918465822531
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918466037486,25083,12542,12542,1,0,0,0,37713175246,37713200366,1791918466037523
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918466247202,25849,12925,12925,1,0,0,0,37713384196,37713410075,1791918466247232
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918466466234,27439,13720,13720,1,0,0,0,37713601638,37713629154,1791918466466311
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918466670801,24048,12024,12024,1,0,0,0,37713809596,37713833685,1791918466670842
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918466870435,23957,11979,11979,1,0,0,0,37714009321,37714033377,1791918466870534
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918467064416,21496,10748,10748,1,0,0,0,37714205763,37714227287,1791918467064444
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918467280192,26065,13033,13033,1,0,0,0,37714416971,37714443080,1791918467280236
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918467477196,22937,11469,11469,1,0,0,0,37714617102,37714640069,1791918467477226
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918467676604,20545,10273,10273,1,0,0,0,37714818902,37714839477,1791918467676634
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918467886373,24979,12490,12490,1,0,0,0,37715024237,37715049265,1791918467886422
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918468086505,23151,11576,11576,1,0,0,0,37715226198,37715249398,1791918468086554
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918468293277,21301,10651,10651,1,0,0,0,37715434819,37715456159,1791918468293316
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918468487410,21231,10616,10616,1,0,0,0,37715629022,37715650302,1791918468487459
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918468685417,20519,10260,10260,1,0,0,0,37715827742,37715848296,1791918468685452
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918468902688,22242,11121,11121,1,0,0,0,37716043289,37716065576,1791918468902733
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918469110635,21373,10687,10687,1,0,0,0,37716252105,37716273542,1791918469110699
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918469306471,21806,10903,10903,1,0,0,0,37716447508,37716469346,1791918469306503
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918469516703,27329,13665,13665,1,0,0,0,37716652217,37716679582,1791918469516739
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918469710048,22678,11339,11339,1,0,0,0,37716850214,37716872933,1791918469710089
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918469906546,21563,10782,10782,1,0,0,0,37717047827,37717069421,1791918469906577
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918470103676,20569,10285,10285,1,0,0,0,37717245950,37717266559,1791918470103716
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918470311997,23920,11960,11960,1,0,0,0,37717450921,37717474869,1791918470312025
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918470508109,23755,11878,11878,1,0,0,0,37717647197,37717670989,1791918470508146
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918470712302,21774,10887,10887,1,0,0,0,37717853371,37717875178,1791918470712335
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918470907362,21229,10615,10615,1,0,0,0,37718048976,37718070242,1791918470907399
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918471106212,22981,11491,11491,1,0,0,0,37718246074,37718269085,1791918471106242
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918471309653,20932,10466,10466,1,0,0,0,37718451564,37718472574,1791918471309731
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918471508495,24930,12465,12465,1,0,0,0,37718646409,37718671370,1791918471508526
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918471706403,22530,11265,11265,1,0,0,0,37718846716,37718869307,1791918471706464
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918471909953,23069,11535,11535,1,0,0,0,37719049728,37719072828,1791918471909984
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918472111607,20334,10167,10167,1,0,0,0,37719254116,37719274523,1791918472111680
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918472314746,21115,10558,10558,1,0,0,0,37719456474,37719477623,1791918472314780
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918472530980,20453,10227,10227,1,0,0,0,37719673370,37719693858,1791918472531015
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918472733901,21168,10584,10584,1,0,0,0,37719875576,37719896774,1791918472733931
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918472942547,21580,10790,10790,1,0,0,0,37720083810,37720105418,1791918472942575
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918473148152,21293,10647,10647,1,0,0,0,37720289702,37720311039,1791918473148196
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918473352907,21908,10954,10954,1,0,0,0,37720493842,37720515781,1791918473352938
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918473567250,25569,12785,12785,1,0,0,0,37720704525,37720730117,1791918473567273
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918473766821,21489,10745,10745,1,0,0,0,37720908175,37720929699,1791918473766856
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918473971533,22906,11453,11453,1,0,0,0,37721111470,37721134410,1791918473971567
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918474168637,25542,12771,12771,1,0,0,0,37721305939,37721331535,1791918474168691
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918474371523,20845,10423,10423,1,0,0,0,37721513521,37721534394,1791918474371551
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918474576427,21030,10515,10515,1,0,0,0,37721718240,37721739303,1791918474576460
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918474795601,36623,18312,18312,1,0,0,0,37721921821,37721958482,1791918474795639
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918474991206,20834,10417,10417,1,0,0,0,37722133215,37722154145,1791918474991302
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918475196310,21078,10539,10539,1,0,0,0,37722338076,37722359209,1791918475196365
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918475401508,21915,10958,10958,1,0,0,0,37722542436,37722564406,1791918475401563
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918475608082,20904,10452,10452,1,0,0,0,37722750021,37722770971,1791918475608128
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918475812735,21495,10748,10748,1,0,0,0,37722954083,37722975604,1791918475812761
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918476016871,21655,10828,10828,1,0,0,0,37723158059,37723179789,1791918476016946
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918476220726,20605,10303,10303,1,0,0,0,37723362964,37723383610,1791918476220767
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918476437245,26471,13236,13236,1,0,0,0,37723573617,37723600122,1791918476437279
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918476639278,21126,10563,10563,1,0,0,0,37723780996,37723802157,1791918476639313
