@@ -1,0 +1,6 @@
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918264637124,25724,12862,12862,1,0,0,0,37511774243,37511800016,1791918264637173
+mode=native interface=cwan target=10.99.0.11 count=1 period_us=100000
+serial,receive_realtime_us,rtt_us,upload_owd_us,download_owd_us,kernel_timestamp,originate_ms,receive_ms,transmit_ms,sent_monotonic_us,read_monotonic_us,read_realtime_us
+0,1791918264848742,29814,14907,14907,1,0,0,0,37511981771,37512011663,1791918264848820

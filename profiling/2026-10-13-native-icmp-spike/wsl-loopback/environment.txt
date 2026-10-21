@@ -1,0 +1,5 @@
+date: 2026-10-13T12:20:04-06:00
+kernel: Linux 6.18.33.2-microsoft-standard-WSL2 x86_64
+clocksource: hyperv_clocksource_tsc_page
+driver sha256: 8e1a9dcbcab1c9421b3a716052cc99351856bd15d3b3976c8eb75119a0394c79
+method: unshare -rn private network namespace, lo up, 30 requests at 100 ms each, native driver then ping (iputils) to 127.0.0.1

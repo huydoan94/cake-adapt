@@ -1,0 +1,50 @@
+{
+  "network": {
+    "native_median_us": 21833.5,
+    "fping_median_us": 21200.0,
+    "median_difference_us": 633.5,
+    "paired_difference_median_us": 456.0,
+    "native_range_us": [
+      20420,
+      44915
+    ],
+    "fping_range_us": [
+      20300.0,
+      44800.0
+    ],
+    "samples": 30,
+    "kernel_timestamps": 30
+  },
+  "loopback": {
+    "native_median_us": 113.5,
+    "fping_median_us": 34.5,
+    "median_difference_us": 79.0,
+    "paired_difference_median_us": 77.5,
+    "native_range_us": [
+      23,
+      596
+    ],
+    "fping_range_us": [
+      8.0,
+      201.0
+    ],
+    "samples": 30,
+    "kernel_timestamps": 30
+  },
+  "timestamp": {
+    "native_median_us": 106.0,
+    "fping_median_us": 26.0,
+    "median_difference_us": 80.0,
+    "paired_difference_median_us": 73.5,
+    "native_range_us": [
+      11,
+      1128
+    ],
+    "fping_range_us": [
+      9.0,
+      51.0
+    ],
+    "samples": 30,
+    "kernel_timestamps": 30
+  }
+}
