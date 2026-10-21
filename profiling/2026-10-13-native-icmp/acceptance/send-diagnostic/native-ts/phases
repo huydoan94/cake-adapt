@@ -1,0 +1,16 @@
+4581.16 start
+4596.27 upload-steady
+4656.58 idle
+4666.59 upload-step
+4686.60 capacity-low
+4706.62 capacity-back
+4726.78 idle
+4736.79 download-steady
+4797.05 idle
+4807.06 bidirectional
+4867.25 end
+4867.37 loss-one
+4882.40 recovery-one
+4894.40 loss-all
+4919.42 recovery-all
+4931.43 health-end

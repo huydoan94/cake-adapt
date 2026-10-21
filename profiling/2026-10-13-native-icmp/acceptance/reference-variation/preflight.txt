@@ -1,0 +1,10 @@
+boot=41490fdc-fa1d-4190-89f8-684d6078a14b
+owned namespaces: none
+installed cake-adapt pid=3388
+installed sha256=f2f7a9af56f16094d76750fcaea8451f4d38c1f9e51c49b79d94b3997132522c
+fping sha256=82e7d239880caa3422ab677aa6630e2b00ae003ffd0080471d60c2b25d769464
+fixed test log inode=168 bytes=2125523
+Cpus_allowed_list=0-3
+clocksource=tsc
+bpf_jit_enable=1
+loadavg=0.00 0.00 0.04

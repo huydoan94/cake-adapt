@@ -1,0 +1,35 @@
+qdisc cake 8023: root refcnt 5 bandwidth 2Mbit besteffort triple-isolate nat nowash no-ack-filter split-gso rtt 100ms raw overhead 0 
+ Sent 711361492 bytes 828156 pkt (dropped 214, overlimits 1116927 requeues 0) 
+ backlog 0b 0p requeues 0
+ memory used: 21992b of 4Mb
+ capacity estimate: 6Mbit
+ min/max network layer size:           42 /    1514
+ min/max overhead-adjusted size:       42 /    1514
+ active queues:                         0
+ average network hdr offset:           14
+
+                  Tin 0
+  thresh          2Mbit
+  target         9.08ms
+  interval        104ms
+  pk_delay       10.8ms
+  av_delay       3.31ms
+  sp_delay         91us
+  backlog            0b
+  pkts           828370
+  bytes       711673924
+  way_inds         2725
+  way_miss           68
+  way_cols            0
+  drops             214
+  marks               0
+  ack_drop            0
+  sp_flows            8
+  bk_flows            2
+  un_flows            0
+  max_len          6056
+  quantum           300
+
+qdisc ingress ffff: parent ffff:fff1 ---------------- 
+ Sent 1588988150 bytes 1313234 pkt (dropped 0, overlimits 0 requeues 0) 
+ backlog 0b 0p requeues 0

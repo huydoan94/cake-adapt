@@ -1,0 +1,335 @@
+{
+  "cases": {
+    "fping-ts": {
+      "phases": {
+        "start": {
+          "controller_samples": 291,
+          "printed_or_kernel_arrival_to_data_delay": {
+            "samples": 291,
+            "p50_ms": 0.344,
+            "p95_ms": 2.404,
+            "p99_ms": 12.497,
+            "max_ms": 35.158
+          },
+          "first_packets": 292,
+          "matched_packets": 292,
+          "unmatched_packets": 0,
+          "global_isp_ingress_gap": {
+            "samples": 291,
+            "p50_ms": 50.945,
+            "p95_ms": 56.2,
+            "p99_ms": 86.134,
+            "max_ms": 91.118
+          },
+          "per_target_isp_ingress_gap": {
+            "samples": 286,
+            "p50_ms": 309.20500000000004,
+            "p95_ms": 323.404,
+            "p99_ms": 382.057,
+            "max_ms": 386.434
+          },
+          "global_gap_over_55_ms_pct": 7.216494845360825,
+          "global_gap_over_60_ms_pct": 2.4054982817869415,
+          "originate_to_isp_ingress": {
+            "samples": 292,
+            "p50_ms": 0.679,
+            "p95_ms": 1.076,
+            "p99_ms": 2.913,
+            "max_ms": 11.021
+          },
+          "originate_to_reflector_ingress": {
+            "samples": 292,
+            "p50_ms": 11.6555,
+            "p95_ms": 18.448,
+            "p99_ms": 28.899,
+            "max_ms": 34.104
+          },
+          "isp_to_reflector_ingress": {
+            "samples": 292,
+            "p50_ms": 10.951,
+            "p95_ms": 17.597,
+            "p99_ms": 26.616,
+            "max_ms": 33.253
+          }
+        },
+        "upload-steady": {
+          "controller_samples": 1169,
+          "printed_or_kernel_arrival_to_data_delay": {
+            "samples": 1169,
+            "p50_ms": 0.553,
+            "p95_ms": 1.807,
+            "p99_ms": 5.861,
+            "max_ms": 179.103
+          },
+          "first_packets": 1168,
+          "matched_packets": 1168,
+          "unmatched_packets": 0,
+          "global_isp_ingress_gap": {
+            "samples": 1167,
+            "p50_ms": 50.961,
+            "p95_ms": 56.458,
+            "p99_ms": 59.569,
+            "max_ms": 206.543
+          },
+          "per_target_isp_ingress_gap": {
+            "samples": 1162,
+            "p50_ms": 307.0395,
+            "p95_ms": 318.394,
+            "p99_ms": 332.256,
+            "max_ms": 513.118
+          },
+          "global_gap_over_55_ms_pct": 9.08311910882605,
+          "global_gap_over_60_ms_pct": 0.7712082262210797,
+          "originate_to_isp_ingress": {
+            "samples": 1168,
+            "p50_ms": 1.9585,
+            "p95_ms": 5.708,
+            "p99_ms": 7.693,
+            "max_ms": 13.851
+          },
+          "originate_to_reflector_ingress": {
+            "samples": 1168,
+            "p50_ms": 15.148,
+            "p95_ms": 83.422,
+            "p99_ms": 102.17,
+            "max_ms": 114.022
+          },
+          "isp_to_reflector_ingress": {
+            "samples": 1168,
+            "p50_ms": 12.056000000000001,
+            "p95_ms": 81.722,
+            "p99_ms": 101.075,
+            "max_ms": 113.429
+          },
+          "ul_goodput_mbit_s": 6.8643946371916895,
+          "probe_samples": 603,
+          "probe_lost": 0
+        },
+        "upload-step": {
+          "controller_samples": 1170,
+          "printed_or_kernel_arrival_to_data_delay": {
+            "samples": 1170,
+            "p50_ms": 0.569,
+            "p95_ms": 1.729,
+            "p99_ms": 4.768,
+            "max_ms": 31.73
+          },
+          "first_packets": 1170,
+          "matched_packets": 1170,
+          "unmatched_packets": 0,
+          "global_isp_ingress_gap": {
+            "samples": 1169,
+            "p50_ms": 51.067,
+            "p95_ms": 56.57,
+            "p99_ms": 60.548,
+            "max_ms": 79.262
+          },
+          "per_target_isp_ingress_gap": {
+            "samples": 1164,
+            "p50_ms": 307.624,
+            "p95_ms": 319.166,
+            "p99_ms": 328.005,
+            "max_ms": 351.15
+          },
+          "global_gap_over_55_ms_pct": 11.377245508982035,
+          "global_gap_over_60_ms_pct": 1.1976047904191616,
+          "originate_to_isp_ingress": {
+            "samples": 1170,
+            "p50_ms": 2.398,
+            "p95_ms": 6.366,
+            "p99_ms": 8.257,
+            "max_ms": 10.686
+          },
+          "originate_to_reflector_ingress": {
+            "samples": 1170,
+            "p50_ms": 15.6995,
+            "p95_ms": 110.384,
+            "p99_ms": 216.092,
+            "max_ms": 230.419
+          },
+          "isp_to_reflector_ingress": {
+            "samples": 1170,
+            "p50_ms": 11.724,
+            "p95_ms": 107.549,
+            "p99_ms": 213.974,
+            "max_ms": 224.775
+          },
+          "ul_goodput_mbit_s": 5.537488355232382,
+          "probe_samples": 601,
+          "probe_lost": 0
+        }
+      },
+      "capture_cpu": {
+        "ticks": 3,
+        "seconds": 148.71000000000004,
+        "one_core_pct": 0.020173492031470643
+      }
+    },
+    "native-ts": {
+      "phases": {
+        "start": {
+          "controller_samples": 291,
+          "printed_or_kernel_arrival_to_data_delay": {
+            "samples": 291,
+            "p50_ms": 0.2,
+            "p95_ms": 0.704,
+            "p99_ms": 2.446,
+            "max_ms": 10.388
+          },
+          "first_packets": 291,
+          "matched_packets": 291,
+          "unmatched_packets": 0,
+          "global_isp_ingress_gap": {
+            "samples": 290,
+            "p50_ms": 51.336,
+            "p95_ms": 55.893,
+            "p99_ms": 58.485,
+            "max_ms": 71.853
+          },
+          "per_target_isp_ingress_gap": {
+            "samples": 285,
+            "p50_ms": 310.949,
+            "p95_ms": 320.786,
+            "p99_ms": 332.615,
+            "max_ms": 335.059
+          },
+          "global_gap_over_55_ms_pct": 7.241379310344827,
+          "global_gap_over_60_ms_pct": 0.3448275862068966,
+          "originate_to_isp_ingress": {
+            "samples": 291,
+            "p50_ms": 0.596,
+            "p95_ms": 1.044,
+            "p99_ms": 1.214,
+            "max_ms": 1.486
+          },
+          "originate_to_reflector_ingress": {
+            "samples": 291,
+            "p50_ms": 11.717,
+            "p95_ms": 16.672,
+            "p99_ms": 19.428,
+            "max_ms": 23.475
+          },
+          "isp_to_reflector_ingress": {
+            "samples": 291,
+            "p50_ms": 11.092,
+            "p95_ms": 16.131,
+            "p99_ms": 18.214,
+            "max_ms": 23.127
+          }
+        },
+        "upload-steady": {
+          "controller_samples": 1164,
+          "printed_or_kernel_arrival_to_data_delay": {
+            "samples": 1164,
+            "p50_ms": 0.289,
+            "p95_ms": 1.073,
+            "p99_ms": 2.712,
+            "max_ms": 8.174
+          },
+          "first_packets": 1163,
+          "matched_packets": 1163,
+          "unmatched_packets": 0,
+          "global_isp_ingress_gap": {
+            "samples": 1162,
+            "p50_ms": 51.377,
+            "p95_ms": 56.749,
+            "p99_ms": 59.478,
+            "max_ms": 70.567
+          },
+          "per_target_isp_ingress_gap": {
+            "samples": 1157,
+            "p50_ms": 309.495,
+            "p95_ms": 319.675,
+            "p99_ms": 326.678,
+            "max_ms": 332.848
+          },
+          "global_gap_over_55_ms_pct": 12.392426850258175,
+          "global_gap_over_60_ms_pct": 0.6884681583476764,
+          "originate_to_isp_ingress": {
+            "samples": 1163,
+            "p50_ms": 1.972,
+            "p95_ms": 5.808,
+            "p99_ms": 8.22,
+            "max_ms": 10.789
+          },
+          "originate_to_reflector_ingress": {
+            "samples": 1163,
+            "p50_ms": 15.111,
+            "p95_ms": 89.428,
+            "p99_ms": 107.355,
+            "max_ms": 127.195
+          },
+          "isp_to_reflector_ingress": {
+            "samples": 1163,
+            "p50_ms": 12.072,
+            "p95_ms": 87.561,
+            "p99_ms": 106.557,
+            "max_ms": 126.16
+          },
+          "ul_goodput_mbit_s": 6.813108576050974,
+          "probe_samples": 601,
+          "probe_lost": 0
+        },
+        "upload-step": {
+          "controller_samples": 1164,
+          "printed_or_kernel_arrival_to_data_delay": {
+            "samples": 1164,
+            "p50_ms": 0.281,
+            "p95_ms": 1.125,
+            "p99_ms": 2.381,
+            "max_ms": 44.927
+          },
+          "first_packets": 1165,
+          "matched_packets": 1165,
+          "unmatched_packets": 0,
+          "global_isp_ingress_gap": {
+            "samples": 1164,
+            "p50_ms": 51.257000000000005,
+            "p95_ms": 56.711,
+            "p99_ms": 61.432,
+            "max_ms": 77.502
+          },
+          "per_target_isp_ingress_gap": {
+            "samples": 1159,
+            "p50_ms": 308.935,
+            "p95_ms": 319.825,
+            "p99_ms": 335.752,
+            "max_ms": 355.52
+          },
+          "global_gap_over_55_ms_pct": 12.972508591065292,
+          "global_gap_over_60_ms_pct": 1.3745704467353952,
+          "originate_to_isp_ingress": {
+            "samples": 1165,
+            "p50_ms": 2.393,
+            "p95_ms": 6.288,
+            "p99_ms": 8.569,
+            "max_ms": 14.758
+          },
+          "originate_to_reflector_ingress": {
+            "samples": 1165,
+            "p50_ms": 15.684,
+            "p95_ms": 107.532,
+            "p99_ms": 216.063,
+            "max_ms": 223.626
+          },
+          "isp_to_reflector_ingress": {
+            "samples": 1165,
+            "p50_ms": 11.771,
+            "p95_ms": 104.376,
+            "p99_ms": 212.48,
+            "max_ms": 221.406
+          },
+          "ul_goodput_mbit_s": 5.519617186622854,
+          "probe_samples": 602,
+          "probe_lost": 0
+        }
+      },
+      "capture_cpu": {
+        "ticks": 7,
+        "seconds": 148.6899999999996,
+        "one_core_pct": 0.047077812899320864
+      }
+    }
+  },
+  "acceptance": "diagnostic only; migration gate unchanged"
+}
