@@ -15,7 +15,21 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Replies read per wake-up, so foreign datagrams cannot starve the other timers. */
+#define NATIVE_RECEIVE_BATCH 64U
+
 static bool schedule_irtt_child_start(struct monitor *monitor);
+static bool watch_native_session(struct monitor *monitor);
+
+static void unwatch_native_session(struct monitor_pingers *pingers)
+{
+	(void)uloop_timeout_cancel(&pingers->native_timer);
+	for (size_t channel = 0U; channel < ARRAY_SIZE(pingers->native_watches); channel++) {
+		struct native_watch *watch = &pingers->native_watches[channel];
+
+		(void)uloop_fd_delete(&watch->socket);
+	}
+}
 
 static void report_latency_degraded(struct monitor *monitor, const char *error)
 {
@@ -103,40 +117,28 @@ static bool ensure_latency_open(struct monitor *monitor)
 }
 
 /* Returns false when latency observation must be restarted. */
-static bool process_latency_line(struct monitor *monitor, size_t child_index, const char *line)
+static bool process_latency_sample(
+	struct monitor *monitor,
+	const struct latency_sample *sample,
+	const uint64_t *captured_response_us
+)
 {
 	struct monitor_pingers *pingers = &monitor->pingers;
 	struct latency_observation observation;
-	struct latency_sample sample;
-	char error[ERROR_SIZE] = { 0 };
-	uint64_t processing_realtime_us;
+	uint64_t processing_realtime_us = 0U;
 	uint64_t processing_monotonic_us;
 	uint64_t response_us;
-	enum latency_probe_result result = latency_handle_line(
-		&pingers->latency,
-		child_index,
-		line,
-		&sample,
-		error,
-		sizeof(error)
-	);
 	size_t slot;
 
-	if (result == LATENCY_PROBE_PENDING || result == LATENCY_PROBE_TIMEOUT)
-		return true;
-	if (result == LATENCY_PROBE_ERROR) {
-		report_latency_degraded(monitor, error);
-		return false;
-	}
-
-	slot = reflectors_find(monitor, sample.target);
+	slot = reflectors_find(monitor, sample->target);
 	if (slot == SIZE_MAX) {
-		report_latency_failure(monitor, "unexpected reflector=%s", sample.target);
+		report_latency_failure(monitor, "unexpected reflector=%s", sample->target);
 		return false;
 	}
 
-	if (!read_clock_us(CLOCK_REALTIME, &processing_realtime_us) ||
-	    !read_clock_us(CLOCK_MONOTONIC, &processing_monotonic_us)) {
+	if (!read_clock_us(CLOCK_MONOTONIC, &processing_monotonic_us) ||
+	    (captured_response_us == NULL &&
+	     !read_clock_us(CLOCK_REALTIME, &processing_realtime_us))) {
 		if (!pingers->response_clock_failed) {
 			log_message(
 				LOG_LEVEL_WARNING,
@@ -151,24 +153,51 @@ static bool process_latency_line(struct monitor *monitor, size_t child_index, co
 		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
 		pingers->response_clock_failed = false;
 	}
-	response_us = response_monotonic_us(
-		processing_realtime_us,
-		processing_monotonic_us,
-		sample.timestamp_us
-	);
-	reflectors_record(monitor, slot, &sample, response_us, &observation);
+	response_us = captured_response_us != NULL ? *captured_response_us :
+						     response_monotonic_us(
+							     processing_realtime_us,
+							     processing_monotonic_us,
+							     sample->timestamp_us
+						     );
+	reflectors_record(monitor, slot, sample, response_us, &observation);
 	pingers->last_response_us = response_us;
-	if (response_stale(processing_realtime_us, sample.timestamp_us)) {
+	if (captured_response_us != NULL ?
+		    saturating_sub(processing_monotonic_us, response_us) >
+			    LATENCY_STALE_RESPONSE_US :
+		    response_stale(processing_realtime_us, sample->timestamp_us)) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"processed response from [%s] that is > 500ms old. Skipping.",
-			sample.target
+			sample->target
 		);
 		return true;
 	}
 
-	control_update(monitor, &observation, &sample);
+	control_update(monitor, &observation, sample);
 	return true;
+}
+
+static bool process_latency_line(struct monitor *monitor, size_t child_index, const char *line)
+{
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency_sample sample;
+	char error[ERROR_SIZE] = { 0 };
+	enum latency_probe_result result = latency_handle_line(
+		&pingers->latency,
+		child_index,
+		line,
+		&sample,
+		error,
+		sizeof(error)
+	);
+
+	if (result == LATENCY_PROBE_PENDING || result == LATENCY_PROBE_TIMEOUT)
+		return true;
+	if (result == LATENCY_PROBE_ERROR) {
+		report_latency_degraded(monitor, error);
+		return false;
+	}
+	return process_latency_sample(monitor, &sample, NULL);
 }
 
 /* Every spawned child must be known to uloop before anything can stop it. */
@@ -202,6 +231,7 @@ void pingers_close(struct monitor *monitor)
 	size_t index;
 
 	(void)uloop_timeout_cancel(&pingers->start_timer);
+	unwatch_native_session(pingers);
 	register_pinger_processes(monitor);
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++)
 		release_pinger_output(&pingers->watches[index]);
@@ -218,6 +248,7 @@ void pingers_stop_now(struct monitor *monitor)
 	size_t index;
 
 	(void)uloop_timeout_cancel(&pingers->start_timer);
+	unwatch_native_session(pingers);
 	(void)uloop_timeout_cancel(&pingers->stop_timer);
 	(void)uloop_timeout_cancel(&pingers->failure_timer);
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
@@ -258,6 +289,151 @@ static void handle_latency_failure(struct uloop_timeout *timer)
 		__extension__ container_of(timer, struct monitor, pingers.failure_timer);
 
 	defer_latency_retry(monitor);
+}
+
+static int schedule_native_tick(struct monitor *monitor, uint64_t now_us)
+{
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
+	uint64_t next_us = native_next_event(&latency->native);
+	uint64_t delay_us = saturating_sub(next_us, now_us);
+	/* Rounded up, never early: native_tick() sends nothing before the due time. */
+	uint64_t delay_ms =
+		min_u64(delay_us / MILLISECOND + (delay_us % MILLISECOND != 0U), INT_MAX);
+
+	return uloop_timeout_set(&pingers->native_timer, (int)delay_ms);
+}
+
+static void handle_native_tick(struct uloop_timeout *timer)
+{
+	struct monitor *monitor =
+		__extension__ container_of(timer, struct monitor, pingers.native_timer);
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
+	struct native_session *session = &latency->native;
+	uint64_t now_us;
+	uint64_t realtime_us;
+	char error[ERROR_SIZE] = { 0 };
+
+	if (!read_clock_us(CLOCK_MONOTONIC, &now_us) ||
+	    !read_clock_us(CLOCK_REALTIME, &realtime_us)) {
+		report_latency_failure(monitor, "native probe clock failed: %s", strerror(errno));
+		defer_latency_retry(monitor);
+		return;
+	}
+	if (native_tick(session, now_us, realtime_us, error, sizeof(error)) != 0) {
+		report_latency_degraded(monitor, error);
+	} else if (pingers->observation_failed && !native_send_failed(session)) {
+		log_message(LOG_LEVEL_NOTICE, "native probe sends recovered");
+		pingers->observation_failed = false;
+	}
+	if (!read_clock_us(CLOCK_MONOTONIC, &now_us) ||
+	    schedule_native_tick(monitor, now_us) != 0) {
+		report_latency_failure(
+			monitor,
+			"could not schedule native probes: %s",
+			strerror(errno)
+		);
+		defer_latency_retry(monitor);
+	}
+}
+
+static void handle_native_reply(struct uloop_fd *descriptor, unsigned int events)
+{
+	struct native_watch *watch =
+		__extension__ container_of(descriptor, struct native_watch, socket);
+	struct monitor *monitor = watch->monitor;
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
+	struct native_session *session = &latency->native;
+	char error[ERROR_SIZE] = { 0 };
+
+	(void)events;
+	for (size_t count = 0U; count < NATIVE_RECEIVE_BATCH; count++) {
+		struct icmp_reply reply;
+		struct latency_sample sample;
+		uint64_t now_us;
+		uint64_t realtime_us;
+		uint64_t response_us;
+		enum icmp_receive_result received = icmp_receive(
+			&session->channels[watch->channel],
+			session->mode,
+			&reply,
+			error,
+			sizeof(error)
+		);
+
+		if (received == ICMP_RECEIVE_NONE)
+			return;
+		if (received == ICMP_RECEIVE_ERROR) {
+			report_latency_degraded(monitor, error);
+			defer_latency_retry(monitor);
+			return;
+		}
+		if (received == ICMP_RECEIVE_IGNORED)
+			continue;
+		if (!read_clock_us(CLOCK_MONOTONIC, &now_us) ||
+		    !read_clock_us(CLOCK_REALTIME, &realtime_us)) {
+			report_latency_failure(
+				monitor,
+				"native response clock failed: %s",
+				strerror(errno)
+			);
+			defer_latency_retry(monitor);
+			return;
+		}
+		if (!native_accept(session, &reply, now_us, realtime_us, &sample, &response_us))
+			continue;
+		if (!reply.kernel_timestamp && !session->timestamp_warned) {
+			log_message(
+				LOG_LEVEL_WARNING,
+				"native receive timestamp unavailable; using read-time clock"
+			);
+			session->timestamp_warned = true;
+		}
+		if (!process_latency_sample(monitor, &sample, &response_us)) {
+			defer_latency_retry(monitor);
+			return;
+		}
+	}
+}
+
+static bool watch_native_session(struct monitor *monitor)
+{
+	struct monitor_pingers *pingers = &monitor->pingers;
+	struct latency *latency = &pingers->latency;
+	struct native_session *session = &latency->native;
+	struct uloop_timeout *native_timer = &pingers->native_timer;
+
+	for (size_t channel = 0U; channel < ARRAY_SIZE(pingers->native_watches); channel++) {
+		struct native_watch *watch = &pingers->native_watches[channel];
+		struct uloop_fd *reader = &watch->socket;
+		struct icmp_socket *channel_socket = &session->channels[channel];
+		int descriptor = channel_socket->fd;
+
+		if (descriptor < 0 || reader->registered)
+			continue;
+		reader->fd = descriptor;
+		if (uloop_fd_add(reader, ULOOP_READ) != 0) {
+			report_latency_failure(
+				monitor,
+				"could not watch native ICMP socket: %s",
+				strerror(errno)
+			);
+			defer_latency_retry(monitor);
+			return false;
+		}
+	}
+	if (!native_timer->pending && uloop_timeout_set(native_timer, 0) != 0) {
+		report_latency_failure(
+			monitor,
+			"could not start native probe timer: %s",
+			strerror(errno)
+		);
+		defer_latency_retry(monitor);
+		return false;
+	}
+	return true;
 }
 
 static void handle_pinger_output(struct ustream *stream, int bytes)
@@ -432,6 +608,8 @@ bool pingers_watch(struct monitor *monitor)
 {
 	if (!ensure_latency_open(monitor))
 		return false;
+	if (native_method(monitor->config->pinger_method))
+		return watch_native_session(monitor);
 	if (strcmp(monitor->config->pinger_method, PINGER_METHOD_IRTT) == 0)
 		return schedule_irtt_child_start(monitor);
 	return watch_started_latency_children(monitor);
@@ -490,6 +668,7 @@ void pingers_restart(struct monitor *monitor, uint64_t timestamp_us)
 void pingers_prepare(struct monitor *monitor, uint64_t start_us)
 {
 	struct monitor_pingers *pingers = &monitor->pingers;
+	struct uloop_timeout *native_timer = &pingers->native_timer;
 	const struct config *config = monitor->config;
 	const struct latency_settings settings = {
 		.pinger_method = config->pinger_method,
@@ -505,6 +684,16 @@ void pingers_prepare(struct monitor *monitor, uint64_t start_us)
 	pingers->last_response_us = start_us;
 	pingers->last_restart_us = start_us;
 	pingers->start_timer.cb = handle_latency_start;
+	native_timer->cb = handle_native_tick;
+	for (size_t channel = 0U; channel < ARRAY_SIZE(pingers->native_watches); channel++) {
+		struct native_watch *watch = &pingers->native_watches[channel];
+		struct uloop_fd *reader = &watch->socket;
+
+		reader->fd = -1;
+		reader->cb = handle_native_reply;
+		watch->monitor = monitor;
+		watch->channel = channel;
+	}
 	pingers->stop_timer.cb = handle_pinger_stop_timeout;
 	pingers->failure_timer.cb = handle_latency_failure;
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {

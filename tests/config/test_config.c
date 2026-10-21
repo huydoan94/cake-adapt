@@ -196,7 +196,10 @@ static void test_supported_pinger_methods(void)
 	config = valid_config();
 	(void)snprintf(config.pinger_method, sizeof(config.pinger_method), "ping");
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-	assert(strcmp(error, "option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'") == 0);
+	assert(strcmp(
+		       error,
+		       "option 'pinger_method' must be 'fping', 'fping-ts', 'irtt', 'native' or 'native-ts'"
+	       ) == 0);
 
 	/* ICMP timestamps are IPv4 only, so fping-ts rejects IPv6 reflectors. */
 	config = valid_config();
@@ -216,7 +219,28 @@ static void test_supported_pinger_methods(void)
 	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
 	(void)snprintf(config.pinger_method, sizeof(config.pinger_method), "fping-ts");
 	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
-	assert(strcmp(error, "option 'tcp_delay_attribution' needs pinger_method 'fping'") == 0);
+	assert(strcmp(error,
+		      "option 'tcp_delay_attribution' needs pinger_method 'fping' or 'native'") ==
+	       0);
+	config = valid_config();
+	(void)strcpy(config.pinger_method, "native");
+	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+	config.tcp_delay_attribution = true;
+	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
+	(void)strcpy(config.ping_extra_args, "-q");
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strstr(error, "ping_extra_args") != NULL);
+	config.ping_extra_args[0] = '\0';
+	(void)strcpy(config.reflectors[0], "example.com");
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strstr(error, "numeric IP address") != NULL);
+	(void)strcpy(config.reflectors[0], "::1");
+	config.tcp_delay_attribution = false;
+	(void)strcpy(config.pinger_method, "native-ts");
+	assert(validate_latency_config(&config, error, sizeof(error)) != 0);
+	assert(strstr(error, "IPv4-only") != NULL);
+	(void)strcpy(config.reflectors[0], "192.0.2.1");
+	assert(validate_latency_config(&config, error, sizeof(error)) == 0);
 }
 
 static void test_tcp_ts_request(void)
