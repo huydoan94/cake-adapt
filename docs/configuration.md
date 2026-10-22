@@ -99,28 +99,33 @@ for choosing them.
 | `no_pingers` | integer | `6` | Reflectors pinged at a time; from 1 up to the number of reflectors. |
 | `reflector_ping_interval_s` | decimal | `0.3` | Interval between pings to each active reflector. |
 | `randomize_reflectors` | boolean | `1` | Shuffle the reflector list at start. |
-| `pinger_method` | string | `fping` | `fping` measures round trips and gives each direction half. `fping-ts` uses ICMP timestamps for separate one-way delays; it accepts IPv4 reflectors only and is verified only on a test bench. `irtt` is experimental, has not been run against a real server, and needs the separate `irtt` package. |
-| `ping_extra_args` | string | *(empty)* | Extra arguments for the pinger. |
-| `ping_prefix_string` | string | *(empty)* | Command words placed before the pinger, for example a wrapper. |
+| `pinger_method` | string | `native` | `native` sends ICMP echo requests from the daemon itself and gives each direction half the round trip. `native-ts` sends ICMP timestamp requests for separate one-way delays (IPv4 only). The fallbacks run a separate program, whose package must be installed: `fping` and `fping-ts` as their native counterparts, and `irtt`, which is experimental and has not been run against a real server. |
 | `irtt_session_duration_m` | decimal | `10` | Length of each IRTT session (`irtt` only). |
 
 Reflectors come only from this list; cake-autorate's remote reflector list is
-not supported. An instance whose pinger executable is missing does not start.
+not supported.
 
-The experimental `native` and `native-ts` methods measure latency inside the
-daemon, without a pinger child. `native` sends IPv4/IPv6 echo requests and can
-use `tcp_delay_attribution`; `native-ts` sends IPv4 timestamp requests and
-retains the existing signed one-way delays and midnight-rollover handling.
-Both currently require numeric IP addresses and empty `ping_extra_args` and
-`ping_prefix_string`. They never fall back to another backend. `fping` remains
-the default until the native backend's live comparison passes. See
-[native ICMP validation](design/native-icmp.md) for the current limits.
+`native` is a deliberate difference from cake-autorate, whose default is
+fping: the probes need no child process and no extra package, and used less
+CPU in total than fping on the test VM. They take numeric IP addresses only, so a lookup
+that depends on the link being measured never delays them; for a hostname,
+use a fallback. `native` and `native-ts` refuse `ping_extra_args` and
+`ping_prefix_string`, and never switch to another method on their own. See
+[native ICMP probes](design/native-icmp.md) for the design and its limits.
+
+fping is not installed with cake-adapt. An instance set to `fping` or
+`fping-ts` without it, or to `irtt` without irtt, does not start, and syslog
+says which package to install. Their extra arguments (`ping_extra_args`)
+and wrapper (`ping_prefix_string`) are set in `/etc/cake-adapt/exec` (see
+[Options only root sets](#options-only-root-sets)).
 
 ## Output and logging
 
 Logs go to `/var/log/cake-adapt.log` for the `main` section and
 `/var/log/cake-adapt.<section>.log` for other sections. On OpenWrt `/var` is in
-RAM, so the defaults never write to flash.
+RAM, so the defaults never write to flash. Another directory is set with
+`log_file_path_override`, which only root sets (see
+[Options only root sets](#options-only-root-sets)).
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -133,7 +138,6 @@ RAM, so the defaults never write to flash.
 | `mqtt_password` | string | *(empty)* | Optional password; requires a username. Stored in UCI and the instance runtime file. |
 | `mqtt_tls` | boolean | `0` | Use certificate-verified TLS; requires the `cake-adapt-mqtt-ssl` package. |
 | `mqtt_ca_file` | string | `/etc/ssl/certs/ca-certificates.crt` | CA certificate file for TLS; an absolute path is required when TLS is enabled. |
-| `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. |
 | `log_file_max_size_KB` | integer | `2000` | Rotate when the log reaches this size. One `.old` copy is kept. |
 | `log_file_max_time_mins` | decimal | `10` | Rotate after this time. |
 | `log_file_buffer_timeout_ms` | integer | `500` | Longest time a record waits in the write buffer. |
@@ -207,6 +211,15 @@ them for diagnosis, not permanently.
 
 Signals: `SIGUSR1` exports the current logs, and `SIGUSR2` empties them in
 place. A `tail -f` stays attached across rotation and reset.
+
+Logging never holds up measurement and control: a separate thread writes the
+log file, the terminal and syslog, and does rotation, export and reset, from a
+queue of up to 128 KB. If it falls behind, for example while logd is stuck,
+the queue keeps the newest lines: the oldest waiting ones make room and are
+counted, and the log says how many at the point where they are missing (`N
+older log lines and M syslog messages were overwritten: the log writer fell
+behind`). A `SIGUSR1` or
+`SIGUSR2` request is never lost this way.
 
 ## TCP measurement (eBPF)
 
@@ -365,15 +378,46 @@ Each instance needs its own pair of CAKE qdiscs; two instances must never
 control the same ones. Logs are named after the section, for example
 `/var/log/cake-adapt.primary.log`.
 
+## Options only root sets
+
+Four options make root run a program or a file, choose its arguments, or
+choose where it writes, so they are not read from `/etc/config/cake-adapt`,
+which the LuCI app can change. They are set in `/etc/cake-adapt/exec`, a file in UCI syntax that
+only root may read or change and the LuCI app cannot reach, in a
+`cake_adapt_exec` section named after the instance:
+
+```uci
+config cake_adapt_exec 'main'
+	option config_file '/etc/cake-adapt/config.main.sh'
+	option ping_prefix_string 'mwan3 use wan'
+	option ping_extra_args '-S 192.0.2.1'
+	option log_file_path_override '/tmp/cake-adapt'
+```
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `config_file` | string | *(empty)* | A cake-autorate format shell configuration that fills the options the instance's section leaves unset (below). |
+| `ping_prefix_string` | string | *(empty)* | Command words placed before `fping` or `irtt`, for example a wrapper that runs it in another routing context. |
+| `ping_extra_args` | string | *(empty)* | Extra arguments for `fping` or `irtt` (irtt's `-o`, for one, writes a file as root). `native` and `native-ts` refuse it. |
+| `log_file_path_override` | string | *(empty)* | Directory for the log file instead of `/var/log`; the file name stays the same. A relative path is taken from where the daemon starts (`/` for the service). A directory on flash wears it. Root-only because root writes the log there. |
+
+Any of them set in `/etc/config/cake-adapt` refuses the instance's
+configuration, and syslog says where it belongs; a running instance keeps
+its previous configuration, and the LuCI page shows a warning. So does an
+`/etc/cake-adapt/exec` that uci cannot parse, rather than being read as
+empty. `cake-adapt` started by hand without `-C` reads
+`/etc/config/cake-adapt` and refuses `ping_prefix_string`,
+`ping_extra_args` and `log_file_path_override` there too. procd does not watch `/etc/cake-adapt/exec`:
+after changing it, run `/etc/init.d/cake-adapt reload`.
+
 ## Standalone shell configuration
 
-`config_file` (string, UCI only) names a cake-adapt shell configuration in
-cake-autorate's format, so an existing configuration can be reused:
+`config_file` names a cake-adapt shell configuration in cake-autorate's
+format, so an existing configuration can be reused:
 
 ```uci
 config cake_adapt 'main'
 	option enabled '1'
-	option config_file '/etc/cake-adapt/config.main.sh'
 ```
 
 ```bash
@@ -389,8 +433,8 @@ reflectors=(1.1.1.1 1.0.0.1 8.8.8.8 8.8.4.4 9.9.9.9 9.9.9.10)
 Precedence is built-in defaults, then the file, then UCI: an option set in the
 UCI section keeps its UCI value, and the file fills in only the options UCI
 leaves unset. To take a value from the file, remove that option from the
-section, as in the minimal section above. `enabled` and `config_file` stay in
-UCI.
+section, as in the minimal section above. `enabled` stays in UCI, and
+`config_file` in `/etc/cake-adapt/exec`.
 
 How the file is handled:
 
@@ -401,11 +445,12 @@ How the file is handled:
   file and fills in the options UCI leaves unset.
 - That result is validated like UCI; cake-adapt itself never executes the
   file.
-- The service reloads when UCI changes. A change to the shell file alone is
-  not watched: it is picked up at the next `/etc/init.d/cake-adapt reload` or
+- The service reloads when `/etc/config/cake-adapt` changes. A change to
+  `/etc/cake-adapt/exec` or the shell file is not watched: it is picked up at the next `/etc/init.d/cake-adapt reload` or
   `restart`.
 
-The file is executable Bash: use only a trusted, root-owned file. Bash is not
+The file is executable Bash: use only a trusted file that only root can
+change. Bash is not
 a package dependency, so install it (`bash`) to use `config_file`. Without
 it, the instance does not start and syslog says `cannot read Bash file
 <path>: bash is not installed`; instances configured only in UCI never need

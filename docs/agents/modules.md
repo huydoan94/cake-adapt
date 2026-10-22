@@ -64,10 +64,11 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `reflector.c`: reflector health, comparison, and rotation policy over
     latency trackers.
 - `latency/`
-  - `icmp.c`: experimental native IPv4/IPv6 raw sockets, wire packets,
+  - `icmp.c`: the native probes' IPv4/IPv6 raw sockets, wire packets,
     identifier filters and fixed-width kernel receive timestamps.
-  - `native.c`: experimental probe scheduling, outstanding requests, expiry
-    and reply matching; its samples use the existing logging/tracker contract.
+  - `native.c`: native probe scheduling (the default pinger), outstanding
+    requests, expiry and reply matching; its samples use the same
+    logging/tracker contract as the fping and irtt fallbacks.
     `monitor/pingers.c` registers its sockets and timer with uloop. Legacy
     backends remain until the native live comparison passes.
   - `latency.c`: pinger session and child-process ownership, line splitting,
@@ -112,7 +113,10 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `cpu.c`: CPU sampling and usage calculations only.
   - `memory.c`: the daemon's memory sampling from `/proc/self/status`.
 - `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
-  export, reset behavior, and submission to the optional MQTT sender.
+  export, reset behavior, and submission to the optional MQTT sender. Its
+  writer thread does every file, stdout and syslog write; the main thread
+  only queues (a bounded FIFO that overwrites and counts its oldest lines
+  when full) and never waits.
 - `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
   never cancels a thread: a network thread stuck in name resolution is joined
@@ -134,10 +138,18 @@ Outside `src/`:
   are registered with `respawn 3600 5 0` (never give up).
 - `files/cake-adapt.import` (installed as `/usr/libexec/cake-adapt/import`):
   builds the runtime file with `uci get`/`uci set`, filling options UCI leaves
-  unset from the standalone shell `config_file`; UCI always wins. The
+  unset from the standalone shell `config_file`; UCI always wins.
+  `config_file`, `ping_prefix_string`, `ping_extra_args` and
+  `log_file_path_override` come only from the
+  root-only `/etc/cake-adapt/exec` (read with `uci -c /etc/cake-adapt`), which
+  LuCI cannot write, and are refused in
+  `/etc/config/cake-adapt`. A separate Bash reader (`import-bash`) sources the
+  shell file; the importer itself is plain sh. The
   daemon's `-C` takes that one file and makes a relative `-C` or
   `log_file_path_override` path absolute.
-- `files/cake-adapt.config`: the shipped UCI template.
+- `files/cake-adapt.config`: the shipped UCI template;
+  `files/cake-adapt-exec.config`: the root-only one, installed as
+  `/etc/cake-adapt/exec` (mode 0600).
 - `luci-app-cake-adapt/`: the Status view (per-instance state from procd,
   actions, and line charts from the ubus status) and the Configuration view
   (Advanced sub-tabs, on-screen checks of every daemon validation rule). Use

@@ -3,10 +3,10 @@ digraph G {
   node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
   procd [label="procd\n/etc/init.d/cake-adapt",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
-  uci [label="/etc/config/cake-adapt (UCI)\n+ optional cake-autorate config_file import",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
+  uci [label="/etc/config/cake-adapt (UCI)\n+ root-only /etc/cake-adapt/exec\n+ optional cake-autorate config_file import",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   main [label="main.c\nCLI, config_load, logging setup",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   loop [label="monitor/\nuloop timers, fds, child processes, signals",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  pinger [label="fping (or irtt) children",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
+  pinger [label="native ICMP sockets,\nor fping / irtt children",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
   latency [label="latency/\nparse replies, per-reflector OWD baseline and delta",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   observe [label="cake/ + platform/traffic\none qdisc dump per tick → achieved rates",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   controller [label="controller/\ndelay window, congestion, rate decision,\nactivity state, reflector health",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];

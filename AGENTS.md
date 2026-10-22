@@ -85,8 +85,9 @@ the controller design and the baseline to beat: since 2026-10-01 the goal is to
 minimize bufferbloat, not to port faithfully. Departures are opt-in (or a
 documented deliberate default), measured on the testbed with raw evidence under
 `profiling/`, and documented; with every departure off, the replay test keeps
-matching within its tolerances. `fping` is the only supported pinger; rate
-adjustment stays opt-in. The full rules are in
+matching within its tolerances. The daemon's own ICMP probes are the default
+pinger, with `fping`, `fping-ts` and `irtt` as fallbacks; rate adjustment
+stays opt-in. The full rules are in
 [`docs/agents/upstream.md`](docs/agents/upstream.md).
 
 ## Architecture and ownership
