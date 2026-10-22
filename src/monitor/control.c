@@ -48,12 +48,17 @@ static const char *const rate_reason_names[] = {
 
 void control_update_compensation(struct monitor *monitor)
 {
+	struct monitor_control *control = &monitor->control;
+	const struct monitor_links *links = &monitor->links;
+	const struct monitor_direction *download = &links->download;
+	const struct monitor_direction *upload = &links->upload;
+
 	if (!links_wire_ready(monitor))
 		return;
 	controller_set_serialization_compensation(
-		&monitor->control.controller,
-		cake_max_wire_packet_bits(&monitor->links.download.cake),
-		cake_max_wire_packet_bits(&monitor->links.upload.cake)
+		&control->controller,
+		cake_max_wire_packet_bits(&download->cake),
+		cake_max_wire_packet_bits(&upload->cake)
 	);
 }
 
@@ -101,7 +106,7 @@ static void log_congestion_state(
 
 	round_trip_us = latency->download_owd_us + latency->upload_owd_us;
 	baseline_us = latency->download_owd_baseline_us + latency->upload_owd_baseline_us;
-	delay_us = round_trip_us >= baseline_us ? round_trip_us - baseline_us : 0;
+	delay_us = max_i64(signed_difference(round_trip_us, baseline_us), 0);
 	log_message(
 		state == CONTROLLER_CONGESTION_DETECTED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
 		"congestion changed: direction=%s state=%s"
@@ -244,6 +249,32 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	}
 }
 
+/* Only the start and end of a hold: the ceiling itself moves with traffic. */
+static void log_ack_share(
+	const char *direction,
+	const struct controller_direction_output *decision,
+	const struct controller_input *input,
+	const struct controller_direction *upload
+)
+{
+	const struct controller_ack_input *acks = &input->acks;
+
+	if (!decision->ack_share_active) {
+		log_message(LOG_LEVEL_DEBUG, "ACK share released %s", direction);
+		return;
+	}
+	log_message(
+		LOG_LEVEL_DEBUG,
+		"ACK share holding %s: ceiling=%" PRIu64 " bit/s ack_rate=%" PRIu64
+		" bit/s upload_rate=%" PRIu64 " bit/s upload_shaper_rate=%" PRIu64 " bit/s",
+		direction,
+		decision->ack_share_ceiling_bps,
+		acks->upload_ack_rate_bps,
+		acks->upload_rate_bps,
+		upload->shaper_rate_bps
+	);
+}
+
 static void apply_bandwidth(
 	struct monitor *monitor,
 	struct monitor_direction *direction,
@@ -251,8 +282,9 @@ static void apply_bandwidth(
 	enum controller_rate_reason reason
 )
 {
+	const struct cake_observation *cake = &direction->cake;
 	/* Seed the readback with the known index and MTU so neither is re-queried. */
-	struct cake_observation verified = direction->cake;
+	struct cake_observation verified = *cake;
 	struct cake_read readback = { .interface = direction->interface, .observation = &verified };
 	char error[ERROR_SIZE] = { 0 };
 
@@ -272,7 +304,7 @@ static void apply_bandwidth(
 			" old_rate=%" PRIu64 " bit/s desired_rate=%" PRIu64 " bit/s reason=%s: %s",
 			direction->name,
 			direction->interface,
-			direction->cake.bandwidth_bps,
+			cake->bandwidth_bps,
 			desired_rate_bps,
 			rate_reason_names[reason],
 			error
@@ -314,11 +346,12 @@ static struct controller_direction_input direction_input(const struct monitor_di
 
 bool control_low_load(const struct monitor *monitor)
 {
-	const struct controller_direction_input download =
-		direction_input(&monitor->links.download);
-	const struct controller_direction_input upload = direction_input(&monitor->links.upload);
+	const struct monitor_control *control = &monitor->control;
+	const struct monitor_links *links = &monitor->links;
+	const struct controller_direction_input download = direction_input(&links->download);
+	const struct controller_direction_input upload = direction_input(&links->upload);
 
-	return controller_low_load(&monitor->control.controller, &download, &upload);
+	return controller_low_load(&control->controller, &download, &upload);
 }
 
 void control_update(
@@ -329,6 +362,7 @@ void control_update(
 {
 	const struct config *config = monitor->config;
 	struct monitor_control *control = &monitor->control;
+	struct controller *controller = &control->controller;
 	struct monitor_links *links = &monitor->links;
 	struct control_step step = {
 		.latency = latency,
@@ -353,12 +387,12 @@ void control_update(
 		const char *short_name;
 	} directions[] = {
 		{ &links->download,
-		  &control->controller.download,
+		  &controller->download,
 		  &step.input.download,
 		  &step.output.download,
 		  DIRECTION_DOWNLOAD_SHORT },
 		{ &links->upload,
-		  &control->controller.upload,
+		  &controller->upload,
 		  &step.input.upload,
 		  &step.output.upload,
 		  DIRECTION_UPLOAD_SHORT },
@@ -367,7 +401,7 @@ void control_update(
 	(void)read_clock_us(CLOCK_MONOTONIC, &step.input.timestamp_us);
 	tcp_observe(monitor, &step.input);
 
-	controller_update(&control->controller, &step.input, &step.output);
+	controller_update(controller, &step.input, &step.output);
 	for (size_t index = 0U; index < ARRAY_SIZE(directions); index++) {
 		struct monitor_direction *direction = directions[index].direction;
 		const struct controller_direction_output *decision = directions[index].output;
@@ -391,21 +425,8 @@ void control_update(
 				queue->upload_us
 			);
 		}
-		/* Only the start and end of a hold: the ceiling itself moves with traffic. */
-		if (decision->ack_share_changed && decision->ack_share_active)
-			log_message(
-				LOG_LEVEL_DEBUG,
-				"ACK share holding %s: ceiling=%" PRIu64 " bit/s ack_rate=%" PRIu64
-				" bit/s upload_rate=%" PRIu64 " bit/s upload_shaper_rate=%" PRIu64
-				" bit/s",
-				direction->name,
-				decision->ack_share_ceiling_bps,
-				step.input.acks.upload_ack_rate_bps,
-				step.input.acks.upload_rate_bps,
-				control->controller.upload.shaper_rate_bps
-			);
-		else if (decision->ack_share_changed)
-			log_message(LOG_LEVEL_DEBUG, "ACK share released %s", direction->name);
+		if (decision->ack_share_changed)
+			log_ack_share(direction->name, decision, &step.input, &controller->upload);
 		/* cake-autorate's first set_shaper_rates() reports a non-adjusted base rate too. */
 		if (!control->initial_shaper_reported && !limits->adjust &&
 		    config->output_cake_changes) {
@@ -434,12 +455,13 @@ void control_update(
 void control_enforce_minimum(struct monitor *monitor, uint64_t timestamp_us)
 {
 	struct controller *controller = &monitor->control.controller;
+	struct monitor_links *links = &monitor->links;
 	const struct {
 		struct monitor_direction *link;
 		const struct controller_direction *controller;
 	} directions[] = {
-		{ &monitor->links.download, &controller->download },
-		{ &monitor->links.upload, &controller->upload },
+		{ &links->download, &controller->download },
+		{ &links->upload, &controller->upload },
 	};
 
 	controller_set_minimum_rates(controller, timestamp_us);
@@ -496,7 +518,9 @@ int control_start(struct monitor *monitor)
 		.ul_congest_ack_share_ratio_e6 = config->ul_congest_ack_share_ratio_e6,
 	};
 
-	if (controller_init(&monitor->control.controller, &controller_config) != 0) {
+	struct monitor_control *control = &monitor->control;
+
+	if (controller_init(&control->controller, &controller_config) != 0) {
 		log_message(LOG_LEVEL_ERROR, "could not initialize controller: %s", strerror(errno));
 		return -1;
 	}

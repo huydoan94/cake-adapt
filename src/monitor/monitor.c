@@ -110,6 +110,7 @@ static void update_activity(struct monitor *monitor, uint64_t timestamp_us)
 /* One traffic cycle: observe both links, update the activity state, keep pingers running. */
 void monitor_tick(struct monitor *monitor)
 {
+	const struct controller_activity *activity = &monitor->activity;
 	uint64_t timestamp_us;
 
 	links_observe(monitor);
@@ -123,7 +124,7 @@ void monitor_tick(struct monitor *monitor)
 		pingers_unsuspend(monitor, timestamp_us);
 		update_activity(monitor, timestamp_us);
 	}
-	if (monitor->activity.state != CONTROLLER_IDLE)
+	if (activity->state != CONTROLLER_IDLE)
 		(void)pingers_watch(monitor);
 }
 
@@ -170,10 +171,11 @@ static bool read_cpu(struct monitor *monitor, struct cpu_sample *sample)
 static void handle_cpu_timer(struct uloop_interval *timer)
 {
 	struct monitor *monitor = __extension__ container_of(timer, struct monitor, cpu_timer);
+	const struct controller_activity *activity = &monitor->activity;
 	struct cpu_sample sample;
 	struct cpu_busy usage[CPU_MAX_COUNT];
 
-	if (monitor->activity.state != CONTROLLER_RUNNING || !read_cpu(monitor, &sample))
+	if (activity->state != CONTROLLER_RUNNING || !read_cpu(monitor, &sample))
 		return;
 	if (monitor->config->output_cpu_raw_stats)
 		log_cpu_raw(&sample);
@@ -209,7 +211,6 @@ static void handle_log_reset_signal(struct uloop_signal *signal)
 static void watch_cpu(struct monitor *monitor)
 {
 	const struct config *config = monitor->config;
-
 	struct cpu_sample sample;
 
 	if (!config->output_cpu_stats && !config->output_cpu_raw_stats)
