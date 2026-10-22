@@ -35,11 +35,13 @@ diverging or attributing local bugs to upstream.
 
 Keep every supported cake-autorate option in the typed UCI model. Parsing an
 option does not mean its behavior is implemented; do not claim support until
-the corresponding path is tested. `fping` is the only supported pinger for now,
-and reflector targets come from local UCI configuration rather than a remotely
-retrieved list. `fping-ts` is verified on the emulated testbed but not on
-internet reflectors; the IRTT backend is experimental and must be described as
-such.
+the corresponding path is tested. The daemon's own ICMP probes (`native`,
+`native-ts`) are the default pinger, a documented deliberate difference
+(user decision 2026-10-21); `fping`, `fping-ts` and `irtt` remain as
+fallbacks with their options. Reflector targets come from local UCI
+configuration rather than a remotely retrieved list. `fping-ts` and
+`native-ts` are verified on the emulated testbed but not on internet
+reflectors; the IRTT backend is experimental and must be described as such.
 
 Upstream may be consulted during implementation, but production code, init
 scripts, and configuration must never source, execute, or read files from an

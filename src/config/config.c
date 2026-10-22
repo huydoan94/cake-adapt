@@ -521,6 +521,35 @@ static int absolute_log_directory(struct config *config, char *error, size_t err
 	return 0;
 }
 
+int config_check_shared_file(
+	const struct config *config,
+	const struct stat *status,
+	const char *shared_path,
+	char *error,
+	size_t error_size
+)
+{
+	struct stat shared;
+	const char *option = NULL;
+
+	if (config->ping_prefix_string[0] != '\0')
+		option = OPTION_PING_PREFIX_STRING;
+	else if (config->ping_extra_args[0] != '\0')
+		option = OPTION_PING_EXTRA_ARGS;
+	else if (config->log_file_path_override[0] != '\0')
+		option = OPTION_LOG_FILE_PATH_OVERRIDE;
+	if (option == NULL || stat(shared_path, &shared) != 0 || shared.st_dev != status->st_dev ||
+	    shared.st_ino != status->st_ino)
+		return 0;
+	return error_set(
+		error,
+		error_size,
+		"option '%s' is refused in %s, which LuCI can change; move it to /etc/cake-adapt/exec",
+		option,
+		shared_path
+	);
+}
+
 int config_load(
 	struct config *config,
 	const char *config_path,
@@ -583,6 +612,14 @@ int config_load(
 	result = load_section(&loader);
 	if (result == 0)
 		result = absolute_log_directory(config, error, error_size);
+	if (result == 0)
+		result = config_check_shared_file(
+			config,
+			&status,
+			DEFAULT_CONFIG_PATH,
+			error,
+			error_size
+		);
 
 done:
 	/* libuci owns and releases every package loaded into this context. */

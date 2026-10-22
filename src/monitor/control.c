@@ -182,9 +182,9 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 
 	if (config->output_processing_stats) {
 		/*
-		 * Standard fping supplies RTT rather than directional timestamps.
-		 * Match cake-autorate's fping path by recording the same half-RTT
-		 * estimate in its separate download and upload OWD columns.
+		 * Echo pingers (native, fping) supply RTT rather than directional
+		 * timestamps. Match cake-autorate's fping path by recording the same
+		 * half-RTT estimate in its separate download and upload OWD columns.
 		 */
 		const struct log_data_record record = {
 			.download_achieved_rate_bps = download_achieved_bps,
@@ -492,8 +492,7 @@ int control_start(struct monitor *monitor)
 		.high_load_threshold_ratio_e6 = config->high_load_threshold_ratio_e6,
 		.bufferbloat_refractory_period_us = config->bufferbloat_refractory_period_us,
 		.decay_refractory_period_us = config->decay_refractory_period_us,
-		/* Only fping reports one RTT/2 delay for both directions. */
-		.shared_delay = strcmp(config->pinger_method, PINGER_METHOD_FPING) == 0,
+		.shared_delay = latency_shared_delay(config->pinger_method),
 		.ul_congest_ack_share_ratio_e6 = config->ul_congest_ack_share_ratio_e6,
 	};
 

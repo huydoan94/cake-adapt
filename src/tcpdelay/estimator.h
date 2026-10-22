@@ -78,7 +78,7 @@ struct tcpdelay_estimate {
 };
 
 /*
- * The largest queue any flow may show from now on, such as fping's round-trip
+ * The largest queue any flow may show from now on, such as the echo pinger's round-trip
  * delay above its baseline: a queue on the access link delays both. A zero
  * bound re-zeroes every floor, absorbing remote clock drift and route changes.
  * Kept in nanoseconds, the filter's clock.

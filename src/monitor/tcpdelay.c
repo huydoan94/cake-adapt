@@ -346,8 +346,8 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	if (!capture_ready(monitor))
 		return;
 	/*
-	 * A queue on the access link delays fping's round trips as well, so no TCP
-	 * queue may exceed fping's recent added delay. The bound stays until the
+	 * A queue on the access link delays the echo pinger's round trips as well,
+	 * so no TCP queue may exceed their recent added delay. The bound stays until the
 	 * next reply, also for records the traffic tick drains.
 	 */
 	if (recent_delay_us >= 0)

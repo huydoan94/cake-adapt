@@ -82,9 +82,17 @@ struct pinger_watch {
 	bool reading;
 };
 
+struct native_watch {
+	struct uloop_fd socket;
+	struct monitor *monitor;
+	size_t channel;
+};
+
 /* pingers.c: the pinger session, its children and its restart timing. */
 struct monitor_pingers {
 	struct latency latency;
+	struct native_watch native_watches[NATIVE_CHANNELS];
+	struct uloop_timeout native_timer;
 	struct pinger_watch watches[CONFIG_MAX_REFLECTORS];
 	struct uloop_timeout stop_timer;
 	struct uloop_timeout failure_timer;
@@ -292,7 +300,7 @@ void reflectors_record(
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_us);
 
 /*
- * fping's recent added round-trip delay on the access link, or -1 when no
+ * The echo pinger's recent added round-trip delay on the access link, or -1 when no
  * pinger slot replied in the current or previous second. A queue on the link
  * delays every reflector's replies, while a slow reflector delays only its own:
  * this is the lower median across slots of each slot's largest added delay over
