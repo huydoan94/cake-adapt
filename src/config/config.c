@@ -5,11 +5,13 @@
 #include "config/defaults.h"
 #include "common/error.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <libubox/utils.h>
 
 #include <stdio.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -205,6 +207,54 @@ size_t config_option_count(void)
 const char *config_option_name(size_t index)
 {
 	return index < ARRAY_SIZE(options) ? options[index].name : NULL;
+}
+
+/* value / scale as the shortest decimal with at most six places, as UCI holds it. */
+static void format_scaled(uint64_t value, uint64_t scale, char *text, size_t text_size)
+{
+	uint64_t whole = value / scale;
+	uint64_t millionths = rounded_divide(value % scale * RATIO_ONE_E6, scale);
+	int length;
+
+	if (millionths == RATIO_ONE_E6) {
+		whole++;
+		millionths = 0U;
+	}
+	if (millionths == 0U) {
+		(void)snprintf(text, text_size, "%" PRIu64, whole);
+		return;
+	}
+	length = snprintf(text, text_size, "%" PRIu64 ".%06" PRIu64, whole, millionths);
+	while (length > 0 && (size_t)length < text_size && text[length - 1] == '0')
+		text[--length] = '\0';
+}
+
+int config_option_value(const struct config *config, size_t index, char *text, size_t text_size)
+{
+	const struct option_binding *option;
+	const char *member;
+
+	if (index >= ARRAY_SIZE(options))
+		return -1;
+	option = &options[index];
+	member = (const char *)config + option->offset;
+	switch (option->type) {
+	case TYPE_BOOLEAN:
+		(void)snprintf(
+			text,
+			text_size,
+			"%s",
+			*(const bool *)member ? BOOLEAN_TRUE_NUMERIC : BOOLEAN_FALSE_NUMERIC
+		);
+		break;
+	case TYPE_STRING:
+		(void)snprintf(text, text_size, "%s", member);
+		break;
+	case TYPE_SCALED:
+		format_scaled(*(const uint64_t *)member, option->scale, text, text_size);
+		break;
+	}
+	return 0;
 }
 
 /* The section being loaded, the configuration it fills and where a failure is described. */

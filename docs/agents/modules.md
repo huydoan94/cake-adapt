@@ -52,7 +52,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
 - `config/`
   - `config.c`: typed UCI loading and conversion through `libuci`, driven by
     one table of typed option bindings (`options[]`, whose order is also the
-    `-L` listing); never parse `/etc/config/cake-adapt` manually.
+    `-L` listing, and `-D` prints each one's default in its UCI units for the
+    LuCI app); never parse `/etc/config/cake-adapt` manually.
   - `validate.c`: cross-option validation of a loaded configuration
     (`config_validate`), run before control starts.
   - `defaults.c` and `defaults.h`: built-in application and configuration

@@ -129,6 +129,11 @@ static inline bool config_cpu_stats(const struct config *config)
 
 size_t config_option_count(void);
 const char *config_option_name(size_t index);
+/*
+ * Option index's value in config, as /etc/config/cake-adapt writes it: 0 or 1,
+ * the string, or a decimal in the option's unit (seconds, kbit/s, a ratio).
+ */
+int config_option_value(const struct config *config, size_t index, char *text, size_t text_size);
 
 /* Checks a loaded configuration for consistency; config_load() calls it. */
 int config_validate(const struct config *config, char *error, size_t error_size);
