@@ -17,6 +17,18 @@
 #include <time.h>
 #include <unistd.h>
 
+/* irtt's "<seconds>.<microseconds>s" duration argument. */
+static void format_duration(char text[PINGER_ARGUMENT_SIZE], uint64_t duration_us)
+{
+	(void)snprintf(
+		text,
+		PINGER_ARGUMENT_SIZE,
+		"%" PRIu64 ".%06" PRIu64 "s",
+		duration_us / MICROSECONDS_PER_SECOND,
+		duration_us % MICROSECONDS_PER_SECOND
+	);
+}
+
 static int
 spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_t error_size)
 {
@@ -32,20 +44,8 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 	if (pinger_command_init(&command, latency, 7U, error, error_size) != 0)
 		return -1;
 
-	(void)snprintf(
-		interval,
-		sizeof(interval),
-		"%" PRIu64 ".%06" PRIu64 "s",
-		settings->reflector_ping_interval_us / MICROSECONDS_PER_SECOND,
-		settings->reflector_ping_interval_us % MICROSECONDS_PER_SECOND
-	);
-	(void)snprintf(
-		duration,
-		sizeof(duration),
-		"%" PRIu64 ".%06" PRIu64 "s",
-		settings->irtt_session_duration_us / MICROSECONDS_PER_SECOND,
-		settings->irtt_session_duration_us % MICROSECONDS_PER_SECOND
-	);
+	format_duration(interval, settings->reflector_ping_interval_us);
+	format_duration(duration, settings->irtt_session_duration_us);
 	if (strchr(child->target, ':') == NULL)
 		(void)strcpy(endpoint, child->target);
 	else
@@ -125,9 +125,10 @@ int latency_start_irtt_children(
 
 bool latency_irtt_start_pending(const struct latency *latency)
 {
+	const struct latency_settings *settings = &latency->settings;
 	size_t index;
 
-	if (!latency->active || latency->ops != &irtt_ops)
+	if (!latency->active || settings->method != PINGER_IRTT)
 		return false;
 	for (index = 0U; index < latency->child_count; index++) {
 		const struct latency_child *child = &latency->children[index];
@@ -160,6 +161,7 @@ static enum latency_probe_result irtt_parse(
 	size_t error_size
 )
 {
+	char *timestamp_text = sample->timestamp_text;
 	uint64_t timestamp_us;
 
 	if (!parse_irtt_line(line, child->target, sample))
@@ -169,9 +171,7 @@ static enum latency_probe_result irtt_parse(
 		return LATENCY_PROBE_ERROR;
 	}
 	sample->timestamp_us = timestamp_us;
-	(
-		void
-	)snprintf(sample->timestamp_text, sizeof(sample->timestamp_text), "%" PRIu64, timestamp_us);
+	(void)snprintf(timestamp_text, LATENCY_TIMESTAMP_TEXT_SIZE, "%" PRIu64, timestamp_us);
 	return LATENCY_PROBE_SUCCESS;
 }
 

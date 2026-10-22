@@ -88,7 +88,7 @@ static int fping_open(
 	uint64_t timeout_ms = rounded_divide(FPING_TIMEOUT_US, MICROSECONDS_PER_MILLISECOND);
 	struct pinger_command command;
 	char period[PINGER_ARGUMENT_SIZE];
-	char response_interval[PINGER_ARGUMENT_SIZE];
+	char interval[PINGER_ARGUMENT_SIZE];
 	char timeout[PINGER_ARGUMENT_SIZE];
 	bool interface_selected = false;
 	size_t index;
@@ -96,9 +96,7 @@ static int fping_open(
 
 	(void)timestamp_us;
 	(void)snprintf(period, sizeof(period), "%" PRIu64, period_ms);
-	(
-		void
-	)snprintf(response_interval, sizeof(response_interval), "%" PRIu64, response_interval_ms);
+	(void)snprintf(interval, sizeof(interval), "%" PRIu64, response_interval_ms);
 	(void)snprintf(timeout, sizeof(timeout), "%" PRIu64, timeout_ms);
 
 	/* Up to 13 fixed arguments besides the targets. */
@@ -120,10 +118,10 @@ static int fping_open(
 	pinger_command_add(&command, FPING_PERIOD);
 	pinger_command_add(&command, period);
 	pinger_command_add(&command, FPING_INTERVAL);
-	pinger_command_add(&command, response_interval);
+	pinger_command_add(&command, interval);
 	pinger_command_add(&command, FPING_TIMEOUT);
 	pinger_command_add(&command, timeout);
-	if (latency->ops == &fping_ts_ops)
+	if (latency_timestamps(settings->method))
 		pinger_command_add(&command, FPING_ICMP_TIMESTAMP);
 	for (index = 0U; index < target_count; index++)
 		pinger_command_add(&command, targets[index]);

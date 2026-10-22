@@ -22,6 +22,22 @@
 #define ICMP_ECHO_REPLY_MIN_BYTES 24U
 /* IPv4 flags and fragment offset: any set bit other than DF means a fragment. */
 #define IPV4_FRAGMENT_MASK 0x3fffU
+/* Room for any reply: larger datagrams are foreign, and MSG_TRUNC drops them. */
+#define ICMP_RECEIVE_BYTES 2048U
+
+/* The request's length: a timestamp request, or an echo request with token and serial. */
+static size_t request_bytes(enum icmp_mode mode)
+{
+	return mode == ICMP_MODE_TIMESTAMP ? ICMP_TIMESTAMP_REQUEST_BYTES : ICMP_ECHO_REQUEST_BYTES;
+}
+
+/* The only ICMP type a session accepts. */
+static unsigned char reply_type(int family, enum icmp_mode mode)
+{
+	if (mode == ICMP_MODE_TIMESTAMP)
+		return ICMP_TIMESTAMPREPLY;
+	return family == AF_INET ? ICMP_ECHOREPLY : ICMP6_ECHO_REPLY;
+}
 
 static void put_integer(unsigned char *bytes, uint64_t value, size_t length)
 {
@@ -109,8 +125,7 @@ size_t icmp_build(
 	uint32_t originate_ms
 )
 {
-	size_t length = mode == ICMP_MODE_TIMESTAMP ? ICMP_TIMESTAMP_REQUEST_BYTES :
-						      ICMP_ECHO_REQUEST_BYTES;
+	size_t length = request_bytes(mode);
 
 	memset(packet, 0, length);
 	packet[0] = mode == ICMP_MODE_TIMESTAMP ?
@@ -139,10 +154,10 @@ bool icmp_parse(
 	struct icmp_reply *reply
 )
 {
+	const bool timestamps = mode == ICMP_MODE_TIMESTAMP;
 	size_t header_bytes = 0U;
-	unsigned char type = mode == ICMP_MODE_TIMESTAMP ?
-				     ICMP_TIMESTAMPREPLY :
-				     (family == AF_INET ? ICMP_ECHOREPLY : ICMP6_ECHO_REPLY);
+	/* A timestamp reply is as long as its request; an echo reply at least the token. */
+	size_t minimum_bytes = timestamps ? request_bytes(mode) : ICMP_ECHO_REPLY_MIN_BYTES;
 
 	/* Raw IPv4 delivers the IP header: version 4, ICMP, whole length, not a fragment. */
 	if (family == AF_INET) {
@@ -154,18 +169,17 @@ bool icmp_parse(
 		    get_integer(packet + 2U, 2U) != length ||
 		    (get_integer(packet + 6U, 2U) & IPV4_FRAGMENT_MASK) != 0U)
 			return false;
-	} else if (family != AF_INET6 || mode == ICMP_MODE_TIMESTAMP) {
+	} else if (family != AF_INET6 || timestamps) {
 		return false;
 	}
 	packet += header_bytes;
 	length -= header_bytes;
-	if (length < (mode == ICMP_MODE_TIMESTAMP ? ICMP_TIMESTAMP_REQUEST_BYTES :
-						    ICMP_ECHO_REPLY_MIN_BYTES) ||
-	    packet[0] != type || packet[1] != 0U || get_integer(packet + 4U, 2U) != identifier ||
+	if (length < minimum_bytes || packet[0] != reply_type(family, mode) || packet[1] != 0U ||
+	    get_integer(packet + 4U, 2U) != identifier ||
 	    (family == AF_INET && icmp_checksum(packet, length) != 0U))
 		return false;
 	reply->sequence = (uint16_t)get_integer(packet + 6U, 2U);
-	if (mode == ICMP_MODE_TIMESTAMP) {
+	if (timestamps) {
 		reply->originate_ms = (uint32_t)get_integer(packet + 8U, 4U);
 		reply->receive_ms = (uint32_t)get_integer(packet + 12U, 4U);
 		reply->transmit_ms = (uint32_t)get_integer(packet + 16U, 4U);
@@ -252,16 +266,18 @@ int icmp_open(
 )
 {
 	int enabled = 1;
+	int fd;
 
 	*channel = (struct icmp_socket){ .fd = -1, .family = family, .identifier = identifier };
 	if ((family != AF_INET && family != AF_INET6) ||
 	    (family == AF_INET6 && mode == ICMP_MODE_TIMESTAMP))
 		return error_set(error, error_size, "invalid ICMP socket family/mode");
-	channel->fd =
+	fd =
 		socket(family,
 		       SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC,
 		       family == AF_INET ? IPPROTO_ICMP : IPPROTO_ICMPV6);
-	if (channel->fd < 0)
+	channel->fd = fd;
+	if (fd < 0)
 		return error_set(
 			error,
 			error_size,
@@ -269,22 +285,19 @@ int icmp_open(
 			strerror(errno)
 		);
 	if (setsockopt(
-		    channel->fd,
+		    fd,
 		    SOL_SOCKET,
 		    SO_BINDTODEVICE,
 		    interface,
 		    (socklen_t)(strlen(interface) + 1U)
 	    ) != 0 ||
-	    socket_filter(channel->fd, family, identifier) != 0)
+	    socket_filter(fd, family, identifier) != 0)
 		goto failed;
 	if (family == AF_INET) {
 		/* A set bit drops that type: only the expected reply passes. */
-		uint32_t filter =
-			~(UINT32_C(1)
-			  << (mode == ICMP_MODE_TIMESTAMP ? ICMP_TIMESTAMPREPLY : ICMP_ECHOREPLY));
+		uint32_t filter = ~(UINT32_C(1) << reply_type(family, mode));
 
-		if (setsockopt(channel->fd, SOL_RAW, LINUX_ICMP_FILTER, &filter, sizeof(filter)) !=
-		    0)
+		if (setsockopt(fd, SOL_RAW, LINUX_ICMP_FILTER, &filter, sizeof(filter)) != 0)
 			goto failed;
 	} else {
 		struct icmp6_filter filter;
@@ -292,13 +305,11 @@ int icmp_open(
 		ICMP6_FILTER_SETBLOCKALL(&filter);
 		filter.icmp6_filt[ICMP6_ECHO_REPLY >> 5U] &=
 			~(UINT32_C(1) << (ICMP6_ECHO_REPLY & 31U));
-		if (setsockopt(channel->fd, IPPROTO_ICMPV6, ICMP6_FILTER, &filter, sizeof(filter)) !=
-		    0)
+		if (setsockopt(fd, IPPROTO_ICMPV6, ICMP6_FILTER, &filter, sizeof(filter)) != 0)
 			goto failed;
 	}
 	channel->timestamp_enabled =
-		setsockopt(channel->fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &enabled, sizeof(enabled)) ==
-		0;
+		setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &enabled, sizeof(enabled)) == 0;
 	return 0;
 failed:
 	(void)error_set(error, error_size, "could not configure ICMP socket: %s", strerror(errno));
@@ -368,7 +379,7 @@ enum icmp_receive_result icmp_receive(
 	size_t error_size
 )
 {
-	unsigned char packet[2048];
+	unsigned char packet[ICMP_RECEIVE_BYTES];
 	union {
 		struct cmsghdr alignment;
 		unsigned char bytes[CMSG_SPACE(sizeof(int64_t) * 2U)];

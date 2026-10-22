@@ -100,15 +100,15 @@ int blobmsg_add_field(
 )
 {
 	uint64_t value = 0U;
+	char *field;
 
 	(void)buf;
 	(void)len;
 	assert(field_count < ARRAY_SIZE(fields));
+	field = fields[field_count];
 	switch (type) {
 	case BLOBMSG_TYPE_STRING:
-		(
-			void
-		)snprintf(fields[field_count], sizeof(fields[0]), "%s=%s", name, (const char *)data);
+		(void)snprintf(field, sizeof(fields[0]), "%s=%s", name, (const char *)data);
 		break;
 	case BLOBMSG_TYPE_INT8:
 		value = *(const uint8_t *)data;
@@ -123,9 +123,7 @@ int blobmsg_add_field(
 		assert(0);
 	}
 	if (type != BLOBMSG_TYPE_STRING)
-		(
-			void
-		)snprintf(fields[field_count], sizeof(fields[0]), "%s=%lld", name, (long long)value);
+		(void)snprintf(field, sizeof(fields[0]), "%s=%lld", name, (long long)value);
 	field_count++;
 	return 0;
 }
