@@ -128,6 +128,7 @@ static bool process_latency_sample(
 	uint64_t processing_realtime_us = 0U;
 	uint64_t processing_monotonic_us;
 	uint64_t response_us;
+	bool stale;
 	size_t slot;
 
 	slot = reflectors_find(monitor, sample->target);
@@ -153,18 +154,22 @@ static bool process_latency_sample(
 		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
 		pingers->response_clock_failed = false;
 	}
-	response_us = captured_response_us != NULL ? *captured_response_us :
-						     response_monotonic_us(
-							     processing_realtime_us,
-							     processing_monotonic_us,
-							     sample->timestamp_us
-						     );
+	/* Native probes bring the kernel's receive time; a pinger's line its own timestamp. */
+	if (captured_response_us != NULL) {
+		response_us = *captured_response_us;
+		stale = saturating_sub(processing_monotonic_us, response_us) >
+			LATENCY_STALE_RESPONSE_US;
+	} else {
+		response_us = response_monotonic_us(
+			processing_realtime_us,
+			processing_monotonic_us,
+			sample->timestamp_us
+		);
+		stale = response_stale(processing_realtime_us, sample->timestamp_us);
+	}
 	reflectors_record(monitor, slot, sample, response_us, &observation);
 	pingers->last_response_us = response_us;
-	if (captured_response_us != NULL ?
-		    saturating_sub(processing_monotonic_us, response_us) >
-			    LATENCY_STALE_RESPONSE_US :
-		    response_stale(processing_realtime_us, sample->timestamp_us)) {
+	if (stale) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"processed response from [%s] that is > 500ms old. Skipping.",
