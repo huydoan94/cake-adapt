@@ -11,7 +11,8 @@
 #
 # Rules (docs/agents/c-style.md):
 # - no member-access chain mixing -> and . (take a local pointer instead; the
-#   declaration taking it, such as "struct t *t = &p->a.t;", is that fix);
+#   declaration or assignment taking it, such as "struct t *t = &p->a.t;", is
+#   that fix);
 # - no literal true or false passed as a function argument (atomic stores
 #   assign a value and are allowed);
 # - every checked file is clang-format-stable (the SDK's clang-format, when
@@ -26,7 +27,7 @@ cd "$repo" || exit 1
 mixed='->[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\.[A-Za-z_]|\.[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?->'
 literal_bool='[A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(.*[(,][[:space:]]*(true|false)[[:space:]]*[,)]'
 # Taking a local pointer is the fix for a mixed chain, not an instance of one.
-local_pointer='^[[:space:]]*(const[[:space:]]+)?(struct[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[*][[:space:]]*(const[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*&[^;]*;[[:space:]]*$'
+local_pointer='^[[:space:]]*((const[[:space:]]+)?(struct[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[*][[:space:]]*(const[[:space:]]+)?)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*&[^;]*;[[:space:]]*$'
 # An atomic store assigns a value; it is not a flag passed to a function.
 atomic_store='atomic_(init|store|exchange)(_explicit)?[[:space:]]*\('
 findings=$(mktemp)
