@@ -11,16 +11,14 @@
 set -euo pipefail
 set -f
 
-fail()
-{
-    printf 'cake-adapt configuration import: %s\n' "$1" >&2
-    "${LOGGER:-logger}" -t cake-adapt -p daemon.err "configuration import: $1" || :
-    exit 1
+fail() {
+	printf 'cake-adapt configuration import: %s\n' "$1" >&2
+	"${LOGGER:-logger}" -t cake-adapt -p daemon.err "configuration import: $1" || :
+	exit 1
 }
 
-single_line()
-{
-    [[ $1 != *$'\n'* && $1 != *$'\r'* ]] || fail "$2 contains a line break"
+single_line() {
+	[[ $1 != *$'\n'* && $1 != *$'\r'* ]] || fail "$2 contains a line break"
 }
 
 (( $# >= 1 )) || fail "usage: $0 CONFIG_FILE OPTION..."
@@ -41,29 +39,30 @@ set -f
 IFS=$' \t\n'
 
 for name in "${option_names[@]}"; do
-    case $name in
-    enabled|interface|config_file|reflectors)
-        continue
-        ;;
-    esac
-    [[ -v $name ]] || continue
-    case $(declare -p "$name") in
-    "declare -a "*|"declare -A "*)
-        fail "$name must be a scalar value"
-        ;;
-    esac
-    single_line "${!name}" "$name"
-    printf 's %s=%s\n' "$name" "${!name}" >&3
+	# Never taken from the file, even malformed; the reflectors follow on their own lines.
+	case $name in
+	enabled|interface|config_file|reflectors)
+		continue
+		;;
+	esac
+	[[ -v $name ]] || continue
+	case $(declare -p "$name") in
+	"declare -a "*|"declare -A "*)
+		fail "$name must be a scalar value"
+		;;
+	esac
+	single_line "${!name}" "$name"
+	printf 's %s=%s\n' "$name" "${!name}" >&3
 done
 
 if reflector_declaration=$(declare -p reflectors 2> /dev/null); then
-    [[ $reflector_declaration == "declare -a "* ]] ||
-        fail "reflectors must be an indexed array"
-    (( ${#reflectors[@]} > 0 )) || fail "reflectors is empty"
-    printf 'R\n' >&3
-    for reflector in "${reflectors[@]}"; do
-        single_line "$reflector" reflector
-        printf 'r %s\n' "$reflector" >&3
-    done
+	[[ $reflector_declaration == "declare -a "* ]] ||
+		fail "reflectors must be an indexed array"
+	(( ${#reflectors[@]} > 0 )) || fail "reflectors is empty"
+	printf 'R\n' >&3
+	for reflector in "${reflectors[@]}"; do
+		single_line "$reflector" reflector
+		printf 'r %s\n' "$reflector" >&3
+	done
 fi
 printf 'E\n' >&3
