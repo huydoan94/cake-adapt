@@ -23,27 +23,36 @@ static struct cake_accounting accounting_model(const struct cake_observation *ca
 	};
 }
 
+/* The upload ACK hold, which needs the filter's byte counters. */
+static bool ack_share_enabled(const struct config *config)
+{
+	return config->ul_congest_ack_share_ratio_e6 != 0U;
+}
+
 /* Either TCP feature needs the capture. */
 static bool tcp_enabled(const struct config *config)
 {
-	return config->tcp_delay_attribution || config->ul_congest_ack_share_ratio_e6 != 0U;
+	return config->tcp_delay_attribution || ack_share_enabled(config);
 }
 
 void tcp_init(struct monitor *monitor)
 {
-	tcpdelay_capture_init(&monitor->tcp.capture);
-	tcpdelay_injector_init(&monitor->tcp.injector);
+	struct monitor_tcp *tcp = &monitor->tcp;
+
+	tcpdelay_capture_init(&tcp->capture);
+	tcpdelay_injector_init(&tcp->injector);
 }
 
 void tcp_start(struct monitor *monitor)
 {
+	const struct config *config = monitor->config;
+	struct monitor_tcp *tcp = &monitor->tcp;
 	char error[ERROR_SIZE] = { 0 };
 
 	/* The injector shares the filter's object; validation requires attribution. */
-	if (monitor->config->tcp_ts_request)
-		tcpdelay_capture_enable_injection(&monitor->tcp.capture);
-	if (tcp_enabled(monitor->config) &&
-	    tcpdelay_capture_load(&monitor->tcp.capture, error, sizeof(error)) != 0)
+	if (config->tcp_ts_request)
+		tcpdelay_capture_enable_injection(&tcp->capture);
+	if (tcp_enabled(config) && tcpdelay_capture_load(&tcp->capture, error, sizeof(error)) != 0)
 		log_message(
 			LOG_LEVEL_WARNING,
 			"Warning: TCP measurement unavailable: %s. Continuing without it.",
@@ -64,17 +73,13 @@ static struct log_tcp_inject_record inject_record(const struct tcpdelay_inject_c
 /* Experimental: follows the capture onto the same interface. */
 static void attach_injector(struct monitor *monitor, const char *interface)
 {
+	struct monitor_tcp *tcp = &monitor->tcp;
 	char error[ERROR_SIZE] = { 0 };
 
 	if (!monitor->config->tcp_ts_request)
 		return;
-	if (tcpdelay_injector_attach(
-		    &monitor->tcp.injector,
-		    &monitor->tcp.capture,
-		    interface,
-		    error,
-		    sizeof(error)
-	    ) != 0) {
+	if (tcpdelay_injector_attach(&tcp->injector, &tcp->capture, interface, error, sizeof(error)) !=
+	    0) {
 		log_message(
 			LOG_LEVEL_WARNING,
 			"Warning: TCP timestamp injection unavailable: %s. Continuing without it.",
@@ -91,7 +96,8 @@ static void attach_injector(struct monitor *monitor, const char *interface)
 
 static void detach_injector(struct monitor *monitor)
 {
-	struct tcpdelay_injector *injector = &monitor->tcp.injector;
+	struct monitor_tcp *tcp = &monitor->tcp;
+	struct tcpdelay_injector *injector = &tcp->injector;
 	struct tcpdelay_inject_counters counters;
 
 	if (!tcpdelay_injector_attached(injector))
@@ -110,11 +116,12 @@ static void detach_injector(struct monitor *monitor)
 static bool open_capture(struct monitor *monitor, const struct monitor_direction *upload)
 {
 	const struct cake_observation *cake = &upload->cake;
+	const struct qdisc_id *qdisc = &cake->qdisc;
 	struct monitor_tcp *tcp = &monitor->tcp;
 	char error[ERROR_SIZE] = { 0 };
 	const struct cake_accounting model = accounting_model(cake);
-	const struct cake_accounting *accounting =
-		monitor->config->ul_congest_ack_share_ratio_e6 != 0U ? &model : NULL;
+	const struct cake_accounting *accounting = ack_share_enabled(monitor->config) ? &model :
+											NULL;
 
 	if (tcpdelay_capture_open(
 		    &tcp->capture,
@@ -128,11 +135,11 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 			"Warning: TCP measurement unavailable: %s. Continuing without it.",
 			error
 		);
-		tcp->failed_index = cake->qdisc.interface_index;
+		tcp->failed_index = qdisc->interface_index;
 		return false;
 	}
 	tcp->open = true;
-	tcp->qdisc = cake->qdisc;
+	tcp->qdisc = *qdisc;
 	tcp->failed_index = 0U;
 	tcp->dropped_records = 0U;
 	tcp->next_counter_check_us = 0U;
@@ -153,11 +160,12 @@ static bool open_capture(struct monitor *monitor, const struct monitor_direction
 /* Once a minute: the injector's counters. */
 static void log_injector(struct monitor *monitor)
 {
+	struct monitor_tcp *tcp = &monitor->tcp;
 	struct tcpdelay_inject_counters counters;
 	struct log_tcp_inject_record record;
 
 	if (!monitor->config->output_processing_stats ||
-	    tcpdelay_injector_counters(&monitor->tcp.injector, &counters) != 0)
+	    tcpdelay_injector_counters(&tcp->injector, &counters) != 0)
 		return;
 	record = inject_record(&counters);
 	log_tcp_inject(&record);
@@ -189,6 +197,7 @@ static void report_dropped_records(struct monitor *monitor, uint64_t timestamp_u
 static bool drain(struct monitor *monitor)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
+	const struct qdisc_id *qdisc = &tcp->qdisc;
 
 	if (tcpdelay_capture_drain(&tcp->capture) >= 0)
 		return true;
@@ -199,8 +208,19 @@ static bool drain(struct monitor *monitor)
 	);
 	tcp_close(monitor);
 	/* Not retried until the upload interface the capture was bound to is recreated. */
-	tcp->failed_index = tcp->qdisc.interface_index;
+	tcp->failed_index = qdisc->interface_index;
 	return false;
+}
+
+/* The open capture was set up for another upload qdisc or CAKE accounting. */
+static bool capture_outdated(const struct monitor_tcp *tcp, const struct cake_observation *cake)
+{
+	const struct tcpdelay_capture *capture = &tcp->capture;
+	const struct tcpdelay_accounting *accounting = &capture->accounting;
+	const struct cake_accounting model = accounting_model(cake);
+
+	return !qdisc_same(&tcp->qdisc, &cake->qdisc) ||
+	       (accounting->enabled && memcmp(&accounting->cake, &model, sizeof(model)) != 0);
 }
 
 /* Opens the capture, or reopens it for a changed qdisc; false when it is not usable. */
@@ -210,15 +230,13 @@ static bool capture_ready(struct monitor *monitor)
 	const struct config *config = monitor->config;
 	const struct monitor_direction *upload = &monitor->links.upload;
 	const struct cake_observation *cake = &upload->cake;
-	const struct cake_accounting model = accounting_model(cake);
+	const struct qdisc_id *qdisc = &cake->qdisc;
 
 	if (!tcp_enabled(config) || upload->cake_state != CAKE_OBSERVATION_AVAILABLE) {
 		tcp_close(monitor);
 		return false;
 	}
-	if (tcp->open && (!qdisc_same(&tcp->qdisc, &cake->qdisc) ||
-			  (tcp->capture.accounting.enabled &&
-			   memcmp(&tcp->capture.accounting.cake, &model, sizeof(model)) != 0))) {
+	if (tcp->open && capture_outdated(tcp, cake)) {
 		log_message(
 			LOG_LEVEL_INFO,
 			"Reopening TCP capture for changed interface or CAKE accounting on interface: %s",
@@ -228,7 +246,7 @@ static bool capture_ready(struct monitor *monitor)
 	}
 	if (tcp->open)
 		return true;
-	return tcp->failed_index != cake->qdisc.interface_index && open_capture(monitor, upload);
+	return tcp->failed_index != qdisc->interface_index && open_capture(monitor, upload);
 }
 
 static void
@@ -265,7 +283,6 @@ bool tcp_estimate(struct monitor *monitor, uint64_t timestamp_us, struct tcpdela
 	return true;
 }
 
-/* elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_US, so never zero. */
 static void ack_accounting_state(struct monitor *monitor, bool degraded)
 {
 	struct monitor_tcp *tcp = &monitor->tcp;
@@ -282,7 +299,10 @@ static void ack_accounting_state(struct monitor *monitor, bool degraded)
 		log_message(LOG_LEVEL_NOTICE, "ACK accounting recovered. Resuming ACK ceiling.");
 }
 
-/* Pure-ACK and total upload rates from the filter's byte counters, over >= 500 ms. */
+/*
+ * Pure-ACK and total upload rates from the filter's byte counters, over >= 500 ms;
+ * elapsed is at least TCPDELAY_ACK_RATE_INTERVAL_US, so never zero.
+ */
 static void
 measure_ack_rate(struct monitor *monitor, uint64_t timestamp_us, struct controller_ack_input *acks)
 {
@@ -358,7 +378,7 @@ void tcp_observe(struct monitor *monitor, struct controller_input *input)
 	report_dropped_records(monitor, input->timestamp_us);
 	if (config->tcp_delay_attribution)
 		measure_queues(monitor, input->timestamp_us, queue);
-	if (config->ul_congest_ack_share_ratio_e6 != 0U)
+	if (ack_share_enabled(config))
 		measure_ack_rate(monitor, input->timestamp_us, acks);
 }
 
@@ -395,7 +415,9 @@ void tcp_close(struct monitor *monitor)
 
 void tcp_stop(struct monitor *monitor)
 {
+	struct monitor_tcp *tcp = &monitor->tcp;
+
 	tcp_close(monitor);
-	tcpdelay_injector_unload(&monitor->tcp.injector);
-	tcpdelay_capture_unload(&monitor->tcp.capture);
+	tcpdelay_injector_unload(&tcp->injector);
+	tcpdelay_capture_unload(&tcp->capture);
 }

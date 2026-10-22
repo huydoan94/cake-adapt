@@ -15,9 +15,12 @@ void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_
 
 void tracker_reset(struct latency_tracker *tracker)
 {
-	tracker->download.baseline_us = (int64_t)INITIAL_ONE_WAY_BASELINE_US;
-	tracker->download.delta_ewma_us = 0;
-	tracker->upload = tracker->download;
+	const struct latency_direction_tracker initial = {
+		.baseline_us = (int64_t)INITIAL_ONE_WAY_BASELINE_US,
+	};
+
+	tracker->download = initial;
+	tracker->upload = initial;
 }
 
 static bool sample_has_timestamp_rollover(
@@ -25,14 +28,15 @@ static bool sample_has_timestamp_rollover(
 	const struct latency_sample *sample
 )
 {
+	const struct latency_direction_tracker *download = &tracker->download;
+	const struct latency_direction_tracker *upload = &tracker->upload;
 	uint64_t download_delta_us;
 	uint64_t upload_delta_us;
 
 	if (!sample->timestamp_rollover_sensitive)
 		return false;
-	download_delta_us =
-		absolute_difference(sample->download_owd_us, tracker->download.baseline_us);
-	upload_delta_us = absolute_difference(sample->upload_owd_us, tracker->upload.baseline_us);
+	download_delta_us = absolute_difference(sample->download_owd_us, download->baseline_us);
+	upload_delta_us = absolute_difference(sample->upload_owd_us, upload->baseline_us);
 	return download_delta_us >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US ||
 	       upload_delta_us >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US - download_delta_us;
 }
@@ -85,8 +89,11 @@ static int64_t tracker_update_direction(
 static void
 report_delta_ewma(const struct latency_tracker *tracker, struct latency_observation *observation)
 {
-	observation->download_owd_delta_ewma_us = tracker->download.delta_ewma_us;
-	observation->upload_owd_delta_ewma_us = tracker->upload.delta_ewma_us;
+	const struct latency_direction_tracker *download = &tracker->download;
+	const struct latency_direction_tracker *upload = &tracker->upload;
+
+	observation->download_owd_delta_ewma_us = download->delta_ewma_us;
+	observation->upload_owd_delta_ewma_us = upload->delta_ewma_us;
 }
 
 void tracker_update(
@@ -95,27 +102,25 @@ void tracker_update(
 	struct latency_observation *observation
 )
 {
+	struct latency_direction_tracker *download = &tracker->download;
+	struct latency_direction_tracker *upload = &tracker->upload;
+
 	observation->download_owd_us = sample->download_owd_us;
 	observation->upload_owd_us = sample->upload_owd_us;
 	if (sample_has_timestamp_rollover(tracker, sample)) {
 		/* Restart both baselines at the sample, so neither direction has a delta. */
-		tracker->download.baseline_us = sample->download_owd_us;
-		tracker->upload.baseline_us = sample->upload_owd_us;
-		observation->download_owd_baseline_us = sample->download_owd_us;
+		download->baseline_us = sample->download_owd_us;
+		upload->baseline_us = sample->upload_owd_us;
 		observation->download_owd_delta_us = 0;
-		observation->upload_owd_baseline_us = sample->upload_owd_us;
 		observation->upload_owd_delta_us = 0;
 	} else {
-		observation->download_owd_delta_us = tracker_update_direction(
-			tracker,
-			&tracker->download,
-			sample->download_owd_us
-		);
-		observation->download_owd_baseline_us = tracker->download.baseline_us;
+		observation->download_owd_delta_us =
+			tracker_update_direction(tracker, download, sample->download_owd_us);
 		observation->upload_owd_delta_us =
-			tracker_update_direction(tracker, &tracker->upload, sample->upload_owd_us);
-		observation->upload_owd_baseline_us = tracker->upload.baseline_us;
+			tracker_update_direction(tracker, upload, sample->upload_owd_us);
 	}
+	observation->download_owd_baseline_us = download->baseline_us;
+	observation->upload_owd_baseline_us = upload->baseline_us;
 	report_delta_ewma(tracker, observation);
 }
 
@@ -133,6 +138,8 @@ void tracker_update_delta_ewma(
 )
 {
 	const struct latency_tracker_config *config = &tracker->config;
+	struct latency_direction_tracker *download = &tracker->download;
+	struct latency_direction_tracker *upload = &tracker->upload;
 	int64_t alpha_e6 = (int64_t)config->alpha_delta_ewma_ratio_e6;
 
 	/* cake-autorate freezes reflector delay EWMA while either link is busy. */
@@ -140,12 +147,12 @@ void tracker_update_delta_ewma(
 		update_delta_ewma(
 			alpha_e6,
 			observation->download_owd_delta_us,
-			&tracker->download.delta_ewma_us
+			&download->delta_ewma_us
 		);
 		update_delta_ewma(
 			alpha_e6,
 			observation->upload_owd_delta_us,
-			&tracker->upload.delta_ewma_us
+			&upload->delta_ewma_us
 		);
 	}
 	report_delta_ewma(tracker, observation);
