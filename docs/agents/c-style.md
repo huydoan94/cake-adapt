@@ -38,7 +38,8 @@ not split a message into fragments that are passed around as values.
 
 `sh tools/style-check.sh` checks the changed lines for the two rules review
 keeps finding (mixed `->`/`.` chains and literal `true`/`false` arguments) and
-for clang-format stability; run it before reporting a C change.
+for clang-format stability; run it before reporting a C change. `make check`
+runs it on every tracked file in `src/` and `tests/`, which are kept clean.
 
 Never pass a literal `true` or `false` as a function argument. Give the call a
 meaning instead: separate functions sharing a static worker, an enum, a
