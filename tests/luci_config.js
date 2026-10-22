@@ -117,6 +117,12 @@ const { instanceErrors: errorsWith, reflectorError, reflectorTooLong, latencyChe
 const features = parseFeatures(featureText);
 const instanceErrors = (screen) => errorsWith(screen, features);
 
+/* Root-only options left in /etc/config/cake-adapt are named, per instance. */
+assert.deepStrictEqual(view.rootOnlyLeftovers([ { '.name': 'main' } ]), []);
+assert.deepStrictEqual(view.rootOnlyLeftovers([
+	{ '.name': 'main', config_file: '/x.sh', ping_extra_args: '-q' }, { '.name': 'guest', ping_prefix_string: 'w', log_file_path_override: '/etc', interface: 'eth1' }
+]), [ 'main: config_file', 'main: ping_extra_args', 'guest: log_file_path_override', 'guest: ping_prefix_string' ]);
+
 /* The features file: its words, and nothing when it is missing or empty. */
 assert.deepStrictEqual(parseFeatures(''), { mqtt: false, tls: false });
 assert.deepStrictEqual(parseFeatures(undefined), { mqtt: false, tls: false });
@@ -190,9 +196,7 @@ ok({}, 'the reference configuration is clean');
 ok({ interface: 'a'.repeat(15) });
 fails({ interface: 'a'.repeat(16) }, 'interface', 'is too long');
 fails({ ul_if: 'a'.repeat(16), dl_if: 'b' }, 'ul_if', 'is too long');
-ok({ ping_prefix_string: 'x'.repeat(511) });
-fails({ ping_prefix_string: 'x'.repeat(512) }, 'ping_prefix_string', 'is too long');
-fails({ config_file: 'é'.repeat(256) }, 'config_file', 'is too long');
+fails({ pinger_method: 'é'.repeat(256) }, 'pinger_method', 'is too long');
 
 /* config.c parse_scaled_decimal: a non-negative decimal, enough precision, not too large. */
 for (const bad of [ 'abc', '5.', '.5', '-1', '1e3', ' 5', '5 ', '1,5' ])
@@ -209,9 +213,9 @@ fails({ log_file_buffer_timeout_ms: '18446744073709552' }, 'log_file_buffer_time
 assert.ok(!errors({ log_file_buffer_timeout_ms: '18446744073709551' }).some((e) => e.message.includes('is too large')));
 fails({ log_file_max_size_KB: '99999999999999999999999' }, 'log_file_max_size_KB', 'is too large');
 
-/* config.c: reflector count and size. */
+/* config.c: reflector count and size; hostnames need a fallback pinger (native takes numeric addresses). */
 fails({ reflectors: Array.from({ length: 65 }, (_, i) => `h${i}.example`) }, 'reflectors', 'more than 64 entries');
-ok({ reflectors: Array.from({ length: 64 }, (_, i) => `h${i}.example`), no_pingers: '6' });
+ok({ pinger_method: 'fping', reflectors: Array.from({ length: 64 }, (_, i) => `h${i}.example`), no_pingers: '6' });
 fails({ reflectors: [ 'a'.repeat(256) ] , no_pingers: '1' }, 'reflectors', 'is too long');
 
 /* config.c resolve_interfaces: a pair is both or neither. */
@@ -261,9 +265,9 @@ ok({ pinger_method: 'fping-ts' });
 ok({ pinger_method: 'native' });
 ok({ pinger_method: 'native-ts' });
 ok({ pinger_method: 'native', tcp_delay_attribution: '1' });
-fails({ pinger_method: 'native', ping_extra_args: '-q' }, 'ping_extra_args', 'do not use');
-fails({ pinger_method: 'native', ping_prefix_string: 'wrapper' }, 'ping_prefix_string', 'do not use');
 fails({ pinger_method: 'native', reflectors: [ 'example.com' ], no_pingers: '1' }, 'reflectors', 'numeric IP address');
+/* native is the default: without a pinger_method a hostname is refused too. */
+fails({ reflectors: [ 'example.com' ], no_pingers: '1' }, 'reflectors', 'numeric IP address');
 fails({ pinger_method: 'native-ts', reflectors: [ '::1' ], no_pingers: '1' }, 'reflectors', 'IPv4-only');
 ok({ pinger_method: 'irtt', irtt_session_duration_m: '5' });
 fails({ pinger_method: 'irtt', irtt_session_duration_m: '0' }, 'irtt_session_duration_m', 'must be positive for irtt');
@@ -275,10 +279,10 @@ fails({ no_pingers: '0' }, 'no_pingers', 'between 1 and the reflector count');
 /* An empty no_pingers is the default 6, which three reflectors cannot supply. */
 fails({ no_pingers: '', reflectors: [ 'a.example', 'b.example', 'c.example' ] }, 'no_pingers', 'between 1 and the reflector count');
 ok({ no_pingers: '', reflectors: good.reflectors.concat('9.9.9.11') });
-ok({ no_pingers: '3', reflectors: [ 'a.example', 'b.example', 'c.example' ] });
+ok({ pinger_method: 'fping', no_pingers: '3', reflectors: [ 'a.example', 'b.example', 'c.example' ] });
 fails({ reflectors: [ '-bad', '1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9' ] }, 'reflectors', "invalid reflector '-bad'");
 fails({ reflectors: [ 'a b', '1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9' ] }, 'reflectors', 'invalid reflector');
-ok({ reflectors: [ ':1', 'a_b.example', '1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4' ] });
+ok({ pinger_method: 'fping', reflectors: [ ':1', 'a_b.example', '1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4' ] });
 fails({ reflectors: [ '1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9', '1.1.1.1' ] }, 'reflectors', "duplicate reflector '1.1.1.1'");
 fails({ pinger_method: 'fping-ts', reflectors: [ '1.1.1.1', '1.0.0.1', '8.8.8.8', '8.8.4.4', '9.9.9.9', '2606:4700::1111' ] },
 	'reflectors', 'IPv4-only ICMP timestamps; reflector \'2606:4700::1111\' is IPv6');
@@ -350,14 +354,6 @@ fails({ enable_sleep_function: '1', connection_active_thr_kbps: '5001', min_ul_s
 ok({ enable_sleep_function: '0', connection_active_thr_kbps: '99999' });
 /* An empty threshold is 2000 kbit/s; the flag empty is its default, on. */
 fails({ enable_sleep_function: '', connection_active_thr_kbps: '', min_dl_shaper_rate_kbps: '1000', base_dl_shaper_rate_kbps: '1000', max_dl_shaper_rate_kbps: '1000' }, 'connection_active_thr_kbps', 'cannot exceed');
-
-/* config.c absolute_log_directory: '/' is put before a relative directory; the result must fit 512 bytes. */
-ok({ log_file_path_override: 'a'.repeat(510) });
-fails({ log_file_path_override: 'a'.repeat(511) }, 'log_file_path_override', 'File name too long');
-ok({ log_file_path_override: '/' + 'a'.repeat(510) });
-fails({ log_file_path_override: '/' + 'a'.repeat(511) }, 'log_file_path_override', 'is too long');
-fails({ log_file_path_override: 'é'.repeat(255) + 'a' }, 'log_file_path_override', 'File name too long');
-fails({ log_file_path_override: 'a'.repeat(511), enabled: '0', adjust_dl_shaper_rate: '0', adjust_ul_shaper_rate: '0' }, 'log_file_path_override', 'File name too long');
 
 /* config.c load_section: a legacy latency_target stands for the reflector list (and one pinger). */
 {
@@ -447,7 +443,7 @@ assert.ok(holders[0] instanceof SectionValue);
 assert.strictEqual(holders[0].subsection, advanced);
 assert.deepStrictEqual(advanced.args.slice(1), [ null, 'cake_adapt' ], 'a NamedSection of the instance type');
 assert.strictEqual(sections.length, 2);
-assert.strictEqual(advanced.tabs.length, 8);
+assert.strictEqual(advanced.tabs.length, 7);
 for (const o of declared)
 	assert.ok(o.section.tabs.includes(o.tab), `${o.option} is in a tab of its section`);
 for (const tab of advanced.tabs)
@@ -455,7 +451,7 @@ for (const tab of advanced.tabs)
 assert.ok(!advanced.children.some((o) => o.option.startsWith('_')), 'no heading rows are left');
 for (const name of [ 'enabled', 'interface', 'max_ul_shaper_rate_kbps', 'reflectors' ])
 	assert.strictEqual(option(name).section, outer, `${name} stays outside Advanced`);
-for (const name of [ 'no_pingers', 'tcp_ts_request', 'log_to_file', 'alpha_delta_ewma', 'config_file' ])
+for (const name of [ 'no_pingers', 'tcp_ts_request', 'log_to_file', 'alpha_delta_ewma' ])
 	assert.strictEqual(option(name).section, advanced, `${name} is in Advanced`);
 
 /* The nested section works on the instance it is given, never on another one. */
