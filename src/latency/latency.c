@@ -59,9 +59,8 @@ static void stop_child(pid_t process_identifier)
 	for (attempt = 0U; attempt < CHILD_STOP_ATTEMPTS; attempt++) {
 		pid_t result = waitpid(process_identifier, NULL, WNOHANG);
 
-		if (result == process_identifier || (result < 0 && errno == ECHILD))
-			return;
-		if (result < 0 && errno != EINTR)
+		/* Reaped, or an error other than an interruption, such as ECHILD. */
+		if (result == process_identifier || (result < 0 && errno != EINTR))
 			return;
 		(void)nanosleep(&interval, NULL);
 	}
