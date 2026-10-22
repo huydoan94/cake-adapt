@@ -446,6 +446,7 @@ static int load_reflectors(const struct loader *loader)
 	struct uci_option *option =
 		uci_lookup_option(loader->context, loader->section, OPTION_REFLECTORS);
 	struct uci_element *element;
+	struct uci_list *list;
 
 	if (option == NULL)
 		return 0;
@@ -456,8 +457,9 @@ static int load_reflectors(const struct loader *loader)
 			"option 'reflectors' must be a UCI list"
 		);
 
+	list = &option->v.list;
 	loader->config->reflector_count = 0U;
-	uci_foreach_element(&option->v.list, element) {
+	uci_foreach_element(list, element) {
 		if (copy_reflector(loader, element->name) != 0)
 			return -1;
 	}
@@ -565,6 +567,7 @@ int config_load(
 	};
 	struct uci_context *context;
 	struct uci_package *package = NULL;
+	struct uci_section *section;
 	struct stat status;
 	int result = -1;
 
@@ -603,8 +606,9 @@ int config_load(
 	}
 
 	loader.context = context;
-	loader.section = uci_lookup_section(context, package, section_name);
-	if (loader.section == NULL || strcmp(loader.section->type, UCI_SECTION_TYPE) != 0) {
+	section = uci_lookup_section(context, package, section_name);
+	loader.section = section;
+	if (section == NULL || strcmp(section->type, UCI_SECTION_TYPE) != 0) {
 		error_set(error, error_size, "missing config cake_adapt '%s' section", section_name);
 		goto done;
 	}

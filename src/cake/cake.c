@@ -204,10 +204,11 @@ static void finish_read(struct cake_read *read)
 {
 	const struct cake_observation *previous = &read->previous;
 	struct cake_observation *observation = read->observation;
+	struct qdisc_id *qdisc = &observation->qdisc;
 
 	/* The dump cannot reject a stale index, so keep it only while CAKE is found. */
 	if (!read->found) {
-		observation->qdisc.interface_index = 0U;
+		qdisc->interface_index = 0U;
 		observation->has_mtu = false;
 		read->result = CAKE_READ_NOT_FOUND;
 		return;
@@ -237,9 +238,10 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 
 	for (index = 0U; index < count; index++) {
 		struct cake_read *read = &reads[index];
+		const struct qdisc_id *previous_qdisc = &read->previous.qdisc;
 
 		read->previous = *read->observation;
-		read->interface_index = read->previous.qdisc.interface_index;
+		read->interface_index = previous_qdisc->interface_index;
 		read->found = false;
 		read->error[0] = '\0';
 		if (read->interface_index == 0U) {
@@ -267,16 +269,14 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 	    netlink_dump_qdiscs(netlink, handle_qdisc, &context, error, sizeof(error)) != 0) {
 		netlink_close_requests(netlink);
 		for (index = 0U; index < count; index++) {
-			if (reads[index].interface_index != 0U) {
-				reads[index].observation->qdisc.interface_index = 0U;
-				reads[index].result = CAKE_READ_ERROR;
-				(void)snprintf(
-					reads[index].error,
-					sizeof(reads[index].error),
-					"%s",
-					error
-				);
-			}
+			struct cake_read *read = &reads[index];
+			struct qdisc_id *qdisc = &read->observation->qdisc;
+
+			if (read->interface_index == 0U)
+				continue;
+			qdisc->interface_index = 0U;
+			read->result = CAKE_READ_ERROR;
+			(void)snprintf(read->error, sizeof(read->error), "%s", error);
 		}
 		return;
 	}

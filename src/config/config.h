@@ -112,6 +112,15 @@ struct config {
 	uint64_t interface_up_check_interval_us;
 };
 
+/* Rate control is configured for either direction. */
+static inline bool config_adjusts(const struct config *config)
+{
+	const struct config_direction *download = &config->download;
+	const struct config_direction *upload = &config->upload;
+
+	return download->adjust || upload->adjust;
+}
+
 size_t config_option_count(void);
 const char *config_option_name(size_t index);
 

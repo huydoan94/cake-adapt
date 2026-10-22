@@ -103,19 +103,18 @@ void cpu_usage(
 	size_t index;
 
 	for (index = 0U; index < sample->count; index++) {
-		uint64_t total_ticks = counter_sum(&sample->counters[index]);
+		const struct cpu_counter *counter = &sample->counters[index];
+		uint64_t total_ticks = counter_sum(counter);
 		uint64_t delta_ticks =
 			saturating_sub(total_ticks, monitor->previous_total_ticks[index]);
-		uint64_t idle_ticks = saturating_sub(
-			sample->counters[index].idle_ticks,
-			monitor->previous_idle_ticks[index]
-		);
+		uint64_t idle_ticks =
+			saturating_sub(counter->idle_ticks, monitor->previous_idle_ticks[index]);
 
 		usage[index] = (struct cpu_busy){
 			.busy_ticks = saturating_sub(delta_ticks, idle_ticks),
 			.total_ticks = delta_ticks,
 		};
 		monitor->previous_total_ticks[index] = total_ticks;
-		monitor->previous_idle_ticks[index] = sample->counters[index].idle_ticks;
+		monitor->previous_idle_ticks[index] = counter->idle_ticks;
 	}
 }

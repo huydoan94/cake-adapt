@@ -251,12 +251,15 @@ static void log_configuration(const struct config *config, const char *log_path)
 
 static void log_control_mode(const struct config *config)
 {
-	if (config->download.adjust || config->upload.adjust)
+	const struct config_direction *download = &config->download;
+	const struct config_direction *upload = &config->upload;
+
+	if (config_adjusts(config))
 		log_message(
 			LOG_LEVEL_NOTICE,
 			"started with CAKE bandwidth control: download=%s upload=%s",
-			config->download.adjust ? STATUS_ENABLED : STATUS_DISABLED,
-			config->upload.adjust ? STATUS_ENABLED : STATUS_DISABLED
+			download->adjust ? STATUS_ENABLED : STATUS_DISABLED,
+			upload->adjust ? STATUS_ENABLED : STATUS_DISABLED
 		);
 	else
 		log_message(LOG_LEVEL_NOTICE, "started in observation-only mode");
