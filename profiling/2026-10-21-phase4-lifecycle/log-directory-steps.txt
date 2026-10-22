@@ -1,0 +1,6 @@
+PASS log in the root-only directory
+cake-adapt configuration import: option 'log_file_path_override' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+PASS kept running
+PASS refusal logged
+PASS nothing written there
+PASS back to default log
