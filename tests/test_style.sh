@@ -18,7 +18,7 @@ fi
 [ "$(printf '%s\n' "$out" | grep -c 'literal true/false argument')" -eq 1 ]
 
 printf '%s\n' 'bool f(struct s *p)' '{' '	struct t *t = &p->t;' '	t->n = p->n;' \
-	'	const struct u *u = &p->v.u;' '	atomic_store(&p->on, false);' \
+	'	const struct u *u = &p->v.u;' '	u = &p->w.u;' '	atomic_store(&p->on, false);' \
 	'	h(1, false); /* style: allow */' '	/* a->b.c in a comment */' '	return true;' '}' >"$work/good.c"
 sh tools/style-check.sh "$work/good.c" >/dev/null
 echo 'style check tests passed'
