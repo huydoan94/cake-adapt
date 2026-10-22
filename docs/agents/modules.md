@@ -111,7 +111,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
   - `traffic.c`: counter samples and achieved-rate calculations only.
   - `cpu.c`: CPU sampling and usage calculations only.
-  - `memory.c`: the daemon's memory sampling from `/proc/self/status`.
+  - `memory.c`: the daemon's memory sampling from `/proc/self/status`, and
+    the peak resident size it has seen (VmHWM lags).
 - `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
   export, reset behavior, and submission to the optional MQTT sender. Its
   writer thread does every file, stdout and syslog write; the main thread

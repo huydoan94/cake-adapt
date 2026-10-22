@@ -241,6 +241,7 @@ static void handle_memory_timer(struct uloop_interval *timer)
 		log_message(LOG_LEVEL_NOTICE, "memory observation recovered");
 		monitor->memory_observation_failed = false;
 	}
+	memory_track_peak(&sample, &monitor->memory_peak_bytes);
 	log_memory(&sample);
 }
 
