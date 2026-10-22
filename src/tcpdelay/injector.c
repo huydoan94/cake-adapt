@@ -31,25 +31,19 @@ void tcpdelay_injector_init(struct tcpdelay_injector *injector)
 /* Where the IP header starts in the packets the program sees on interface. */
 static int network_offset(const char *interface, uint32_t *offset, char *error, size_t error_size)
 {
-	struct ifreq request = { 0 };
-	int descriptor = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	uint32_t hardware_type;
 	int failure = 0;
 
-	(void)snprintf(request.ifr_name, sizeof(request.ifr_name), "%s", interface);
-	if (descriptor < 0 || ioctl(descriptor, SIOCGIFHWADDR, &request) != 0) {
+	if (tcpdelay_interface_type(interface, &hardware_type) != 0)
 		failure = errno;
-	} else if (request.ifr_hwaddr.sa_family == ARPHRD_ETHER) {
+	else if (hardware_type == ARPHRD_ETHER)
 		*offset = ETH_HLEN;
-	} else if (request.ifr_hwaddr.sa_family == ARPHRD_PPP ||
-		   request.ifr_hwaddr.sa_family == ARPHRD_NONE ||
-		   request.ifr_hwaddr.sa_family == ARPHRD_RAWIP) {
-		/* Devices without a link header, such as PPPoE's ppp device. */
+	/* Devices without a link header, such as PPPoE's ppp device. */
+	else if (hardware_type == ARPHRD_PPP || hardware_type == ARPHRD_NONE ||
+		 hardware_type == ARPHRD_RAWIP)
 		*offset = 0U;
-	} else {
+	else
 		failure = EOPNOTSUPP;
-	}
-	if (descriptor >= 0)
-		(void)close(descriptor);
 	if (failure == 0)
 		return 0;
 	return error_set(
