@@ -19,7 +19,7 @@ charts were drawn.
 ## Regenerating
 
 Claude and Codex use the same generator and source rules; their tool workflows
-are in [COLLABORATION.md](../COLLABORATION.md). Check [HANDOFF.md](../HANDOFF.md)
+are in [COLLABORATION.md](../COLLABORATION.md). Check `HANDOFF.md`
 for an existing approved renderer before fetching another one. Installing a
 renderer or downloading npm packages needs an applicable approval; local tools
 and the npm cache belong in ignored `build/`. Do not install system-wide or

@@ -8,7 +8,7 @@ Claude and Codex follow the same model and verification limits here; use their
 respective workflows in [COLLABORATION.md](../../COLLABORATION.md) and the
 [agent guide](../../AGENTS.md). This is host work and needs no SDK build by
 itself. If a candidate proceeds to target validation, x86 is the default; record
-decisions and remaining checks in [HANDOFF.md](../../HANDOFF.md).
+decisions and remaining checks in `HANDOFF.md`.
 
 ```sh
 make -C tools/simulator run                   # summary, RTT/2 and one-way delays
