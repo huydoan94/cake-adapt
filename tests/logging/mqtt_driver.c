@@ -30,10 +30,10 @@ int main(int argc, char **argv)
 	for (int index = first; index < argc; index++) {
 		assert(index + 1 < argc);
 		if (strcmp(argv[index], "--tls") == 0) {
+			const char *ca_file = argv[++index];
+
 			settings.tls = true;
-			(
-				void
-			)snprintf(settings.ca_file, sizeof(settings.ca_file), "%s", argv[++index]);
+			(void)snprintf(settings.ca_file, sizeof(settings.ca_file), "%s", ca_file);
 		} else {
 			assert(strcmp(argv[index], "--host") == 0);
 			(void)snprintf(settings.host, sizeof(settings.host), "%s", argv[++index]);

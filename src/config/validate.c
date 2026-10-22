@@ -74,25 +74,18 @@ static int validate_reflectors(const struct config *config, char *error, size_t 
 		);
 	}
 	for (index = 0U; index < config->reflector_count; index++) {
-		if (!target_is_valid(config->reflectors[index])) {
-			return error_set(
-				error,
-				error_size,
-				"invalid reflector '%s'",
-				config->reflectors[index]
-			);
-		}
-		for (comparison = index + 1U; comparison < config->reflector_count; comparison++) {
-			if (strcmp(config->reflectors[index], config->reflectors[comparison]) ==
-			    0) {
+		const char *reflector = config->reflectors[index];
+
+		if (!target_is_valid(reflector))
+			return error_set(error, error_size, "invalid reflector '%s'", reflector);
+		for (comparison = index + 1U; comparison < config->reflector_count; comparison++)
+			if (strcmp(reflector, config->reflectors[comparison]) == 0)
 				return error_set(
 					error,
 					error_size,
 					"duplicate reflector '%s'",
-					config->reflectors[index]
+					reflector
 				);
-			}
-		}
 	}
 	return 0;
 }

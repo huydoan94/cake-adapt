@@ -121,15 +121,17 @@ int native_open(
 				address->sin6_scope_id = if_nametoindex(interface);
 		}
 		channel_socket = &session->channels[native_channel(family)];
-		if (channel_socket->fd < 0 && icmp_open(
-						      channel_socket,
-						      family,
-						      session->mode,
-						      interface,
-						      identifier,
-						      error,
-						      error_size
-					      ) != 0)
+		if (channel_socket->fd >= 0)
+			continue;
+		if (icmp_open(
+			    channel_socket,
+			    family,
+			    session->mode,
+			    interface,
+			    identifier,
+			    error,
+			    error_size
+		    ) != 0)
 			goto failed;
 	}
 	session->target_count = target_count;
@@ -140,13 +142,24 @@ failed:
 	return -1;
 }
 
+/* The ring slot a request serial uses; it outlives the response timeout. */
+static struct native_request *request_slot(const struct native_session *session, uint64_t serial)
+{
+	return &session->requests[serial % session->capacity];
+}
+
+/* When an unanswered request times out. */
+static uint64_t request_deadline_us(const struct native_request *request)
+{
+	return saturating_add(request->sent_us, LATENCY_RESPONSE_TIMEOUT_US);
+}
+
 static void native_expire(struct native_session *session, uint64_t now_us)
 {
 	while (session->expired_serial < session->next_serial) {
-		struct native_request *request =
-			&session->requests[session->expired_serial % session->capacity];
+		struct native_request *request = request_slot(session, session->expired_serial);
 
-		if (now_us < saturating_add(request->sent_us, LATENCY_RESPONSE_TIMEOUT_US))
+		if (now_us < request_deadline_us(request))
 			break;
 		if (request->pending) {
 			session->timeout_count++;
@@ -162,11 +175,9 @@ uint64_t native_next_event(const struct native_session *session)
 
 	if (session->expired_serial < session->next_serial) {
 		const struct native_request *request =
-			&session->requests[session->expired_serial % session->capacity];
+			request_slot(session, session->expired_serial);
 
-		next_us =
-			min_u64(next_us,
-				saturating_add(request->sent_us, LATENCY_RESPONSE_TIMEOUT_US));
+		next_us = min_u64(next_us, request_deadline_us(request));
 	}
 	return next_us;
 }
@@ -194,7 +205,7 @@ int native_tick(
 		session->next_send_us = target->next_send_us;
 		return 0;
 	}
-	request = &session->requests[session->next_serial % session->capacity];
+	request = request_slot(session, session->next_serial);
 	*request = (struct native_request){ .serial = session->next_serial,
 					    .sent_us = now_us,
 					    .originate_ms = midnight_ms(realtime_us),
@@ -242,6 +253,7 @@ bool native_accept(
 	uint64_t *response_us
 )
 {
+	const bool timestamps = session->mode == ICMP_MODE_TIMESTAMP;
 	struct native_request *request;
 	const struct native_target *target;
 	uint64_t serial;
@@ -256,15 +268,16 @@ bool native_accept(
 	if (age_us > serial)
 		return false;
 	serial -= age_us;
-	request = &session->requests[serial % session->capacity];
+	request = request_slot(session, serial);
 	if (!request->pending || request->serial != serial ||
-	    now_us >= saturating_add(request->sent_us, LATENCY_RESPONSE_TIMEOUT_US))
+	    now_us >= request_deadline_us(request))
 		return false;
 	target = &session->targets[request->target];
-	if (!icmp_address_equal(&target->address, &reply->source) ||
-	    (session->mode == ICMP_MODE_ECHO &&
-	     (reply->token != session->token || reply->serial != serial)) ||
-	    (session->mode == ICMP_MODE_TIMESTAMP && reply->originate_ms != request->originate_ms))
+	if (!icmp_address_equal(&target->address, &reply->source))
+		return false;
+	/* Echo replies carry the session token and full serial; timestamps only the originate time. */
+	if (timestamps ? reply->originate_ms != request->originate_ms :
+			 (reply->token != session->token || reply->serial != serial))
 		return false;
 	/* Translate receive realtime to monotonic once, retaining queueing delay in the socket. */
 	received_us = response_monotonic_us(realtime_us, now_us, reply->realtime_us);
@@ -272,8 +285,7 @@ bool native_accept(
 		return false;
 	*sample = (struct latency_sample){ .timestamp_us = reply->realtime_us,
 					   .sequence = serial / session->target_count,
-					   .timestamp_rollover_sensitive = session->mode ==
-									   ICMP_MODE_TIMESTAMP };
+					   .timestamp_rollover_sensitive = timestamps };
 	(void)snprintf(sample->target, sizeof(sample->target), "%s", target->name);
 	(void)snprintf(
 		sample->timestamp_text,
@@ -282,7 +294,7 @@ bool native_accept(
 		reply->realtime_us / SECOND,
 		reply->realtime_us % SECOND
 	);
-	if (session->mode == ICMP_MODE_TIMESTAMP) {
+	if (timestamps) {
 		uint32_t arrival_ms = midnight_ms(reply->realtime_us);
 
 		/* Preserve fping-ts's signed fields, including clock offset and midnight rollover. */
