@@ -5,7 +5,7 @@ Notes, 2026-10-06. Nothing here is implemented.
 Agent execution: use the Claude or Codex route in
 [COLLABORATION.md](../../COLLABORATION.md), the project constraints in
 [AGENTS.md](../../AGENTS.md), and active decisions in
-[HANDOFF.md](../../HANDOFF.md). This discussion does not authorize new runtime
+`HANDOFF.md`. This discussion does not authorize new runtime
 behavior or production access. Development and target validation default to
 x86; additional targets and downloads require their applicable authorization.
 
