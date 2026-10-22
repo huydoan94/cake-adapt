@@ -65,7 +65,7 @@ APK of that variant for your router's architecture from the
 to the router, and install it, for example:
 
 ```sh
-scp x86_64_cake-adapt-0.3.21-r1.apk root@router:/tmp/cake-adapt.apk
+scp x86_64_cake-adapt-0.3.22-r1.apk root@router:/tmp/cake-adapt.apk
 ssh root@router
 apk add --allow-untrusted /tmp/cake-adapt.apk
 ```

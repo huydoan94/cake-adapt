@@ -82,7 +82,7 @@ verification against a real server.
 
 ### Current status (2026-10-21)
 
-- This branch's packages are at 0.3.21-r1 (`main` has v0.3.18). The user builds them and runs them on their
+- This branch's packages are at 0.3.22-r1 (`main` has v0.3.18). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
@@ -106,7 +106,7 @@ verification against a real server.
   - a writer thread does all logging, so a stuck logd or slow storage never
     stops control; its queue overwrites and counts its oldest lines when full
     (`2026-10-21-log-writer`).
-- After 0.3.21 (unreleased): the main loop wakes the log writer only for
+- 0.3.22: the main loop wakes the log writer only for
   syslog entries, requests, unbuffered lines or a half-full queue, which
   cuts the daemon's CPU by a fifth to a third (`2026-10-21-profile`,
   `2026-10-22-log-writer-wake`).
