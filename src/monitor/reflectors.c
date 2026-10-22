@@ -302,23 +302,17 @@ static void handle_health_timer(struct uloop_interval *timer)
 		return;
 
 	if (!read_clock_us(CLOCK_MONOTONIC, &timestamp_us)) {
-		if (!reflectors->clock_failed) {
-			log_message(
-				LOG_LEVEL_WARNING,
-				"reflector health check degraded: monotonic clock failed: %s",
-				strerror(errno)
-			);
-		}
-		reflectors->clock_failed = true;
+		monitor_degraded(
+			&reflectors->clock_failed,
+			"reflector health check degraded: monotonic clock failed: %s",
+			strerror(errno)
+		);
 		return;
 	}
-	if (reflectors->clock_failed) {
-		log_message(
-			LOG_LEVEL_NOTICE,
-			"reflector health check recovered: monotonic clock available"
-		);
-		reflectors->clock_failed = false;
-	}
+	monitor_recovered(
+		&reflectors->clock_failed,
+		"reflector health check recovered: monotonic clock available"
+	);
 	if (timestamp_us < pingers->grace_until_us)
 		return;
 	if (run_scheduled_reflector_work(monitor, timestamp_us))

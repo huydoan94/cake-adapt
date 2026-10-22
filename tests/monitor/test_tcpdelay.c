@@ -46,14 +46,16 @@ int tcpdelay_capture_open(
 	size_t error_size
 )
 {
+	struct tcpdelay_accounting *settings = &capture->accounting;
+
 	(void)interface;
 	(void)error;
 	(void)error_size;
 	opened++;
 	capture->interface_index = 10U;
-	capture->accounting.enabled = accounting != NULL;
+	settings->enabled = accounting != NULL;
 	if (accounting != NULL)
-		capture->accounting.cake = *accounting;
+		settings->cake = *accounting;
 	return 0;
 }
 
@@ -139,6 +141,9 @@ static void capture_lifecycle(struct monitor *monitor)
 {
 	struct config config = { .ul_congest_ack_share_ratio_e6 = 450000U };
 	struct monitor_direction *upload = &monitor->links.upload;
+	struct cake_observation *upload_cake = &upload->cake;
+	struct monitor_tcp *tcp = &monitor->tcp;
+	const struct cake_accounting *filter_accounting = &tcp->capture.accounting.cake;
 	const struct cake_observation cake = {
 		.qdisc = { .interface_index = 10U, .handle = 0x10000U, .parent = TC_H_ROOT },
 		.atm_mode = CAKE_ATM_NONE,
@@ -152,28 +157,28 @@ static void capture_lifecycle(struct monitor *monitor)
 	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
 	assert(capture_ready(monitor));
 	assert(opened == 1U && closed == 0U);
-	monitor->tcp.ack_sampled = true;
-	monitor->tcp.ack_rate_valid = true;
+	tcp->ack_sampled = true;
+	tcp->ack_rate_valid = true;
 	/* Removal is observed immediately, even if recreation keeps every key. */
 	process_qdisc_event(&monitor->netlink, &removed);
-	assert(closed == 1U && !monitor->tcp.open);
-	assert(!monitor->tcp.ack_sampled && !monitor->tcp.ack_rate_valid);
+	assert(closed == 1U && !tcp->open);
+	assert(!tcp->ack_sampled && !tcp->ack_rate_valid);
 	upload->cake = cake;
 	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
 	assert(capture_ready(monitor));
-	assert(opened == 2U && !monitor->tcp.ack_sampled);
-	upload->cake.overhead_bytes = 44;
+	assert(opened == 2U && !tcp->ack_sampled);
+	upload_cake->overhead_bytes = 44;
 	assert(capture_ready(monitor));
 	assert(opened == 3U && closed == 2U);
-	assert(monitor->tcp.capture.accounting.cake.overhead_bytes == 44);
-	upload->cake.mpu_bytes = 84U;
+	assert(filter_accounting->overhead_bytes == 44);
+	upload_cake->mpu_bytes = 84U;
 	assert(capture_ready(monitor));
 	assert(opened == 4U && closed == 3U);
-	assert(monitor->tcp.capture.accounting.cake.mpu_bytes == 84U);
+	assert(filter_accounting->mpu_bytes == 84U);
 	/* Discovery failure also closes the capture from the traffic tick. */
 	upload->cake_state = CAKE_OBSERVATION_FAILED;
 	tcp_drain(monitor);
-	assert(closed == 4U && !monitor->tcp.open);
+	assert(closed == 4U && !tcp->open);
 	monitor->config = NULL;
 }
 
@@ -185,11 +190,13 @@ static void injector_lifecycle(struct monitor *monitor)
 		.tcp_ts_request = true,
 	};
 	struct monitor_direction *upload = &monitor->links.upload;
+	struct cake_observation *upload_cake = &upload->cake;
+	const struct monitor_tcp *tcp = &monitor->tcp;
 	unsigned int warned = warnings;
 
 	monitor->config = &config;
 	upload->interface = "wan";
-	upload->cake.qdisc = (struct qdisc_id){ .interface_index = 10U, .handle = 0x10000U };
+	upload_cake->qdisc = (struct qdisc_id){ .interface_index = 10U, .handle = 0x10000U };
 	upload->cake_state = CAKE_OBSERVATION_AVAILABLE;
 	assert(capture_ready(monitor));
 	assert(injector_attaches == 1U && injector_on);
@@ -198,7 +205,7 @@ static void injector_lifecycle(struct monitor *monitor)
 	/* A failed attachment warns; the capture stays open and nothing is detached. */
 	injector_status = -1;
 	assert(capture_ready(monitor));
-	assert(monitor->tcp.open && injector_attaches == 2U && warnings == warned + 1U);
+	assert(tcp->open && injector_attaches == 2U && warnings == warned + 1U);
 	tcp_close(monitor);
 	assert(injector_detaches == 1U);
 	/* Off by default: no attachment at all. */
@@ -210,12 +217,33 @@ static void injector_lifecycle(struct monitor *monitor)
 	monitor->config = NULL;
 }
 
+/* A failing observation warns once; only its recovery logs again, once. */
+static void test_failure_and_recovery_log_once(void)
+{
+	unsigned int warned = warnings;
+	unsigned int noticed = notices;
+	bool failed = false;
+
+	monitor_recovered(&failed, "recovered before any failure");
+	assert(notices == noticed);
+	monitor_degraded(&failed, "degraded: %s", "first");
+	monitor_degraded(&failed, "degraded: %s", "again");
+	assert(failed && warnings == warned + 1U);
+	monitor_recovered(&failed, "recovered");
+	monitor_recovered(&failed, "recovered again");
+	assert(!failed && notices == noticed + 1U);
+	monitor_degraded(&failed, "degraded: %s", "later");
+	assert(warnings == warned + 2U);
+}
+
 int main(void)
 {
 	struct monitor *monitor = calloc(1U, sizeof(*monitor));
 	struct controller_ack_input acks = { 0 };
+	const struct monitor_tcp *tcp;
 
 	assert(monitor != NULL);
+	tcp = &monitor->tcp;
 	supplied.ack_bytes = 1000U;
 	supplied.upload_bytes = 2000U;
 	measure_ack_rate(monitor, 500U * MILLISECOND, &acks);
@@ -256,7 +284,7 @@ int main(void)
 	assert(!acks.valid && warnings == 3U);
 	read_status = 0;
 	measure_ack_rate(monitor, 4500U * MILLISECOND, &acks);
-	assert(!acks.valid && monitor->tcp.ack_degraded);
+	assert(!acks.valid && tcp->ack_degraded);
 	assert(notices == 2U);
 	supplied.ack_bytes += 500U;
 	supplied.upload_bytes += 1000U;
@@ -266,6 +294,7 @@ int main(void)
 	capture_lifecycle(monitor);
 	injector_lifecycle(monitor);
 	free(monitor);
+	test_failure_and_recovery_log_once();
 	puts("monitor ACK accounting tests passed");
 	return 0;
 }

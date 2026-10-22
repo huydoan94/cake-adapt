@@ -4,11 +4,13 @@
 /* Private to the monitor: event-loop state shared by its source files. */
 
 #include "cake/cake.h"
+#include "common/error.h"
 #include "config/config.h"
 #include "controller/controller.h"
 #include "controller/reflector.h"
 #include "latency/latency.h"
 #include "latency/tracker.h"
+#include "logging/log.h"
 #include "platform/cpu.h"
 #include "platform/netlink.h"
 #include "platform/traffic.h"
@@ -20,9 +22,11 @@
 #include <libubox/ustream.h>
 
 #include <pthread.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 enum cake_observation_state {
 	CAKE_OBSERVATION_UNKNOWN,
@@ -199,6 +203,35 @@ struct monitor {
 /* links.c */
 
 int links_watch_events(struct monitor *monitor);
+
+/*
+ * An observation's failure and recovery, each logged once: the warning on the
+ * first failure, the notice when a failed observation works again.
+ */
+static inline void monitor_degraded(bool *failed, const char *format, ...)
+	__attribute__((format(printf, 2, 3)));
+
+static inline void monitor_degraded(bool *failed, const char *format, ...)
+{
+	char message[ERROR_SIZE];
+	va_list arguments;
+
+	if (*failed)
+		return;
+	*failed = true;
+	va_start(arguments, format);
+	(void)vsnprintf(message, sizeof(message), format, arguments);
+	va_end(arguments);
+	log_message(LOG_LEVEL_WARNING, "%s", message);
+}
+
+static inline void monitor_recovered(bool *failed, const char *message)
+{
+	if (!*failed)
+		return;
+	*failed = false;
+	log_message(LOG_LEVEL_NOTICE, "%s", message);
+}
 
 void links_apply_cadence(struct monitor *monitor);
 

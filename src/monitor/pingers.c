@@ -139,20 +139,14 @@ static bool process_latency_sample(
 	if (!read_clock_us(CLOCK_MONOTONIC, &processing_monotonic_us) ||
 	    (captured_response_us == NULL &&
 	     !read_clock_us(CLOCK_REALTIME, &processing_realtime_us))) {
-		if (!pingers->response_clock_failed) {
-			log_message(
-				LOG_LEVEL_WARNING,
-				"latency observation degraded: response clock failed: %s",
-				strerror(errno)
-			);
-		}
-		pingers->response_clock_failed = true;
+		monitor_degraded(
+			&pingers->response_clock_failed,
+			"latency observation degraded: response clock failed: %s",
+			strerror(errno)
+		);
 		return true;
 	}
-	if (pingers->response_clock_failed) {
-		log_message(LOG_LEVEL_NOTICE, "latency response clock recovered");
-		pingers->response_clock_failed = false;
-	}
+	monitor_recovered(&pingers->response_clock_failed, "latency response clock recovered");
 	/* Native probes bring the kernel's receive time; a pinger's line its own timestamp. */
 	if (captured_response_us != NULL) {
 		response_us = *captured_response_us;

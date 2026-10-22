@@ -292,14 +292,11 @@ void links_observe(struct monitor *monitor)
 	uint64_t timestamp_us;
 
 	if (!read_clock_us(CLOCK_MONOTONIC, &timestamp_us)) {
-		if (!links->clock_failed) {
-			log_message(
-				LOG_LEVEL_WARNING,
-				"traffic observation degraded: monotonic clock failed: %s",
-				strerror(errno)
-			);
-		}
-		links->clock_failed = true;
+		monitor_degraded(
+			&links->clock_failed,
+			"traffic observation degraded: monotonic clock failed: %s",
+			strerror(errno)
+		);
 		download->cake_valid = false;
 		upload->cake_valid = false;
 		download->traffic_valid = false;
@@ -310,13 +307,10 @@ void links_observe(struct monitor *monitor)
 	}
 
 	observe_cake(monitor, timestamp_us);
-	if (links->clock_failed) {
-		log_message(
-			LOG_LEVEL_NOTICE,
-			"traffic observation recovered: monotonic clock available"
-		);
-		links->clock_failed = false;
-	}
+	monitor_recovered(
+		&links->clock_failed,
+		"traffic observation recovered: monotonic clock available"
+	);
 	control_update_compensation(monitor);
 	if (!links->cadence_initialized && links_wire_ready(monitor)) {
 		links->cadence_us = traffic_compensated_interval_us(
