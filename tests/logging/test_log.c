@@ -135,6 +135,17 @@ void __wrap_syslog(int priority, const char *format, ...)
 	va_end(arguments);
 }
 
+/* Counts the main thread's wakes of the log writer. */
+static atomic_uint writer_wakes;
+
+int __real_pthread_cond_signal(pthread_cond_t *condition);
+
+int __wrap_pthread_cond_signal(pthread_cond_t *condition)
+{
+	atomic_fetch_add(&writer_wakes, 1U);
+	return __real_pthread_cond_signal(condition);
+}
+
 void __real_closelog(void);
 
 void __wrap_closelog(void)
@@ -1038,6 +1049,105 @@ static void test_writer_keeps_order(void)
 }
 
 /*
+ * Lines wait for the writer's timer and still reach the file within the
+ * buffer timeout; a syslog entry wakes the writer at once.
+ */
+static void test_lines_wait_for_writer_timer(void)
+{
+	char path[] = "/tmp/cake-adapt-writer-XXXXXX";
+	int descriptor = mkstemp(path);
+	const struct timespec step = { .tv_nsec = 10000000L };
+	unsigned int wakes;
+	uint64_t start_us;
+
+	assert(descriptor >= 0);
+	(void)close(descriptor);
+	start_writer_on(path);
+	wakes = atomic_load(&writer_wakes);
+	for (unsigned int line = 0U; line < 100U; line++)
+		log_message(LOG_LEVEL_INFO, "quiet %u", line);
+	assert(atomic_load(&writer_wakes) == wakes);
+	start_us = real_monotonic_us();
+	for (;;) {
+		char *text = read_whole(path);
+		bool written = strstr(text, "; quiet 99\n") != NULL;
+
+		free(text);
+		if (written)
+			break;
+		/* The 500-ms buffer timeout, with room for a slow test run. */
+		assert(real_monotonic_us() - start_us < 2U * SECOND);
+		(void)nanosleep(&step, NULL);
+	}
+	log_message(LOG_LEVEL_WARNING, "wakes the writer");
+	assert(atomic_load(&writer_wakes) == wakes + 1U);
+	assert(log_close());
+	assert(unlink(path) == 0);
+}
+
+/* Without a buffer timeout every line is written at once, so each wakes the writer. */
+static void test_unbuffered_lines_wake_writer(void)
+{
+	char path[] = "/tmp/cake-adapt-writer-XXXXXX";
+	int descriptor = mkstemp(path);
+	char error[256] = "";
+	unsigned int wakes;
+
+	assert(descriptor >= 0);
+	(void)close(descriptor);
+	log_init("cake-adapt-test", in_foreground);
+	log_set_level(LOG_LEVEL_INFO);
+	assert(log_set_file(path, &unlimited) == 0);
+	assert(log_start_writer(error, sizeof(error)) == 0);
+	wakes = atomic_load(&writer_wakes);
+	for (unsigned int line = 0U; line < 10U; line++)
+		log_message(LOG_LEVEL_INFO, "at once %u", line);
+	assert(atomic_load(&writer_wakes) == wakes + 10U);
+	assert(log_close());
+	assert(unlink(path) == 0);
+}
+
+/* A writer behind on a half-full queue is woken by every further line. */
+static void test_half_full_queue_wakes_writer(void)
+{
+	char path[] = "/tmp/cake-adapt-writer-XXXXXX";
+	int descriptor = mkstemp(path);
+	unsigned int waits;
+	unsigned int wakes;
+	uint64_t start_us;
+
+	assert(descriptor >= 0);
+	(void)close(descriptor);
+	waits = atomic_load(&syslog_waits);
+	atomic_store(&syslog_flow, SYSLOG_HELD);
+	start_writer_on(path);
+	log_message(LOG_LEVEL_WARNING, "hold the writer");
+	start_us = real_monotonic_us();
+	while (atomic_load(&syslog_waits) == waits)
+		assert(real_monotonic_us() - start_us < SECOND);
+	wakes = atomic_load(&writer_wakes);
+	/* About 40 KB, under half the 128-KiB queue. */
+	for (unsigned int line = 0U; line < 400U; line++)
+		log_message(
+			LOG_LEVEL_INFO,
+			"filling %u ...................................................",
+			line
+		);
+	assert(atomic_load(&writer_wakes) == wakes);
+	/* About 40 KB more, past half. */
+	for (unsigned int line = 0U; line < 400U; line++)
+		log_message(
+			LOG_LEVEL_INFO,
+			"filling %u ...................................................",
+			line
+		);
+	assert(atomic_load(&writer_wakes) > wakes);
+	atomic_store(&syslog_flow, SYSLOG_FLOWING);
+	assert(log_close());
+	assert(unlink(path) == 0);
+}
+
+/*
  * A stuck syslog holds only the writer: the main thread keeps logging at full
  * speed. When the queue is full the oldest lines make room, so the newest are
  * kept; the writer says how many were overwritten, before the oldest line it
@@ -1242,6 +1352,9 @@ int main(void)
 	/* A writer that blocks its caller would hang these tests: fail them instead. */
 	(void)alarm(60U);
 	test_writer_keeps_order();
+	test_lines_wait_for_writer_timer();
+	test_unbuffered_lines_wake_writer();
+	test_half_full_queue_wakes_writer();
 	test_stuck_syslog_does_not_block();
 	test_overwritten_export_still_runs();
 	test_writer_export_and_reset_in_order();

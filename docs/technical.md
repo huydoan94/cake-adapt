@@ -327,7 +327,13 @@ socket queue is full (10 messages), and log-file writes, rotation and a
 compressed `SIGUSR1` export can be slow, so a writer thread does all of them:
 the log file, stdout and syslog, the periodic flush, rotation, export and
 reset. The main thread only formats each record and copies it into a 128 KiB
-queue. The queue is a bounded FIFO: when it is full, the oldest waiting lines
+queue. It wakes the writer only for a syslog message, an export or reset
+request, a line written out at once (`log_file_buffer_timeout_ms` 0, or a
+terminal) or a half-full queue; other lines wait for the writer's timer, at
+most the buffer timeout, as they waited in the file buffer before. Waking it
+for every record made 0.3.21's daemon use twice its own CPU
+([profile](../profiling/2026-10-21-profile/README.md),
+[fix](../profiling/2026-10-22-log-writer-wake/README.md)). The queue is a bounded FIFO: when it is full, the oldest waiting lines
 make room and are counted, so the newest records are kept, and the writer
 logs "N older log lines and M syslog messages were overwritten" where they
 are missing; an overwritten export or reset request still runs. At stop the

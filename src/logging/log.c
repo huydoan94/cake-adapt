@@ -31,6 +31,8 @@
 #define TIMESTAMP_SIZE 28U
 /* Room for queued lines while the writer thread is slower than the records. */
 #define LOG_QUEUE_BYTES (128U * KILOBYTE)
+/* The queue fill at which a line wakes the writer instead of waiting for its timer. */
+#define LOG_QUEUE_WAKE_BYTES (LOG_QUEUE_BYTES / 2U)
 /* The writer's longest sleep with nothing queued, between maintenance checks. */
 #define LOG_WRITER_IDLE_US SECOND
 /* How long stopping waits for the writer to drain the queue. */
@@ -502,6 +504,19 @@ static void overwrite_oldest(struct log_writer *state)
 }
 
 /*
+ * Whether a new entry wakes the writer; the lock is held. Syslog entries,
+ * requests, lines written out at once (no buffer timeout, or a terminal) and a
+ * half-full queue do. Other lines wait for the writer's timer, at most the
+ * buffer timeout, as they waited in the file buffer before: a wake per record
+ * cost a thread switch per record.
+ */
+static bool entry_wakes_writer(const struct log_writer *state, enum entry_kind kind)
+{
+	return kind != ENTRY_LINE || log_buffer_timeout_us == 0U || log_to_stdout ||
+	       state->used >= LOG_QUEUE_WAKE_BYTES;
+}
+
+/*
  * Copies one entry into the writer's queue, the main thread never waiting for
  * the writer: when the queue is full, the oldest entries make room.
  */
@@ -514,7 +529,8 @@ static void queue_entry(enum entry_kind kind, int priority, const char *text)
 	while (LOG_QUEUE_BYTES - state->used < bytes)
 		overwrite_oldest(state);
 	put_entry(state, kind, priority, text);
-	(void)pthread_cond_signal(&state->wake);
+	if (entry_wakes_writer(state, kind))
+		(void)pthread_cond_signal(&state->wake);
 	(void)pthread_mutex_unlock(&state->lock);
 }
 
