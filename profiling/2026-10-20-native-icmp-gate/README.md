@@ -1,5 +1,9 @@
 # Native ICMP: revised phase-3 gate, 3 alternating rounds (2026-10-20)
 
+> **Update 2026-10-21:** after the jittered-drop rerun the user accepted
+> native ICMP as good enough; since 0.3.21 it is the default and fping a
+> fallback ([`2026-10-21-native-icmp-jitter`](../2026-10-21-native-icmp-jitter/README.md)).
+
 **Result: both native methods fail the gate, each on few metrics; fping stays
 the default.** Native timestamps (`native-ts`) fail only upload-step added-RTT
 p95, by a consistent 11 ms (101–110 ms against fping-ts 90.4–90.7 ms); every
