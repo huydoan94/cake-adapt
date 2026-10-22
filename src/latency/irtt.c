@@ -129,9 +129,12 @@ bool latency_irtt_start_pending(const struct latency *latency)
 
 	if (!latency->active || latency->ops != &irtt_ops)
 		return false;
-	for (index = 0U; index < latency->child_count; index++)
-		if (latency->children[index].output_descriptor < 0)
+	for (index = 0U; index < latency->child_count; index++) {
+		const struct latency_child *child = &latency->children[index];
+
+		if (child->output_descriptor < 0)
 			return true;
+	}
 	return false;
 }
 

@@ -229,12 +229,15 @@ void tcpdelay_estimator_result(
 	size_t index;
 
 	memset(estimate, 0, sizeof(*estimate));
-	for (index = 0U; index < TCPDELAY_FLOWS && estimator->flows[index].used; index++) {
+	for (index = 0U; index < TCPDELAY_FLOWS; index++) {
 		const struct tcpdelay_flow *flow = &estimator->flows[index];
 		int64_t download_ns;
 		int64_t upload_ns = 0;
 		bool upload_valid;
 
+		/* Used flows fill the table from the start. */
+		if (!flow->used)
+			break;
 		if (!window_result(&flow->download, now_ns, &download_ns))
 			continue;
 		upload_valid = window_result(&flow->upload, now_ns, &upload_ns);

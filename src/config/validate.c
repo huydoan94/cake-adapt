@@ -268,6 +268,9 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 
 static int validate_monitoring(const struct config *config, char *error, size_t error_size)
 {
+	const struct config_direction *download = &config->download;
+	const struct config_direction *upload = &config->upload;
+
 	if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
 	    !timer_interval_valid(config->monitor_cpu_usage_interval_us)) {
 		return error_set(
@@ -282,8 +285,8 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 		return error_set(error, error_size, "logging or pinger intervals are too large");
 	}
 	if (config->enable_sleep_function &&
-	    (config->connection_active_threshold_bps > config->download.minimum_rate_bps ||
-	     config->connection_active_threshold_bps > config->upload.minimum_rate_bps)) {
+	    (config->connection_active_threshold_bps > download->minimum_rate_bps ||
+	     config->connection_active_threshold_bps > upload->minimum_rate_bps)) {
 		return error_set(
 			error,
 			error_size,
@@ -293,9 +296,15 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 	return 0;
 }
 
+/* Enabled, or with rate control configured: the settings it runs with must be complete. */
+static bool config_in_use(const struct config *config)
+{
+	return config->enabled || config_adjusts(config);
+}
+
 static int validate_latency_config(const struct config *config, char *error, size_t error_size)
 {
-	if (!config->enabled && !config->download.adjust && !config->upload.adjust)
+	if (!config_in_use(config))
 		return 0;
 	if (validate_pinger(config, error, error_size) != 0 ||
 	    validate_detection(config, error, error_size) != 0 ||
@@ -364,8 +373,7 @@ int config_validate(const struct config *config, char *error, size_t error_size)
 {
 	if (validate_mqtt(&config->mqtt, error, error_size) != 0)
 		return -1;
-	if ((config->enabled || config->download.adjust || config->upload.adjust) &&
-	    config->interface[0] == '\0') {
+	if (config_in_use(config) && config->interface[0] == '\0') {
 		return error_set(
 			error,
 			error_size,
