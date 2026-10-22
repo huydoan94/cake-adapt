@@ -146,15 +146,14 @@ static bool read_cpu(struct monitor *monitor, struct cpu_sample *sample)
 	char error[ERROR_SIZE] = { 0 };
 
 	if (cpu_read(PROC_STAT_PATH, sample, error, sizeof(error)) != 0) {
-		if (!monitor->cpu_observation_failed)
-			log_message(LOG_LEVEL_WARNING, "CPU observation degraded: %s", error);
-		monitor->cpu_observation_failed = true;
+		monitor_degraded(
+			&monitor->cpu_observation_failed,
+			"CPU observation degraded: %s",
+			error
+		);
 		return false;
 	}
-	if (monitor->cpu_observation_failed) {
-		log_message(LOG_LEVEL_NOTICE, "CPU observation recovered");
-		monitor->cpu_observation_failed = false;
-	}
+	monitor_recovered(&monitor->cpu_observation_failed, "CPU observation recovered");
 	if (monitor->cpu_count != sample->count) {
 		monitor->cpu_count = sample->count;
 		cpu_init(&monitor->cpu_monitor);
@@ -233,15 +232,14 @@ static void handle_memory_timer(struct uloop_interval *timer)
 	struct memory_sample sample;
 
 	if (memory_read(PROC_SELF_STATUS_PATH, &sample, error, sizeof(error)) != 0) {
-		if (!monitor->memory_observation_failed)
-			log_message(LOG_LEVEL_WARNING, "memory observation degraded: %s", error);
-		monitor->memory_observation_failed = true;
+		monitor_degraded(
+			&monitor->memory_observation_failed,
+			"memory observation degraded: %s",
+			error
+		);
 		return;
 	}
-	if (monitor->memory_observation_failed) {
-		log_message(LOG_LEVEL_NOTICE, "memory observation recovered");
-		monitor->memory_observation_failed = false;
-	}
+	monitor_recovered(&monitor->memory_observation_failed, "memory observation recovered");
 	memory_track_peak(&sample, &monitor->memory_peak_bytes);
 	log_memory(&sample);
 }
