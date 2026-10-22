@@ -9,7 +9,7 @@ Both Claude and Codex follow [AGENTS.md](../AGENTS.md) and
 [CODING_STYLE.md](../CODING_STYLE.md), which extend the user's general working
 definitions in `~/ai-working-definitions/` (outside this repository): roles,
 model and delegation rules, efficiency and test-system discipline.
-[COLLABORATION.md](../COLLABORATION.md) holds cake-adapt's additions. Read [HANDOFF.md](../HANDOFF.md)
+[COLLABORATION.md](../COLLABORATION.md) holds cake-adapt's additions. Read `HANDOFF.md`
 for the active task, decisions, scoped approvals, evidence and unfinished work.
 Keep it current so a resumed session does not need the user to repeat the chat.
 
@@ -93,7 +93,7 @@ variant built leaves its library staged. The preflight also checks that each
 variant's declared Mosquitto dependency (and `ca-bundle` for `mqtt-ssl`) is the
 one it is built against. Logs are `build/sdk-<name>-<variant>.log` and
 `build/sdk-<name>-luci.log`; copies keep the package name, so they are distinct,
-for example `bin/cake-adapt-mqtt-ssl-0.3.21-r1-x86.apk`. The LuCI package is
+for example `bin/cake-adapt-mqtt-ssl-0.3.22-r1-x86.apk`. The LuCI package is
 built once: it reads the installed variant's `/usr/share/cake-adapt/features` at
 run time and works with any of them.
 

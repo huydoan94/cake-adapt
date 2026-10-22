@@ -1,5 +1,7 @@
 # 2026-09-30: end-to-end run and CPU profile after the optimization pass
 
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-09-30/index.html): the CPU table and every flame graph on one page.
+
 ## Result
 
 On the OpenWrt 25.12 x86 VM, the optimized daemon used about half the CPU of the
