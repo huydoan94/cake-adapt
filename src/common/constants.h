@@ -51,6 +51,8 @@
 #define PINGER_METHOD_FPING "fping"
 #define PINGER_METHOD_FPING_TS "fping-ts"
 #define PINGER_METHOD_IRTT "irtt"
+#define PINGER_METHOD_NATIVE "native"
+#define PINGER_METHOD_NATIVE_TS "native-ts"
 #define PROGRAM_NAME "cake-adapt"
 /* Set by the build from the package version; other builds report "unknown". */
 #ifndef PROGRAM_VERSION

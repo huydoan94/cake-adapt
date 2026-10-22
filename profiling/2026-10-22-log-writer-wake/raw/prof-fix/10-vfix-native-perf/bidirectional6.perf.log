@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.085 MB /tmp/e2e/prof/10-vfix-native-perf/bidirectional6.perf.data (431 samples) ]

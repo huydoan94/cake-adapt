@@ -9,7 +9,7 @@ digraph G {
   enabled [label="enabled = 1?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   skip [label="syslog notice: disabled;\nnot started",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   stage [label="stage a copy of /etc/config/cake-adapt",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  import [label="config_file set?\nrun importer in a child Bash",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
+  import [label="config_file in /etc/cake-adapt/exec?\nBash reader fills unset options",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   validate [label="cake-adapt -C stage -S section -V",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   valid [label="valid?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   previous [label="previous <section>.uci?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];

@@ -18,7 +18,7 @@
       "notes": [
         "The pipeline is measurement → controller decision → desired CAKE state → verified kernel update. Each stage lives in its own subsystem directory under src/.",
         "The upload direction is the configured interface; download is ifb4<interface>, truncated to the kernel interface-name limit. A complete ul_if/dl_if pair overrides both.",
-        "fping is the default pinger. irtt is also implemented as a per-reflector child process.",
+        "The daemon's own ICMP probes (native, native-ts) are the default pinger. fping, fping-ts and irtt remain as fallbacks, run as child processes.",
         "Every reflector reply runs the controller once, as in cake-autorate. The traffic timer only refreshes CAKE counters, achieved rates and activity state."
       ],
       "nodes": [
@@ -29,7 +29,7 @@
         },
         {
           "id": "uci",
-          "label": "/etc/config/cake-adapt (UCI)\n+ optional cake-autorate config_file import",
+          "label": "/etc/config/cake-adapt (UCI)\n+ root-only /etc/cake-adapt/exec\n+ optional cake-autorate config_file import",
           "kind": "io"
         },
         {
@@ -44,7 +44,7 @@
         },
         {
           "id": "pinger",
-          "label": "fping (or irtt) children",
+          "label": "native ICMP sockets,\nor fping / irtt children",
           "kind": "external"
         },
         {
@@ -185,7 +185,7 @@
       ],
       "notes": [
         "The init script generates a private runtime file for each instance, /var/run/cake-adapt/<section>.uci. It builds and validates it with the daemon itself (-V) in a staging directory, then moves it into place before procd sees the instance, which runs with -C pointing at that file. As in dnsmasq, procd watches that generated file, and reload registers the instances again without stopping anything: procd restarts only an instance whose command or runtime file changed, and stops instances no longer registered (removed or disabled sections). A configuration that fails to build or validate leaves the previous runtime file in place, so the instance is registered unchanged and keeps running; with no previous file (a first start, or after stop, which removes it) the instance does not start. restart checks each requested instance's new configuration first: a valid one stops the instance and starts it again (new pid, even if unchanged); a refused one keeps it running its previous file, as on a reload; a named restart of a disabled or removed section stops it and removes its file, and an instance procd could not stop is logged and fails the restart. start, stop and restart take an optional section name and then act on that instance only. Each instance is registered with respawn 3600 5 0: procd starts an exited instance again after 5 s and never gives up (retry 0).",
-        "config_file names a cake-autorate-format Bash file. The importer sources it only in a child process and writes the recognized options the UCI section leaves unset into the staged UCI copy: UCI wins.",
+        "config_file names a cake-autorate-format Bash file. It, ping_prefix_string, ping_extra_args and log_file_path_override make root run something, choose its arguments or choose where it writes, so the importer reads them only from the root-only /etc/cake-adapt/exec, which LuCI cannot write; any of them set in /etc/config/cake-adapt refuses the import. The importer is plain sh; a separate Bash reader sources the file in a child process, and the importer writes the recognized options the UCI section leaves unset into the staged UCI copy: UCI wins.",
         "config_load applies built-in defaults first, then reads the typed UCI options, resolves the interface pair, and runs config_validate.",
         "A disabled configuration is reported to syslog and exits successfully. An invalid configuration is reported and exits with status 1.",
         "Before the log file, main takes an exclusive non-blocking lock on /var/run/cake-adapt/<section>.lock and writes its pid there. A second daemon with a running instance's name logs \"instance '<section>' is already running (pid N); exiting\" and exits with status 1; the first keeps running. The kernel releases the lock when the process exits, so procd respawn and restart work. -V and -L take no lock.",
@@ -230,7 +230,7 @@
         },
         {
           "id": "import",
-          "label": "config_file set?\nrun importer in a child Bash",
+          "label": "config_file in /etc/cake-adapt/exec?\nBash reader fills unset options",
           "kind": "decision"
         },
         {
@@ -1111,9 +1111,17 @@
     },
     {
       "id": "05-fping-process",
-      "title": "05 — Pinger process ownership and reply parsing",
+      "title": "05 — Pinger processes and native probes",
       "refs": [
         "src/monitor/pingers.c:ensure_latency_open",
+        "src/latency/native.c:native_open",
+        "src/latency/native.c:native_tick",
+        "src/latency/native.c:native_accept",
+        "src/latency/icmp.c:icmp_open",
+        "src/latency/icmp.c:icmp_receive",
+        "src/monitor/pingers.c:watch_native_session",
+        "src/monitor/pingers.c:handle_native_tick",
+        "src/monitor/pingers.c:handle_native_reply",
         "src/latency/latency.c:latency_open",
         "src/latency/fping.c:fping_open",
         "src/monitor/pingers.c:watch_started_latency_children",
@@ -1124,7 +1132,8 @@
         "src/monitor/pingers.c:pingers_close"
       ],
       "notes": [
-        "Pingers start only while both CAKE qdiscs are available. A new session waits until uloop has reaped the previous children, as cake-autorate does before restarting.",
+        "Pingers start only while both CAKE qdiscs are available. A new session waits until uloop has reaped the previous children, as cake-autorate does before restarting. Native probes own sockets and timers, with no child processes.",
+        "native/native-ts are opt-in pending the live comparison. Numeric addresses only; no prefix or extra arguments. Requests expire after 10 s. Delayed timers send once rather than catching up; reply callbacks process at most 64 datagrams.",
         "fping runs as [ping_prefix_string…] /usr/bin/fping [ping_extra_args…] -I <ul_if> --timestamp --loop --period <interval> --interval <interval ÷ targets> --timeout 10000 <targets>. -I is omitted when ping_extra_args already selects an interface.",
         "fping RTT is split evenly into download and upload OWD (RTT/2 each). ICMP_TIMESTAMP keeps fping's raw bracketed token for log compatibility.",
         "Each child gets its own process group. Stopping sends SIGTERM to the group; a 500 ms timer escalates to SIGKILL.",
@@ -1150,6 +1159,36 @@
           "id": "method",
           "label": "pinger_method",
           "kind": "decision"
+        },
+        {
+          "id": "native",
+          "label": "native_open + icmp_open\nbind interface; filter ID/type;\ntime64 kernel receive timestamps",
+          "kind": "process"
+        },
+        {
+          "id": "nativeok",
+          "label": "sockets and watches ready?",
+          "kind": "decision"
+        },
+        {
+          "id": "nativewatch",
+          "label": "uloop_fd + probe timer\nno child or output pipe",
+          "kind": "process"
+        },
+        {
+          "id": "nativetick",
+          "label": "expire requests; send at most one\nadvance evenly-spaced target",
+          "kind": "process"
+        },
+        {
+          "id": "nativereply",
+          "label": "recvmsg: parse wire + timestamp\nmatch address/ID/sequence,\ntoken/serial or originate",
+          "kind": "decision"
+        },
+        {
+          "id": "nativeignore",
+          "label": "ignore foreign, duplicate\nor expired datagram",
+          "kind": "end"
         },
         {
           "id": "fping",
@@ -1193,7 +1232,7 @@
         },
         {
           "id": "sample",
-          "label": "sample: target, seq,\ntimestamp, OWD = RTT/2",
+          "label": "sample: target, seq, timestamp\nOWD = RTT/2 or timestamp split",
           "kind": "end"
         },
         {
@@ -1246,6 +1285,15 @@
           "label": "yes",
           "style": ""
         },
+        { "from": "method", "to": "native", "label": "native / native-ts", "style": "" },
+        { "from": "native", "to": "nativeok", "label": "", "style": "" },
+        { "from": "nativeok", "to": "degraded", "label": "no", "style": "" },
+        { "from": "nativeok", "to": "nativewatch", "label": "yes", "style": "" },
+        { "from": "nativewatch", "to": "nativetick", "label": "timer", "style": "" },
+        { "from": "nativewatch", "to": "nativereply", "label": "socket readable", "style": "" },
+        { "from": "nativetick", "to": "nativewatch", "label": "reschedule", "style": "" },
+        { "from": "nativereply", "to": "nativeignore", "label": "no match", "style": "" },
+        { "from": "nativereply", "to": "sample", "label": "valid sample", "style": "" },
         {
           "from": "method",
           "to": "fping",
@@ -1348,7 +1396,7 @@
       "id": "06-latency-tracking",
       "title": "06 — Per-reflector baseline and delay tracking",
       "refs": [
-        "src/monitor/pingers.c:process_latency_line",
+        "src/monitor/pingers.c:process_latency_sample",
         "src/monitor/reflectors.c:reflectors_record",
         "src/latency/tracker.c:tracker_update",
         "src/latency/tracker.c:tracker_update_direction",
@@ -2638,6 +2686,8 @@
         "src/logging/log.c:rotate_log_file",
         "src/logging/log.c:log_export_file",
         "src/logging/log.c:log_reset_file",
+        "src/logging/log.c:queue_entry",
+        "src/logging/log.c:writer_thread",
         "src/monitor/monitor.c:handle_cpu_timer",
         "src/logging/mqtt.c:mqtt_submit",
         "src/logging/mqtt.c:mqtt_thread",
@@ -2646,9 +2696,10 @@
       "notes": [
         "Record names, field order, units and headers follow cake-autorate's DATA, LOAD, REFLECTOR, SUMMARY, SHAPER and CPU formats so its analysis tools work on cake-adapt logs.",
         "Syslog receives errors, warnings and the start, stop and disabled messages. Debug messages go there only with log_debug_messages_to_syslog. Every message also goes to the log file when one is open.",
-        "The local date and time text is formatted once per second and reused. The file uses a 16 KiB stdio buffer flushed by the log timer every log_file_buffer_timeout_ms.",
+        "A writer thread, started once the log file is open, does every write to the log file, stdout and syslog, with rotation, export and reset. The main loop only formats a record and copies it into a 128 KiB queue, so slow storage or a stuck logd never holds up measurement and control. The queue is a bounded FIFO: when it is full, the oldest waiting lines make room for the new one and are counted, and the writer logs the count before the oldest line it still has. An overwritten export or reset request is still carried out. At stop the writer drains the queue for up to 2 s; a writer still stuck in syslog is left behind. Configuration checks (-V) and the unit tests write directly, without the thread.",
+        "The local date and time text is formatted once per second and reused. The file uses a 16 KiB stdio buffer that the writer flushes every log_file_buffer_timeout_ms.",
         "Rotation copies the active log to cake-adapt[.<section>].log.old and truncates the active file in place. The inode is preserved, so tail -f stays attached.",
-        "SIGUSR1 exports the active and retained logs (optionally compressed with zlib). SIGUSR2 flushes and truncates them in place.",
+        "SIGUSR1 exports the active and retained logs (optionally compressed with zlib). SIGUSR2 flushes and truncates them in place. Both are queued to the writer, in order with the lines around them, so a long compressed export does not pause the main loop.",
         "CPU records are written only while RUNNING. A failed /proc/stat read is reported once as degraded and once on recovery.",
         "MQTT is an independent opt-in sink for generated records. The logging thread uses a try-lock to copy into a bounded 32-record queue; offline, full or contended queues drop silently. Sender and network threads handle QoS 0 delivery without retention, a five-second connection deadline, and ten-second retries indefinitely. Only the cake-adapt-mqtt-ssl package can enable TLS: the sender loads the CA file and configures certificate/hostname verification before starting the network thread; the other packages reject TLS settings. The cake-adapt package is built with logging/mqtt_none.c instead: no libmosquitto, nothing is queued or sent. Existing output and debug flags still govern which records are generated."
       ],

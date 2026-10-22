@@ -1,0 +1,63 @@
+--- a/src/monitor/pingers.c
++++ b/src/monitor/pingers.c
+@@ -10,6 +10,7 @@
+ #include <libubox/utils.h>
+ 
+ #include <errno.h>
++#include <inttypes.h>
+ #include <limits.h>
+ #include <stdarg.h>
+ #include <stdio.h>
+@@ -308,8 +309,13 @@
+ 	struct latency *latency = &pingers->latency;
+ 	struct native_session *session = &latency->native;
+ 	uint64_t now_us;
++	uint64_t deadline_us = session->next_send_us;
++	uint64_t serial = session->next_serial;
+ 	uint64_t realtime_us;
+ 	char error[ERROR_SIZE] = { 0 };
++	uint64_t returned_us;
++	bool returned_captured;
++	int send_result;
+ 
+ 	if (!read_clock_us(CLOCK_MONOTONIC, &now_us) ||
+ 	    !read_clock_us(CLOCK_REALTIME, &realtime_us)) {
+@@ -317,12 +323,37 @@
+ 		defer_latency_retry(monitor);
+ 		return;
+ 	}
+-	if (native_tick(session, now_us, realtime_us, error, sizeof(error)) != 0) {
++	send_result = native_tick(session, now_us, realtime_us, error, sizeof(error));
++	returned_captured = session->next_serial != serial && serial < 8000U &&
++			    read_clock_us(CLOCK_MONOTONIC, &returned_us);
++	if (send_result != 0) {
+ 		report_latency_degraded(monitor, error);
+ 	} else if (pingers->observation_failed && !native_send_failed(session)) {
+ 		log_message(LOG_LEVEL_NOTICE, "native probe sends recovered");
+ 		pingers->observation_failed = false;
+ 	}
++	/* Diagnostic only: report existing clocks after send; do not move capture points. */
++	if (returned_captured) {
++		const struct native_request *request =
++			&session->requests[serial % session->capacity];
++		const struct native_target *target = &session->targets[request->target];
++
++		log_message(
++			LOG_LEVEL_INFO,
++			"NATIVE_SEND serial=%" PRIu64 " target=%zu deadline_us=%" PRIu64
++			" callback_us=%" PRIu64 " realtime_us=%" PRIu64 " sent_us=%" PRIu64
++			" returned_us=%" PRIu64 " originate_ms=%" PRIu32 " failed=%u",
++			serial,
++			request->target,
++			deadline_us,
++			now_us,
++			realtime_us,
++			request->sent_us,
++			returned_us,
++			request->originate_ms,
++			target->send_failed ? 1U : 0U
++		);
++	}
+ 	if (!read_clock_us(CLOCK_MONOTONIC, &now_us) ||
+ 	    schedule_native_tick(monitor, now_us) != 0) {
+ 		report_latency_failure(

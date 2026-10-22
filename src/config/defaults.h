@@ -18,8 +18,9 @@ struct config;
 #define CHILD_STOP_TIMEOUT_US (CHILD_STOP_ATTEMPTS * CHILD_STOP_INTERVAL_US)
 #define INITIAL_ONE_WAY_BASELINE_US (100U * MILLISECOND)
 #define NETLINK_RESPONSE_TIMEOUT_US SECOND
-/* fping waits this long for each reply, as cake-autorate runs it. */
-#define FPING_TIMEOUT_US (10U * SECOND)
+/* Each reply is awaited this long, as cake-autorate runs fping. */
+#define LATENCY_RESPONSE_TIMEOUT_US (10U * SECOND)
+#define FPING_TIMEOUT_US LATENCY_RESPONSE_TIMEOUT_US
 #define SATURATION_ENTER_RATIO_E6 (90U * RATIO_PERCENT_E6)
 #define SATURATION_EXIT_RATIO_E6 (80U * RATIO_PERCENT_E6)
 #define SATURATION_CONFIRMATION_SAMPLES 3U

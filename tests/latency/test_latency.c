@@ -597,7 +597,7 @@ static void test_backend_executable_must_be_available(void)
 	assert(strcmp(accessed_path, "/usr/bin/irtt") == 0);
 	assert(strcmp(
 		       error,
-		       "ping binary /usr/bin/irtt for pinger_method 'irtt' is not available: No such file or directory"
+		       "ping binary /usr/bin/irtt for pinger_method 'irtt' is not available: No such file or directory; install the irtt package or use pinger_method 'native'"
 	       ) == 0);
 
 	accessed_path[0] = '\0';

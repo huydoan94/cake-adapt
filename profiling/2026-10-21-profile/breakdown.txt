@@ -1,0 +1,171 @@
+v0315-bidirectional: 813 samples
+   59.4%   483  fping process (the pinger child)
+   13.7%   111  epoll wait (idle in the event loop)
+    9.2%    75  userspace (cake-adapt, libc, libubox)
+    7.7%    63  interrupt/softirq (packet processing charged to the task)
+    7.6%    62  netlink qdisc dump
+    1.4%    11  pinger pipe read
+    1.0%     8  other kernel
+v0315-bidirectional6: 803 samples
+   60.4%   485  fping process (the pinger child)
+   12.2%    98  epoll wait (idle in the event loop)
+   11.5%    92  userspace (cake-adapt, libc, libubox)
+    7.3%    59  netlink qdisc dump
+    6.8%    55  interrupt/softirq (packet processing charged to the task)
+    1.0%     8  pinger pipe read
+    0.7%     6  other kernel
+v0315-congested: 735 samples
+   55.8%   410  fping process (the pinger child)
+   15.8%   116  epoll wait (idle in the event loop)
+    9.5%    70  netlink qdisc dump
+    9.1%    67  userspace (cake-adapt, libc, libubox)
+    7.1%    52  interrupt/softirq (packet processing charged to the task)
+    2.0%    15  other kernel
+    0.7%     5  pinger pipe read
+v0315-download: 738 samples
+   64.4%   475  fping process (the pinger child)
+   16.5%   122  epoll wait (idle in the event loop)
+    6.9%    51  userspace (cake-adapt, libc, libubox)
+    5.6%    41  interrupt/softirq (packet processing charged to the task)
+    5.6%    41  netlink qdisc dump
+    0.8%     6  pinger pipe read
+    0.3%     2  other kernel
+v0315-download6: 713 samples
+   65.5%   467  fping process (the pinger child)
+   12.8%    91  epoll wait (idle in the event loop)
+   10.2%    73  userspace (cake-adapt, libc, libubox)
+    5.5%    39  netlink qdisc dump
+    4.3%    31  interrupt/softirq (packet processing charged to the task)
+    1.0%     7  other kernel
+    0.7%     5  pinger pipe read
+v0315-idle: 247 samples
+   64.0%   158  fping process (the pinger child)
+   28.7%    71  epoll wait (idle in the event loop)
+    3.6%     9  userspace (cake-adapt, libc, libubox)
+    1.6%     4  interrupt/softirq (packet processing charged to the task)
+    1.2%     3  pinger pipe read
+    0.4%     1  netlink qdisc dump
+    0.4%     1  other kernel
+v0315-upload: 589 samples
+   63.7%   375  fping process (the pinger child)
+   16.5%    97  epoll wait (idle in the event loop)
+    9.7%    57  userspace (cake-adapt, libc, libubox)
+    6.1%    36  netlink qdisc dump
+    1.9%    11  interrupt/softirq (packet processing charged to the task)
+    1.4%     8  other kernel
+    0.8%     5  pinger pipe read
+v0321-fping-bidirectional: 1190 samples
+   40.3%   479  fping process (the pinger child)
+   24.1%   287  interrupt/softirq (packet processing charged to the task)
+    9.3%   111  userspace (cake-adapt, libc, libubox)
+    9.1%   108  other kernel
+    8.8%   105  netlink qdisc dump
+    7.4%    88  epoll wait (idle in the event loop)
+    1.0%    12  pinger pipe read
+v0321-fping-bidirectional6: 1143 samples
+   40.4%   462  fping process (the pinger child)
+   25.6%   293  interrupt/softirq (packet processing charged to the task)
+    9.5%   109  userspace (cake-adapt, libc, libubox)
+    8.6%    98  epoll wait (idle in the event loop)
+    7.7%    88  netlink qdisc dump
+    7.3%    83  other kernel
+    0.9%    10  pinger pipe read
+v0321-fping-congested: 1034 samples
+   42.2%   436  fping process (the pinger child)
+   20.2%   209  interrupt/softirq (packet processing charged to the task)
+    9.5%    98  userspace (cake-adapt, libc, libubox)
+    9.5%    98  epoll wait (idle in the event loop)
+    9.0%    93  other kernel
+    9.0%    93  netlink qdisc dump
+    0.6%     6  pinger pipe read
+    0.1%     1  BPF ring buffer drain and counters
+v0321-fping-download: 984 samples
+   47.1%   463  fping process (the pinger child)
+   23.3%   229  interrupt/softirq (packet processing charged to the task)
+    8.8%    87  other kernel
+    8.4%    83  epoll wait (idle in the event loop)
+    7.9%    78  userspace (cake-adapt, libc, libubox)
+    3.8%    37  netlink qdisc dump
+    0.7%     7  pinger pipe read
+v0321-fping-download6: 1028 samples
+   46.1%   474  fping process (the pinger child)
+   21.0%   216  interrupt/softirq (packet processing charged to the task)
+   11.1%   114  userspace (cake-adapt, libc, libubox)
+    9.5%    98  epoll wait (idle in the event loop)
+    7.9%    81  other kernel
+    3.7%    38  netlink qdisc dump
+    0.6%     6  pinger pipe read
+    0.1%     1  BPF ring buffer drain and counters
+v0321-fping-idle: 444 samples
+   43.7%   194  fping process (the pinger child)
+   20.0%    89  epoll wait (idle in the event loop)
+   15.3%    68  interrupt/softirq (packet processing charged to the task)
+   14.9%    66  other kernel
+    5.2%    23  userspace (cake-adapt, libc, libubox)
+    0.5%     2  pinger pipe read
+    0.5%     2  netlink qdisc dump
+v0321-fping-upload: 893 samples
+   40.8%   364  fping process (the pinger child)
+   19.8%   177  interrupt/softirq (packet processing charged to the task)
+   14.4%   129  epoll wait (idle in the event loop)
+   10.6%    95  other kernel
+    8.0%    71  userspace (cake-adapt, libc, libubox)
+    6.0%    54  netlink qdisc dump
+    0.3%     3  pinger pipe read
+v0321-native-bidirectional: 978 samples
+   29.8%   291  interrupt/softirq (packet processing charged to the task)
+   28.2%   276  epoll wait (idle in the event loop)
+   13.6%   133  userspace (cake-adapt, libc, libubox)
+   10.0%    98  other kernel
+    9.4%    92  native ICMP probes (raw sockets)
+    8.6%    84  netlink qdisc dump
+    0.2%     2  pinger pipe read
+    0.2%     2  BPF ring buffer drain and counters
+v0321-native-bidirectional6: 979 samples
+   31.4%   307  interrupt/softirq (packet processing charged to the task)
+   24.6%   241  epoll wait (idle in the event loop)
+   12.5%   122  userspace (cake-adapt, libc, libubox)
+   11.5%   113  native ICMP probes (raw sockets)
+   10.2%   100  other kernel
+    9.2%    90  netlink qdisc dump
+    0.5%     5  BPF ring buffer drain and counters
+    0.1%     1  pinger pipe read
+v0321-native-congested: 870 samples
+   31.3%   272  interrupt/softirq (packet processing charged to the task)
+   25.6%   223  epoll wait (idle in the event loop)
+   14.9%   130  userspace (cake-adapt, libc, libubox)
+   11.5%   100  other kernel
+    9.0%    78  netlink qdisc dump
+    7.6%    66  native ICMP probes (raw sockets)
+    0.1%     1  pinger pipe read
+v0321-native-download: 871 samples
+   28.9%   252  interrupt/softirq (packet processing charged to the task)
+   25.4%   221  epoll wait (idle in the event loop)
+   16.1%   140  native ICMP probes (raw sockets)
+   11.9%   104  userspace (cake-adapt, libc, libubox)
+   10.6%    92  other kernel
+    6.8%    59  netlink qdisc dump
+    0.2%     2  pinger pipe read
+    0.1%     1  BPF ring buffer drain and counters
+v0321-native-download6: 863 samples
+   28.4%   245  interrupt/softirq (packet processing charged to the task)
+   28.0%   242  epoll wait (idle in the event loop)
+   14.4%   124  native ICMP probes (raw sockets)
+   12.2%   105  userspace (cake-adapt, libc, libubox)
+   11.0%    95  other kernel
+    5.7%    49  netlink qdisc dump
+    0.2%     2  BPF ring buffer drain and counters
+    0.1%     1  pinger pipe read
+v0321-native-idle: 492 samples
+   50.2%   247  epoll wait (idle in the event loop)
+   35.0%   172  interrupt/softirq (packet processing charged to the task)
+   13.4%    66  other kernel
+    1.4%     7  userspace (cake-adapt, libc, libubox)
+v0321-native-upload: 875 samples
+   37.3%   326  epoll wait (idle in the event loop)
+   30.3%   265  interrupt/softirq (packet processing charged to the task)
+   11.4%   100  other kernel
+   10.2%    89  userspace (cake-adapt, libc, libubox)
+    7.1%    62  netlink qdisc dump
+    3.7%    32  native ICMP probes (raw sockets)
+    0.1%     1  BPF ring buffer drain and counters

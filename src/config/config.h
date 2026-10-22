@@ -53,7 +53,7 @@ struct config {
 	bool enable_sleep_function;
 	bool minimum_shaper_rates_enforcement;
 	bool log_file_export_compress;
-	/* Attribute fping's shared delay with per-direction TCP-timestamp queues. */
+	/* Attribute an echo pinger's shared delay with per-direction TCP-timestamp queues. */
 	bool tcp_delay_attribution;
 	/* Experimental: add TCP timestamps to SYNs without them, so they can be measured. */
 	bool tcp_ts_request;
@@ -117,6 +117,24 @@ const char *config_option_name(size_t index);
 
 /* Checks a loaded configuration for consistency; config_load() calls it. */
 int config_validate(const struct config *config, char *error, size_t error_size);
+
+struct stat;
+
+/*
+ * Refuses ping_prefix_string, ping_extra_args and log_file_path_override when
+ * the configuration file, whose STATUS is given, is SHARED_PATH:
+ * /etc/config/cake-adapt, which LuCI can change. The service takes them only
+ * from the root-only /etc/cake-adapt/exec, into the runtime file it builds;
+ * this keeps a daemon started by hand from running a program, with arguments,
+ * or writing where a LuCI user chose.
+ */
+int config_check_shared_file(
+	const struct config *config,
+	const struct stat *status,
+	const char *shared_path,
+	char *error,
+	size_t error_size
+);
 
 /*
  * Loads SECTION_NAME from CONFIG_PATH, the absolute path of a file in UCI

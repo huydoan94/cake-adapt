@@ -191,12 +191,9 @@ static void handle_log_timer(struct uloop_interval *timer)
 
 static void handle_log_export_signal(struct uloop_signal *signal)
 {
-	char export_path[LOG_EXPORT_PATH_SIZE];
-
 	(void)signal;
 	log_message(LOG_LEVEL_DEBUG, "received log file export signal so exporting log file.");
-	if (log_export_file(export_path, sizeof(export_path)) != 0)
-		log_message(LOG_LEVEL_WARNING, "log file export failed: %s", strerror(errno));
+	log_request_export();
 }
 
 static void handle_log_reset_signal(struct uloop_signal *signal)
@@ -206,8 +203,7 @@ static void handle_log_reset_signal(struct uloop_signal *signal)
 		LOG_LEVEL_DEBUG,
 		"received log file reset signal so flushing log and resetting log file."
 	);
-	if (log_reset_file() != 0)
-		log_message(LOG_LEVEL_WARNING, "log file reset failed: %s", strerror(errno));
+	log_request_reset();
 }
 
 static void watch_cpu(struct monitor *monitor)

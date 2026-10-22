@@ -225,7 +225,7 @@ The pipeline stays `measurement -> controller decision -> desired CAKE state
 - Opt-in on the user's routers: LibreQoS runs plus at least one long run (one
   hour or more) per router.
 - Raw logs go under `profiling/`.
-- Default stays fping until the user decides otherwise.
+- Default stays fping until the user decides otherwise. (Since 0.3.21 the default is the daemon's own ICMP probes; fping is a fallback.)
 
 ## Covering traffic without TCP timestamps (discussed 2026-10-06)
 

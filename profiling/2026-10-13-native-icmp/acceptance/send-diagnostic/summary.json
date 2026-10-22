@@ -1,0 +1,503 @@
+{
+  "complete_case": {
+    "idle_rtt_ms": 22.7,
+    "idle_owd_sum_median_ms": 22.0,
+    "phases": {
+      "upload-steady": {
+        "samples": 603,
+        "lost": 0,
+        "added_rtt_p50_ms": 3.9,
+        "added_rtt_p95_ms": 79.3,
+        "added_rtt_p99_ms": 96.3,
+        "over15_pct": 31.509121061359867,
+        "over30_pct": 24.875621890547265,
+        "ul_received_mbit_s": 6.85722957589415
+      },
+      "upload-step": {
+        "samples": 602,
+        "lost": 0,
+        "added_rtt_p50_ms": 4.3,
+        "added_rtt_p95_ms": 87.3,
+        "added_rtt_p99_ms": 128.3,
+        "over15_pct": 31.727574750830566,
+        "over30_pct": 24.58471760797342,
+        "ul_received_mbit_s": 5.6418092772893145
+      },
+      "download-steady": {
+        "samples": 602,
+        "lost": 1,
+        "added_rtt_p50_ms": 14.6,
+        "added_rtt_p95_ms": 44.6,
+        "added_rtt_p99_ms": 57.5,
+        "over15_pct": 48.25291181364393,
+        "over30_pct": 18.96838602329451,
+        "dl_received_mbit_s": 29.76150178404854
+      },
+      "bidirectional": {
+        "samples": 602,
+        "lost": 0,
+        "added_rtt_p50_ms": 28.1,
+        "added_rtt_p95_ms": 76.3,
+        "added_rtt_p99_ms": 97.3,
+        "over15_pct": 75.08305647840531,
+        "over30_pct": 45.84717607973422,
+        "ul_received_mbit_s": 6.411108954605482,
+        "dl_received_mbit_s": 27.996146781235705
+      }
+    },
+    "cpu": {
+      "daemon_own_ticks": 382,
+      "daemon_plus_pinger_ticks": 382,
+      "seconds": 271.08999999999924,
+      "one_core_pct": 1.4091261204765984,
+      "before": [
+        {
+          "pid": 9293,
+          "name": "cake-adapt",
+          "own": 12,
+          "waited": 0,
+          "start": 458116
+        }
+      ],
+      "after": [
+        {
+          "pid": 9293,
+          "name": "cake-adapt",
+          "own": 394,
+          "waited": 0,
+          "start": 458116
+        }
+      ]
+    },
+    "health": {
+      "loss_one_detect_s": 1.783552885055542,
+      "loss_all_stall_check_s": 0.3534369468688965,
+      "loss_all_global_timeout_s": 10.154223918914795,
+      "first_data_after_recovery_s": 0.03981590270996094
+    },
+    "health_observed": true
+  },
+  "send_diagnostic": {
+    "start": {
+      "matched_pre_send_to_return_over_2_4_ms": 0,
+      "peer_received_before_return_for_those": 0,
+      "callback_to_pre_send_age": {
+        "samples": 291,
+        "p50_ms": 0.001,
+        "p95_ms": 0.003,
+        "p99_ms": 0.009,
+        "max_ms": 0.027,
+        "over_1_ms_pct": 0.0,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "callback_to_completed_send_upper_bound_age": {
+        "samples": 291,
+        "p50_ms": 0.049,
+        "p95_ms": 0.176,
+        "p99_ms": 0.419,
+        "max_ms": 1.476,
+        "over_1_ms_pct": 0.3436426116838488,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "pre_send_to_return_interval": {
+        "samples": 291,
+        "p50_ms": 0.048,
+        "p95_ms": 0.171,
+        "p99_ms": 0.418,
+        "max_ms": 1.472,
+        "over_1_ms_pct": 0.3436426116838488,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "originate_age_through_return_upper_bound": {
+        "samples": 291,
+        "p50_ms": 0.666,
+        "p95_ms": 1.011,
+        "p99_ms": 1.117,
+        "max_ms": 1.652,
+        "over_1_ms_pct": 6.185567010309279,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "send_deadline_lateness": {
+        "samples": 291,
+        "p50_ms": 1.135,
+        "p95_ms": 5.743,
+        "p99_ms": 9.083,
+        "max_ms": 14.784,
+        "over_1_ms_pct": 56.013745704467354,
+        "over_2.4_ms_pct": 25.085910652920962,
+        "over_7.3_ms_pct": 1.7182130584192439
+      },
+      "receive_to_data_delay": {
+        "samples": 292,
+        "p50_ms": 0.1304149627685547,
+        "p95_ms": 0.4329681396484375,
+        "p99_ms": 0.7410049438476562,
+        "max_ms": 1.1930465698242188,
+        "over_1_ms_pct": 0.684931506849315,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "global_pre_send_gap": {
+        "samples": 290,
+        "p50_ms": 51.1295,
+        "p95_ms": 55.556,
+        "p99_ms": 59.083,
+        "max_ms": 64.784,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      },
+      "per_target_pre_send_gap": {
+        "samples": 285,
+        "p50_ms": 309.94,
+        "p95_ms": 319.802,
+        "p99_ms": 324.896,
+        "max_ms": 327.316,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      }
+    },
+    "upload-steady": {
+      "matched_pre_send_to_return_over_2_4_ms": 5,
+      "peer_received_before_return_for_those": 0,
+      "callback_to_pre_send_age": {
+        "samples": 1165,
+        "p50_ms": 0.001,
+        "p95_ms": 0.003,
+        "p99_ms": 0.007,
+        "max_ms": 0.507,
+        "over_1_ms_pct": 0.0,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "callback_to_completed_send_upper_bound_age": {
+        "samples": 1165,
+        "p50_ms": 0.031,
+        "p95_ms": 0.523,
+        "p99_ms": 1.455,
+        "max_ms": 5.483,
+        "over_1_ms_pct": 1.888412017167382,
+        "over_2.4_ms_pct": 0.4291845493562232,
+        "over_7.3_ms_pct": 0.0
+      },
+      "pre_send_to_return_interval": {
+        "samples": 1165,
+        "p50_ms": 0.029,
+        "p95_ms": 0.519,
+        "p99_ms": 1.453,
+        "max_ms": 5.478,
+        "over_1_ms_pct": 1.888412017167382,
+        "over_2.4_ms_pct": 0.4291845493562232,
+        "over_7.3_ms_pct": 0.0
+      },
+      "originate_age_through_return_upper_bound": {
+        "samples": 1165,
+        "p50_ms": 0.611,
+        "p95_ms": 1.23,
+        "p99_ms": 1.948,
+        "max_ms": 6.259,
+        "over_1_ms_pct": 13.648068669527897,
+        "over_2.4_ms_pct": 0.6866952789699571,
+        "over_7.3_ms_pct": 0.0
+      },
+      "send_deadline_lateness": {
+        "samples": 1165,
+        "p50_ms": 1.269,
+        "p95_ms": 5.924,
+        "p99_ms": 7.923,
+        "max_ms": 11.893,
+        "over_1_ms_pct": 61.03004291845494,
+        "over_2.4_ms_pct": 21.28755364806867,
+        "over_7.3_ms_pct": 1.8025751072961373
+      },
+      "receive_to_data_delay": {
+        "samples": 1164,
+        "p50_ms": 0.22590160369873047,
+        "p95_ms": 0.7779598236083984,
+        "p99_ms": 1.8839836120605469,
+        "max_ms": 7.483959197998047,
+        "over_1_ms_pct": 3.0927835051546393,
+        "over_2.4_ms_pct": 0.5154639175257731,
+        "over_7.3_ms_pct": 0.0859106529209622
+      },
+      "global_pre_send_gap": {
+        "samples": 1164,
+        "p50_ms": 51.2685,
+        "p95_ms": 55.924,
+        "p99_ms": 57.923,
+        "max_ms": 61.893,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      },
+      "per_target_pre_send_gap": {
+        "samples": 1159,
+        "p50_ms": 310.174,
+        "p95_ms": 319.165,
+        "p99_ms": 321.919,
+        "max_ms": 323.605,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      }
+    },
+    "upload-step": {
+      "matched_pre_send_to_return_over_2_4_ms": 19,
+      "peer_received_before_return_for_those": 0,
+      "callback_to_pre_send_age": {
+        "samples": 1156,
+        "p50_ms": 0.002,
+        "p95_ms": 0.005,
+        "p99_ms": 0.008,
+        "max_ms": 0.514,
+        "over_1_ms_pct": 0.0,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "callback_to_completed_send_upper_bound_age": {
+        "samples": 1156,
+        "p50_ms": 0.034,
+        "p95_ms": 0.676,
+        "p99_ms": 3.457,
+        "max_ms": 23.916,
+        "over_1_ms_pct": 3.28719723183391,
+        "over_2.4_ms_pct": 1.643598615916955,
+        "over_7.3_ms_pct": 0.43252595155709345
+      },
+      "pre_send_to_return_interval": {
+        "samples": 1156,
+        "p50_ms": 0.032,
+        "p95_ms": 0.674,
+        "p99_ms": 3.456,
+        "max_ms": 23.915,
+        "over_1_ms_pct": 3.28719723183391,
+        "over_2.4_ms_pct": 1.643598615916955,
+        "over_7.3_ms_pct": 0.43252595155709345
+      },
+      "originate_age_through_return_upper_bound": {
+        "samples": 1156,
+        "p50_ms": 0.603,
+        "p95_ms": 1.315,
+        "p99_ms": 3.902,
+        "max_ms": 23.971,
+        "over_1_ms_pct": 14.705882352941176,
+        "over_2.4_ms_pct": 1.7301038062283738,
+        "over_7.3_ms_pct": 0.6055363321799307
+      },
+      "send_deadline_lateness": {
+        "samples": 1156,
+        "p50_ms": 1.324,
+        "p95_ms": 6.081,
+        "p99_ms": 9.047,
+        "max_ms": 67.728,
+        "over_1_ms_pct": 62.88927335640138,
+        "over_2.4_ms_pct": 24.653979238754324,
+        "over_7.3_ms_pct": 2.0761245674740483
+      },
+      "receive_to_data_delay": {
+        "samples": 1156,
+        "p50_ms": 0.24652481079101562,
+        "p95_ms": 1.1501312255859375,
+        "p99_ms": 4.387140274047852,
+        "max_ms": 94.48719024658203,
+        "over_1_ms_pct": 5.709342560553633,
+        "over_2.4_ms_pct": 1.7301038062283738,
+        "over_7.3_ms_pct": 0.7785467128027682
+      },
+      "global_pre_send_gap": {
+        "samples": 1155,
+        "p50_ms": 51.322,
+        "p95_ms": 56.081,
+        "p99_ms": 59.047,
+        "max_ms": 117.728,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      },
+      "per_target_pre_send_gap": {
+        "samples": 1150,
+        "p50_ms": 310.8105,
+        "p95_ms": 321.116,
+        "p99_ms": 337.275,
+        "max_ms": 494.959,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      }
+    },
+    "download-steady": {
+      "matched_pre_send_to_return_over_2_4_ms": 34,
+      "peer_received_before_return_for_those": 3,
+      "callback_to_pre_send_age": {
+        "samples": 1155,
+        "p50_ms": 0.002,
+        "p95_ms": 0.007,
+        "p99_ms": 0.017,
+        "max_ms": 0.05,
+        "over_1_ms_pct": 0.0,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "callback_to_completed_send_upper_bound_age": {
+        "samples": 1155,
+        "p50_ms": 0.108,
+        "p95_ms": 1.556,
+        "p99_ms": 9.404,
+        "max_ms": 195.421,
+        "over_1_ms_pct": 7.359307359307359,
+        "over_2.4_ms_pct": 2.9437229437229435,
+        "over_7.3_ms_pct": 1.2987012987012987
+      },
+      "pre_send_to_return_interval": {
+        "samples": 1155,
+        "p50_ms": 0.106,
+        "p95_ms": 1.549,
+        "p99_ms": 9.399,
+        "max_ms": 195.417,
+        "over_1_ms_pct": 7.359307359307359,
+        "over_2.4_ms_pct": 2.9437229437229435,
+        "over_7.3_ms_pct": 1.2987012987012987
+      },
+      "originate_age_through_return_upper_bound": {
+        "samples": 1155,
+        "p50_ms": 0.714,
+        "p95_ms": 1.959,
+        "p99_ms": 9.736,
+        "max_ms": 196.266,
+        "over_1_ms_pct": 24.935064935064936,
+        "over_2.4_ms_pct": 4.06926406926407,
+        "over_7.3_ms_pct": 1.3852813852813852
+      },
+      "send_deadline_lateness": {
+        "samples": 1155,
+        "p50_ms": 1.184,
+        "p95_ms": 6.342,
+        "p99_ms": 13.884,
+        "max_ms": 145.832,
+        "over_1_ms_pct": 57.66233766233766,
+        "over_2.4_ms_pct": 24.242424242424242,
+        "over_7.3_ms_pct": 3.54978354978355
+      },
+      "receive_to_data_delay": {
+        "samples": 1155,
+        "p50_ms": 0.34809112548828125,
+        "p95_ms": 2.2308826446533203,
+        "p99_ms": 8.309125900268555,
+        "max_ms": 31.43787384033203,
+        "over_1_ms_pct": 12.9004329004329,
+        "over_2.4_ms_pct": 4.675324675324675,
+        "over_7.3_ms_pct": 1.1255411255411256
+      },
+      "global_pre_send_gap": {
+        "samples": 1154,
+        "p50_ms": 51.1825,
+        "p95_ms": 56.323,
+        "p99_ms": 63.884,
+        "max_ms": 195.832,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      },
+      "per_target_pre_send_gap": {
+        "samples": 1149,
+        "p50_ms": 310.404,
+        "p95_ms": 325.311,
+        "p99_ms": 352.54,
+        "max_ms": 549.182,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      }
+    },
+    "bidirectional": {
+      "matched_pre_send_to_return_over_2_4_ms": 10,
+      "peer_received_before_return_for_those": 0,
+      "callback_to_pre_send_age": {
+        "samples": 1167,
+        "p50_ms": 0.001,
+        "p95_ms": 0.003,
+        "p99_ms": 0.006,
+        "max_ms": 0.358,
+        "over_1_ms_pct": 0.0,
+        "over_2.4_ms_pct": 0.0,
+        "over_7.3_ms_pct": 0.0
+      },
+      "callback_to_completed_send_upper_bound_age": {
+        "samples": 1167,
+        "p50_ms": 0.018,
+        "p95_ms": 0.699,
+        "p99_ms": 1.992,
+        "max_ms": 15.844,
+        "over_1_ms_pct": 2.9991431019708656,
+        "over_2.4_ms_pct": 0.856898029134533,
+        "over_7.3_ms_pct": 0.2570694087403599
+      },
+      "pre_send_to_return_interval": {
+        "samples": 1167,
+        "p50_ms": 0.017,
+        "p95_ms": 0.698,
+        "p99_ms": 1.991,
+        "max_ms": 15.843,
+        "over_1_ms_pct": 2.9991431019708656,
+        "over_2.4_ms_pct": 0.856898029134533,
+        "over_7.3_ms_pct": 0.2570694087403599
+      },
+      "originate_age_through_return_upper_bound": {
+        "samples": 1167,
+        "p50_ms": 0.604,
+        "p95_ms": 1.286,
+        "p99_ms": 2.684,
+        "max_ms": 16.814,
+        "over_1_ms_pct": 10.62553556126821,
+        "over_2.4_ms_pct": 1.113967437874893,
+        "over_7.3_ms_pct": 0.2570694087403599
+      },
+      "send_deadline_lateness": {
+        "samples": 1167,
+        "p50_ms": 1.05,
+        "p95_ms": 5.348,
+        "p99_ms": 7.749,
+        "max_ms": 21.825,
+        "over_1_ms_pct": 53.55612682090831,
+        "over_2.4_ms_pct": 16.709511568123393,
+        "over_7.3_ms_pct": 1.713796058269066
+      },
+      "receive_to_data_delay": {
+        "samples": 1168,
+        "p50_ms": 0.28896331787109375,
+        "p95_ms": 1.0499954223632812,
+        "p99_ms": 2.454042434692383,
+        "max_ms": 6.975889205932617,
+        "over_1_ms_pct": 5.3938356164383565,
+        "over_2.4_ms_pct": 1.1130136986301369,
+        "over_7.3_ms_pct": 0.0
+      },
+      "global_pre_send_gap": {
+        "samples": 1166,
+        "p50_ms": 51.0485,
+        "p95_ms": 55.268,
+        "p99_ms": 57.709,
+        "max_ms": 71.825,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      },
+      "per_target_pre_send_gap": {
+        "samples": 1161,
+        "p50_ms": 308.2,
+        "p95_ms": 318.381,
+        "p99_ms": 324.179,
+        "max_ms": 332.878,
+        "over_1_ms_pct": 100.0,
+        "over_2.4_ms_pct": 100.0,
+        "over_7.3_ms_pct": 100.0
+      }
+    }
+  },
+  "acceptance": "not an acceptance run; migration remains blocked"
+}
