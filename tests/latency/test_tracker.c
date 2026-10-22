@@ -9,6 +9,10 @@
 #include <stdio.h>
 #include <string.h>
 
+/* The low_load argument: cake-autorate updates the delay EWMA only on a quiet link. */
+static const bool link_quiet = true;
+static const bool link_busy = false;
+
 static const struct latency_tracker_config default_tracker_config = {
 	.alpha_baseline_increase_ratio_e6 = 1000U,
 	.alpha_baseline_decrease_ratio_e6 = 900000U,
@@ -29,7 +33,7 @@ static struct latency_observation track(struct latency_tracker *tracker, uint32_
 	struct latency_observation observation;
 
 	tracker_update(tracker, &sample, &observation);
-	tracker_update_delta_ewma(tracker, true, &observation);
+	tracker_update_delta_ewma(tracker, link_quiet, &observation);
 	return observation;
 }
 
@@ -81,7 +85,7 @@ static void test_delta_ewma_freezes_during_load(void)
 
 	init_tracker(&tracker);
 	tracker_update(&tracker, &sample, &observation);
-	tracker_update_delta_ewma(&tracker, false, &observation);
+	tracker_update_delta_ewma(&tracker, link_busy, &observation);
 
 	assert(observation.download_owd_delta_us == 19980);
 	assert(observation.download_owd_delta_ewma_us == 0);
@@ -97,7 +101,7 @@ static void test_unrepresentable_delta_ewma_restarts(void)
 	};
 
 	init_tracker(&tracker);
-	tracker_update_delta_ewma(&tracker, true, &observation);
+	tracker_update_delta_ewma(&tracker, link_quiet, &observation);
 	assert(observation.download_owd_delta_ewma_us == INT64_MAX);
 	assert(observation.upload_owd_delta_ewma_us == 95000);
 }
@@ -113,7 +117,7 @@ static void test_asymmetric_tracker_state_evolves_independently(void)
 
 	init_tracker(&tracker);
 	tracker_update(&tracker, &sample, &observation);
-	tracker_update_delta_ewma(&tracker, true, &observation);
+	tracker_update_delta_ewma(&tracker, link_quiet, &observation);
 
 	assert(observation.download_owd_baseline_us == 100100U);
 	assert(observation.download_owd_delta_us == 99900);
@@ -134,7 +138,7 @@ static void test_signed_asymmetric_tracker_handles_one_day_values(void)
 
 	init_tracker(&tracker);
 	tracker_update(&tracker, &sample, &observation);
-	tracker_update_delta_ewma(&tracker, true, &observation);
+	tracker_update_delta_ewma(&tracker, link_quiet, &observation);
 
 	assert(observation.download_owd_baseline_us == -INT64_C(77759990000));
 	assert(observation.download_owd_delta_us == -INT64_C(8640010000));
@@ -233,7 +237,7 @@ static void test_timestamp_rollover_resets_only_timestamp_samples(void)
 	assert(observation.upload_owd_delta_us == 0);
 	assert(tracker.download.baseline_us == sample.download_owd_us);
 	assert(tracker.upload.baseline_us == sample.upload_owd_us);
-	tracker_update_delta_ewma(&tracker, true, &observation);
+	tracker_update_delta_ewma(&tracker, link_quiet, &observation);
 	assert(tracker.download.delta_ewma_us == 91);
 	assert(tracker.upload.delta_ewma_us == 181);
 
@@ -253,7 +257,7 @@ static void test_timestamp_rollover_resets_only_timestamp_samples(void)
 	assert(observation.upload_owd_delta_us == 0);
 	tracker.download.delta_ewma_us = 500;
 	tracker.upload.delta_ewma_us = 600;
-	tracker_update_delta_ewma(&tracker, false, &observation);
+	tracker_update_delta_ewma(&tracker, link_busy, &observation);
 	assert(tracker.download.delta_ewma_us == 500);
 	assert(tracker.upload.delta_ewma_us == 600);
 
