@@ -1,6 +1,6 @@
 {
   "title": "cake-adapt: current code flowcharts",
-  "sourceCommit": "795709d",
+  "sourceCommit": "a0e46d9",
   "packageVersion": "0.3.23-r1",
   "graphviz": "16.1.0 (@hpcc-js/wasm-graphviz)",
   "chartCount": 16,
@@ -20,7 +20,7 @@
     "src/latency/native.c": "69fc59301eb4ed610bc7bb0d9d88a76720f1fa3bcfe167ffeb63fce11c0e8aee",
     "src/latency/parser.c": "c06b947e78ae3ad03eb69fe5da7ac0ad75a13fa8c4b5045b0a28f57798ebae81",
     "src/latency/tracker.c": "3f1821003d60d10b5ef5bf28857c31bc2c5d014ca7f367c04a2e71bdb749f2b9",
-    "src/logging/log.c": "4be4da813e3b24c8ccfcb2d3c84d5b8784ec18f20c95e51d4197821f511b55f6",
+    "src/logging/log.c": "b563c4c2f38d80a2a30d6e547c43c8868d168a50db37db5b70d3a3b061d4f5d4",
     "src/logging/mqtt.c": "f136c46e10804ea51db7798a344402fb4d778b305acd7bfb156cd748ee466a69",
     "src/logging/mqtt_none.c": "8932f05f6a286dbcc250642d4fe008d9ac8239c684bfa213b0241f9c4b1ae062",
     "src/main.c": "97a60756070bcdafbca2431b78724c72234898e8e936bb24a764146196d7e8d7",
