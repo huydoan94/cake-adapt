@@ -10,8 +10,10 @@
 # checks every line of those files.
 #
 # Rules (docs/agents/c-style.md):
-# - no member-access chain mixing -> and . (take a local pointer instead);
-# - no literal true or false passed as a function argument;
+# - no member-access chain mixing -> and . (take a local pointer instead; the
+#   declaration taking it, such as "struct t *t = &p->a.t;", is that fix);
+# - no literal true or false passed as a function argument (atomic stores
+#   assign a value and are allowed);
 # - every checked file is clang-format-stable (the SDK's clang-format, when
 #   found; set CLANG_FORMAT to override).
 # A line may opt out of the first two rules with the comment "style: allow".
@@ -23,6 +25,10 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 cd "$repo" || exit 1
 mixed='->[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\.[A-Za-z_]|\.[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?->'
 literal_bool='[A-Za-z_][A-Za-z0-9_]*[[:space:]]*\(.*[(,][[:space:]]*(true|false)[[:space:]]*[,)]'
+# Taking a local pointer is the fix for a mixed chain, not an instance of one.
+local_pointer='^[[:space:]]*(const[[:space:]]+)?(struct[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*[*][[:space:]]*(const[[:space:]]+)?[A-Za-z_][A-Za-z0-9_]*[[:space:]]*=[[:space:]]*&[^;]*;[[:space:]]*$'
+# An atomic store assigns a value; it is not a flag passed to a function.
+atomic_store='atomic_(init|store|exchange)(_explicit)?[[:space:]]*\('
 findings=$(mktemp)
 lines=$(mktemp)
 trap 'rm -f "$findings" "$lines"' 0
@@ -47,8 +53,10 @@ fi
 grep -v 'style: allow' "$lines" | awk -F: '{text = $0; sub(/^[^:]*:[^:]*:/, "", text)
 	if (text ~ /^[[:space:]]*(\/\/|\/\*|\*)/) next
 	print}' >"$lines.code" || :
-grep -E -- "$mixed" "$lines.code" | sed 's/^\([^:]*:[^:]*\):/\1: mixed -> and . chain:/' >>"$findings"
+grep -E -- "$mixed" "$lines.code" | awk -v pattern="$local_pointer" '{text = $0
+	sub(/^[^:]*:[^:]*:/, "", text); if (text !~ pattern) print}' | sed 's/^\([^:]*:[^:]*\):/\1: mixed -> and . chain:/' >>"$findings"
 grep -E -- "$literal_bool" "$lines.code" | grep -vE 'return[[:space:]]+(true|false)' |
+	grep -vE -- "$atomic_store" |
 	sed 's/^\([^:]*:[^:]*\):/\1: literal true\/false argument:/' >>"$findings"
 rm -f "$lines.code"
 
