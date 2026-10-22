@@ -60,7 +60,7 @@ struct controller_config {
 	uint64_t bufferbloat_refractory_period_us;
 	uint64_t decay_refractory_period_us;
 	/*
-	 * Both directions report the same RTT/2 delay (fping), so a queue is
+	 * Both directions report the same RTT/2 delay (native or fping echo), so a queue is
 	 * attributed using download, which is shaped after the bottleneck: its
 	 * achieved rate is what the bottleneck delivers.
 	 */

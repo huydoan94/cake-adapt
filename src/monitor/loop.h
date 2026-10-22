@@ -300,7 +300,7 @@ void reflectors_record(
 void reflectors_reset_health(struct monitor *monitor, uint64_t timestamp_us);
 
 /*
- * fping's recent added round-trip delay on the access link, or -1 when no
+ * The echo pinger's recent added round-trip delay on the access link, or -1 when no
  * pinger slot replied in the current or previous second. A queue on the link
  * delays every reflector's replies, while a slow reflector delays only its own:
  * this is the lower median across slots of each slot's largest added delay over
