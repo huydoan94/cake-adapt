@@ -99,16 +99,16 @@ static int validate_reflectors(const struct config *config, char *error, size_t 
 
 static int validate_pinger(const struct config *config, char *error, size_t error_size)
 {
-	if (!native_method(config->pinger_method) &&
-	    latency_backend_executable(config->pinger_method) == NULL) {
+	enum pinger_method method = latency_method(config->pinger_method);
+
+	if (method == PINGER_UNKNOWN) {
 		return error_set(
 			error,
 			error_size,
 			"option 'pinger_method' must be 'fping', 'fping-ts', 'irtt', 'native' or 'native-ts'"
 		);
 	}
-	if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0 &&
-	    config->irtt_session_duration_us == 0U) {
+	if (method == PINGER_IRTT && config->irtt_session_duration_us == 0U) {
 		return error_set(
 			error,
 			error_size,
@@ -118,7 +118,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 	/* Loading bounds the reflector list; validation bounds no_pingers by it. */
 	if (validate_reflectors(config, error, error_size) != 0)
 		return -1;
-	if (latency_timestamps(config->pinger_method)) {
+	if (latency_timestamps(method)) {
 		uint64_t index;
 
 		for (index = 0U; index < config->reflector_count; index++) {
@@ -134,14 +134,14 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 		}
 	}
 	/* Only a shared echo delay needs attributing to a direction. */
-	if (config->tcp_delay_attribution && !latency_shared_delay(config->pinger_method)) {
+	if (config->tcp_delay_attribution && !latency_shared_delay(method)) {
 		return error_set(
 			error,
 			error_size,
 			"option 'tcp_delay_attribution' needs pinger_method 'fping' or 'native'"
 		);
 	}
-	if (native_method(config->pinger_method)) {
+	if (latency_native(method)) {
 		struct icmp_address address;
 
 		if (config->ping_extra_args[0] != '\0' || config->ping_prefix_string[0] != '\0')

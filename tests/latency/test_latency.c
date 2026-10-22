@@ -4,6 +4,7 @@
 #include "latency/pinger.h"
 #include "common/constants.h"
 #include "common/helpers.h"
+#include "common/utils.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -40,7 +41,7 @@ int __wrap_access(const char *path, int mode)
 
 /* A session as the monitor configures one, before a test changes its options. */
 static const struct latency_settings fping_settings = {
-	.pinger_method = PINGER_METHOD_FPING,
+	.method = PINGER_FPING,
 	.interface = "lo",
 	.extra_arguments = "",
 	.prefix = "",
@@ -217,7 +218,7 @@ static void test_irtt_lines_ignore_non_samples(void)
 	char error[256] = "";
 	struct latency_settings settings = fping_settings;
 
-	settings.pinger_method = PINGER_METHOD_IRTT;
+	settings.method = PINGER_IRTT;
 	latency_init(&latency, &settings);
 	latency.active = true;
 	latency.child_count = 1U;
@@ -445,7 +446,7 @@ static void test_pinger_restores_sigpipe(void)
 }
 
 /* The printf prefix echoes the fping command line, one argument per line. */
-static void check_fping_arguments(const char *pinger_method, const char *expected)
+static void check_fping_arguments(enum pinger_method method, const char *expected)
 {
 	struct latency latency;
 	pid_t process_identifier;
@@ -456,7 +457,7 @@ static void check_fping_arguments(const char *pinger_method, const char *expecte
 	size_t length = 0U;
 	struct pollfd descriptor;
 
-	settings.pinger_method = pinger_method;
+	settings.method = method;
 	settings.reflector_ping_interval_us = 300000U;
 	settings.extra_arguments = "-I 'lo2' -k 768";
 	settings.prefix = "/usr/bin/printf '%s\\n'";
@@ -490,13 +491,13 @@ static void check_fping_arguments(const char *pinger_method, const char *expecte
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
 	check_fping_arguments(
-		PINGER_METHOD_FPING,
+		PINGER_FPING,
 		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
 		"--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
 	);
 	/* Like cake-autorate's fping-ts, --icmp-timestamp follows --timeout. */
 	check_fping_arguments(
-		PINGER_METHOD_FPING_TS,
+		PINGER_FPING_TS,
 		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
 		"--period\n300\n--interval\n150\n--timeout\n10000\n--icmp-timestamp\n"
 		"1.1.1.1\n::1\n"
@@ -519,7 +520,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 	struct pollfd descriptor;
 
 	/* Opened at the slot origin, the first session starts one interval later. */
-	settings.pinger_method = PINGER_METHOD_IRTT;
+	settings.method = PINGER_IRTT;
 	settings.reflector_ping_interval_us = 300U * MILLISECOND;
 	settings.extra_arguments = "--fill=rand";
 	settings.prefix = "/usr/bin/printf '%s\\n'";
@@ -575,35 +576,56 @@ static void test_irtt_children_start_in_separate_slots(void)
 	assert(!latency_stopping(&latency));
 }
 
+/* Each method name maps to one method, and back; anything else is unknown. */
+static void test_method_lookup(void)
+{
+	const char *names[] = { "native", "native-ts", "fping", "fping-ts", "irtt" };
+
+	for (size_t index = 0U; index < ARRAY_SIZE(names); index++) {
+		enum pinger_method method = latency_method(names[index]);
+
+		assert(method != PINGER_UNKNOWN);
+		assert(strcmp(latency_method_name(method), names[index]) == 0);
+	}
+	assert(latency_method("ping") == PINGER_UNKNOWN);
+	assert(latency_method("") == PINGER_UNKNOWN);
+	assert(latency_native(PINGER_NATIVE) && latency_native(PINGER_NATIVE_TS));
+	assert(!latency_native(PINGER_FPING) && !latency_native(PINGER_IRTT));
+	assert(latency_shared_delay(PINGER_NATIVE) && latency_shared_delay(PINGER_FPING));
+	assert(!latency_shared_delay(PINGER_NATIVE_TS) && !latency_shared_delay(PINGER_IRTT));
+	assert(latency_timestamps(PINGER_NATIVE_TS) && latency_timestamps(PINGER_FPING_TS));
+	assert(!latency_timestamps(PINGER_NATIVE) && !latency_timestamps(PINGER_FPING));
+}
+
 static void test_backend_executable_must_be_available(void)
 {
 	char error[256] = "";
 
-	assert(strcmp(latency_backend_executable("fping"), "/usr/bin/fping") == 0);
-	assert(strcmp(latency_backend_executable("fping-ts"), "/usr/bin/fping") == 0);
-	assert(strcmp(latency_backend_executable("irtt"), "/usr/bin/irtt") == 0);
-	assert(latency_backend_executable("ping") == NULL);
+	assert(strcmp(latency_backend_executable(PINGER_FPING), "/usr/bin/fping") == 0);
+	assert(strcmp(latency_backend_executable(PINGER_FPING_TS), "/usr/bin/fping") == 0);
+	assert(strcmp(latency_backend_executable(PINGER_IRTT), "/usr/bin/irtt") == 0);
+	assert(latency_backend_executable(PINGER_NATIVE) == NULL);
 
 	fake_access = true;
 	access_result = 0;
 	access_errno = 0;
 	accessed_path[0] = '\0';
-	assert(latency_check_backend("fping", error, sizeof(error)) == 0);
+	assert(latency_check_backend(PINGER_FPING, error, sizeof(error)) == 0);
 	assert(strcmp(accessed_path, "/usr/bin/fping") == 0);
 
 	access_result = -1;
 	access_errno = ENOENT;
-	assert(latency_check_backend("irtt", error, sizeof(error)) == -1);
+	assert(latency_check_backend(PINGER_IRTT, error, sizeof(error)) == -1);
 	assert(strcmp(accessed_path, "/usr/bin/irtt") == 0);
 	assert(strcmp(
 		       error,
 		       "ping binary /usr/bin/irtt for pinger_method 'irtt' is not available: No such file or directory; install the irtt package or use pinger_method 'native'"
 	       ) == 0);
 
+	/* The native probes need no executable. */
 	accessed_path[0] = '\0';
-	assert(latency_check_backend("ping", error, sizeof(error)) == -1);
+	assert(latency_check_backend(PINGER_NATIVE, error, sizeof(error)) == 0);
 	assert(accessed_path[0] == '\0');
-	assert(strcmp(error, "unknown pinger_method 'ping'") == 0);
 	fake_access = false;
 }
 
@@ -624,6 +646,7 @@ int main(void)
 	test_pinger_restores_sigpipe();
 	test_prefix_and_extra_args_reach_owned_process();
 	test_irtt_children_start_in_separate_slots();
+	test_method_lookup();
 	test_backend_executable_must_be_available();
 
 	(void)puts("latency tests passed");

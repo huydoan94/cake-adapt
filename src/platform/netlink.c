@@ -206,7 +206,7 @@ static int wait_for_response(
 			poll(&descriptor,
 			     1U,
 			     /* The remaining time is within NETLINK_RESPONSE_TIMEOUT_US. */
-			     (int)us_to_ms(*deadline_us - now_us));
+			     us_to_timeout_ms(*deadline_us - now_us));
 		/* A poll timeout comes back to the deadline check above. */
 	} while ((result < 0 && errno == EINTR) || result == 0);
 

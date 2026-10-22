@@ -204,7 +204,7 @@ bool __wrap_native_accept(
 
 static void initialize(struct monitor *monitor, const struct config *config)
 {
-	const struct latency_settings settings = { .pinger_method = PINGER_METHOD_NATIVE };
+	const struct latency_settings settings = { .method = PINGER_NATIVE };
 
 	struct monitor_pingers *pingers = &monitor->pingers;
 	struct latency *latency = &pingers->latency;

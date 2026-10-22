@@ -29,12 +29,6 @@ static enum native_channel native_channel(int family)
 	return family == AF_INET ? NATIVE_CHANNEL_IPV4 : NATIVE_CHANNEL_IPV6;
 }
 
-bool native_method(const char *method)
-{
-	return strcmp(method, PINGER_METHOD_NATIVE) == 0 ||
-	       strcmp(method, PINGER_METHOD_NATIVE_TS) == 0;
-}
-
 void native_init(struct native_session *session)
 {
 	*session = (struct native_session){ .channels = { { .fd = -1 }, { .fd = -1 } } };
@@ -61,7 +55,7 @@ void native_close(struct native_session *session)
 
 int native_open(
 	struct native_session *session,
-	const char *method,
+	enum icmp_mode mode,
 	const char *interface,
 	const char *const *targets,
 	size_t target_count,
@@ -75,11 +69,10 @@ int native_open(
 	uint64_t period_ms = rounded_divide(interval_us, MICROSECONDS_PER_MILLISECOND);
 	uint64_t spacing_ms;
 
-	if (session->requests != NULL || !native_method(method) || target_count == 0U ||
+	if (session->requests != NULL || target_count == 0U ||
 	    target_count > CONFIG_MAX_REFLECTORS || interval_us / target_count < MILLISECOND)
 		return error_set(error, error_size, "invalid native probe session");
-	session->mode = strcmp(method, PINGER_METHOD_NATIVE_TS) == 0 ? ICMP_MODE_TIMESTAMP :
-								       ICMP_MODE_ECHO;
+	session->mode = mode;
 	spacing_ms = rounded_divide(interval_us, target_count * MICROSECONDS_PER_MILLISECOND);
 	/* Same millisecond rounding as fping -p and -i. Never exceed its send cadence. */
 	session->spacing_us = spacing_ms * MILLISECOND;

@@ -492,7 +492,7 @@ int control_start(struct monitor *monitor)
 		.high_load_threshold_ratio_e6 = config->high_load_threshold_ratio_e6,
 		.bufferbloat_refractory_period_us = config->bufferbloat_refractory_period_us,
 		.decay_refractory_period_us = config->decay_refractory_period_us,
-		.shared_delay = latency_shared_delay(config->pinger_method),
+		.shared_delay = latency_shared_delay(monitor->pinger_method),
 		.ul_congest_ack_share_ratio_e6 = config->ul_congest_ack_share_ratio_e6,
 	};
 

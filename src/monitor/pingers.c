@@ -10,7 +10,6 @@
 #include <libubox/utils.h>
 
 #include <errno.h>
-#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -66,7 +65,6 @@ static bool ensure_latency_open(struct monitor *monitor)
 	struct monitor_pingers *pingers = &monitor->pingers;
 	struct latency *latency = &pingers->latency;
 	const struct config *config = monitor->config;
-	bool irtt = strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0;
 	const char *targets[CONFIG_MAX_REFLECTORS];
 	char error[ERROR_SIZE] = { 0 };
 	size_t target_count = (size_t)config->no_pingers;
@@ -94,7 +92,7 @@ static bool ensure_latency_open(struct monitor *monitor)
 
 	level = pingers->observation_failed ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO;
 	outcome = pingers->observation_failed ? STATE_RECOVERED : STATE_INITIALIZED;
-	if (irtt) {
+	if (monitor->pinger_method == PINGER_IRTT) {
 		log_message(
 			level,
 			"latency observation %s: targets=%zu pinger=irtt",
@@ -233,6 +231,7 @@ static void release_pinger_output(struct pinger_watch *watch)
 void pingers_close(struct monitor *monitor)
 {
 	struct monitor_pingers *pingers = &monitor->pingers;
+	struct uloop_timeout *stop_timer = &pingers->stop_timer;
 	size_t index;
 
 	(void)uloop_timeout_cancel(&pingers->start_timer);
@@ -242,8 +241,8 @@ void pingers_close(struct monitor *monitor)
 		release_pinger_output(&pingers->watches[index]);
 	latency_close(&pingers->latency);
 	/* uloop reaps the children; escalate once if SIGTERM is ignored. */
-	if (latency_stopping(&pingers->latency) && !pingers->stop_timer.pending)
-		(void)uloop_timeout_set(&pingers->stop_timer, (int)us_to_ms(CHILD_STOP_TIMEOUT_US));
+	if (latency_stopping(&pingers->latency) && !stop_timer->pending)
+		(void)uloop_timeout_set(stop_timer, us_to_timeout_ms(CHILD_STOP_TIMEOUT_US));
 }
 
 /* The event loop has stopped, so pingers are stopped and reaped synchronously. */
@@ -301,12 +300,12 @@ static int schedule_native_tick(struct monitor *monitor, uint64_t now_us)
 	struct monitor_pingers *pingers = &monitor->pingers;
 	struct latency *latency = &pingers->latency;
 	uint64_t next_us = native_next_event(&latency->native);
-	uint64_t delay_us = saturating_sub(next_us, now_us);
-	/* Rounded up, never early: native_tick() sends nothing before the due time. */
-	uint64_t delay_ms =
-		min_u64(delay_us / MILLISECOND + (delay_us % MILLISECOND != 0U), INT_MAX);
 
-	return uloop_timeout_set(&pingers->native_timer, (int)delay_ms);
+	/* Rounded up, never early: native_tick() sends nothing before the due time. */
+	return uloop_timeout_set(
+		&pingers->native_timer,
+		us_to_timeout_ms(saturating_sub(next_us, now_us))
+	);
 }
 
 static void handle_native_tick(struct uloop_timeout *timer)
@@ -565,7 +564,6 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 	char error[ERROR_SIZE] = { 0 };
 	uint64_t timestamp_us;
 	uint64_t next_start_us;
-	uint64_t delay_ms;
 
 	if (!latency_irtt_start_pending(latency)) {
 		(void)uloop_timeout_cancel(&pingers->start_timer);
@@ -587,9 +585,10 @@ static bool schedule_irtt_child_start(struct monitor *monitor)
 		return true;
 
 	next_start_us = latency_irtt_next_start_us(latency);
-	/* uloop timeouts take a signed int of milliseconds. */
-	delay_ms = min_u64(us_to_ms(saturating_sub(next_start_us, timestamp_us)), INT_MAX);
-	if (uloop_timeout_set(&pingers->start_timer, (int)delay_ms) != 0) {
+	if (uloop_timeout_set(
+		    &pingers->start_timer,
+		    us_to_timeout_ms(saturating_sub(next_start_us, timestamp_us))
+	    ) != 0) {
 		report_latency_failure(
 			monitor,
 			"could not schedule IRTT start: %s",
@@ -613,9 +612,9 @@ bool pingers_watch(struct monitor *monitor)
 {
 	if (!ensure_latency_open(monitor))
 		return false;
-	if (native_method(monitor->config->pinger_method))
+	if (latency_native(monitor->pinger_method))
 		return watch_native_session(monitor);
-	if (strcmp(monitor->config->pinger_method, PINGER_METHOD_IRTT) == 0)
+	if (monitor->pinger_method == PINGER_IRTT)
 		return schedule_irtt_child_start(monitor);
 	return watch_started_latency_children(monitor);
 }
@@ -676,7 +675,7 @@ void pingers_prepare(struct monitor *monitor, uint64_t start_us)
 	struct uloop_timeout *native_timer = &pingers->native_timer;
 	const struct config *config = monitor->config;
 	const struct latency_settings settings = {
-		.pinger_method = config->pinger_method,
+		.method = monitor->pinger_method,
 		.interface = config->interface,
 		.extra_arguments = config->ping_extra_args,
 		.prefix = config->ping_prefix_string,

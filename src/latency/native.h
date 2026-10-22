@@ -45,12 +45,11 @@ struct native_session {
 	bool timestamp_warned;
 };
 
-bool native_method(const char *method);
 bool native_send_failed(const struct native_session *session);
 void native_init(struct native_session *session);
 int native_open(
 	struct native_session *session,
-	const char *method,
+	enum icmp_mode mode,
 	const char *interface,
 	const char *const *targets,
 	size_t target_count,

@@ -301,6 +301,7 @@ int monitor_run(const struct config *config, const char *section_name)
 {
 	struct monitor monitor = {
 		.config = config,
+		.pinger_method = latency_method(config->pinger_method),
 		.links = { .download = { .name = DIRECTION_DOWNLOAD,
 					 .interface = config->ingress_interface,
 					 .cake_state = CAKE_OBSERVATION_UNKNOWN,
