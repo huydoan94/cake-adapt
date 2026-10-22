@@ -1,0 +1,13 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+82903aec-ba8d-4f8b-8a93-0fd0f9d08b79
+0.00 0.00 0.00 1/112 12325
+Cpus_allowed_list:	0-3
+tsc
+USER_HZ=100 (Linux i386 procfs ABI, not CONFIG_HZ)
+3420
+b64dc2fa913b55e32298f730a3e597a143fff1b47f4167f006c71c60686e0658  /tmp/native-icmp-phase3/cake-adapt
+f2f7a9af56f16094d76750fcaea8451f4d38c1f9e51c49b79d94b3997132522c  /usr/sbin/cake-adapt
+82e7d239880caa3422ab677aa6630e2b00ae003ffd0080471d60c2b25d769464  /usr/bin/fping
+22992732852bb2a937775239fa855f665332f5db53c65ba882e8bef8d8aaae07  /tmp/native-icmp-phase3/run.sh
+0ef068d7c126f89fcb528ecffcd39941096ff40941db958b91cac79574178dfb  /tmp/native-icmp-phase3/testbed.sh
+744f9dfc8d0f2e169f92e49733db98ba91706d486191b15f05b0e606eb25c4cc  /tmp/native-icmp-phase3/batch.sh

@@ -20,7 +20,7 @@ int main(void)
 	assert(config.retain_reflector_stats);
 	assert(config.enable_sleep_function);
 	assert(config.log_file_export_compress);
-	assert(strcmp(config.pinger_method, "fping") == 0);
+	assert(strcmp(config.pinger_method, "native") == 0);
 	assert(config.log_file_max_time_us == 600000000U);
 	assert(config.log_file_max_size_bytes == 2048000U);
 	assert(config.no_pingers == 6U);

@@ -280,15 +280,30 @@ void latency_init(struct latency *latency, const struct latency_settings *settin
 	size_t index;
 
 	*latency = (struct latency){
-		.ops = backends[backend_index(settings->pinger_method)].ops,
+		.ops = native_method(settings->pinger_method) ?
+			       NULL :
+			       backends[backend_index(settings->pinger_method)].ops,
 		.settings = *settings,
 	};
+	native_init(&latency->native);
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
 		struct latency_child *child = &latency->children[index];
 
 		child->output_descriptor = -1;
 		child->process_identifier = -1;
 	}
+}
+
+bool latency_shared_delay(const char *pinger_method)
+{
+	return strcmp(pinger_method, PINGER_METHOD_FPING) == 0 ||
+	       strcmp(pinger_method, PINGER_METHOD_NATIVE) == 0;
+}
+
+bool latency_timestamps(const char *pinger_method)
+{
+	return strcmp(pinger_method, PINGER_METHOD_FPING_TS) == 0 ||
+	       strcmp(pinger_method, PINGER_METHOD_NATIVE_TS) == 0;
 }
 
 const char *latency_backend_executable(const char *pinger_method)
@@ -302,16 +317,20 @@ int latency_check_backend(const char *pinger_method, char *error, size_t error_s
 {
 	const char *executable = latency_backend_executable(pinger_method);
 
+	if (native_method(pinger_method))
+		return 0;
 	if (executable == NULL)
 		return error_set(error, error_size, "unknown pinger_method '%s'", pinger_method);
 	if (access(executable, X_OK) != 0) {
 		return error_set(
 			error,
 			error_size,
-			"ping binary %s for pinger_method '%s' is not available: %s",
+			"ping binary %s for pinger_method '%s' is not available: %s; install the %s package or use pinger_method '%s'",
 			executable,
 			pinger_method,
-			strerror(errno)
+			strerror(errno),
+			strrchr(executable, '/') + 1,
+			PINGER_METHOD_NATIVE
 		);
 	}
 	return 0;
@@ -363,6 +382,7 @@ void latency_close(struct latency *latency)
 {
 	size_t index;
 
+	native_close(&latency->native);
 	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
 		struct latency_child *child = &latency->children[index];
 
@@ -415,6 +435,24 @@ int latency_open(
 	size_t error_size
 )
 {
+	const struct latency_settings *settings = &latency->settings;
+
+	if (native_method(settings->pinger_method)) {
+		if (native_open(
+			    &latency->native,
+			    settings->pinger_method,
+			    settings->interface,
+			    targets,
+			    target_count,
+			    settings->reflector_ping_interval_us,
+			    timestamp_us,
+			    error,
+			    error_size
+		    ) != 0)
+			return -1;
+		latency->active = true;
+		return 0;
+	}
 	return latency->ops->open(latency, targets, target_count, timestamp_us, error, error_size);
 }
 

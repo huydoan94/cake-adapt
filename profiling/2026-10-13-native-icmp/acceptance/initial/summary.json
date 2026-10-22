@@ -1,0 +1,391 @@
+{
+  "cases": {
+    "fping": {
+      "idle_rtt_ms": 22.6,
+      "idle_owd_sum_median_ms": 22.6,
+      "phases": {
+        "upload-steady": {
+          "samples": 604,
+          "lost": 0,
+          "added_rtt_p50_ms": 35.0,
+          "added_rtt_p95_ms": 99.4,
+          "added_rtt_p99_ms": 123.4,
+          "over15_pct": 62.25165562913907,
+          "over30_pct": 53.47682119205298,
+          "ul_received_mbit_s": 7.345756647611095
+        },
+        "upload-step": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 8.9,
+          "added_rtt_p95_ms": 160.4,
+          "added_rtt_p99_ms": 287.4,
+          "over15_pct": 43.85382059800664,
+          "over30_pct": 37.2093023255814,
+          "ul_received_mbit_s": 5.65988994806371
+        },
+        "download-steady": {
+          "samples": 603,
+          "lost": 0,
+          "added_rtt_p50_ms": 20.5,
+          "added_rtt_p95_ms": 71.2,
+          "added_rtt_p99_ms": 158.4,
+          "over15_pct": 58.37479270315091,
+          "over30_pct": 34.16252072968491,
+          "dl_received_mbit_s": 25.70712896596247
+        },
+        "bidirectional": {
+          "samples": 603,
+          "lost": 0,
+          "added_rtt_p50_ms": 24.4,
+          "added_rtt_p95_ms": 105.4,
+          "added_rtt_p99_ms": 141.4,
+          "over15_pct": 56.053067993366504,
+          "over30_pct": 46.766169154228855,
+          "ul_received_mbit_s": 6.667408917624591,
+          "dl_received_mbit_s": 13.002042269524278
+        }
+      },
+      "cpu": {
+        "daemon_own_ticks": 181,
+        "daemon_plus_pinger_ticks": 682,
+        "seconds": 271.2899999999936,
+        "one_core_pct": 2.513914998709927,
+        "before": [
+          {
+            "pid": 16327,
+            "name": "cake-adapt",
+            "own": 4,
+            "waited": 0,
+            "start": 4121415
+          },
+          {
+            "pid": 16332,
+            "name": "fping",
+            "own": 15,
+            "waited": 0,
+            "start": 4121416
+          }
+        ],
+        "after": [
+          {
+            "pid": 16327,
+            "name": "cake-adapt",
+            "own": 185,
+            "waited": 0,
+            "start": 4121415
+          },
+          {
+            "pid": 16332,
+            "name": "fping",
+            "own": 516,
+            "waited": 0,
+            "start": 4121416
+          }
+        ]
+      },
+      "health": {
+        "loss_one_detect_s": 1.5490598678588867,
+        "loss_all_stall_check_s": 0.32070302963256836,
+        "loss_all_global_timeout_s": 10.12044906616211,
+        "first_data_after_recovery_s": 0.01113581657409668
+      },
+      "health_observed": true
+    },
+    "fping-ts": {
+      "idle_rtt_ms": 22.0,
+      "idle_owd_sum_median_ms": 21.0,
+      "phases": {
+        "upload-steady": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 3.3,
+          "added_rtt_p95_ms": 75.1,
+          "added_rtt_p99_ms": 87.0,
+          "over15_pct": 30.398671096345517,
+          "over30_pct": 23.25581395348837,
+          "ul_received_mbit_s": 6.812778851551177
+        },
+        "upload-step": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 5.7,
+          "added_rtt_p95_ms": 98.0,
+          "added_rtt_p99_ms": 235.0,
+          "over15_pct": 33.222591362126245,
+          "over30_pct": 26.245847176079735,
+          "ul_received_mbit_s": 5.519553101288234
+        },
+        "download-steady": {
+          "samples": 603,
+          "lost": 0,
+          "added_rtt_p50_ms": 17.6,
+          "added_rtt_p95_ms": 42.7,
+          "added_rtt_p99_ms": 53.8,
+          "over15_pct": 54.22885572139303,
+          "over30_pct": 20.398009950248756,
+          "dl_received_mbit_s": 30.82602487236457
+        },
+        "bidirectional": {
+          "samples": 603,
+          "lost": 0,
+          "added_rtt_p50_ms": 27.3,
+          "added_rtt_p95_ms": 79.0,
+          "added_rtt_p99_ms": 100.0,
+          "over15_pct": 71.80762852404644,
+          "over30_pct": 44.11276948590381,
+          "ul_received_mbit_s": 6.612603198403618,
+          "dl_received_mbit_s": 26.878247717658763
+        }
+      },
+      "cpu": {
+        "daemon_own_ticks": 119,
+        "daemon_plus_pinger_ticks": 455,
+        "seconds": 271.0699999999997,
+        "one_core_pct": 1.6785332202014258,
+        "before": [
+          {
+            "pid": 16672,
+            "name": "cake-adapt",
+            "own": 3,
+            "waited": 0,
+            "start": 4192926
+          },
+          {
+            "pid": 16677,
+            "name": "fping",
+            "own": 9,
+            "waited": 0,
+            "start": 4192926
+          }
+        ],
+        "after": [
+          {
+            "pid": 16672,
+            "name": "cake-adapt",
+            "own": 122,
+            "waited": 0,
+            "start": 4192926
+          },
+          {
+            "pid": 16677,
+            "name": "fping",
+            "own": 345,
+            "waited": 0,
+            "start": 4192926
+          }
+        ]
+      },
+      "health": {
+        "loss_one_detect_s": 1.797206163406372,
+        "loss_all_stall_check_s": 0.37204408645629883,
+        "loss_all_global_timeout_s": 10.17236614227295,
+        "first_data_after_recovery_s": 0.053511857986450195
+      },
+      "health_observed": true
+    },
+    "native": {
+      "idle_rtt_ms": 22.3,
+      "idle_owd_sum_median_ms": 22.824,
+      "phases": {
+        "upload-steady": {
+          "samples": 603,
+          "lost": 0,
+          "added_rtt_p50_ms": 38.1,
+          "added_rtt_p95_ms": 100.7,
+          "added_rtt_p99_ms": 129.7,
+          "over15_pct": 63.18407960199005,
+          "over30_pct": 54.72636815920398,
+          "ul_received_mbit_s": 7.384394948471034
+        },
+        "upload-step": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 6.2,
+          "added_rtt_p95_ms": 137.7,
+          "added_rtt_p99_ms": 174.7,
+          "over15_pct": 39.53488372093023,
+          "over30_pct": 34.5514950166113,
+          "ul_received_mbit_s": 5.659418248627676
+        },
+        "download-steady": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 30.4,
+          "added_rtt_p95_ms": 75.7,
+          "added_rtt_p99_ms": 105.7,
+          "over15_pct": 66.44518272425249,
+          "over30_pct": 50.83056478405316,
+          "dl_received_mbit_s": 31.054700632027277
+        },
+        "bidirectional": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 24.5,
+          "added_rtt_p95_ms": 105.7,
+          "added_rtt_p99_ms": 132.7,
+          "over15_pct": 53.15614617940199,
+          "over30_pct": 46.84385382059801,
+          "ul_received_mbit_s": 6.934726660008217,
+          "dl_received_mbit_s": 12.372105992654982
+        }
+      },
+      "cpu": {
+        "daemon_own_ticks": 231,
+        "daemon_plus_pinger_ticks": 231,
+        "seconds": 270.9499999999971,
+        "one_core_pct": 0.8525558221074091,
+        "before": [
+          {
+            "pid": 16504,
+            "name": "cake-adapt",
+            "own": 11,
+            "waited": 0,
+            "start": 4157186
+          }
+        ],
+        "after": [
+          {
+            "pid": 16504,
+            "name": "cake-adapt",
+            "own": 242,
+            "waited": 0,
+            "start": 4157186
+          }
+        ]
+      },
+      "health": {
+        "loss_one_detect_s": 0.9185178279876709,
+        "loss_all_stall_check_s": 0.3031320571899414,
+        "loss_all_global_timeout_s": 10.104186058044434,
+        "first_data_after_recovery_s": 0.01901102066040039
+      },
+      "health_observed": true
+    },
+    "native-ts": {
+      "idle_rtt_ms": 24.5,
+      "idle_owd_sum_median_ms": 0.0,
+      "phases": {
+        "upload-steady": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 2.6,
+          "added_rtt_p95_ms": 9.7,
+          "added_rtt_p99_ms": 12.4,
+          "over15_pct": 0.16611295681063123,
+          "over30_pct": 0.16611295681063123,
+          "ul_received_mbit_s": 1.886550121442922
+        },
+        "upload-step": {
+          "samples": 602,
+          "lost": 0,
+          "added_rtt_p50_ms": 2.4,
+          "added_rtt_p95_ms": 8.2,
+          "added_rtt_p99_ms": 11.0,
+          "over15_pct": 0.0,
+          "over30_pct": 0.0,
+          "ul_received_mbit_s": 1.8863291475245736
+        },
+        "download-steady": {
+          "samples": 607,
+          "lost": 0,
+          "added_rtt_p50_ms": 424.5,
+          "added_rtt_p95_ms": 584.5,
+          "added_rtt_p99_ms": 657.5,
+          "over15_pct": 93.90444810543657,
+          "over30_pct": 88.30313014827018,
+          "dl_received_mbit_s": 33.291460152357544
+        },
+        "bidirectional": {
+          "samples": 607,
+          "lost": 0,
+          "added_rtt_p50_ms": 448.5,
+          "added_rtt_p95_ms": 592.5,
+          "added_rtt_p99_ms": 624.5,
+          "over15_pct": 91.4332784184514,
+          "over30_pct": 88.13838550247117,
+          "ul_received_mbit_s": 0.9957154246013787,
+          "dl_received_mbit_s": 32.81972536388637
+        }
+      },
+      "cpu": {
+        "daemon_own_ticks": 174,
+        "daemon_plus_pinger_ticks": 174,
+        "seconds": 271.9799999999959,
+        "one_core_pct": 0.6397529230090544,
+        "before": [
+          {
+            "pid": 16835,
+            "name": "cake-adapt",
+            "own": 9,
+            "waited": 0,
+            "start": 4228693
+          }
+        ],
+        "after": [
+          {
+            "pid": 16835,
+            "name": "cake-adapt",
+            "own": 183,
+            "waited": 0,
+            "start": 4228693
+          }
+        ]
+      },
+      "health": {
+        "loss_one_detect_s": 1.8640260696411133,
+        "loss_all_stall_check_s": 0.2447948455810547,
+        "loss_all_global_timeout_s": 10.043746948242188,
+        "first_data_after_recovery_s": 0.035331010818481445
+      },
+      "health_observed": true
+    }
+  },
+  "comparisons": {
+    "native": {
+      "reference": "fping",
+      "reported_regressions": [
+        "upload-steady: added_rtt_p50_ms",
+        "upload-steady: added_rtt_p95_ms",
+        "upload-steady: added_rtt_p99_ms",
+        "upload-steady: over15_pct",
+        "upload-steady: over30_pct",
+        "upload-step: ul_received_mbit_s",
+        "download-steady: added_rtt_p50_ms",
+        "download-steady: added_rtt_p95_ms",
+        "download-steady: over15_pct",
+        "download-steady: over30_pct",
+        "bidirectional: added_rtt_p50_ms",
+        "bidirectional: added_rtt_p95_ms",
+        "bidirectional: over30_pct",
+        "bidirectional: dl_received_mbit_s"
+      ],
+      "cpu_lower": true,
+      "health_matched": true,
+      "slower_health": [],
+      "passed": false
+    },
+    "native-ts": {
+      "reference": "fping-ts",
+      "reported_regressions": [
+        "upload-steady: ul_received_mbit_s",
+        "upload-step: ul_received_mbit_s",
+        "download-steady: added_rtt_p50_ms",
+        "download-steady: added_rtt_p95_ms",
+        "download-steady: added_rtt_p99_ms",
+        "download-steady: over15_pct",
+        "download-steady: over30_pct",
+        "bidirectional: added_rtt_p50_ms",
+        "bidirectional: added_rtt_p95_ms",
+        "bidirectional: added_rtt_p99_ms",
+        "bidirectional: over15_pct",
+        "bidirectional: over30_pct",
+        "bidirectional: ul_received_mbit_s"
+      ],
+      "cpu_lower": true,
+      "health_matched": true,
+      "slower_health": [],
+      "passed": false
+    }
+  }
+}

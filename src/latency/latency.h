@@ -8,6 +8,7 @@
 
 #include "common/constants.h"
 #include "latency/parser.h"
+#include "latency/native.h"
 
 /* Longest pinger output line, including its newline. */
 #define LATENCY_OUTPUT_SIZE 512U
@@ -16,6 +17,10 @@ bool target_is_valid(const char *target);
 
 /* The executable a pinger_method runs, or NULL for an unknown method. */
 const char *latency_backend_executable(const char *pinger_method);
+/* Echo methods report half the round trip as the delay of both directions. */
+bool latency_shared_delay(const char *pinger_method);
+/* ICMP timestamp methods, IPv4 only. */
+bool latency_timestamps(const char *pinger_method);
 
 /* Like cake-autorate, refuse to start when the selected pinger cannot run. */
 int latency_check_backend(const char *pinger_method, char *error, size_t error_size);
@@ -48,6 +53,8 @@ struct latency_settings {
 struct pinger_ops;
 
 struct latency {
+	/* Transitional native backend; legacy backends stay until live comparison passes. */
+	struct native_session native;
 	/* The backend of settings.pinger_method: fping_ops, fping_ts_ops or irtt_ops. */
 	const struct pinger_ops *ops;
 	struct latency_settings settings;

@@ -99,11 +99,12 @@ static int validate_reflectors(const struct config *config, char *error, size_t 
 
 static int validate_pinger(const struct config *config, char *error, size_t error_size)
 {
-	if (latency_backend_executable(config->pinger_method) == NULL) {
+	if (!native_method(config->pinger_method) &&
+	    latency_backend_executable(config->pinger_method) == NULL) {
 		return error_set(
 			error,
 			error_size,
-			"option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'"
+			"option 'pinger_method' must be 'fping', 'fping-ts', 'irtt', 'native' or 'native-ts'"
 		);
 	}
 	if (strcmp(config->pinger_method, PINGER_METHOD_IRTT) == 0 &&
@@ -117,8 +118,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 	/* Loading bounds the reflector list; validation bounds no_pingers by it. */
 	if (validate_reflectors(config, error, error_size) != 0)
 		return -1;
-	/* fping sends ICMP timestamp requests over IPv4 only. */
-	if (strcmp(config->pinger_method, PINGER_METHOD_FPING_TS) == 0) {
+	if (latency_timestamps(config->pinger_method)) {
 		uint64_t index;
 
 		for (index = 0U; index < config->reflector_count; index++) {
@@ -126,20 +126,38 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 				return error_set(
 					error,
 					error_size,
-					"pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6",
+					"pinger_method '%s' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6",
+					config->pinger_method,
 					config->reflectors[index]
 				);
 			}
 		}
 	}
-	/* Only fping reports one shared delay that needs attributing. */
-	if (config->tcp_delay_attribution &&
-	    strcmp(config->pinger_method, PINGER_METHOD_FPING) != 0) {
+	/* Only a shared echo delay needs attributing to a direction. */
+	if (config->tcp_delay_attribution && !latency_shared_delay(config->pinger_method)) {
 		return error_set(
 			error,
 			error_size,
-			"option 'tcp_delay_attribution' needs pinger_method 'fping'"
+			"option 'tcp_delay_attribution' needs pinger_method 'fping' or 'native'"
 		);
+	}
+	if (native_method(config->pinger_method)) {
+		struct icmp_address address;
+
+		if (config->ping_extra_args[0] != '\0' || config->ping_prefix_string[0] != '\0')
+			return error_set(
+				error,
+				error_size,
+				"native probes do not use ping_extra_args or ping_prefix_string; set pinger_method 'fping' or 'irtt' to use them"
+			);
+		for (uint64_t index = 0U; index < config->reflector_count; index++)
+			if (icmp_address_parse(&address, config->reflectors[index]) != 0)
+				return error_set(
+					error,
+					error_size,
+					"native reflector '%s' must be a numeric IP address; use one, or set pinger_method 'fping' for hostnames",
+					config->reflectors[index]
+				);
 	}
 	/* Injected timestamps serve only the queue estimate of the attribution. */
 	if (config->tcp_ts_request && !config->tcp_delay_attribution) {

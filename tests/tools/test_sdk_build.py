@@ -305,7 +305,7 @@ class SDKBuildTests(unittest.TestCase):
         original = p.read_text()
         for variant, broken in (('mqtt', original.replace('+libmosquitto-nossl', '+libmosquitto-ssl')),
                                 ('mqtt-ssl', original.replace(' +ca-bundle', '')),
-                                ('base', original.replace('+fping', '+libmosquitto-nossl +fping'))):
+                                ('base', original.replace('+zlib', '+zlib +libmosquitto-nossl'))):
             with self.subTest(variant=variant):
                 p.write_text(broken)
                 self.assertEqual(self.run_build(expected=3, prepare=True, variants=(variant,)), [])
@@ -521,7 +521,7 @@ print:
 \t@printf '%s\\n' '$(INFO)' | tr ';' '\\n' | sed 's/^ *//'
 \t@printf 'build=%s/%s features=%s\\n' '$(MQTT_SUPPORTED)' '$(MQTT_TLS_SUPPORTED)' '$(strip $(FEATURES))'
 ''')
-        common = '+libuci +libubox +libubus +libnl-tiny +libbpf +zlib +fping +bash'
+        common = '+libuci +libubox +libubus +libnl-tiny +libbpf +zlib'
         expected = [f'cake-adapt|base|1||{common}',
                     f'cake-adapt-mqtt|mqtt||cake-adapt|{common} +libmosquitto-nossl',
                     f'cake-adapt-mqtt-ssl|mqtt-ssl||cake-adapt|{common} +libmosquitto-ssl +ca-bundle']
@@ -620,7 +620,7 @@ print:
 
     def test_unknown_direct_dependency_stops_before_any_make(self):
         p = self.repo / 'Makefile'
-        p.write_text(p.read_text().replace('+fping', '+newlibrary +fping'))
+        p.write_text(p.read_text().replace('+zlib', '+zlib +newlibrary'))
         self.assertEqual(self.run_build(expected=3), [])
         self.assertIn('unrepresented cake-adapt dependency: +newlibrary', self.output)
 

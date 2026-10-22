@@ -98,9 +98,9 @@
 <!-- import -->
 <g id="node8" class="node">
 <title>import</title>
-<polygon fill="#fff0cc" stroke="#b7791f" stroke-width="1.2" points="305.56,-1379.04 151.5,-1339.68 305.56,-1300.32 459.61,-1339.68 305.56,-1379.04"/>
-<text xml:space="preserve" text-anchor="middle" x="305.56" y="-1342.98" font-family="Arial" font-size="11.00">config_file set?</text>
-<text xml:space="preserve" text-anchor="middle" x="305.56" y="-1329.78" font-family="Arial" font-size="11.00">run importer in a child Bash</text>
+<polygon fill="#fff0cc" stroke="#b7791f" stroke-width="1.2" points="305.56,-1379.04 113.57,-1339.68 305.56,-1300.32 497.54,-1339.68 305.56,-1379.04"/>
+<text xml:space="preserve" text-anchor="middle" x="305.56" y="-1342.98" font-family="Arial" font-size="11.00">config_file in /etc/cake&#45;adapt/exec?</text>
+<text xml:space="preserve" text-anchor="middle" x="305.56" y="-1329.78" font-family="Arial" font-size="11.00">Bash reader fills unset options</text>
 </g>
 <!-- stage&#45;&gt;import -->
 <g id="edge7" class="edge">

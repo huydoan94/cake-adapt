@@ -10,8 +10,6 @@ config_status=0
 sections=''
 primary_enabled=0
 secondary_enabled=0
-primary_config=''
-secondary_config=''
 failed_generation=''
 logged=''
 instances=0
@@ -36,15 +34,10 @@ config_get_bool() {
         *) enabled=0 ;;
     esac
 }
-config_get() {
-    case "$2" in
-        primary) config_file="$primary_config" ;;
-        secondary) config_file="$secondary_config" ;;
-        *) config_file='' ;;
-    esac
-}
+# config_file is the importer's to read, from the root-only exec file.
+config_get() { echo "unexpected config_get $*" >&2; exit 1; }
 generate_runtime_config() {
-    generated="$generated $1:$2:$3"
+    generated="$generated $1:$2"
     [ "$1" != "$failed_generation" ]
 }
 mkdir() { :; }
@@ -84,14 +77,12 @@ esac
 
 primary_enabled=1
 secondary_enabled=1
-primary_config='/etc/cake-adapt/config.primary.sh'
-secondary_config=''
 logged=''
 start_service
 [ "$instances" -eq 2 ]
 [ "$opened" = ' primary secondary' ]
 case "$generated" in
-    *"primary:$primary_config:$RUNTIME_DIR/primary.uci"*"secondary::$RUNTIME_DIR/secondary.uci"*) ;;
+    *"primary:$RUNTIME_DIR/primary.uci"*"secondary:$RUNTIME_DIR/secondary.uci"*) ;;
     *) exit 1 ;;
 esac
 case "$parameters" in
@@ -371,5 +362,11 @@ case "$logged" in
 esac
 ubus_status=0
 command rm -rf "$RUNTIME_DIR"
+
+# A change to /etc/config/cake-adapt reloads the service.
+triggers=''
+procd_add_reload_trigger() { triggers="$*"; }
+service_triggers
+[ "$triggers" = 'cake-adapt' ]
 
 printf '%s\n' 'init service tests passed'

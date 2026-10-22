@@ -36,6 +36,10 @@ file's other names when only that file uses it (as `capture.c` names the BPF
 program and maps). Only format strings and complete messages stay inline; do
 not split a message into fragments that are passed around as values.
 
+`sh tools/style-check.sh` checks the changed lines for the two rules review
+keeps finding (mixed `->`/`.` chains and literal `true`/`false` arguments) and
+for clang-format stability; run it before reporting a C change.
+
 Never pass a literal `true` or `false` as a function argument. Give the call a
 meaning instead: separate functions sharing a static worker, an enum, a
 pointer that is `NULL` or not, or a variable whose name says what it holds.

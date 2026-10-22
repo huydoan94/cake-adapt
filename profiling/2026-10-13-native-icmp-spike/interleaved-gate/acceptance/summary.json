@@ -1,0 +1,42 @@
+{
+  "fping-before-fping": {
+    "samples": 300,
+    "p5_us": 20500,
+    "median_us": 21650.0,
+    "p95_us": 27000,
+    "minimum_us": 20200,
+    "maximum_us": 42400
+  },
+  "interleaved-fping": {
+    "samples": 300,
+    "p5_us": 20500,
+    "median_us": 21700.0,
+    "p95_us": 28400,
+    "minimum_us": 20200,
+    "maximum_us": 34800
+  },
+  "fping-after-fping": {
+    "samples": 300,
+    "p5_us": 20500,
+    "median_us": 21500.0,
+    "p95_us": 26400,
+    "minimum_us": 20200,
+    "maximum_us": 33900
+  },
+  "interleaved-native": {
+    "samples": 300,
+    "p5_us": 20473,
+    "median_us": 21635.0,
+    "p95_us": 27439,
+    "minimum_us": 20240,
+    "maximum_us": 36623
+  },
+  "gate": {
+    "median_gap_us": 65.0,
+    "baseline_median_spread_us": 150.0,
+    "passed": true,
+    "requests": 1200,
+    "native_kernel_timestamps": 300,
+    "overlap_observed": false
+  }
+}

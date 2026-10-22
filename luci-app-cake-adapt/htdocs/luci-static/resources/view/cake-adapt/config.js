@@ -3,6 +3,7 @@
 'require form';
 'require fs';
 'require uci';
+'require validation';
 
 /*
  * What the installed daemon package was built with, one word per line:
@@ -35,7 +36,7 @@ const defaults = {
 	mqtt_topic: 'cake-adapt/log',
 	output_cpu_stats: '0',
 	output_cpu_raw_stats: '0',
-	pinger_method: 'fping',
+	pinger_method: 'native',
 	no_pingers: '6',
 	reflector_ping_interval_s: '0.3',
 	irtt_session_duration_m: '10',
@@ -151,12 +152,11 @@ const scales = {
 const IFNAME_SIZE = 16, STRING_SIZE = 512, REFLECTOR_SIZE = 256, MAX_REFLECTORS = 64;
 const textSizes = {
 	interface: IFNAME_SIZE, ul_if: IFNAME_SIZE, dl_if: IFNAME_SIZE,
-	config_file: STRING_SIZE, log_file_path_override: STRING_SIZE, pinger_method: STRING_SIZE,
-	ping_extra_args: STRING_SIZE, ping_prefix_string: STRING_SIZE,
+	pinger_method: STRING_SIZE,
 	mqtt_host: STRING_SIZE, mqtt_topic: STRING_SIZE, mqtt_username: STRING_SIZE,
 	mqtt_password: STRING_SIZE, mqtt_ca_file: STRING_SIZE
 };
-const pingerMethods = [ 'fping', 'fping-ts', 'irtt' ];
+const pingerMethods = [ 'fping', 'fping-ts', 'irtt', 'native', 'native-ts' ];
 const UINT_MAX = 4294967295n, UINT64_MAX = (1n << 64n) - 1n;
 /* The daemon's size_t; the smaller, 32-bit one, as the x86 and 32-bit builds have it. */
 const SIZE_MAX = UINT_MAX;
@@ -279,12 +279,6 @@ function instanceErrors(screen, features) {
 			fail(reflectorTooLong(target), 'reflectors');
 			break;
 		}
-	/* config.c absolute_log_directory: a relative directory gets '/' (the daemon runs from /) in front. */
-	const logDirectory = text('log_file_path_override');
-
-	if (logDirectory != '' && byteLength(logDirectory) + (logDirectory.startsWith('/') ? 0 : 1) >= STRING_SIZE)
-		fail(_("option 'log_file_path_override': File name too long"), 'log_file_path_override');
-
 	/* config.c resolve_interfaces. */
 	const pair = [ text('ul_if'), text('dl_if') ];
 	const partial = (pair[0] != '') != (pair[1] != '');
@@ -352,7 +346,7 @@ function instanceErrors(screen, features) {
 	const active = num.no_pingers;
 
 	if (!methodKnown)
-		fail(_("option 'pinger_method' must be 'fping', 'fping-ts' or 'irtt'"), 'pinger_method');
+		fail(_("option 'pinger_method' must be 'fping', 'fping-ts', 'irtt', 'native' or 'native-ts'"), 'pinger_method');
 	if (method == 'irtt' && known('irtt_session_duration_m') && num.irtt_session_duration_m == 0n)
 		fail(_("option 'irtt_session_duration_m' must be positive for irtt"), 'irtt_session_duration_m');
 	if (reflectors.length == 0)
@@ -367,16 +361,22 @@ function instanceErrors(screen, features) {
 			break;
 		}
 	}
-	/* fping sends ICMP timestamp requests over IPv4 only. */
-	if (method == 'fping-ts') {
+	/* ICMP timestamp requests (fping-ts, native-ts) are IPv4 only. */
+	if (method == 'fping-ts' || method == 'native-ts') {
 		const v6 = reflectors.find((target) => target.includes(':'));
 
 		if (v6 !== undefined)
-			fail(_("pinger_method 'fping-ts' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6").format(v6), 'reflectors', 'pinger_method');
+			fail(_("pinger_method '%s' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6").format(method, v6), 'reflectors', 'pinger_method');
 	}
-	/* Only fping reports one shared delay that needs attributing. */
-	if (on('tcp_delay_attribution') && methodKnown && method != 'fping')
-		fail(_("option 'tcp_delay_attribution' needs pinger_method 'fping'"), 'tcp_delay_attribution', 'pinger_method');
+	/* Only an echo pinger (native, fping) reports one shared delay that needs attributing. */
+	if (on('tcp_delay_attribution') && methodKnown && method != 'fping' && method != 'native')
+		fail(_("option 'tcp_delay_attribution' needs pinger_method 'fping' or 'native'"), 'tcp_delay_attribution', 'pinger_method');
+	if (method == 'native' || method == 'native-ts') {
+		for (const target of reflectors) {
+			if (!validation.parseIPv4(target) && !validation.parseIPv6(target))
+				fail(_("native reflector '%s' must be a numeric IP address; use one, or set pinger_method 'fping' for hostnames").format(target), 'reflectors');
+		}
+	}
 	/* Injected timestamps serve only the queue estimate of the attribution. */
 	if (on('tcp_ts_request') && !on('tcp_delay_attribution'))
 		fail(_("option 'tcp_ts_request' needs tcp_delay_attribution"), 'tcp_ts_request', 'tcp_delay_attribution');
@@ -479,9 +479,24 @@ const AdvancedSection = form.NamedSection.extend({
 	}
 });
 
+/*
+ * import: config_file, ping_prefix_string, ping_extra_args and
+ * log_file_path_override make root run something, choose its arguments or
+ * choose where it writes, so they are read only from the root-only
+ * /etc/cake-adapt/exec, which this page cannot
+ * change; left in /etc/config/cake-adapt, they refuse the instance. Returns
+ * "section: option" for each one left there.
+ */
+function rootOnlyLeftovers(sections) {
+	return sections.flatMap((section) => [ 'config_file', 'log_file_path_override', 'ping_extra_args', 'ping_prefix_string' ]
+		.filter((name) => section[name] != null)
+		.map((name) => `${section['.name']}: ${name}`));
+}
+
 return view.extend({
 	/* Exposed for tests/luci_config.js. */
 	instanceErrors, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures,
+	rootOnlyLeftovers,
 
 	load() {
 		return Promise.all([
@@ -499,9 +514,13 @@ return view.extend({
 		 */
 		const mqttStored = uci.sections('cake-adapt', 'cake_adapt').some((section) => section.mqtt_enabled == '1');
 		const hidden = [];
+		const leftovers = rootOnlyLeftovers(uci.sections('cake-adapt', 'cake_adapt'));
+		let description = _('Adapts the bandwidth of the CAKE qdiscs that SQM creates to the measured latency. Each section is one instance with its own pair of CAKE qdiscs.');
 
-		const m = new form.Map('cake-adapt', _('CAKE Adapt'),
-			_('Adapts the bandwidth of the CAKE qdiscs that SQM creates to the measured latency. Each section is one instance with its own pair of CAKE qdiscs.'));
+		if (leftovers.length)
+			description += ' ' + _('Warning: %s cannot be set here and keep the instance from starting; root must move them to /etc/cake-adapt/exec.').format(leftovers.join(', '));
+
+		const m = new form.Map('cake-adapt', _('CAKE Adapt'), description);
 
 		const s = m.section(form.TypedSection, 'cake_adapt', _('Instances'));
 		s.addremove = true;
@@ -552,7 +571,6 @@ return view.extend({
 		a.tab('controller', _('Controller'));
 		a.tab('health', _('Reflector health'));
 		a.tab('timing', _('Timing'));
-		a.tab('shell', _('Shell configuration'));
 
 		/* Advanced: Reflectors and pinger */
 		o = a.taboption('pinger', form.Value, 'no_pingers', _('Active reflectors'),
@@ -564,11 +582,7 @@ return view.extend({
 		o.default = o.enabled;
 		o.rmempty = false;
 		o = a.taboption('pinger', form.Value, 'pinger_method', _('Pinger method'),
-			_('fping, fping-ts (IPv4 only, test bench only) or irtt (experimental).'));
-		o = a.taboption('pinger', form.Value, 'ping_extra_args', _('Extra pinger arguments'),
-			_('Extra arguments for the pinger.'));
-		o = a.taboption('pinger', form.Value, 'ping_prefix_string', _('Pinger prefix'),
-			_('Command words placed before the pinger, such as a wrapper.'));
+			_('native (default) or native-ts (IPv4 only): ICMP probes sent by cake-adapt itself, to numeric addresses. fping, fping-ts and irtt are fallbacks that need their package installed; their extra arguments and command prefix, a shell configuration file and the log directory are set only by root, in /etc/cake-adapt/exec. native refuses an instance whose extra arguments or prefix root has set there.'));
 		o = a.taboption('pinger', form.Value, 'irtt_session_duration_m', _('IRTT session length (min)'),
 			_('Length of each IRTT session (irtt only).'));
 
@@ -614,8 +628,6 @@ return view.extend({
 			_('Write the log file.'));
 		o.default = o.enabled;
 		o.rmempty = false;
-		o = a.taboption('logging', form.Value, 'log_file_path_override', _('Log directory'),
-			_('Instead of /var/log; a relative path is taken from /.'));
 		o = a.taboption('logging', form.Value, 'log_file_max_size_KB', _('Log size limit (KB)'),
 			_('Rotate when the log reaches this size.'));
 		o = a.taboption('logging', form.Value, 'log_file_max_time_mins', _('Log time limit (min)'),
@@ -651,7 +663,7 @@ return view.extend({
 
 		/* Advanced: TCP measurement (eBPF) */
 		o = a.taboption('tcp', form.Flag, 'tcp_delay_attribution', _('TCP delay attribution'),
-			_('With fping, split the round-trip delay between directions by queue delays measured from TCP timestamps.'));
+			_('With an echo pinger (native or fping), split the round-trip delay between directions by queue delays measured from TCP timestamps.'));
 		o = a.taboption('tcp', form.Value, 'ul_congest_ack_share', _('Upload ACK share'),
 			_('0 to 1, 0 is off: while upload is busy, hold download back so its ACKs keep this share of the upload rate.'));
 		o = a.taboption('tcp', form.Flag, 'tcp_ts_request', _('TCP timestamp request (experimental)'),
@@ -746,10 +758,6 @@ return view.extend({
 			_('CPU sampling interval, with CPU records.'));
 		o = a.taboption('timing', form.Value, 'if_up_check_interval_s', _('Retry interval (s)'),
 			_('Retry interval for a missing interface or qdisc, and for a pinger that failed to start.'));
-
-		/* Advanced: Standalone shell configuration */
-		o = a.taboption('shell', form.Value, 'config_file', _('Shell configuration file'),
-			_('A cake-autorate format file whose values fill the options left unset here.'));
 
 		/*
 		 * Every option shows the daemon's default and checks what is on screen

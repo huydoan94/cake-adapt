@@ -40,6 +40,10 @@ Rules from those files that apply even when you do not read them:
   same CAKE qdiscs.
 - Unit tests are part of every behavioral change; keep strict warnings and
   clang-format-stable C.
+- Before reporting or committing a C change, run `sh tools/style-check.sh` and
+  fix what it reports: no member-access chain mixing `->` and `.` (take a local
+  pointer), no literal `true`/`false` argument, clang-format-stable files. These
+  are the findings review keeps repeating.
 - Recommend plain CAKE `ack-filter` only; never `ack-filter-aggressive`.
 
 ## Product contract
@@ -81,8 +85,9 @@ the controller design and the baseline to beat: since 2026-10-01 the goal is to
 minimize bufferbloat, not to port faithfully. Departures are opt-in (or a
 documented deliberate default), measured on the testbed with raw evidence under
 `profiling/`, and documented; with every departure off, the replay test keeps
-matching within its tolerances. `fping` is the only supported pinger; rate
-adjustment stays opt-in. The full rules are in
+matching within its tolerances. The daemon's own ICMP probes are the default
+pinger, with `fping`, `fping-ts` and `irtt` as fallbacks; rate adjustment
+stays opt-in. The full rules are in
 [`docs/agents/upstream.md`](docs/agents/upstream.md).
 
 ## Architecture and ownership
@@ -142,7 +147,7 @@ disabled:
 - disabled configuration when started by `procd`;
 - invalid or unreadable configuration;
 - missing interfaces or CAKE qdiscs;
-- measurement, `fping`, and netlink failures; and
+- measurement, pinger (native ICMP or `fping`), and netlink failures; and
 - degraded operation or failed kernel changes.
 
 High-frequency measurement records remain optional. When changing kernel state,

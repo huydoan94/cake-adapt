@@ -74,7 +74,12 @@ void defaults_apply(struct config *config)
 		.global_ping_response_timeout_us = 10U * SECOND,
 		.interface_up_check_interval_us = 10U * SECOND
 	};
-	(void)strcpy(config->pinger_method, PINGER_METHOD_FPING);
+	/*
+	 * A deliberate difference from cake-autorate, whose default is fping: the
+	 * daemon's own ICMP probes need no child process or extra package. fping,
+	 * fping-ts and irtt remain as fallbacks.
+	 */
+	(void)strcpy(config->pinger_method, PINGER_METHOD_NATIVE);
 	(void)strcpy(mqtt->topic, MQTT_DEFAULT_TOPIC);
 	(void)strcpy(mqtt->ca_file, DEFAULT_MQTT_CA_FILE);
 }

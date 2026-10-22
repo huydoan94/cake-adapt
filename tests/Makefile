@@ -21,15 +21,19 @@ OBJECT_DIR ?= ../build/tests
 BINARY_DIR := $(OBJECT_DIR)/bin
 TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_memory test_helpers test_defaults test_estimator test_accounting test_inject test_mqtt_none
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
+TARGETS += test_icmp test_native
+BINARIES += $(BINARY_DIR)/test_icmp $(BINARY_DIR)/test_native
 
 test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
 test_replay_OBJECTS := controller/test_replay.o src/controller/controller.o src/common/helpers.o
 test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/tracker.o src/common/helpers.o
-LATENCY_OBJECTS := src/latency/latency.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o
+LATENCY_OBJECTS := src/latency/latency.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o src/latency/icmp.o src/latency/native.o
 test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o src/common/helpers.o
 test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/helpers.o
+test_icmp_OBJECTS := latency/test_icmp.o src/latency/icmp.o src/common/error.o src/common/helpers.o
+test_native_OBJECTS := latency/test_native.o src/latency/native.o src/latency/icmp.o src/common/error.o src/common/helpers.o
 test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/helpers.o
-test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/common/helpers_log.o
+test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/common/helpers_log.o src/common/error.o
 test_mqtt_none_OBJECTS := logging/test_mqtt_none.o src/logging/mqtt_none.o src/common/error.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
@@ -84,12 +88,17 @@ $(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
 .PHONY: check-tcpdelay
-check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_monitor_status $(BINARY_DIR)/test_monitor_publish
+check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_monitor_status $(BINARY_DIR)/test_monitor_publish $(BINARY_DIR)/test_monitor_pingers
 	$(BINARY_DIR)/test_monitor_tcpdelay
 	$(BINARY_DIR)/test_monitor_reflectors
 	$(BINARY_DIR)/test_filter_accounting
 	$(BINARY_DIR)/test_monitor_status
 	$(BINARY_DIR)/test_monitor_publish
+	$(BINARY_DIR)/test_monitor_pingers
+
+$(BINARY_DIR)/test_monitor_pingers: monitor/test_pingers.c $(SOURCE_DIR)/monitor/pingers.c $(SOURCE_DIR)/monitor/loop.h $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o $(LDLIBS)
 
 # libbpf map-definition macros require GNU typeof, as in the BPF build.
 $(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE_DIR)/tcpdelay/tcpdelay.bpf.c $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/cake/accounting.h
@@ -115,7 +124,7 @@ $(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
 # It is built once per package variant: without MQTT, with MQTT, and with MQTT and TLS.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c logging/log.c common/error.c common/helpers.c) logging/mqtt_stub.c
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c common/error.c common/helpers.c) logging/mqtt_stub.c
 CONFIG_TESTS := $(BINARY_DIR)/test_config $(BINARY_DIR)/test_config_mqtt $(BINARY_DIR)/test_config_mqtt_ssl
 
 .PHONY: check-config
@@ -152,6 +161,7 @@ check: $(BINARIES)
 	sh ./test_import.sh
 	sh ./test_luci.sh
 	sh ./test_docs.sh
+	sh ./test_style.sh
 	sh ./test_wait.sh
 	python3 tools/test_sdk_build.py
 
@@ -167,7 +177,12 @@ $(BINARIES): $(BINARY_DIR)/%: $$(addprefix $(OBJECT_DIR)/,$$($$*_OBJECTS))
 # Kept apart from LDFLAGS so command-line overrides cannot drop the wrappers.
 $(BINARY_DIR)/test_controller: TEST_LDFLAGS := -Wl,--wrap=calloc
 $(BINARY_DIR)/test_latency: TEST_LDFLAGS := -Wl,--wrap=access
-$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r
+$(BINARY_DIR)/test_native: TEST_LDFLAGS := -Wl,--wrap=icmp_open,--wrap=icmp_close,--wrap=icmp_send
+
+$(BINARY_DIR)/icmp_driver: latency/icmp_driver.c $(SOURCE_DIR)/latency/icmp.c $(SOURCE_DIR)/latency/native.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ $^ $(LDLIBS)
+$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r,--wrap=closelog,--wrap=pthread_cond_signal
 $(BINARY_DIR)/test_log: TEST_LDLIBS := -lz
 
 $(OBJECT_DIR)/%.o: %.c

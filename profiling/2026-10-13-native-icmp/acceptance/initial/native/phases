@@ -1,0 +1,16 @@
+41571.87 start
+41586.98 upload-steady
+41647.22 idle
+41657.23 upload-step
+41677.24 capacity-low
+41697.25 capacity-back
+41717.43 idle
+41727.44 download-steady
+41787.62 idle
+41797.62 bidirectional
+41857.82 end
+41857.95 loss-one
+41872.96 recovery-one
+41884.96 loss-all
+41909.98 recovery-all
+41921.98 health-end

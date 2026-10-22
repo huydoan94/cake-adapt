@@ -1,0 +1,15 @@
+Linux OpenWrt 6.12.108 #0 SMP Fri Sep 25 07:06:29 2026 i686 GNU/Linux
+82903aec-ba8d-4f8b-8a93-0fd0f9d08b79
+0.00 0.00 0.00 1/114 7634
+Cpus_allowed_list:	0-3
+tsc
+0bdcbe37169efdfc0e5b3b1cf666661d7904aae8f6c9ca528d99ef69f201c408  /tmp/native-icmp-gate3/icmp-driver
+82e7d239880caa3422ab677aa6630e2b00ae003ffd0080471d60c2b25d769464  /usr/bin/fping
+f2f7a9af56f16094d76750fcaea8451f4d38c1f9e51c49b79d94b3997132522c  /usr/sbin/cake-adapt
+770c98ade2797b93b9be3e8139afb3425d751d3de4080eeefeee629f95d6e05a  /tmp/native-icmp-gate3/probes.sh
+0ef068d7c126f89fcb528ecffcd39941096ff40941db958b91cac79574178dfb  /tmp/native-icmp-gate3/testbed.sh
+300 per cohort; fping-before, interleaved(native/fping), fping-after
+backend interval 200ms; interleaved turns100ms; /proc/uptime scheduling resolution10ms
+gate: abs(interleaved native median - interleaved fping median) <= abs(fping-before median - fping-after median)
+10.99.0.11 via 10.98.0.1 dev cwan src 10.98.0.2 uid 0 
+    cache 

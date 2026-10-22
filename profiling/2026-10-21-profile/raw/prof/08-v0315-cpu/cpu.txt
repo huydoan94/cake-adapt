@@ -1,0 +1,7 @@
+idle ticks=26 daemon_ticks=8 pinger_ticks=18 seconds=40 rss_kb=2124 hwm_kb=2124 pinger_rss_kb=732 fds=31 bpf_runs=1054 bpf_ns=2889490 inject_runs=527 inject_ns=590069
+download ticks=52 daemon_ticks=17 pinger_ticks=35 seconds=40 rss_kb=2120 hwm_kb=2120 pinger_rss_kb=740 fds=31 bpf_runs=96583 bpf_ns=389101025 inject_runs=45329 inject_ns=20170326
+upload ticks=41 daemon_ticks=14 pinger_ticks=27 seconds=40 rss_kb=2132 hwm_kb=2132 pinger_rss_kb=748 fds=31 bpf_runs=12446 bpf_ns=112370690 inject_runs=4423 inject_ns=4309995
+bidirectional ticks=63 daemon_ticks=25 pinger_ticks=38 seconds=40 rss_kb=2124 hwm_kb=2124 pinger_rss_kb=756 fds=31 bpf_runs=86766 bpf_ns=409459801 inject_runs=41139 inject_ns=20576167
+congested ticks=66 daemon_ticks=26 pinger_ticks=40 seconds=40 rss_kb=2136 hwm_kb=2136 pinger_rss_kb=764 fds=31 bpf_runs=80221 bpf_ns=371496655 inject_runs=40055 inject_ns=22776396
+download6 ticks=67 daemon_ticks=19 pinger_ticks=48 seconds=40 rss_kb=2136 hwm_kb=2136 pinger_rss_kb=772 fds=31 bpf_runs=94892 bpf_ns=407782994 inject_runs=44405 inject_ns=46510853
+bidirectional6 ticks=39 daemon_ticks=14 pinger_ticks=25 seconds=40 rss_kb=2132 hwm_kb=2132 pinger_rss_kb=780 fds=31 bpf_runs=87885 bpf_ns=242392590 inject_runs=42154 inject_ns=29192735
