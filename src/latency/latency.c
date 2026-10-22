@@ -165,6 +165,8 @@ int pinger_command_init(
 {
 	const struct latency_settings *settings = &latency->settings;
 	const char *prefix = settings->prefix;
+	const wordexp_t *prefix_words = &command->prefix;
+	const wordexp_t *extra_words = &command->extra;
 	size_t count;
 	size_t index;
 
@@ -175,17 +177,18 @@ int pinger_command_init(
 		    &command->extra,
 		    error,
 		    error_size
-	    ) != 0 ||
-	    expand_words(prefix, OPTION_PING_PREFIX_STRING, &command->prefix, error, error_size) !=
-		    0)
+	    ) != 0)
+		goto fail;
+	if (expand_words(prefix, OPTION_PING_PREFIX_STRING, &command->prefix, error, error_size) !=
+	    0)
 		goto fail;
 	/* A prefix names the program to run, so a set one must leave at least a word. */
-	if (prefix[0] != '\0' && command->prefix.we_wordc == 0U) {
+	if (prefix[0] != '\0' && prefix_words->we_wordc == 0U) {
 		error_set(error, error_size, "could not parse %s", OPTION_PING_PREFIX_STRING);
 		goto fail;
 	}
 	/* One more for the terminating NULL. */
-	count = command->prefix.we_wordc + command->extra.we_wordc + fixed + 1U;
+	count = prefix_words->we_wordc + extra_words->we_wordc + fixed + 1U;
 	command->argv = calloc(count, sizeof(*command->argv));
 	if (command->argv == NULL) {
 		error_set(
@@ -197,8 +200,8 @@ int pinger_command_init(
 		);
 		goto fail;
 	}
-	for (index = 0U; index < command->prefix.we_wordc; index++)
-		pinger_command_add(command, command->prefix.we_wordv[index]);
+	for (index = 0U; index < prefix_words->we_wordc; index++)
+		pinger_command_add(command, prefix_words->we_wordv[index]);
 	return 0;
 
 fail:
@@ -377,23 +380,29 @@ size_t latency_child_count(const struct latency *latency)
 
 int latency_child_descriptor(const struct latency *latency, size_t child_index)
 {
+	const struct latency_child *child;
+
 	if (child_index >= latency->child_count)
 		return -1;
-	return latency->children[child_index].output_descriptor;
+	child = &latency->children[child_index];
+	return child->output_descriptor;
 }
 
 pid_t latency_child_process(const struct latency *latency, size_t child_index)
 {
-	return latency->children[child_index].process_identifier;
+	const struct latency_child *child = &latency->children[child_index];
+
+	return child->process_identifier;
 }
 
 bool latency_stopping(const struct latency *latency)
 {
-	size_t index;
+	for (size_t index = 0U; index < CONFIG_MAX_REFLECTORS; index++) {
+		const struct latency_child *child = &latency->children[index];
 
-	for (index = 0U; index < CONFIG_MAX_REFLECTORS; index++)
-		if (latency->children[index].stopping)
+		if (child->stopping)
 			return true;
+	}
 	return false;
 }
 

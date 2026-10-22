@@ -79,12 +79,14 @@ void reflector_compare(
 	/* Each reflector's own values first, then the minimums over all of them. */
 	for (index = 0U; index < active_count; index++) {
 		const struct latency_tracker *tracker = &trackers[reflector_order[index]];
+		const struct latency_direction_tracker *download = &tracker->download;
+		const struct latency_direction_tracker *upload = &tracker->upload;
 		struct reflector_comparison *comparison = &comparisons[index];
 
 		comparison->sum_owd_baselines_us =
-			signed_sum(tracker->download.baseline_us, tracker->upload.baseline_us);
-		comparison->download_delta_ewma_us = tracker->download.delta_ewma_us;
-		comparison->upload_delta_ewma_us = tracker->upload.delta_ewma_us;
+			signed_sum(download->baseline_us, upload->baseline_us);
+		comparison->download_delta_ewma_us = download->delta_ewma_us;
+		comparison->upload_delta_ewma_us = upload->delta_ewma_us;
 		if (comparison->sum_owd_baselines_us < minimum_baseline_us)
 			minimum_baseline_us = comparison->sum_owd_baselines_us;
 		if (comparison->download_delta_ewma_us < minimum_download_delta_ewma_us)

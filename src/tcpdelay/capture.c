@@ -168,22 +168,22 @@ static int attach_socket(
 		.sll_protocol = htons(ETH_P_ALL),
 		.sll_ifindex = (int)capture->interface_index,
 	};
+	struct tcpdelay_accounting *accounting = &capture->accounting;
 	struct ifreq request = { 0 };
 	uint32_t key = 0U;
 
 	capture->socket_descriptor = socket(AF_PACKET, SOCK_RAW | SOCK_CLOEXEC, 0);
 	if (capture->socket_descriptor < 0)
 		goto fail;
-	if (capture->accounting.enabled) {
+	if (accounting->enabled) {
 		(void)snprintf(request.ifr_name, sizeof(request.ifr_name), "%s", interface);
 		if (ioctl(capture->socket_descriptor, SIOCGIFHWADDR, &request) != 0)
 			goto fail;
-		capture->accounting.hardware_type =
-			(uint32_t)(unsigned short)request.ifr_hwaddr.sa_family;
+		accounting->hardware_type = (uint32_t)(unsigned short)request.ifr_hwaddr.sa_family;
 	}
-	if (bpf_map_update_elem(capture->accounting_descriptor, &key, &capture->accounting, BPF_ANY) !=
-		    0 ||
-	    setsockopt(
+	if (bpf_map_update_elem(capture->accounting_descriptor, &key, accounting, BPF_ANY) != 0)
+		goto fail;
+	if (setsockopt(
 		    capture->socket_descriptor,
 		    SOL_SOCKET,
 		    SO_ATTACH_BPF,
@@ -272,13 +272,16 @@ int tcpdelay_capture_open(
 	size_t error_size
 )
 {
+	/* The accounting the filter applies, with the hardware type attach_socket() adds. */
+	struct tcpdelay_accounting *settings = &capture->accounting;
+
 	if (tcpdelay_capture_load(capture, error, error_size) != 0)
 		return -1;
 	tcpdelay_capture_close(capture);
-	memset(&capture->accounting, 0, sizeof(capture->accounting));
+	*settings = (struct tcpdelay_accounting){ 0 };
 	if (accounting != NULL) {
-		capture->accounting.cake = *accounting;
-		capture->accounting.enabled = 1U;
+		settings->cake = *accounting;
+		settings->enabled = 1U;
 	}
 	capture->interface_index = if_nametoindex(interface);
 	if (capture->interface_index == 0U)

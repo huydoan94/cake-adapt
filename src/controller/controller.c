@@ -178,6 +178,7 @@ static enum controller_congestion_state update_congestion(
 	const struct controller_latency_input *latency
 )
 {
+	const struct controller_direction_config *limits = &direction->config;
 	int64_t *sample_us;
 	unsigned char *delayed;
 	unsigned int index;
@@ -200,7 +201,7 @@ static enum controller_congestion_state update_congestion(
 	if (*delayed != 0U)
 		direction->delayed_sample_count--;
 	if (latency->owd_delta_us > 0 &&
-	    (uint64_t)latency->owd_delta_us > direction->config.delay_threshold_us) {
+	    (uint64_t)latency->owd_delta_us > limits->delay_threshold_us) {
 		direction->delayed_sample_count++;
 		*delayed = 1U;
 	} else {
@@ -307,6 +308,7 @@ static enum controller_rate_reason adjust_rate(
 	const struct controller_config *config = &controller->config;
 	const struct controller_direction_config *limits = &direction->config;
 	const struct controller_direction_input *input = update->input;
+	const struct controller_latency_input *latency = &update->latency;
 	uint64_t timestamp_us = update->timestamp_us;
 	uint64_t previous_rate_bps = direction->shaper_rate_bps;
 	bool congested = direction->congestion == CONTROLLER_CONGESTION_DETECTED;
@@ -322,7 +324,7 @@ static enum controller_rate_reason adjust_rate(
 		direction->last_decay_adjustment_us = timestamp_us;
 		return CONTROLLER_RATE_INITIAL;
 	}
-	if (!update->latency.valid)
+	if (!latency->valid)
 		return CONTROLLER_RATE_UNCHANGED;
 
 	high_load = load_ratio_e6(input->traffic_rate_bps, previous_rate_bps) >
@@ -385,7 +387,9 @@ static void set_rate_output(
 	struct controller_direction_output *output
 )
 {
-	if (!direction->config.adjust) {
+	const struct controller_direction_config *limits = &direction->config;
+
+	if (!limits->adjust) {
 		output->rate_bps = input->cake_rate_bps;
 		output->rate_changed = false;
 		output->rate_reason = CONTROLLER_RATE_UNCHANGED;
@@ -449,7 +453,8 @@ download_ceiling_bps(const struct controller *controller, const struct controlle
 	const struct controller_ack_input *acks = &input->acks;
 	const struct controller_direction_input *download = &input->download;
 	const struct controller_direction_input *upload = &input->upload;
-	uint64_t room_bps = controller->upload.shaper_rate_bps;
+	const struct controller_direction *shaped_upload = &controller->upload;
+	uint64_t room_bps = shaped_upload->shaper_rate_bps;
 	uint64_t ack_rate_bps = acks->upload_ack_rate_bps;
 	uint64_t minimum_bps = ratio_of(room_bps, config->ul_congest_ack_share_ratio_e6);
 	uint64_t other_bps;
@@ -578,16 +583,10 @@ void controller_set_serialization_compensation(
 	uint64_t upload_wire_packet_bits
 )
 {
-	compensate_direction(
-		&controller->download,
-		&controller->config.download,
-		download_wire_packet_bits
-	);
-	compensate_direction(
-		&controller->upload,
-		&controller->config.upload,
-		upload_wire_packet_bits
-	);
+	const struct controller_config *config = &controller->config;
+
+	compensate_direction(&controller->download, &config->download, download_wire_packet_bits);
+	compensate_direction(&controller->upload, &config->upload, upload_wire_packet_bits);
 }
 
 static uint64_t input_load_ratio_e6(const struct controller_direction_input *input)
@@ -630,10 +629,11 @@ void controller_set_minimum_rates(struct controller *controller, uint64_t timest
 
 	for (index = 0U; index < ARRAY_SIZE(directions); index++) {
 		struct controller_direction *direction = directions[index];
+		const struct controller_direction_config *limits = &direction->config;
 
-		if (!direction->config.adjust)
+		if (!limits->adjust)
 			continue;
-		direction->shaper_rate_bps = direction->config.minimum_rate_bps;
+		direction->shaper_rate_bps = limits->minimum_rate_bps;
 		direction->last_congestion_adjustment_us = timestamp_us;
 		direction->last_decay_adjustment_us = timestamp_us;
 		direction->initial_rate_pending = false;
@@ -643,6 +643,29 @@ void controller_set_minimum_rates(struct controller *controller, uint64_t timest
 static bool rate_above(const struct controller_direction_input *input, uint64_t threshold_bps)
 {
 	return input->valid && input->traffic_rate_bps > threshold_bps;
+}
+
+/* Some traffic above the threshold: enough to wake from idle. */
+static bool either_above(const struct controller_activity_input *input, uint64_t threshold_bps)
+{
+	return rate_above(&input->download, threshold_bps) ||
+	       rate_above(&input->upload, threshold_bps);
+}
+
+/* Traffic above the threshold both ways: a link that still works, not a stall. */
+static bool both_above(const struct controller_activity_input *input, uint64_t threshold_bps)
+{
+	return rate_above(&input->download, threshold_bps) &&
+	       rate_above(&input->upload, threshold_bps);
+}
+
+/* Both counters read, so a quiet link is known to be quiet. */
+static bool both_valid(const struct controller_activity_input *input)
+{
+	const struct controller_direction_input *download = &input->download;
+	const struct controller_direction_input *upload = &input->upload;
+
+	return download->valid && upload->valid;
 }
 
 void activity_init(
@@ -678,12 +701,10 @@ void activity_update(
 			activity->idle_started_us = 0U;
 			output->check_stall_loads = true;
 			check_global_timeout = true;
-			if (!rate_above(&input->download, config->stall_threshold_bps) ||
-			    !rate_above(&input->upload, config->stall_threshold_bps))
+			if (!both_above(input, config->stall_threshold_bps))
 				activity->state = CONTROLLER_STALL;
-		} else if (config->enable_sleep && input->download.valid && input->upload.valid &&
-			   !rate_above(&input->download, config->active_threshold_bps) &&
-			   !rate_above(&input->upload, config->active_threshold_bps)) {
+		} else if (config->enable_sleep && both_valid(input) &&
+			   !either_above(input, config->active_threshold_bps)) {
 			/* Only healthy probes and valid counters can establish idle time. */
 			if (activity->idle_started_us == 0U) {
 				activity->idle_started_us = input->timestamp_us;
@@ -697,16 +718,13 @@ void activity_update(
 		}
 		break;
 	case CONTROLLER_IDLE:
-		if (rate_above(&input->download, config->active_threshold_bps) ||
-		    rate_above(&input->upload, config->active_threshold_bps))
+		if (either_above(input, config->active_threshold_bps))
 			activity->state = CONTROLLER_RUNNING;
 		break;
 	case CONTROLLER_STALL:
 		if (response_age_us <= config->stall_timeout_us ||
-		    (rate_above(&input->download, config->stall_threshold_bps) &&
-		     rate_above(&input->upload, config->stall_threshold_bps))) {
+		    both_above(input, config->stall_threshold_bps))
 			activity->state = CONTROLLER_RUNNING;
-		}
 		check_global_timeout = true;
 		break;
 	}

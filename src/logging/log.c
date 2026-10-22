@@ -925,7 +925,8 @@ void log_print_cpu_headers(
 		} else {
 			(void)fputs(cpu_header_prefix, stream);
 			for (index = 0U; index < sample->count; index++) {
-				const char *identifier = sample->counters[index].identifier;
+				const struct cpu_counter *counter = &sample->counters[index];
+				const char *identifier = counter->identifier;
 
 				(void)fputs("; ", stream);
 				while (*identifier != '\0')
