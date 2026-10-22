@@ -64,8 +64,18 @@ int test_receive(struct nl_sock *socket)
 	return 0;
 }
 
-static void test_response(bool interrupted, bool complete)
+/* How the kernel answers a request in test_response(). */
+enum kernel_reply {
+	REPLY_NONE,
+	/* A signal interrupts the first wait, then nothing arrives. */
+	REPLY_NONE_INTERRUPTED,
+	REPLY_ACKNOWLEDGED,
+};
+
+static void test_response(enum kernel_reply reply)
 {
+	bool complete = reply == REPLY_ACKNOWLEDGED;
+
 	struct netlink netlink = { .socket = nl_socket_alloc() };
 	struct response_context context = { .request = NETLINK_REQUEST_QDISC_DUMP };
 	char error[128] = "";
@@ -74,7 +84,7 @@ static void test_response(bool interrupted, bool complete)
 	assert(netlink.socket != NULL);
 	now_us = SECOND;
 	polls = 0U;
-	interrupt_wait = interrupted;
+	interrupt_wait = reply == REPLY_NONE_INTERRUPTED;
 	acknowledge = complete;
 	response = &context;
 	result = receive_response(&netlink, &context, error, sizeof(error));
@@ -97,8 +107,15 @@ static void record_event(struct netlink *netlink, const struct qdisc_event *even
 	received = *event;
 }
 
-static void test_request(const char *request, bool fail_send)
+enum send_outcome {
+	SEND_SUCCEEDS,
+	SEND_FAILS,
+};
+
+static void test_request(const char *request, enum send_outcome outcome)
 {
+	bool fail_send = outcome == SEND_FAILS;
+
 	struct netlink netlink = { .socket = nl_socket_alloc() };
 	struct response_context context = { .request = request };
 	struct nl_msg *message = nlmsg_alloc();
@@ -155,14 +172,14 @@ static void test_qdisc_events(void)
 
 int main(void)
 {
-	test_response(false, false);
-	test_response(true, false);
-	test_response(false, true);
+	test_response(REPLY_NONE);
+	test_response(REPLY_NONE_INTERRUPTED);
+	test_response(REPLY_ACKNOWLEDGED);
 	test_qdisc_events();
-	test_request(NETLINK_REQUEST_QDISC_DUMP, false);
-	test_request(NETLINK_REQUEST_QDISC_DUMP, true);
-	test_request(NETLINK_REQUEST_QDISC_CHANGE, false);
-	test_request(NETLINK_REQUEST_QDISC_CHANGE, true);
+	test_request(NETLINK_REQUEST_QDISC_DUMP, SEND_SUCCEEDS);
+	test_request(NETLINK_REQUEST_QDISC_DUMP, SEND_FAILS);
+	test_request(NETLINK_REQUEST_QDISC_CHANGE, SEND_SUCCEEDS);
+	test_request(NETLINK_REQUEST_QDISC_CHANGE, SEND_FAILS);
 	puts("netlink request, deadline and event tests passed");
 	return 0;
 }

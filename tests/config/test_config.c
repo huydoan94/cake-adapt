@@ -15,11 +15,16 @@ int uci_lookup_next(
 	const char *name
 )
 {
+	struct uci_element *option_element;
+
 	(void)context;
 	(void)list;
-	if (lookup_option == NULL || strcmp(lookup_option->e.name, name) != 0)
+	if (lookup_option == NULL)
 		return UCI_ERR_NOTFOUND;
-	*element = &lookup_option->e;
+	option_element = &lookup_option->e;
+	if (strcmp(option_element->name, name) != 0)
+		return UCI_ERR_NOTFOUND;
+	*element = option_element;
 	return UCI_OK;
 }
 
