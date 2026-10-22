@@ -174,6 +174,14 @@ static inline unsigned int us_to_ms(uint64_t us)
 	return ms > UINT_MAX ? UINT_MAX : (unsigned int)ms;
 }
 
+/* us_to_ms() for uloop timeouts and poll(), which take a signed int. */
+static inline int us_to_timeout_ms(uint64_t us)
+{
+	unsigned int ms = us_to_ms(us);
+
+	return ms > INT_MAX ? INT_MAX : (int)ms;
+}
+
 /* For messages that print a duration in seconds. */
 static inline double us_to_sec_decimal(uint64_t us)
 {

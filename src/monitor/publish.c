@@ -314,7 +314,7 @@ static void publish_wait(struct publish_shared *shared)
 		{ .fd = shared->wake_fd, .events = POLLIN },
 		{ .fd = online ? sock->fd : -1, .events = POLLIN },
 	};
-	const int wait_ms = (int)us_to_ms(PUBLISH_WAIT_US);
+	const int wait_ms = us_to_timeout_ms(PUBLISH_WAIT_US);
 
 	if (poll(descriptors, (nfds_t)ARRAY_SIZE(descriptors), wait_ms) <= 0)
 		return;

@@ -15,15 +15,32 @@
 
 bool target_is_valid(const char *target);
 
-/* The executable a pinger_method runs, or NULL for an unknown method. */
-const char *latency_backend_executable(const char *pinger_method);
+/*
+ * The pinger_method values, looked up once from the option and passed around;
+ * the functions below take a known method, never PINGER_UNKNOWN.
+ */
+enum pinger_method {
+	PINGER_NATIVE,
+	PINGER_NATIVE_TS,
+	PINGER_FPING,
+	PINGER_FPING_TS,
+	PINGER_IRTT,
+	PINGER_UNKNOWN,
+};
+
+enum pinger_method latency_method(const char *name);
+const char *latency_method_name(enum pinger_method method);
+/* The daemon's own ICMP probes, with no executable. */
+bool latency_native(enum pinger_method method);
+/* The executable a method runs, or NULL for the native probes. */
+const char *latency_backend_executable(enum pinger_method method);
 /* Echo methods report half the round trip as the delay of both directions. */
-bool latency_shared_delay(const char *pinger_method);
+bool latency_shared_delay(enum pinger_method method);
 /* ICMP timestamp methods, IPv4 only. */
-bool latency_timestamps(const char *pinger_method);
+bool latency_timestamps(enum pinger_method method);
 
 /* Like cake-autorate, refuse to start when the selected pinger cannot run. */
-int latency_check_backend(const char *pinger_method, char *error, size_t error_size);
+int latency_check_backend(enum pinger_method method, char *error, size_t error_size);
 
 struct latency_child {
 	int output_descriptor;
@@ -39,7 +56,7 @@ struct latency_child {
 
 /* What every session runs; the strings are borrowed from the validated configuration. */
 struct latency_settings {
-	const char *pinger_method;
+	enum pinger_method method;
 	/* fping's default -I; ping_extra_args may override it. */
 	const char *interface;
 	const char *extra_arguments;
@@ -55,7 +72,7 @@ struct pinger_ops;
 struct latency {
 	/* Transitional native backend; legacy backends stay until live comparison passes. */
 	struct native_session native;
-	/* The backend of settings.pinger_method: fping_ops, fping_ts_ops or irtt_ops. */
+	/* The backend of settings.method: fping_ops, fping_ts_ops or irtt_ops; NULL for native. */
 	const struct pinger_ops *ops;
 	struct latency_settings settings;
 	bool active;
@@ -80,7 +97,7 @@ enum latency_line_result {
 	LATENCY_LINE_TOO_LONG
 };
 
-/* settings.pinger_method must have passed latency_check_backend(). */
+/* settings.method must have passed latency_check_backend(). */
 void latency_init(struct latency *latency, const struct latency_settings *settings);
 
 bool latency_is_open(const struct latency *latency);
