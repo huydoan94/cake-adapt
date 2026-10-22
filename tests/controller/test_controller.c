@@ -82,8 +82,11 @@ static struct controller_input input_with_rates(
 
 static void set_latency_delta(struct controller_input *input, int64_t delta_us)
 {
-	input->download_latency.owd_delta_us = delta_us;
-	input->upload_latency.owd_delta_us = delta_us;
+	struct controller_latency_input *download = &input->download_latency;
+	struct controller_latency_input *upload = &input->upload_latency;
+
+	download->owd_delta_us = delta_us;
+	upload->owd_delta_us = delta_us;
 }
 
 static void update_repeatedly(
@@ -101,8 +104,13 @@ static void update_repeatedly(
 
 static void accept_rates(struct controller_input *input, const struct controller_output *output)
 {
-	input->download.cake_rate_bps = output->download.rate_bps;
-	input->upload.cake_rate_bps = output->upload.rate_bps;
+	struct controller_direction_input *download = &input->download;
+	struct controller_direction_input *upload = &input->upload;
+	const struct controller_direction_output *download_output = &output->download;
+	const struct controller_direction_output *upload_output = &output->upload;
+
+	download->cake_rate_bps = download_output->rate_bps;
+	upload->cake_rate_bps = upload_output->rate_bps;
 }
 
 static void init_controller(struct controller *controller, const struct controller_config *config)
@@ -840,6 +848,10 @@ static void test_sustained_ack_wait_can_misdirect_shared_delay(void)
 }
 
 /* Download after one update, with upload's shaper at 8 Mbit/s. */
+/* Whether the filter's ACK counters were read for the step. */
+static const bool acks_measured = true;
+static const bool acks_unmeasured = false;
+
 static struct controller_direction_output ack_capped_download(
 	uint64_t share_ratio_e6,
 	uint64_t upload_achieved,
@@ -879,35 +891,42 @@ static void test_ack_share_follows_other_traffic(void)
 	 * leaves, less 5% (400 kbit/s) headroom: with 100 kbit/s of other
 	 * traffic, 7.5 Mbit/s, so download is held at 8 * 7.5 / 7.8.
 	 */
-	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(100U), KBIT(7800U));
+	download =
+		ack_capped_download(450000U, KBIT(7900U), acks_measured, KBIT(100U), KBIT(7800U));
 	assert(download.rate_bps == 7692304U);
 	assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);
 	assert(download.rate_changed);
 
 	/* Other traffic grows to 3 Mbit/s: ACKs get 4.6, download 8 * 4.6 / 4.9. */
-	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
+	download =
+		ack_capped_download(450000U, KBIT(7900U), acks_measured, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bps == 7510200U);
 
 	/* At 4.2 Mbit/s of other traffic ACKs reach their 45% minimum, 3.6. */
-	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(4200U), KBIT(3700U));
+	download =
+		ack_capped_download(450000U, KBIT(7900U), acks_measured, KBIT(4200U), KBIT(3700U));
 	assert(download.rate_bps == 7783776U);
 
 	/* ACKs below their minimum are never held. */
-	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(5000U), KBIT(2900U));
+	download =
+		ack_capped_download(450000U, KBIT(7900U), acks_measured, KBIT(5000U), KBIT(2900U));
 	assert(download.rate_bps == KBIT(8320U));
 	assert(download.rate_reason == CONTROLLER_RATE_HIGH_LOAD);
 
 	/* The download minimum still wins (8 * 3.6 / 6 = 4.8 < 5 Mbit/s). */
-	download = ack_capped_download(450000U, KBIT(7900U), true, KBIT(4200U), KBIT(6000U));
+	download =
+		ack_capped_download(450000U, KBIT(7900U), acks_measured, KBIT(4200U), KBIT(6000U));
 	assert(download.rate_bps == 5U * MEBABIT);
 	assert(download.rate_reason == CONTROLLER_RATE_ACK_SHARE);
 
 	/* No hold without high upload load, without a valid ACK rate, or when off. */
-	download = ack_capped_download(450000U, KBIT(5000U), true, KBIT(3000U), KBIT(4900U));
+	download =
+		ack_capped_download(450000U, KBIT(5000U), acks_measured, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bps == KBIT(8320U));
-	download = ack_capped_download(450000U, KBIT(7900U), false, KBIT(3000U), KBIT(4900U));
+	download =
+		ack_capped_download(450000U, KBIT(7900U), acks_unmeasured, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bps == KBIT(8320U));
-	download = ack_capped_download(0U, KBIT(7900U), true, KBIT(3000U), KBIT(4900U));
+	download = ack_capped_download(0U, KBIT(7900U), acks_measured, KBIT(3000U), KBIT(4900U));
 	assert(download.rate_bps == KBIT(8320U));
 }
 

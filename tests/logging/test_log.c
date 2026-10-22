@@ -63,8 +63,11 @@ static atomic_uint syslog_waits;
 /* Counts syslog calls carrying the warning logged after a flood, and closelog() calls. */
 static atomic_uint kept_warnings;
 static atomic_uint closelog_calls;
-/* The writer tests log as the service does: to syslog, not the terminal. */
+/* The tests log as the service does: to syslog, not the terminal. */
 static const bool in_foreground = false;
+/* The CPU header tests ask for both CPU records. */
+static const bool with_cpu_stats = true;
+static const bool with_cpu_raw_stats = true;
 
 FILE *__real_open_memstream(char **buffer, size_t *size);
 int __real_fclose(FILE *stream);
@@ -167,7 +170,7 @@ void __wrap___syslog_chk(int priority, int flag, const char *format, ...)
 
 static void test_operational_syslog(void)
 {
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_set_level(LOG_LEVEL_DEBUG);
 	syslog_count = 0U;
 	log_message(LOG_LEVEL_ERROR, "configuration failed");
@@ -251,7 +254,7 @@ static void test_problems_to_stderr(void)
 
 	assert(descriptor >= 0 && saved >= 0);
 	assert(fflush(stderr) == 0 && dup2(descriptor, STDERR_FILENO) == STDERR_FILENO);
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_message(LOG_LEVEL_ERROR, "before the check");
 	log_problems_to_stderr();
 	syslog_count = 0U;
@@ -261,7 +264,7 @@ static void test_problems_to_stderr(void)
 	assert(syslog_count == 2U);
 	log_close();
 	/* A new log_init() turns it off again. */
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_message(LOG_LEVEL_ERROR, "after the check");
 	log_close();
 	assert(fflush(stderr) == 0 && dup2(saved, STDERR_FILENO) == STDERR_FILENO);
@@ -283,7 +286,7 @@ static void test_debug_logging_to_file(void)
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	log_set_level(LOG_LEVEL_DEBUG);
 	assert(log_set_file(path, &unlimited) == 0);
 	log_message(LOG_LEVEL_DEBUG, "sample value=%d", 42);
@@ -305,7 +308,7 @@ static void test_file_logging_respects_level(void)
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	log_set_level(LOG_LEVEL_NOTICE);
 	assert(log_set_file(path, &unlimited) == 0);
 	log_message(LOG_LEVEL_DEBUG, "hidden debug message");
@@ -334,7 +337,7 @@ static void test_failed_file_switch_preserves_rotation_path(void)
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, &size_limited) == 0);
 	(void)snprintf(invalid_path, sizeof(invalid_path), "%s/not-a-directory", path);
@@ -360,7 +363,7 @@ static void test_log_descriptor_is_close_on_exec(void)
 	assert(descriptor >= 0);
 	assert(fstat(descriptor, &expected) == 0);
 	assert(close(descriptor) == 0);
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
 	descriptors = opendir("/proc/self/fd");
 	assert(descriptors != NULL);
@@ -497,7 +500,7 @@ static void test_cake_autorate_headers_and_record_format(void)
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
 
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
 	log_print_headers(&every_record);
 	log_load(&load_record);
@@ -580,9 +583,9 @@ static void test_cpu_schema_matches_cake_autorate(void)
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
-	log_print_cpu_headers(&sample, true, true);
+	log_print_cpu_headers(&sample, with_cpu_stats, with_cpu_raw_stats);
 	log_cpu(&sample, usage);
 	log_cpu_raw(&sample);
 	log_close();
@@ -616,7 +619,7 @@ static void test_tcp_queue_record(void)
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
 	log_print_headers(&tcp_queue_records);
 	log_tcp_queue(&record);
@@ -645,7 +648,7 @@ static void test_memory_record(void)
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
 	log_print_headers(&memory_records);
 	log_memory(&sample);
@@ -680,7 +683,7 @@ test_rotation_export_and_reset_preserve_live_inode(const struct log_file_setting
 	memset(large_message, 'x', sizeof(large_message) - 1U);
 	large_message[sizeof(large_message) - 1U] = '\0';
 	memcpy(large_message, "before rotation ", 16U);
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, settings) == 0);
 	log_print_headers(&load_records);
@@ -724,15 +727,15 @@ static void test_cpu_log_allocation_failures(void)
 
 	assert(descriptor >= 0);
 	assert(close(descriptor) == 0);
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
 	syslog_count = 0U;
 	fail_memstream_open = true;
-	log_print_cpu_headers(&sample, true, true);
+	log_print_cpu_headers(&sample, with_cpu_stats, with_cpu_raw_stats);
 	log_cpu(&sample, usage);
 	fail_memstream_open = false;
 	fail_memstream_close = true;
-	log_print_cpu_headers(&sample, true, true);
+	log_print_cpu_headers(&sample, with_cpu_stats, with_cpu_raw_stats);
 	log_cpu(&sample, usage);
 	fail_memstream_close = false;
 	assert(syslog_count == 4U && syslog_priority == LOG_WARNING);
@@ -741,7 +744,7 @@ static void test_cpu_log_allocation_failures(void)
 	assert(strstr(contents, "CPU_HEADER;") == NULL);
 	assert(strstr(contents, "\nCPU;") == NULL);
 
-	log_print_cpu_headers(&sample, true, true);
+	log_print_cpu_headers(&sample, with_cpu_stats, with_cpu_raw_stats);
 	log_cpu(&sample, usage);
 	log_close();
 	read_log(path, contents, sizeof(contents));
@@ -764,7 +767,7 @@ static void test_buffer_timeout_and_time_rotation(void)
 	assert(stat(path, &before) == 0);
 	use_mock_time = true;
 	mock_time = (struct timespec){ .tv_sec = 1000 };
-	log_init("sqm-mon-test", false);
+	log_init("sqm-mon-test", in_foreground);
 	assert(log_set_file(path, &aged_and_buffered) == 0);
 	log_print_headers(&load_records);
 	log_message(LOG_LEVEL_INFO, "buffered until timeout");
@@ -816,7 +819,7 @@ static void test_local_time_is_converted_once_per_sec(void)
 	assert(close(descriptor) == 0);
 	use_mock_time = true;
 	mock_time = (struct timespec){ .tv_sec = sec };
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, &unlimited) == 0);
 	local_time_conversions = 0U;
@@ -865,7 +868,7 @@ static void test_records_wait_for_buffer_timeout(void)
 	assert(close(descriptor) == 0);
 	use_mock_time = true;
 	mock_time = (struct timespec){ .tv_sec = 4000 };
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, &buffered) == 0);
 	memset(record, 'x', sizeof(record) - 1U);
@@ -894,7 +897,7 @@ static void test_immediate_output_avoids_maintenance_clock(void)
 	assert(close(descriptor) == 0);
 	use_mock_time = true;
 	mock_time = (struct timespec){ .tv_sec = 2000 };
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	assert(log_set_file(path, &unlimited) == 0);
 	clock_reads = 0U;
 	log_print_headers(&load_records);
@@ -923,7 +926,7 @@ static void test_existing_file_size_uses_strict_rotation_limit(void)
 	assert(fwrite(existing, 1U, sizeof(existing), file) == sizeof(existing));
 	assert(fclose(file) == 0);
 
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_set_level(LOG_LEVEL_INFO);
 	assert(log_set_file(path, &size_limited) == 0);
 	log_tick();
@@ -941,7 +944,7 @@ static void test_disabled_output_skips_formatting_clocks(void)
 {
 	const struct log_load_record load = { 0 };
 
-	log_init("cake-adapt-test", false);
+	log_init("cake-adapt-test", in_foreground);
 	log_set_level(LOG_LEVEL_DEBUG);
 	clock_reads = 0U;
 	syslog_count = 0U;
