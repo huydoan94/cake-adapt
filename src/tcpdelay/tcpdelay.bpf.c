@@ -143,6 +143,12 @@ struct {
 	__type(value, struct tcpdelay_inject_settings);
 } inject_settings SEC(".maps");
 
+/* The TCP header with its options: the data offset counts 32-bit words. */
+static __always_inline __u32 tcp_header_bytes(const struct tcphdr *tcp)
+{
+	return tcp->doff * 4U;
+}
+
 static __always_inline int ip_protocol(__be16 protocol)
 {
 	return protocol == bpf_htons(ETH_P_IP) || protocol == bpf_htons(ETH_P_IPV6);
@@ -157,16 +163,18 @@ static __always_inline __u64 outgoing_bytes(struct __sk_buff *skb, struct tcpdel
 {
 	__u32 zero = 0;
 	const struct tcpdelay_accounting *config = bpf_map_lookup_elem(&accounting, &zero);
+	const struct cake_accounting *cake;
 	__u32 offset = 0;
 
 	if (config == NULL)
 		goto unsupported;
+	cake = &config->cake;
 	if (!config->enabled)
 		return skb->len;
 	/* A post-qdisc GSO aggregate needs offload/header semantics unavailable here. */
 	if (skb->gso_size || skb->vlan_present ||
-	    (config->cake.atm_mode != CAKE_ATM_NONE && config->cake.atm_mode != CAKE_ATM_ATM &&
-	     config->cake.atm_mode != CAKE_ATM_PTM))
+	    (cake->atm_mode != CAKE_ATM_NONE && cake->atm_mode != CAKE_ATM_ATM &&
+	     cake->atm_mode != CAKE_ATM_PTM))
 		goto unsupported;
 	if (config->hardware_type == ARPHRD_ETHER) {
 		struct ethhdr ethernet;
@@ -176,13 +184,13 @@ static __always_inline __u64 outgoing_bytes(struct __sk_buff *skb, struct tcpdel
 		    ethernet.h_proto == bpf_htons(ETH_P_8021Q) ||
 		    ethernet.h_proto == bpf_htons(ETH_P_8021AD))
 			goto unsupported;
-		if (!config->cake.raw) {
+		if (!cake->raw) {
 			if (!ip_protocol(ethernet.h_proto) &&
 			    ethernet.h_proto != bpf_htons(ETH_P_ARP))
 				goto unsupported;
 			offset = sizeof(ethernet);
 		}
-	} else if (!config->cake.raw &&
+	} else if (!cake->raw &&
 		   ((config->hardware_type != ARPHRD_NONE && config->hardware_type != ARPHRD_PPP &&
 		     config->hardware_type != ARPHRD_RAWIP) ||
 		    !ip_protocol(skb->protocol))) {
@@ -581,13 +589,13 @@ int tcpdelay(struct __sk_buff *skb)
 		return 0;
 	}
 	/* A pure ACK carries no data and none of SYN, FIN or RST. */
-	if (totals != NULL && ip_payload == tcp.doff * 4U && tcp.ack && !tcp.syn && !tcp.fin &&
-	    !tcp.rst) {
+	if (totals != NULL && ip_payload == tcp_header_bytes(&tcp) && tcp.ack && !tcp.syn &&
+	    !tcp.fin && !tcp.rst) {
 		totals->ack_bytes += charge_bytes;
 	}
 	flow.local_port = tcp.source;
 	flow.remote_port = tcp.dest;
-	options_length = tcp.doff * 4U;
+	options_length = tcp_header_bytes(&tcp);
 	if (options_length >= sizeof(tcp) + TCP_OPTION_TIMESTAMP_LENGTH) {
 		options_length -= sizeof(tcp);
 		if (options_length > TCP_OPTIONS_MAX)
@@ -627,6 +635,8 @@ struct segment {
 static __always_inline int
 inject_parse(struct __sk_buff *skb, __u32 network_offset, struct segment *segment)
 {
+	struct tcpdelay_record_flow *flow = &segment->flow;
+	struct tcphdr *tcp = &segment->tcp;
 	struct ipv6hdr ip;
 
 	segment->network_offset = network_offset;
@@ -634,16 +644,16 @@ inject_parse(struct __sk_buff *skb, __u32 network_offset, struct segment *segmen
 	if (bpf_skb_load_bytes(skb, network_offset, &ip, sizeof(ip)) < 0 ||
 	    ip.nexthdr != IPPROTO_TCP)
 		return -1;
-	__builtin_memcpy(segment->flow.local_address, &ip.saddr, sizeof(ip.saddr));
-	__builtin_memcpy(segment->flow.remote_address, &ip.daddr, sizeof(ip.daddr));
+	__builtin_memcpy(flow->local_address, &ip.saddr, sizeof(ip.saddr));
+	__builtin_memcpy(flow->remote_address, &ip.daddr, sizeof(ip.daddr));
 	segment->tcp_offset = network_offset + sizeof(ip);
 	segment->ip_bytes = sizeof(ip) + bpf_ntohs(ip.payload_len);
-	if (bpf_skb_load_bytes(skb, segment->tcp_offset, &segment->tcp, sizeof(segment->tcp)) < 0 ||
-	    segment->tcp.doff < 5)
+	if (bpf_skb_load_bytes(skb, segment->tcp_offset, tcp, sizeof(*tcp)) < 0 ||
+	    tcp_header_bytes(tcp) < TCP_HEADER_BYTES)
 		return -1;
-	segment->flow.local_port = segment->tcp.source;
-	segment->flow.remote_port = segment->tcp.dest;
-	segment->options_bytes = segment->tcp.doff * 4U - TCP_HEADER_BYTES;
+	flow->local_port = tcp->source;
+	flow->remote_port = tcp->dest;
+	segment->options_bytes = tcp_header_bytes(tcp) - TCP_HEADER_BYTES;
 	return 0;
 }
 
@@ -656,7 +666,7 @@ static __always_inline int
 append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsval)
 {
 	__u32 added[3] = { bpf_htonl(0x0101080aU), bpf_htonl(tsval), 0 };
-	__u32 header_bytes = segment->tcp.doff * 4U;
+	__u32 header_bytes = tcp_header_bytes(&segment->tcp);
 	__u32 end = segment->tcp_offset + header_bytes;
 	__u32 checksum = segment->tcp_offset + TCP_CHECKSUM_OFFSET;
 	__u16 old_word;
@@ -745,6 +755,7 @@ static __always_inline int inject_options_may_timestamp(const __u8 *options, __u
  */
 static __always_inline int inject_syn_eligible(struct __sk_buff *skb, const struct segment *segment)
 {
+	__u32 header_bytes = tcp_header_bytes(&segment->tcp);
 	__u8 options[TCP_OPTIONS_MAX] = {};
 
 	if (segment->options_bytes > TCP_OPTIONS_MAX ||
@@ -756,9 +767,8 @@ static __always_inline int inject_syn_eligible(struct __sk_buff *skb, const stru
 		      segment->options_bytes
 	      ) < 0 ||
 	      inject_options_may_timestamp(options, segment->options_bytes))) ||
-	    segment->ip_bytes !=
-		    segment->tcp_offset - segment->network_offset + segment->tcp.doff * 4U ||
-	    segment->tcp.doff * 4U + INJECT_ADDED_BYTES > TCP_HEADER_MAX_BYTES)
+	    segment->ip_bytes != segment->tcp_offset - segment->network_offset + header_bytes ||
+	    header_bytes + INJECT_ADDED_BYTES > TCP_HEADER_MAX_BYTES)
 		return 0;
 	return 1;
 }
@@ -773,7 +783,8 @@ static __always_inline void inject_new_syn(
 	struct tcpdelay_inject_handshake *handshake;
 	struct tcpdelay_inject_handshake fresh = {};
 	struct tcpdelay_inject_server_key key;
-	__u32 sequence = bpf_ntohl(segment->tcp.seq);
+	const struct tcphdr *tcp = &segment->tcp;
+	__u32 sequence = bpf_ntohl(tcp->seq);
 	__u64 now_ns;
 	__u32 tsval;
 
