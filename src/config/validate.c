@@ -17,6 +17,12 @@ static bool timer_interval_valid(uint64_t interval_us)
 	       interval_us / MICROSECONDS_PER_MILLISECOND <= UINT_MAX;
 }
 
+/* The time between two reflectors' probes, whole microseconds truncated. */
+static uint64_t ping_spacing_us(const struct config *config)
+{
+	return config->reflector_ping_interval_us / config->no_pingers;
+}
+
 static int validate_rate_range(
 	const struct config_direction *rates,
 	const char *direction,
@@ -160,7 +166,7 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 			"option 'tcp_ts_request' needs tcp_delay_attribution"
 		);
 	}
-	if (config->reflector_ping_interval_us / config->no_pingers < MILLISECOND) {
+	if (ping_spacing_us(config) < MILLISECOND) {
 		return error_set(
 			error,
 			error_size,
@@ -245,8 +251,7 @@ static int validate_reflector_policy(const struct config *config, char *error, s
 		);
 	}
 	if (config->stall_detection_threshold == 0U ||
-	    config->stall_detection_threshold >
-		    UINT64_MAX / (config->reflector_ping_interval_us / config->no_pingers) ||
+	    config->stall_detection_threshold > UINT64_MAX / ping_spacing_us(config) ||
 	    config->global_ping_response_timeout_us == 0U ||
 	    config->interface_up_check_interval_us == 0U) {
 		return error_set(
@@ -264,7 +269,7 @@ static int validate_monitoring(const struct config *config, char *error, size_t 
 	const struct config_direction *download = &config->download;
 	const struct config_direction *upload = &config->upload;
 
-	if ((config->output_cpu_stats || config->output_cpu_raw_stats) &&
+	if (config_cpu_stats(config) &&
 	    !timer_interval_valid(config->monitor_cpu_usage_interval_us)) {
 		return error_set(
 			error,

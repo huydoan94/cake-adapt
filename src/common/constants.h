@@ -171,6 +171,8 @@
 #define GZIP_MODE_COMPRESSED "wb"
 #define GZIP_MODE_TRANSPARENT "wbT"
 #define LOG_EXTENSION ".log"
+/* Between the program name and a named instance's section in its log file name. */
+#define LOG_SECTION_SEPARATOR "."
 #define GZIP_EXTENSION ".gz"
 #define LOG_PREVIOUS_SUFFIX ".old"
 #define EXPORT_TIME_FORMAT "%Y_%m_%d_%H_%M_%S"
