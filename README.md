@@ -262,10 +262,10 @@ fixed.
   layout and tests; [testbed](tools/testbed/README.md) and
   [simulator](tools/simulator/README.md).
 - [Flowcharts](flowchart/README.md): the event flow and controller decisions.
-  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/flowchart/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
 - [Profiling and behaviour evidence](profiling/README.md): every measured run.
-  [Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/index.html) or the latest profile's
-  [dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-22-log-writer-wake/index.html).
+  [Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html) or the latest profile's
+  [dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-22-log-writer-wake/index.html).
 - [Agent guide](AGENTS.md) and its topic rules:
   [project status](docs/agents/status.md), [modules](docs/agents/modules.md),
   [upstream behaviour](docs/agents/upstream.md),

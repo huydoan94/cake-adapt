@@ -1,6 +1,6 @@
 # Waking the log writer only when needed (2026-10-22)
 
-[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-22-log-writer-wake/index.html): the tables and every flame graph on one page.
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-22-log-writer-wake/index.html): the tables and every flame graph on one page.
 
 ## Result
 

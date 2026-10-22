@@ -417,22 +417,22 @@ search and click-to-zoom.
 
 - [Current-code flowcharts](../flowchart/README.md): architecture, event flow,
   controller decisions, CAKE updates and lifecycle behaviour.
-  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/flowchart/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
 - [All profiling and behaviour evidence](../profiling/README.md): every run,
-  newest first, with its result. [Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/index.html).
+  newest first, with its result. [Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/index.html).
 - Profiles with flame graphs:
   - [Log writer wake fix, 2026-10-22](../profiling/2026-10-22-log-writer-wake/README.md)
     (0.3.22 against 0.3.21 and 0.3.15).
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-22-log-writer-wake/index.html).
+    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-22-log-writer-wake/index.html).
   - [0.3.21 against 0.3.15, 2026-10-21](../profiling/2026-10-21-profile/README.md),
-    native and fping. [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-21-profile/index.html).
+    native and fping. [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-21-profile/index.html).
   - [0.3.15 against 0.3.12, 2026-10-09](../profiling/2026-10-09-profile/README.md).
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-09-profile/index.html).
+    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-09-profile/index.html).
   - [End-to-end run and profiling, 2026-09-30](../profiling/2026-09-30/README.md),
     before and after the optimization pass.
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-09-30/index.html).
+    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html).
   - [First flame graphs, 2026-09-26](../profiling/2026-09-26/README.md), superseded.
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-09-26/index.html).
+    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-26/index.html).
 - [Controller comparison with cake-autorate](../profiling/controller-comparison/README.md):
   side-by-side VM runs and the replayed upstream traces.
 - [Resource use compared with cake-autorate](../profiling/cake-autorate-resources/README.md):
@@ -440,7 +440,7 @@ search and click-to-zoom.
 - Design documents:
   - [Native ICMP probes](design/native-icmp.md): the default pinger's design.
   - [TCP-delay review](design/EBPF_REVIEW.md): the eBPF queue estimator's
-    findings and their state; [its visual map](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-04-review-map/index.html).
+    findings and their state; [its visual map](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-04-review-map/index.html).
   - [eBPF latency plan](design/EBPF_LATENCY_PLAN.md) (a sketch, not
     implemented), the [units plan](design/UNITS_PLAN.md) (implemented) and
     [L4S notes](design/L4S.md).
