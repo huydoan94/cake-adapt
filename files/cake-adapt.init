@@ -8,6 +8,21 @@ PROG=${PROG:-/usr/sbin/cake-adapt}
 IMPORTER=${IMPORTER:-/usr/libexec/cake-adapt/import}
 RUNTIME_DIR=${RUNTIME_DIR:-/var/run/cake-adapt}
 
+log_error() {
+	logger -t cake-adapt -p daemon.err "$1"
+}
+
+log_notice() {
+	logger -t cake-adapt -p daemon.notice "$1"
+}
+
+# A UCI section name, safe as a file name and a procd instance name.
+valid_name() {
+	case "$1" in
+		''|*[!A-Za-z0-9_-]*) return 1 ;;
+	esac
+}
+
 # Each instance runs from $RUNTIME_DIR/<section>.uci, holding only its
 # own section: the importer copies it from UCI with uci get and set, filling
 # unset options from the instance's shell configuration (config_file in
@@ -34,7 +49,7 @@ generate_runtime_config() {
 
 # Logs why an instance does not start and counts it as failed.
 skip_instance() {
-	logger -t cake-adapt -p daemon.err "$1; not starting instance '$section'"
+	log_error "$1; not starting instance '$section'"
 	failed_instances=$((failed_instances + 1))
 }
 
@@ -57,18 +72,14 @@ stop_restarted_instance() {
 	case "$status" in
 		0|252) return 0 ;;
 	esac
-	logger -t cake-adapt -p daemon.err \
-		"could not stop instance '$1' for restart (ubus status $status); it keeps running"
+	log_error "could not stop instance '$1' for restart (ubus status $status); it keeps running"
 	stop_failures=$((stop_failures + 1))
 }
 
 # A named restart of a section that is no longer configured, or disabled,
 # stops its instance and removes its runtime file, as stop would.
 stop_unregistered_restart() {
-	[ -n "${restarting:-}" ] && [ -n "$requested_instance" ] || return 0
-	case "$requested_instance" in
-		*[!A-Za-z0-9_-]*) return 0 ;;
-	esac
+	[ -n "${restarting:-}" ] && valid_name "$requested_instance" || return 0
 	case " $registered_instances " in
 		*" $requested_instance "*) return 0 ;;
 	esac
@@ -107,8 +118,7 @@ register_instance() {
 keep_instance() {
 	local section="$1"
 
-	logger -t cake-adapt -p daemon.err \
-		"instance '$section' keeps its previous configuration $RUNTIME_DIR/$section.uci"
+	log_error "instance '$section' keeps its previous configuration $RUNTIME_DIR/$section.uci"
 	register_instance "$section"
 }
 
@@ -121,15 +131,15 @@ start_instance() {
 	configured_instances=$((configured_instances + 1))
 	config_get_bool enabled "$section" 'enabled' 0
 	if [ "$enabled" -ne 1 ]; then
-		logger -t cake-adapt -p daemon.notice \
-			"instance '$section' disabled by configuration; not starting"
+		log_notice "instance '$section' disabled by configuration; not starting"
 		return 0
 	fi
 	enabled_instances=$((enabled_instances + 1))
 
-	case "$section" in
-		''|*[!A-Za-z0-9_-]*) skip_instance "invalid instance name"; return 0 ;;
-	esac
+	if ! valid_name "$section"; then
+		skip_instance "invalid instance name"
+		return 0
+	fi
 	if [ -L "$runtime_config" ] || [ -d "$runtime_config" ]; then
 		skip_instance "runtime configuration path $runtime_config is not a regular file"
 		return 0
@@ -143,7 +153,7 @@ start_instance() {
 		skip_instance "could not generate $runtime_config"
 		return 0
 	fi
-	logger -t cake-adapt -p daemon.err "configuration of instance '$section' refused"
+	log_error "configuration of instance '$section' refused"
 	failed_instances=$((failed_instances + 1))
 	keep_instance "$section"
 }
@@ -157,9 +167,7 @@ foreach_runtime_config() {
 		[ -f "$runtime_config" ] && [ ! -L "$runtime_config" ] || continue
 		section="${runtime_config##*/}"
 		section="${section%.uci}"
-		case "$section" in
-			''|*[!A-Za-z0-9_-]*) continue ;;
-		esac
+		valid_name "$section" || continue
 		"$1" "$section"
 	done
 }
@@ -195,20 +203,17 @@ start_service() {
 	# never read through, so no runtime file is kept and procd stops every
 	# instance it runs.
 	if [ -L "$RUNTIME_DIR" ]; then
-		logger -t cake-adapt -p daemon.err \
-			"runtime configuration path $RUNTIME_DIR is a symbolic link; not starting, running instances stop"
+		log_error "runtime configuration path $RUNTIME_DIR is a symbolic link; not starting, running instances stop"
 		return 1
 	fi
 	if ! config_load 'cake-adapt'; then
-		logger -t cake-adapt -p daemon.err \
-			"configuration /etc/config/cake-adapt could not be loaded; not starting"
+		log_error "configuration /etc/config/cake-adapt could not be loaded; not starting"
 		foreach_runtime_config keep_requested_instance
 		return 1
 	fi
 	umask 077
 	if ! mkdir -p "$RUNTIME_DIR" || ! chmod 0700 "$RUNTIME_DIR"; then
-		logger -t cake-adapt -p daemon.err \
-			"could not prepare runtime configuration directory $RUNTIME_DIR; not starting"
+		log_error "could not prepare runtime configuration directory $RUNTIME_DIR; not starting"
 		foreach_runtime_config keep_requested_instance
 		return 1
 	fi
@@ -216,17 +221,16 @@ start_service() {
 	config_foreach start_instance 'cake_adapt'
 	[ -n "$requested_instance" ] || foreach_runtime_config remove_unregistered_config
 	stop_unregistered_restart
-	if [ "$configured_instances" -eq 0 ] && [ -n "$requested_instance" ]; then
-		logger -t cake-adapt -p daemon.err \
-			"no cake_adapt instance '$requested_instance' configured; not starting"
-		return 1
-	fi
 	if [ "$configured_instances" -eq 0 ]; then
-		logger -t cake-adapt -p daemon.err "no cake_adapt instances configured; not starting"
+		if [ -n "$requested_instance" ]; then
+			log_error "no cake_adapt instance '$requested_instance' configured; not starting"
+		else
+			log_error "no cake_adapt instances configured; not starting"
+		fi
 		return 1
 	fi
 	if [ "$enabled_instances" -eq 0 ]; then
-		logger -t cake-adapt -p daemon.notice "no cake-adapt instances are enabled; not starting"
+		log_notice "no cake-adapt instances are enabled; not starting"
 		return 0
 	fi
 	# Fails only when nothing could start.
@@ -238,9 +242,7 @@ start_service() {
 stop_service() {
 	local requested_instance="${1:-}"
 
-	case "$requested_instance" in
-		*[!A-Za-z0-9_-]*) return 0 ;;
-	esac
+	[ -z "$requested_instance" ] || valid_name "$requested_instance" || return 0
 	foreach_runtime_config remove_requested_config
 }
 
