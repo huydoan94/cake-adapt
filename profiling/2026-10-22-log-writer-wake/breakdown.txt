@@ -1,0 +1,53 @@
+vfix-native-bidirectional: 513 samples
+   39.2%   201  epoll wait (idle in the event loop)
+   17.9%    92  native ICMP probes (raw sockets)
+   16.6%    85  userspace (cake-adapt, libc, libubox)
+   11.7%    60  netlink qdisc dump
+    8.4%    43  interrupt/softirq (packet processing charged to the task)
+    5.7%    29  other kernel
+    0.4%     2  pinger pipe read
+    0.2%     1  BPF ring buffer drain and counters
+vfix-native-bidirectional6: 431 samples
+   44.1%   190  epoll wait (idle in the event loop)
+   16.7%    72  userspace (cake-adapt, libc, libubox)
+   15.3%    66  native ICMP probes (raw sockets)
+   10.7%    46  netlink qdisc dump
+    7.9%    34  interrupt/softirq (packet processing charged to the task)
+    4.4%    19  other kernel
+    0.7%     3  pinger pipe read
+    0.2%     1  BPF ring buffer drain and counters
+vfix-native-congested: 471 samples
+   48.8%   230  epoll wait (idle in the event loop)
+   15.5%    73  userspace (cake-adapt, libc, libubox)
+   14.6%    69  native ICMP probes (raw sockets)
+    9.3%    44  interrupt/softirq (packet processing charged to the task)
+    7.6%    36  netlink qdisc dump
+    3.8%    18  other kernel
+    0.2%     1  pinger pipe read
+vfix-native-download: 413 samples
+   54.7%   226  epoll wait (idle in the event loop)
+   16.0%    66  native ICMP probes (raw sockets)
+   13.8%    57  userspace (cake-adapt, libc, libubox)
+    6.3%    26  interrupt/softirq (packet processing charged to the task)
+    5.3%    22  netlink qdisc dump
+    3.9%    16  other kernel
+vfix-native-download6: 443 samples
+   39.3%   174  epoll wait (idle in the event loop)
+   20.1%    89  native ICMP probes (raw sockets)
+   15.3%    68  userspace (cake-adapt, libc, libubox)
+   10.6%    47  interrupt/softirq (packet processing charged to the task)
+   10.6%    47  netlink qdisc dump
+    4.1%    18  other kernel
+vfix-native-idle: 179 samples
+   69.8%   125  epoll wait (idle in the event loop)
+   15.6%    28  userspace (cake-adapt, libc, libubox)
+    8.9%    16  native ICMP probes (raw sockets)
+    5.0%     9  other kernel
+    0.6%     1  interrupt/softirq (packet processing charged to the task)
+vfix-native-upload: 312 samples
+   69.9%   218  epoll wait (idle in the event loop)
+   12.5%    39  userspace (cake-adapt, libc, libubox)
+    6.4%    20  native ICMP probes (raw sockets)
+    4.8%    15  other kernel
+    3.5%    11  netlink qdisc dump
+    2.9%     9  interrupt/softirq (packet processing charged to the task)

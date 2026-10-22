@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.220 MB /tmp/e2e/prof/11-v0321-fping-perf/bidirectional.perf.data (1190 samples) ]

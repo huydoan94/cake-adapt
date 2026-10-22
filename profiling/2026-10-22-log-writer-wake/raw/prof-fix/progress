@@ -1,0 +1,7 @@
+10:40:54 start 09-vfix-native-cpu
+10:45:49 done 09-vfix-native-cpu
+10:45:49 start 10-vfix-native-perf
+10:50:47 done 10-vfix-native-perf
+10:50:47 start 11-vfix-native-strace
+10:51:37 done 11-vfix-native-strace
+10:51:38 finished
