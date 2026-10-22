@@ -132,6 +132,11 @@ static void test_irtt_reply_is_parsed_directionally(void)
 	assert(!parse_irtt_line("seq=9 rd=1h sd=2ms", "1.1.1.1", &sample));
 	assert(!parse_irtt_line("seq=9 rd=-1ms sd=2ms", "1.1.1.1", &sample));
 	assert(!parse_irtt_line("seq=9 rd=1ms", "1.1.1.1", &sample));
+	/* The sequence is plain digits, as irtt prints it: no sign, no leading space. */
+	assert(!parse_irtt_line("seq=-1 rd=1ms sd=2ms", "1.1.1.1", &sample));
+	assert(!parse_irtt_line("seq=+1 rd=1ms sd=2ms", "1.1.1.1", &sample));
+	assert(!parse_irtt_line("seq= 1 rd=1ms sd=2ms", "1.1.1.1", &sample));
+	assert(!parse_irtt_line("seq=18446744073709551616 rd=1ms sd=2ms", "1.1.1.1", &sample));
 }
 
 static void test_fping_six_digit_timestamp_is_preserved(void)

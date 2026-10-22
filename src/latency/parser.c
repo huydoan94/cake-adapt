@@ -42,8 +42,20 @@ static int64_t half_round_trip(uint64_t round_trip_ns)
 	return half_us > (uint64_t)INT64_MAX ? INT64_MAX : (int64_t)half_us;
 }
 
-/* fping's RTT digits: whole milliseconds, then up to six decimals kept, the next rounding. */
-#define ROUND_TRIP_FRACTION_DIGITS 6U
+/* fping keeps six decimals: of a second for timestamps, of a millisecond for RTTs. */
+#define FRACTION_DIGITS 6U
+
+/* The first six of count decimals as an integer, the seventh rounding half up. */
+static uint64_t six_decimals(const char *digits, size_t count)
+{
+	uint64_t value = 0U;
+
+	for (size_t index = 0U; index < FRACTION_DIGITS; index++)
+		value = value * 10U + (index < count ? (uint64_t)(digits[index] - '0') : 0U);
+	if (count > FRACTION_DIGITS && digits[FRACTION_DIGITS] >= '5')
+		value++;
+	return value;
+}
 
 /* Reads fping's decimal RTT in milliseconds exactly, as nanoseconds. */
 static bool parse_round_trip(const char *text, const char **end, uint64_t *round_trip_ns)
@@ -62,11 +74,7 @@ static bool parse_round_trip(const char *text, const char **end, uint64_t *round
 
 		if (count == 0U)
 			return false;
-		for (size_t index = 0U; index < ROUND_TRIP_FRACTION_DIGITS; index++)
-			fraction_ns = fraction_ns * 10U +
-				      (index < count ? (uint64_t)(digits[index] - '0') : 0U);
-		if (count > ROUND_TRIP_FRACTION_DIGITS && digits[ROUND_TRIP_FRACTION_DIGITS] >= '5')
-			fraction_ns++;
+		fraction_ns = six_decimals(digits, count);
 		cursor = digits + count;
 	}
 	*round_trip_ns = whole_ms * NANOSECONDS_PER_MILLISECOND + fraction_ns;
@@ -74,14 +82,10 @@ static bool parse_round_trip(const char *text, const char **end, uint64_t *round
 	return true;
 }
 
-/* Microseconds have six fraction digits. */
-#define FRACTION_DIGITS (sizeof(FRACTION_ZEROES) - 1U)
-
 static bool parse_timestamp(const char *line, const char **remainder, uint64_t *timestamp_us)
 {
 	const char *closing_bracket;
 	const char *decimal_point;
-	char fraction_digits[sizeof(FRACTION_ZEROES)] = FRACTION_ZEROES;
 	uint64_t fraction_us;
 	uint64_t whole_sec;
 	size_t digit_count;
@@ -98,13 +102,8 @@ static bool parse_timestamp(const char *line, const char **remainder, uint64_t *
 	digit_count = strspn(decimal_point + 1, DECIMAL_DIGITS);
 	if (digit_count == 0U || decimal_point + 1 + digit_count != closing_bracket)
 		return false;
-	/* Pad or round to six digits without passing epoch time through float. */
-	memcpy(fraction_digits,
-	       decimal_point + 1,
-	       digit_count < FRACTION_DIGITS ? digit_count : FRACTION_DIGITS);
-	fraction_us = strtoul(fraction_digits, NULL, 10);
-	if (digit_count > FRACTION_DIGITS && decimal_point[1 + FRACTION_DIGITS] >= '5')
-		fraction_us++;
+	/* Six decimals of a second are microseconds; no epoch time passes through float. */
+	fraction_us = six_decimals(decimal_point + 1, digit_count);
 
 	if (whole_sec > (UINT64_MAX - fraction_us) / MICROSECONDS_PER_SECOND)
 		return false;
@@ -329,8 +328,8 @@ bool parse_irtt_line(const char *line, const char *target, struct latency_sample
 	const char *sequence_text;
 	const char *download_text;
 	const char *upload_text;
-	char *sequence_end;
-	uintmax_t sequence;
+	const char *sequence_end;
+	uint64_t sequence;
 	int64_t download_owd_us;
 	int64_t upload_owd_us;
 
@@ -339,9 +338,8 @@ bool parse_irtt_line(const char *line, const char *target, struct latency_sample
 	    !irtt_value(line, IRTT_SEND_DELAY, &upload_text)) {
 		return false;
 	}
-	errno = 0;
-	sequence = strtoumax(sequence_text, &sequence_end, 10);
-	if (errno == ERANGE || sequence_end == sequence_text ||
+	sequence_end = sequence_text + strspn(sequence_text, DECIMAL_DIGITS);
+	if (!parse_unsigned(sequence_text, sequence_end, &sequence) ||
 	    (*sequence_end != '\0' && !isblank((unsigned char)*sequence_end)) ||
 	    !parse_irtt_duration(download_text, &download_owd_us) ||
 	    !parse_irtt_duration(upload_text, &upload_owd_us)) {
@@ -350,6 +348,6 @@ bool parse_irtt_line(const char *line, const char *target, struct latency_sample
 	*sample = (struct latency_sample){ .download_owd_us = download_owd_us,
 					   .upload_owd_us = upload_owd_us,
 					   .timestamp_rollover_sensitive = false,
-					   .sequence = (uint64_t)sequence };
+					   .sequence = sequence };
 	return copy_token(sample->target, sizeof(sample->target), target, target + strlen(target));
 }
