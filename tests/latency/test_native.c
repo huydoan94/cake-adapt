@@ -96,7 +96,7 @@ int __wrap_icmp_send(
 	return 0;
 }
 
-static void open_session(struct native_session *session, const char *method, uint64_t now_us)
+static void open_session(struct native_session *session, enum icmp_mode mode, uint64_t now_us)
 {
 	const char *targets[] = { "192.0.2.1", "192.0.2.2" };
 	const struct icmp_socket *ipv4 = &session->channels[NATIVE_CHANNEL_IPV4];
@@ -106,7 +106,7 @@ static void open_session(struct native_session *session, const char *method, uin
 	native_init(session);
 	assert(native_open(
 		       session,
-		       method,
+		       mode,
 		       "lo",
 		       targets,
 		       2U,
@@ -139,7 +139,7 @@ static void test_schedule(void)
 	uint64_t start_us = SECOND;
 	unsigned int before = sends;
 
-	open_session(&session, PINGER_METHOD_NATIVE, start_us);
+	open_session(&session, ICMP_MODE_ECHO, start_us);
 	assert(native_next_event(&session) == start_us);
 	assert(native_tick(&session, start_us, 2U * SECOND, error, sizeof(error)) == 0);
 	assert(sends == before + 1U);
@@ -175,7 +175,7 @@ static void test_late_callbacks(void)
 	uint64_t last_us[2] = { 0U, 0U };
 	unsigned int before = sends;
 
-	open_session(&session, PINGER_METHOD_NATIVE, now_us);
+	open_session(&session, ICMP_MODE_ECHO, now_us);
 	while (session.next_serial < 200U) {
 		uint64_t serial = session.next_serial;
 		const struct native_request *request;
@@ -204,7 +204,7 @@ static void test_send_timestamp(void)
 	uint64_t response_us;
 	char error[256] = "";
 
-	open_session(&session, PINGER_METHOD_NATIVE, SECOND);
+	open_session(&session, ICMP_MODE_ECHO, SECOND);
 	send_delay_us = 2U * MILLISECOND;
 	assert(native_tick(&session, SECOND, 2U * SECOND, error, sizeof(error)) == 0);
 	assert(session.requests[0].sent_us == SECOND + 2U * MILLISECOND);
@@ -232,7 +232,7 @@ static void test_matching(void)
 	uint64_t response_us;
 	char error[256] = "";
 
-	open_session(&session, PINGER_METHOD_NATIVE, SECOND);
+	open_session(&session, ICMP_MODE_ECHO, SECOND);
 	assert(native_tick(&session, SECOND, 2U * SECOND, error, sizeof(error)) == 0);
 	reply = reply_for(&session, 0U, 2U * SECOND + 10U * MILLISECOND);
 	reply.source = session.targets[1].address;
@@ -312,7 +312,7 @@ static void test_wrap_and_capacity(void)
 	char error[256] = "";
 	struct icmp_reply reply;
 
-	open_session(&session, PINGER_METHOD_NATIVE, SECOND);
+	open_session(&session, ICMP_MODE_ECHO, SECOND);
 	for (uint64_t serial = 0U; serial < 65538U; serial++) {
 		uint64_t now_us = SECOND + serial * 50U * MILLISECOND;
 		uint64_t realtime_us = 10U * SECOND + now_us;
@@ -343,7 +343,7 @@ static void test_timestamps(void)
 	char error[256] = "";
 	uint64_t midnight_us = 24U * 60U * MINUTE;
 
-	open_session(&session, PINGER_METHOD_NATIVE_TS, SECOND);
+	open_session(&session, ICMP_MODE_TIMESTAMP, SECOND);
 	assert(native_tick(&session, SECOND, midnight_us - MILLISECOND, error, sizeof(error)) == 0);
 	reply = reply_for(&session, 0U, midnight_us + 2U * MILLISECOND);
 	reply.receive_ms = 0U;
@@ -382,7 +382,7 @@ static void test_epoch_timestamps(void)
 	/* 2026-10-13 20:23:59.809999 UTC: beyond the uloop timer's 32-bit limit. */
 	uint64_t realtime_us = UINT64_C(1791923039809999);
 
-	open_session(&session, PINGER_METHOD_NATIVE_TS, SECOND);
+	open_session(&session, ICMP_MODE_TIMESTAMP, SECOND);
 	assert(native_tick(&session, SECOND, realtime_us, error, sizeof(error)) == 0);
 	assert(sent_originate_ms == 73439809U);
 	reply = reply_for(&session, 0U, realtime_us + 25U * MILLISECOND);
@@ -412,7 +412,7 @@ static void test_failure_cleanup(void)
 	native_init(&session);
 	assert(native_open(
 		       &session,
-		       PINGER_METHOD_NATIVE,
+		       ICMP_MODE_ECHO,
 		       "lo",
 		       targets,
 		       2U,
@@ -426,7 +426,7 @@ static void test_failure_cleanup(void)
 	fail_open = true;
 	assert(native_open(
 		       &session,
-		       PINGER_METHOD_NATIVE,
+		       ICMP_MODE_ECHO,
 		       "lo",
 		       targets,
 		       1U,
@@ -437,7 +437,7 @@ static void test_failure_cleanup(void)
 	       ) == -1);
 	assert(session.requests == NULL);
 	fail_open = false;
-	open_session(&session, PINGER_METHOD_NATIVE, SECOND);
+	open_session(&session, ICMP_MODE_ECHO, SECOND);
 	fail_send = true;
 	assert(native_tick(&session, SECOND, 2U * SECOND, error, sizeof(error)) == 1);
 	assert(session.next_serial == 1U && !session.requests[0].pending);

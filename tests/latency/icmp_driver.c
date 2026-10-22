@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 	if (argc != 6 || !parse_unsigned(argv[4], argv[4] + strlen(argv[4]), &count) ||
 	    !parse_unsigned(argv[5], argv[5] + strlen(argv[5]), &interval_us) || count == 0U ||
 	    count > 1000U || interval_us < MILLISECOND || interval_us > SECOND ||
-	    !native_method(argv[2])) {
+	    (strcmp(argv[2], "native") != 0 && strcmp(argv[2], "native-ts") != 0)) {
 		fprintf(stderr,
 			"usage: icmp_driver INTERFACE native|native-ts TARGET COUNT PERIOD_US\n");
 		return 2;
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 	targets[0] = argv[3];
 	if (native_open(
 		    &session,
-		    argv[2],
+		    strcmp(argv[2], "native-ts") == 0 ? ICMP_MODE_TIMESTAMP : ICMP_MODE_ECHO,
 		    argv[1],
 		    targets,
 		    1U,

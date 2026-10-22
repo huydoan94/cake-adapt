@@ -127,6 +127,11 @@ static void test_timer_ms(void)
 	assert(us_to_ms(1000U) == 1U);
 	assert(us_to_ms(1001U) == 2U);
 	assert(us_to_ms(UINT64_MAX) == UINT_MAX);
+	/* Timeouts round up the same way and stop at the largest int uloop and poll() take. */
+	assert(us_to_timeout_ms(1001U) == 2);
+	assert(us_to_timeout_ms((uint64_t)INT_MAX * MILLISECOND) == INT_MAX);
+	assert(us_to_timeout_ms((uint64_t)INT_MAX * MILLISECOND + 1U) == INT_MAX);
+	assert(us_to_timeout_ms(UINT64_MAX) == INT_MAX);
 }
 
 static void test_timespec_us(void)

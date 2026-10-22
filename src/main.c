@@ -271,6 +271,7 @@ int main(int argc, char **argv)
 	const char *requested_config;
 	const char *active_config = config_path;
 	struct config config;
+	enum pinger_method pinger_method;
 	int ret;
 
 	ret = parse_options(argc, argv, &options);
@@ -298,8 +299,8 @@ int main(int argc, char **argv)
 		log_message(LOG_LEVEL_ERROR, "configuration error: %s", error);
 		goto out;
 	}
-	if (config.enabled &&
-	    latency_check_backend(config.pinger_method, error, sizeof(error)) != 0) {
+	pinger_method = latency_method(config.pinger_method);
+	if (config.enabled && latency_check_backend(pinger_method, error, sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "%s; exiting", error);
 		goto out;
 	}

@@ -169,6 +169,8 @@ struct monitor_publish {
 /* The whole daemon state; each part above belongs to the file named on it. */
 struct monitor {
 	const struct config *config;
+	/* config->pinger_method, looked up once. */
+	enum pinger_method pinger_method;
 	/* Shared by links.c (discovery, events) and control.c (bandwidth changes). */
 	struct netlink netlink;
 	struct monitor_links links;
