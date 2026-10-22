@@ -82,7 +82,7 @@ verification against a real server.
 
 ### Current status (2026-10-22)
 
-- The packages are at 0.3.25-r1 (`main` has 0.3.24). The user builds them and runs them on their
+- The packages are at 0.3.26-r1 (`main` has 0.3.25). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
@@ -117,6 +117,11 @@ verification against a real server.
   records did.
 - 0.3.25: refactoring, no behaviour change: the pinger method is an enum
   decided once; uloop and `poll()` timeouts share `us_to_timeout_ms()`.
+- 0.3.26: a malformed irtt sequence such as `seq=-1` is refused (it read
+  as 2^64-1); the rest is refactoring: one check per decision, local
+  pointers, and `make check` runs the style check on every file;
+  `cake-adapt -D` prints the defaults, which the LuCI page now reads, and
+  the pinger method is a dropdown there.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
