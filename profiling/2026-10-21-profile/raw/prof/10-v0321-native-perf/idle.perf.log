@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.088 MB /tmp/e2e/prof/10-v0321-native-perf/idle.perf.data (492 samples) ]

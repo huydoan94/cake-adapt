@@ -106,6 +106,10 @@ verification against a real server.
   - a writer thread does all logging, so a stuck logd or slow storage never
     stops control; its queue overwrites and counts its oldest lines when full
     (`2026-10-21-log-writer`).
+- After 0.3.21 (unreleased): the main loop wakes the log writer only for
+  syslog entries, requests, unbuffered lines or a half-full queue, which
+  cuts the daemon's CPU by a fifth to a third (`2026-10-21-profile`,
+  `2026-10-22-log-writer-wake`).
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
