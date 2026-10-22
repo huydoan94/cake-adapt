@@ -7,7 +7,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +51,20 @@ static bool fail_memstream_open;
 static bool fail_memstream_close;
 static FILE *fault_stream;
 static unsigned int local_time_conversions;
+/* Holds syslog calls, as a logd that stopped reading would. */
+enum syslog_flow {
+	SYSLOG_FLOWING,
+	SYSLOG_HELD,
+};
+
+static atomic_int syslog_flow;
+/* Counts syslog calls that found it held. */
+static atomic_uint syslog_waits;
+/* Counts syslog calls carrying the warning logged after a flood, and closelog() calls. */
+static atomic_uint kept_warnings;
+static atomic_uint closelog_calls;
+/* The writer tests log as the service does: to syslog, not the terminal. */
+static const bool in_foreground = false;
 
 FILE *__real_open_memstream(char **buffer, size_t *size);
 int __real_fclose(FILE *stream);
@@ -89,7 +105,23 @@ int __wrap_fclose(FILE *stream)
 
 static void capture_syslog(int priority, const char *format, va_list arguments)
 {
+	const struct timespec step = { .tv_nsec = 1000000L };
+
+	if (atomic_load(&syslog_flow) == SYSLOG_HELD)
+		atomic_fetch_add(&syslog_waits, 1U);
+	while (atomic_load(&syslog_flow) == SYSLOG_HELD)
+		(void)nanosleep(&step, NULL);
 	syslog_count++;
+	if (strstr(format, "%s") != NULL) {
+		va_list copy;
+		const char *text;
+
+		va_copy(copy, arguments);
+		text = va_arg(copy, const char *);
+		if (strstr(text, "kept after flood") != NULL)
+			atomic_fetch_add(&kept_warnings, 1U);
+		va_end(copy);
+	}
 	syslog_priority = priority;
 	(void)vsnprintf(syslog_message, sizeof(syslog_message), format, arguments);
 }
@@ -101,6 +133,14 @@ void __wrap_syslog(int priority, const char *format, ...)
 	va_start(arguments, format);
 	capture_syslog(priority, format, arguments);
 	va_end(arguments);
+}
+
+void __real_closelog(void);
+
+void __wrap_closelog(void)
+{
+	atomic_fetch_add(&closelog_calls, 1U);
+	__real_closelog();
 }
 
 /* glibc fortification can route syslog through this checked entry point. */
@@ -933,6 +973,249 @@ static void test_mqtt_without_file(void)
 	assert(!test_mqtt_active);
 }
 
+static uint64_t real_monotonic_us(void)
+{
+	struct timespec now;
+
+	assert(clock_gettime(CLOCK_MONOTONIC, &now) == 0);
+	return (uint64_t)now.tv_sec * MICROSECONDS_PER_SECOND + (uint64_t)now.tv_nsec / 1000U;
+}
+
+/* The whole log file, NUL-terminated, in a buffer the caller frees. */
+static char *read_whole(const char *path)
+{
+	FILE *file = fopen(path, "r");
+	char *text;
+	long size;
+
+	assert(file != NULL);
+	assert(fseek(file, 0, SEEK_END) == 0);
+	size = ftell(file);
+	assert(size >= 0 && fseek(file, 0, SEEK_SET) == 0);
+	text = malloc((size_t)size + 1U);
+	assert(text != NULL);
+	assert(fread(text, 1U, (size_t)size, file) == (size_t)size);
+	text[size] = '\0';
+	(void)__real_fclose(file);
+	return text;
+}
+
+static void start_writer_on(const char *path)
+{
+	char error[256] = "";
+
+	use_mock_time = false;
+	log_init("cake-adapt-test", in_foreground);
+	log_set_level(LOG_LEVEL_INFO);
+	assert(log_set_file(path, &buffered) == 0);
+	assert(log_start_writer(error, sizeof(error)) == 0);
+}
+
+/* The writer writes every line the main thread queued, in order. */
+static void test_writer_keeps_order(void)
+{
+	char path[] = "/tmp/cake-adapt-writer-XXXXXX";
+	int descriptor = mkstemp(path);
+	const char *position;
+	char *text;
+	char expected[64];
+
+	assert(descriptor >= 0);
+	(void)close(descriptor);
+	start_writer_on(path);
+	for (unsigned int line = 0U; line < 1000U; line++)
+		log_message(LOG_LEVEL_INFO, "ordered %u", line);
+	assert(log_close());
+	text = read_whole(path);
+	position = text;
+	for (unsigned int line = 0U; line < 1000U; line++) {
+		(void)snprintf(expected, sizeof(expected), "; ordered %u\n", line);
+		position = strstr(position, expected);
+		assert(position != NULL);
+	}
+	free(text);
+	assert(unlink(path) == 0);
+}
+
+/*
+ * A stuck syslog holds only the writer: the main thread keeps logging at full
+ * speed. When the queue is full the oldest lines make room, so the newest are
+ * kept; the writer says how many were overwritten, before the oldest line it
+ * still had, and kept plus overwritten account for every line.
+ */
+static void test_stuck_syslog_does_not_block(void)
+{
+	char path[] = "/tmp/cake-adapt-writer-XXXXXX";
+	int descriptor = mkstemp(path);
+	unsigned int waits;
+	uint64_t start_us;
+	char *text;
+	const char *note_text;
+	const char *line;
+	unsigned long long overwritten = 0ULL;
+	unsigned long long kept = 0ULL;
+
+	assert(descriptor >= 0);
+	(void)close(descriptor);
+	waits = atomic_load(&syslog_waits);
+	atomic_store(&syslog_flow, SYSLOG_HELD);
+	start_writer_on(path);
+	/* Its syslog entry holds the writer; its file line waits in the queue. */
+	log_message(LOG_LEVEL_WARNING, "first warning");
+	start_us = real_monotonic_us();
+	while (atomic_load(&syslog_waits) == waits)
+		assert(real_monotonic_us() - start_us < SECOND);
+	/* About 1 MB, eight times the queue. */
+	start_us = real_monotonic_us();
+	for (unsigned int index = 0U; index < 8000U; index++)
+		log_message(
+			LOG_LEVEL_INFO,
+			"flood %u ................................................................................",
+			index
+		);
+	log_message(LOG_LEVEL_WARNING, "kept after flood");
+	/* Loose for slow test runs: a queue that blocked would never get here. */
+	assert(real_monotonic_us() - start_us < 2U * SECOND);
+	atomic_store(&syslog_flow, SYSLOG_FLOWING);
+	assert(log_close());
+	assert(atomic_load(&kept_warnings) == 1U);
+	text = read_whole(path);
+	/* The newest survive; the oldest made room for them. */
+	assert(strstr(text, "; flood 7999 ") != NULL && strstr(text, "; kept after flood") != NULL);
+	assert(strstr(text, "; flood 0 ") == NULL && strstr(text, "; first warning") == NULL);
+	note_text = strstr(text, " older log lines and 0 syslog messages were overwritten");
+	assert(note_text != NULL);
+	/* Reported before the oldest line still queued: no flood line comes earlier. */
+	line = strstr(text, "; flood ");
+	assert(line != NULL && line > note_text);
+	while (note_text > text && isdigit((unsigned char)note_text[-1]))
+		note_text--;
+	assert(sscanf(note_text, "%llu", &overwritten) == 1);
+	for (line = strstr(text, "; flood "); line != NULL; line = strstr(line + 1, "; flood "))
+		kept++;
+	/* Every flood line, and the first warning's file line, either kept or counted. */
+	assert(kept + overwritten == 8001ULL);
+	free(text);
+	assert(unlink(path) == 0);
+}
+
+/* An export request that the flood overwrote is still carried out. */
+static void test_overwritten_export_still_runs(void)
+{
+	char directory[] = "/tmp/cake-adapt-writer-XXXXXX";
+	char path[256];
+	DIR *listing;
+	const struct dirent *entry;
+	unsigned int exports = 0U;
+	unsigned int waits;
+	uint64_t start_us;
+
+	assert(mkdtemp(directory) != NULL);
+	(void)snprintf(path, sizeof(path), "%s/cake-adapt.log", directory);
+	waits = atomic_load(&syslog_waits);
+	atomic_store(&syslog_flow, SYSLOG_HELD);
+	start_writer_on(path);
+	log_message(LOG_LEVEL_WARNING, "hold the writer");
+	start_us = real_monotonic_us();
+	while (atomic_load(&syslog_waits) == waits)
+		assert(real_monotonic_us() - start_us < SECOND);
+	log_request_export();
+	for (unsigned int index = 0U; index < 8000U; index++)
+		log_message(
+			LOG_LEVEL_INFO,
+			"flood %u ................................................................................",
+			index
+		);
+	atomic_store(&syslog_flow, SYSLOG_FLOWING);
+	assert(log_close());
+	listing = opendir(directory);
+	assert(listing != NULL);
+	while ((entry = readdir(listing)) != NULL) {
+		char name[512];
+
+		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+			continue;
+		if (strncmp(entry->d_name, "cake-adapt_", 11U) == 0)
+			exports++;
+		(void)snprintf(name, sizeof(name), "%s/%s", directory, entry->d_name);
+		assert(unlink(name) == 0);
+	}
+	(void)closedir(listing);
+	assert(exports == 1U);
+	assert(rmdir(directory) == 0);
+}
+
+/* Export and reset requests run on the writer, in order with the lines around them. */
+static void test_writer_export_and_reset_in_order(void)
+{
+	char directory[] = "/tmp/cake-adapt-writer-XXXXXX";
+	char path[256];
+	DIR *listing;
+	const struct dirent *entry;
+	bool exported = false;
+	char *text;
+
+	assert(mkdtemp(directory) != NULL);
+	(void)snprintf(path, sizeof(path), "%s/cake-adapt.log", directory);
+	start_writer_on(path);
+	log_message(LOG_LEVEL_INFO, "before reset");
+	log_request_export();
+	log_request_reset();
+	log_message(LOG_LEVEL_INFO, "after reset");
+	assert(log_close());
+	text = read_whole(path);
+	assert(strstr(text, "before reset") == NULL && strstr(text, "after reset") != NULL);
+	free(text);
+	listing = opendir(directory);
+	assert(listing != NULL);
+	while ((entry = readdir(listing)) != NULL) {
+		char name[512];
+
+		if (strncmp(entry->d_name, "cake-adapt_", 11U) != 0)
+			continue;
+		exported = true;
+		(void)snprintf(name, sizeof(name), "%s/%s", directory, entry->d_name);
+		assert(unlink(name) == 0);
+	}
+	(void)closedir(listing);
+	assert(exported);
+	(void)snprintf(path, sizeof(path), "%s/cake-adapt.log", directory);
+	assert(unlink(path) == 0);
+	(void)snprintf(path, sizeof(path), "%s/cake-adapt.log.old", directory);
+	(void)unlink(path);
+	assert(rmdir(directory) == 0);
+}
+
+/* Stopping waits for a stuck writer only so long, then leaves it behind. Run last. */
+static void test_stuck_writer_stop_is_bounded(void)
+{
+	char path[] = "/tmp/cake-adapt-writer-XXXXXX";
+	int descriptor = mkstemp(path);
+	const struct timespec settle = { .tv_nsec = 50000000L };
+	unsigned int waits;
+	unsigned int calls;
+	uint64_t start_us;
+
+	assert(descriptor >= 0);
+	(void)close(descriptor);
+	waits = atomic_load(&syslog_waits);
+	atomic_store(&syslog_flow, SYSLOG_HELD);
+	start_writer_on(path);
+	log_message(LOG_LEVEL_WARNING, "stuck at stop");
+	start_us = real_monotonic_us();
+	while (atomic_load(&syslog_waits) == waits)
+		assert(real_monotonic_us() - start_us < SECOND);
+	start_us = real_monotonic_us();
+	calls = atomic_load(&closelog_calls);
+	/* Left behind: no closelog() or fclose() that would wait for the stuck writer. */
+	assert(!log_close());
+	assert(real_monotonic_us() - start_us < 3U * SECOND);
+	assert(atomic_load(&closelog_calls) == calls);
+	atomic_store(&syslog_flow, SYSLOG_FLOWING);
+	(void)nanosleep(&settle, NULL);
+	assert(unlink(path) == 0);
+}
+
 int main(void)
 {
 	test_mqtt_without_file();
@@ -956,6 +1239,14 @@ int main(void)
 	test_records_wait_for_buffer_timeout();
 	test_immediate_output_avoids_maintenance_clock();
 	test_existing_file_size_uses_strict_rotation_limit();
+	/* A writer that blocks its caller would hang these tests: fail them instead. */
+	(void)alarm(60U);
+	test_writer_keeps_order();
+	test_stuck_syslog_does_not_block();
+	test_overwritten_export_still_runs();
+	test_writer_export_and_reset_in_order();
+	test_stuck_writer_stop_is_bounded();
+	(void)alarm(0U);
 
 	(void)puts("log tests passed");
 	return 0;

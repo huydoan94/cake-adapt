@@ -330,6 +330,13 @@ int main(int argc, char **argv)
 		goto out;
 	if (mqtt_start(&config.mqtt, error, sizeof(error)) != 0)
 		log_message(LOG_LEVEL_WARNING, "MQTT logging degraded: %s", error);
+	/* From here on, slow storage or a stuck logd cannot hold up measurement and control. */
+	if (log_start_writer(error, sizeof(error)) != 0)
+		log_message(
+			LOG_LEVEL_WARNING,
+			"logging directly, without its own thread: %s",
+			error
+		);
 	log_configuration(&config, log_path);
 
 	log_system_message(
@@ -348,6 +355,7 @@ int main(int argc, char **argv)
 		options.section_name
 	);
 out:
-	log_close();
+	if (!log_close())
+		_exit(ret);
 	return ret;
 }
