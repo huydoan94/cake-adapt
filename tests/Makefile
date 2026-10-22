@@ -33,7 +33,7 @@ test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/hel
 test_icmp_OBJECTS := latency/test_icmp.o src/latency/icmp.o src/common/error.o src/common/helpers.o
 test_native_OBJECTS := latency/test_native.o src/latency/native.o src/latency/icmp.o src/common/error.o src/common/helpers.o
 test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/helpers.o
-test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/common/helpers_log.o
+test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/common/helpers_log.o src/common/error.o
 test_mqtt_none_OBJECTS := logging/test_mqtt_none.o src/logging/mqtt_none.o src/common/error.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
@@ -182,7 +182,7 @@ $(BINARY_DIR)/test_native: TEST_LDFLAGS := -Wl,--wrap=icmp_open,--wrap=icmp_clos
 $(BINARY_DIR)/icmp_driver: latency/icmp_driver.c $(SOURCE_DIR)/latency/icmp.c $(SOURCE_DIR)/latency/native.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ $^ $(LDLIBS)
-$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r
+$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r,--wrap=closelog
 $(BINARY_DIR)/test_log: TEST_LDLIBS := -lz
 
 $(OBJECT_DIR)/%.o: %.c
