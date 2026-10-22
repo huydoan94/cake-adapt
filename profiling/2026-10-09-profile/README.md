@@ -1,5 +1,7 @@
 # Profile of 0.3.15 against 0.3.12 (2026-10-09)
 
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-09-profile/index.html): the tables and every flame graph on one page.
+
 ## Result
 
 0.3.15 uses the same CPU and memory as 0.3.12: 0.15% of one core idle and

@@ -22,12 +22,12 @@
       color: var(--text);
       font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
     }
-    header {
+    body > header {
       padding: 32px max(24px, 5vw);
       background: linear-gradient(135deg, #082f49, #312e81);
     }
-    header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
-    header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
+    body > header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
+    body > header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
     nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
     a { color: var(--link); }
     nav a, .actions a {
@@ -37,82 +37,454 @@
       background: #0f172a;
       text-decoration: none;
     }
-    main { max-width: 1760px; margin: auto; padding: 24px; }
+    main { max-width: 1200px; margin: auto; padding: 24px; }
     section {
-      margin-bottom: 28px;
+      margin-bottom: 16px;
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: var(--panel);
     }
-    section > header {
-      padding: 18px 22px;
-      background: #17233a;
-    }
-    section h2 { margin: 0 0 6px; }
+    section > header { padding: 16px 22px 4px; }
+    section.page > header, section.latest > header { background: #17233a; }
+    section.latest { border-color: #7dd3fc; }
+    section h2 { margin: 0 0 6px; font-size: 19px; }
     section p { margin: 0; color: var(--muted); }
-    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px; }
-    object {
-      display: block;
-      width: 100%;
-      border: 0;
-      background: #0b1120;
-    }
-    .conclusion { height: min(65vw, 1040px); min-height: 680px; }
-    .user { height: min(24vw, 366px); min-height: 300px; }
-    .mixed { height: min(65vw, 1038px); min-height: 680px; }
-    .raw { padding: 4px 22px 22px; }
-    .raw li { margin: 7px 0; }
+    code { font-size: 13px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 10px 22px 16px; }
     footer { padding: 0 24px 28px; color: var(--muted); text-align: center; }
-    @media (max-width: 700px) {
-      .conclusion, .mixed { min-height: 560px; }
-      .user { min-height: 280px; }
-    }
   </style>
 </head>
 <body>
   <header>
     <h1>cake-adapt profiling evidence</h1>
-    <p>Raw evidence from the OpenWrt 25.12 x86 test VM, kept with the code it measured.</p>
+    <p>Raw evidence, mostly from the OpenWrt 25.12 x86 test VMs, kept with the code it measured; newest first. Each directory's report gives its method, result and limits.</p>
+    <p>Pages with tables and flame graphs:</p>
+    <nav>
+      <a href="#2026-10-22-log-writer-wake">2026-10-22-log-writer-wake</a>
+      <a href="#2026-10-21-profile">2026-10-21-profile</a>
+      <a href="#2026-10-09-profile">2026-10-09-profile</a>
+      <a href="#2026-10-04-review-map">2026-10-04-review-map</a>
+      <a href="#2026-09-30">2026-09-30</a>
+      <a href="#2026-09-26">2026-09-26</a>
+      <a href="../flowchart/index.html">Code flowcharts</a>
+    </nav>
   </header>
   <main>
-    <section>
+    <section class="latest" id="2026-10-22-log-writer-wake">
       <header>
-        <h2>2026-09-30 — current</h2>
-        <p>End-to-end run and CPU profile after the optimization pass. Bidirectional CPU fell from 62.7 to 32.0 ticks per 40 s; syscalls from 20,586 to 4,593 per 45 s.</p>
+        <h2>2026-10-22-log-writer-wake</h2>
+        <p><strong>Latest profile.</strong> Waking the log writer only for syslog entries, requests, unbuffered lines or a half-full queue: daemon CPU down a fifth to a third (20 against 31 ticks per 40 s quiet, 22-34 against 35-48 under load), below 0.3.15 with fping under every load; <code>futex</code> calls 79 against 4,874 per 40 s.</p>
       </header>
-      <div class="actions">
-        <a href="2026-09-30/index.html">Open dashboard</a>
-        <a href="2026-09-30/README.md">Read the conclusion</a>
-      </div>
+      <div class="actions"><a href="2026-10-22-log-writer-wake/index.html">Open the dashboard</a><a href="2026-10-22-log-writer-wake/README.md">Read the report</a></div>
     </section>
-    <section>
+    <section class="page" id="2026-10-21-profile">
       <header>
-        <h2>Resource use compared with cake-autorate</h2>
-        <p>Same VM, limits, reflectors and workload: 1.10% against 5.38% of a core while awake (4.9×; 7.6× with all records), 0.3 MB against 2.5 MB private memory, and a 0.13 ms against 0.92 ms median reply-to-decision time.</p>
+        <h2>2026-10-21-profile</h2>
+        <p>0.3.21 (native and fping) against 0.3.15 with flame graphs over seven workloads: native's total CPU is close to 0.3.15 with fping (0.8% against 0.6% idle, 1.4-1.7% of a core under load) in 0.5 MB less memory, but the daemon alone doubled, mostly from waking the log writer thread on every record (~5,000 <code>futex</code> calls per 40 s).</p>
       </header>
-      <div class="actions">
-        <a href="cake-autorate-resources/README.md">Read the comparison</a>
-      </div>
+      <div class="actions"><a href="2026-10-21-profile/index.html">Open the dashboard</a><a href="2026-10-21-profile/README.md">Read the report</a></div>
     </section>
-    <section>
+    <section id="2026-10-21-log-writer">
       <header>
-        <h2>Controller comparison with cake-autorate</h2>
-        <p>Two cake-autorate ac75f49 traces (2,402 and 2,301 samples) replay through the controller with no mismatching decisions.</p>
+        <h2>2026-10-21-log-writer</h2>
+        <p>Logging on its own thread (0.3.21): with logd paused 20 s and syslog forced past its 10-message queue, the previous build's main loop froze after 4 s, the new one kept working; the overwrite-oldest queue then reported 88 lines and 1 syslog message overwritten; a stop with logd stuck ended in 3 s.</p>
       </header>
-      <div class="actions">
-        <a href="controller-comparison/README.md">Read the comparison</a>
-      </div>
+      <div class="actions"><a href="2026-10-21-log-writer/README.md">Read the report</a></div>
     </section>
-    <section>
+    <section id="2026-10-21-phase4-lifecycle">
       <header>
-        <h2>2026-09-26 — superseded</h2>
-        <p>First flame graphs, from before the optimization pass and the source restructure.</p>
+        <h2>2026-10-21-phase4-lifecycle</h2>
+        <p>Native default and the root-only options on VM .2: upgrading from 0.3.17 switches an instance to native; start, reload, exec-file changes, refused options, the fping fallback, an ubusd restart, stop and start behave as before; <code>/etc/cake-adapt/exec</code> read by real uci, <code>ping_extra_args</code> and <code>log_file_path_override</code> from it take effect and are refused in <code>/etc/config/cake-adapt</code>.</p>
       </header>
-      <div class="actions">
-        <a href="2026-09-26/index.html">Open dashboard</a>
-      </div>
+      <div class="actions"><a href="2026-10-21-phase4-lifecycle/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-21-native-icmp-jitter">
+      <header>
+        <h2>2026-10-21-native-icmp-jitter</h2>
+        <p>With capacity drops at random points of the controller's sawtooth, native-ts wins upload-step p95 (131 vs 153 ms) and fails three other metrics narrowly: native matches fping within the testbed's noise across both batches. The user accepted native as the default (2026-10-21).</p>
+      </header>
+      <div class="actions"><a href="2026-10-21-native-icmp-jitter/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-20-native-icmp-gate">
+      <header>
+        <h2>2026-10-20-native-icmp-gate</h2>
+        <p>Revised gate, 3 alternating rounds per pair: both native methods fail on few metrics, native-ts only upload-step p95; <code>drop-analysis.md</code> traces that to the single fixed capacity drop meeting each sawtooth at a different point.</p>
+      </header>
+      <div class="actions"><a href="2026-10-20-native-icmp-gate/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-13-native-icmp">
+      <header>
+        <h2>2026-10-13-native-icmp</h2>
+        <p>Four-case comparison exposed a native timestamp epoch bug, now fixed and target-tested. Corrected timestamp pair uses 37.56% less combined daemon/pinger CPU, with matched health; some latency/throughput metrics failed the single-pair gate, later replaced (see the 2026-10-20 and 2026-10-21 rows).</p>
+      </header>
+      <div class="actions"><a href="2026-10-13-native-icmp/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-13-native-icmp-spike">
+      <header>
+        <h2>2026-10-13-native-icmp-spike</h2>
+        <p>Native IPv4/IPv6 echo and ICMP timestamps work on i386. Revised timing gates pass; the serialized network batch gives a 65-µs median gap within a 150-µs baseline spread.</p>
+      </header>
+      <div class="actions"><a href="2026-10-13-native-icmp-spike/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-12-mqtt-ssl-build">
+      <header>
+        <h2>2026-10-12-mqtt-ssl-build</h2>
+        <p>Optional <code>ssl=yes</code> packages, verified TLS broker settings, inactive LuCI setting retention, dependency staging and bounded TLS connection/shutdown checks. Default remains no-SSL.</p>
+      </header>
+      <div class="actions"><a href="2026-10-12-mqtt-ssl-build/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-12-mqtt-variants">
+      <header>
+        <h2>2026-10-12-mqtt-variants</h2>
+        <p>Three daemon packages (<code>cake-adapt</code> without MQTT, <code>cake-adapt-mqtt</code>, <code>cake-adapt-mqtt-ssl</code>): x86 package metadata and linkage, the features file LuCI reads, and an x86 VM switch from the base to the MQTT variant.</p>
+      </header>
+      <div class="actions"><a href="2026-10-12-mqtt-variants/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-11-mqtt-logging">
+      <header>
+        <h2>2026-10-11-mqtt-logging</h2>
+        <p>Optional MQTT forwarding: silent offline/overflow drops, exact QoS 0 payloads, retries every 10 s, recovery, authentication and bounded shutdown. Current non-SSL validation is separated from superseded TLS-prototype evidence. No router deployment or CAKE performance claim.</p>
+      </header>
+      <div class="actions"><a href="2026-10-11-mqtt-logging/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-11-restart-respawn">
+      <header>
+        <h2>2026-10-11-restart-respawn</h2>
+        <p><code>restart</code> checks the new configuration first (<code>513eea7</code>): unchanged restarts with a new pid, a refused one keeps the pid and previous file with the reason in syslog, and without a previous file does not start; respawn registered as <code>3600 5 0</code> (never gives up); <code>connected to ubus</code> reaches <code>logread</code> at info and the log file. A named restart of a deleted or disabled section stops it and removes its file (<code>6a79733</code>). <code>disconnecting from ubus</code> host-tested only.</p>
+      </header>
+      <div class="actions"><a href="2026-10-11-restart-respawn/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-11-luci-checks">
+      <header>
+        <h2>2026-10-11-luci-checks</h2>
+        <p>LuCI app 0.3.16-r1 on the x86 VM: <code>service list</code> is granted and shows procd's running state and pid (stopped: no object), writes and <code>network</code> stay denied; the Configuration checks and the Status state text are covered by host tests. Not a browser.</p>
+      </header>
+      <div class="actions"><a href="2026-10-11-luci-checks/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-11-dnsmasq-lifecycle">
+      <header>
+        <h2>2026-10-11-dnsmasq-lifecycle</h2>
+        <p>Service reload and ubus states copied from dnsmasq (<code>4fbaa0c</code>, <code>dabe4d0</code>): reload restarts only a changed instance, a refused configuration keeps the instance running with its previous file and pid, a removed or disabled section stops, per-instance start/stop/restart work; a killed <code>ubusd</code> gave dnsmasq's reconnect, no-connection and connected messages and republishing in 2 s, and control kept ticking through a stopped <code>ubusd</code>.</p>
+      </header>
+      <div class="actions"><a href="2026-10-11-dnsmasq-lifecycle/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-11-ubus-thread">
+      <header>
+        <h2>2026-10-11-ubus-thread</h2>
+        <p>The ubus status thread (<code>96bbd7b</code>): control went on through 60 s of a stopped <code>ubusd</code> under load, a daemon started without <code>ubusd</code> controlled and warned once, SIGTERM with its thread stuck in libubus ended it in 2.1 s, and a <code>ubusd</code> restart was followed by republishing. The instance lock (<code>33646d1</code>): a second daemon for <code>main</code> exited 1 in 10 ms naming the running pid.</p>
+      </header>
+      <div class="actions"><a href="2026-10-11-ubus-thread/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-10-luci-app">
+      <header>
+        <h2>2026-10-10-luci-app</h2>
+        <p><code>luci-app-cake-adapt</code> 0.3.16-r1 on the x86 VM: ACL grants status, uci and rc list and refuses <code>network.interface</code>; views and menu are served; Save &amp; Apply restarts the daemon, and a minimum above the base is refused with the reason in syslog. The visual check is still a person's.</p>
+      </header>
+      <div class="actions"><a href="2026-10-10-luci-app/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-10-cake-mq">
+      <header>
+        <h2>2026-10-10-cake-mq</h2>
+        <p>cake-adapt controls a root <code>cake_mq</code> like a single CAKE (901 changes, every per-queue child followed the root); control matched plain CAKE except under bidirectional load, where <code>cake_mq</code> passed 3.3 of 6 Mbit/s upload because it splits the rate equally among busy queues.</p>
+      </header>
+      <div class="actions"><a href="2026-10-10-cake-mq/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-09-follower">
+      <header>
+        <h2>2026-10-09-follower</h2>
+        <p>Cost of <code>capture-log.sh</code>'s follower on the router: about 0.33% of a core plus 0.1% for its SSH session on the x86 VM, twice the daemon's own 0.16%, almost all from starting <code>ls</code>, <code>cat</code> and <code>sleep</code> every second; the POSIX rewrite of its watchdog costs the same, and the one-<code>cat</code> follower 68% less.</p>
+      </header>
+      <div class="actions"><a href="2026-10-09-follower/README.md">Read the report</a></div>
+    </section>
+    <section class="page" id="2026-10-09-profile">
+      <header>
+        <h2>2026-10-09-profile</h2>
+        <p>0.3.15 against 0.3.12 with flame graphs over seven workloads, two of them IPv6: same CPU (0.15–0.42% of a core) and memory (2.1 MB), injector half the cost per packet on IPv4 traffic and unchanged on IPv6.</p>
+      </header>
+      <div class="actions"><a href="2026-10-09-profile/index.html">Open the dashboard</a><a href="2026-10-09-profile/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-09-tcp-inject-ipv6">
+      <header>
+        <h2>2026-10-09-tcp-inject-ipv6</h2>
+        <p><code>tcp_ts_request</code> on IPv6 only, keyed by client (0.3.15, <code>0dc6e37</code>): server behaviours end as designed, IPv4 is untouched, a client with a 34.7-day clock loses only its first burst, 43 of 43 lifecycle checks pass including the injector's tcx link; filter and injector cost unchanged on IPv6, injector 21–35% cheaper on IPv4 traffic.</p>
+      </header>
+      <div class="actions"><a href="2026-10-09-tcp-inject-ipv6/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-08-ebpf-ab-146a751">
+      <header>
+        <h2>2026-10-08-ebpf-ab-146a751</h2>
+        <p>A/B check of the injection fix (<code>146a751</code>) against the routers' previous build: verifier on 32- and 64-bit kernels, filter and injector cost (no regression), control, TCP queue accuracy, ACK accounting, injection scenarios over IPv4 and IPv6 (correct checksums with offload off) and client clocks all match, except the intended stall detection and pause.</p>
+      </header>
+      <div class="actions"><a href="2026-10-08-ebpf-ab-146a751/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-08-tcp-inject-clock">
+      <header>
+        <h2>2026-10-08-tcp-inject-clock</h2>
+        <p>Timestamp injection against a Windows-like client whose clock looks older than the injected TSval: the old marker hung about half the connections silently with success counters; the fix (<code>146a751</code>, inject 1, count stalls, pause) cut failures to the first minute and then paused injection. Windows' timestamp clock is its uptime in ms.</p>
+      </header>
+      <div class="actions"><a href="2026-10-08-tcp-inject-clock/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-08-remote-congestion">
+      <header>
+        <h2>2026-10-08-remote-congestion</h2>
+        <p>A queue beyond the ISP that only some flows cross does not mislead the daemon; with a local queue too, <code>tcp_delay_attribution</code> blamed the right direction, while without it download was cut for an upload queue.</p>
+      </header>
+      <div class="actions"><a href="2026-10-08-remote-congestion/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-08-tcp-echo-delay">
+      <header>
+        <h2>2026-10-08-tcp-echo-delay</h2>
+        <p>Servers that idle or think before answering did not inflate the TCP upload estimate (p99 under 12 ms, false alarms at most 0.3%); no echo-wait cap was built.</p>
+      </header>
+      <div class="actions"><a href="2026-10-08-tcp-echo-delay/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-08-tcp-filter-fastpath">
+      <header>
+        <h2>2026-10-08-tcp-filter-fastpath</h2>
+        <p>A TCP filter fast path (per-CPU timestamp cache, 12-byte option read, no buffer zeroing) was not faster anywhere: 3–7% slower on the 32-bit VM, 5% on the x86_64 VM, and on the Filogic router it moved with the unchanged injector (2% slower relative to it). Dropped. First router cost of 0.3.9: about 2.0 µs per packet for the filter and 0.37 µs for the injector, about 1.1% of a Cortex-A53 core.</p>
+      </header>
+      <div class="actions"><a href="2026-10-08-tcp-filter-fastpath/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-07-tcp-timestamp-inject-testbed">
+      <header>
+        <h2>2026-10-07-tcp-timestamp-inject-testbed</h2>
+        <p><code>tcp_timestamp_inject</code> (<code>3e23b04</code>) on the 25.12 testbed: four server behaviors end as designed with exact counters, nothing is rewritten after stop or SIGKILL, lifecycle 33 of 33; merging the injector into the filter's object removed the ingress program (injector egress 466 ns per packet on the 32-bit VM, against a 234 ns empty-program floor).</p>
+      </header>
+      <div class="actions"><a href="2026-10-07-tcp-timestamp-inject-testbed/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-07-tcp-timestamp-injection">
+      <header>
+        <h2>2026-10-07-tcp-timestamp-injection</h2>
+        <p>Experiment, not in the product: a <code>tc</code> BPF program adds the timestamp option to Windows SYNs. On the user's real traffic, 775 of 775 SYNs rewritten and 715 servers enabled timestamps, with no failed connection or bad checksum. Windows then adopts timestamps itself (98.7% of its packets), so both directions gain estimates and the strip program is unnecessary. Not an accuracy or cost result.</p>
+      </header>
+      <div class="actions"><a href="2026-10-07-tcp-timestamp-injection/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-07-openwrt-snapshot">
+      <header>
+        <h2>2026-10-07-openwrt-snapshot</h2>
+        <p>The current code on an OpenWrt snapshot (r36953, x86/64, kernel 6.18, LLVM 22): builds without warnings, the verifier accepts the TCP filter, 33 of 33 lifecycle checks pass, and a controlled run with TCP attribution matches 25.12 (queue correlation 0.77–0.92, false alarms ≤ 0.2%). One run; filter cost not measured.</p>
+      </header>
+      <div class="actions"><a href="2026-10-07-openwrt-snapshot/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-06-tcp-bound-check">
+      <header>
+        <h2>2026-10-06-tcp-bound-check</h2>
+        <p>The fping queue bound (<code>cb348e4</code>) controls like the build before it over three alternating repetitions, with equal or lower added-delay p95, and cuts the largest download estimates under load from 45–90 ms to 33–46 ms.</p>
+      </header>
+      <div class="actions"><a href="2026-10-06-tcp-bound-check/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-06-bound-median">
+      <header>
+        <h2>2026-10-06-bound-median</h2>
+        <p>The TCP queue bound becomes the lower median of each pinger's largest added delay, so one slow reflector no longer opens it; on the user's routers, false 20–72 ms upload estimates had each matched the single slowest fping reply.</p>
+      </header>
+      <div class="actions"><a href="2026-10-06-bound-median/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-06-router-libreqos">
+      <header>
+        <h2>2026-10-06-router-libreqos</h2>
+        <p>0.3.4 on the user's Filogic router during a LibreQoS test: held 145/73 Mbit/s with an fping delta p95 of at most 2.4 ms per direction and 9.4 ms bidirectional, grade A. LibreQoS's 54 Mbit/s upload figure is its own averaging; the wire carried 61 Mbit/s and cake-adapt never cut upload.</p>
+      </header>
+      <div class="actions"><a href="2026-10-06-router-libreqos/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-06-storage-defaults">
+      <header>
+        <h2>2026-10-06-storage-defaults</h2>
+        <p>With the shipped defaults the daemon writes nothing to persistent storage: zero block reads and writes over two 10.5-minute runs covering load, export, reset, CAKE re-creation, sleep and rotation. Every written file is in RAM.</p>
+      </header>
+      <div class="actions"><a href="2026-10-06-storage-defaults/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-06-storage-reads">
+      <header>
+        <h2>2026-10-06-storage-reads</h2>
+        <p>A bounded audit of block-device reads while monitoring: zero reads and writes on every device in the running and stopped windows; the only opens were of <code>/etc/TZ</code>, which resolves to tmpfs.</p>
+      </header>
+      <div class="actions"><a href="2026-10-06-storage-reads/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-context-refactor">
+      <header>
+        <h2>2026-10-05-context-refactor</h2>
+        <p>Keeping settings in their objects (<code>74d9697</code>) measures the same as <code>d6564a6</code> over four alternating repetitions, and CAKE removal and re-creation still suspends and resumes measurement.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-context-refactor/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-e2e">
+      <header>
+        <h2>2026-10-05-e2e</h2>
+        <p>End-to-end run after the refactors: 21 automated checks pass for the new build and <code>d6564a6</code>; one bug found and fixed (<code>05eb6b3</code>, a SIGKILLed daemon left fping running). About 0.25–0.4% of a core and 2.1 MB under load; a 30-minute soak shows no growth.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-e2e/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-gpt-work-check">
+      <header>
+        <h2>2026-10-05-gpt-work-check</h2>
+        <p>Traces the regression in <code>2026-10-05-ack-control</code> to the directional agreement guard of <code>0321661</code>; reverting only the guard restores the earlier results (reverted in <code>d6564a6</code>). ACK accounting, the floor hold and the lifetime stream measured neutral apart from filter cost.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-gpt-work-check/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-ack-control">
+      <header>
+        <h2>2026-10-05-ack-control</h2>
+        <p>One repetition each of the TCP extensions off, before and after the day's mitigations; it showed the control regression later traced to the agreement guard.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-ack-control/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-ack-accounting">
+      <header>
+        <h2>2026-10-05-ack-accounting</h2>
+        <p>The filter's outgoing and pure-ACK byte counters now use the upload CAKE's packet charge, matching the kernel's adjusted sizes for raw, Ethernet, signed overhead, MPU, ATM and PTM.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-ack-accounting/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-confidence">
+      <header>
+        <h2>2026-10-05-tcp-confidence</h2>
+        <p>The estimator holds its floor while fping sees congestion, so a standing queue cannot become the baseline (kept). The directional agreement rule described here was reverted in <code>d6564a6</code>.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-confidence/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-lifetime-stream">
+      <header>
+        <h2>2026-10-05-tcp-lifetime-stream</h2>
+        <p><strong>Reverted.</strong> The ordered lifetime stream for reused TCP tuples: its preflight passed on the i386 JIT, but it cost 49–64% more filter time per packet for a rare case. Design, tools and unfinished work are archived here.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-lifetime-stream/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-lifetime-resume">
+      <header>
+        <h2>2026-10-05-tcp-lifetime-resume</h2>
+        <p>Why a helper-based lock could not replace the BPF atomics the i386 JIT rejects: it can discard the handshake that invalidates an old lifetime.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-lifetime-resume/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-lifetime-deferred">
+      <header>
+        <h2>2026-10-05-tcp-lifetime-deferred</h2>
+        <p>The first lifetime design was rolled back: its compare-and-swap atomics are unsupported by the 6.12 i386 BPF JIT, so the filter fell back to the interpreter.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-lifetime-deferred/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-lifetime-cost">
+      <header>
+        <h2>2026-10-05-tcp-lifetime-cost</h2>
+        <p>Filter cost of that first design: 11.7–15.3× more time per run, confounded by running interpreted, and double the BPF map memory.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-lifetime-cost/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-lifetime-capacity">
+      <header>
+        <h2>2026-10-05-tcp-lifetime-capacity</h2>
+        <p>Map-capacity, eviction and one cross-CPU race checks of the first lifetime design: 149 assertions passed; not an exhaustive ordering proof.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-lifetime-capacity/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-05-tcp-lifetime-core">
+      <header>
+        <h2>2026-10-05-tcp-lifetime-core</h2>
+        <p>Core kernel test of the first lifetime design in a private namespace: 62 assertions passed for handshakes, retransmissions, tuple reuse and wrap.</p>
+      </header>
+      <div class="actions"><a href="2026-10-05-tcp-lifetime-core/README.md">Read the report</a></div>
+    </section>
+    <section class="page" id="2026-10-04-review-map">
+      <header>
+        <h2>2026-10-04-review-map</h2>
+        <p>One-page visual map of the TCP-delay review's findings against the code of 2026-10-04, with a probe showing a wrong split raising the congested direction's shaper.</p>
+      </header>
+      <div class="actions"><a href="2026-10-04-review-map/index.html">Open the visual map</a><a href="2026-10-04-review-map/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-04-ebpf-vm">
+      <header>
+        <h2>2026-10-04-ebpf-vm</h2>
+        <p><strong>Withdrawn.</strong> A VM run that produced no <code>TCP_QUEUE</code> records and validates nothing about the estimator; kept as an audit of the earlier mislabeled report.</p>
+      </header>
+      <div class="actions"><a href="2026-10-04-ebpf-vm/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-04-flow-pair">
+      <header>
+        <h2>2026-10-04-flow-pair</h2>
+        <p>First TCP-delay review fix: one flow supplies a coherent directional pair. Deterministic before/after evidence shows a newly calibrated flow no longer erases an established 80/20-ms estimate.</p>
+      </header>
+      <div class="actions"><a href="2026-10-04-flow-pair/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-03-arm64-vm">
+      <header>
+        <h2>2026-10-03-arm64-vm</h2>
+        <p>The Filogic build on an emulated arm64 VM: the arm64 verifier accepts the TCP filter and the CLI, attribution, fping-ts and lifecycle runs all pass. Functional only; the emulated CPU makes timings and sample counts unrepresentative.</p>
+      </header>
+      <div class="actions"><a href="2026-10-03-arm64-vm/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-03-sample-thinning">
+      <header>
+        <h2>2026-10-03-sample-thinning</h2>
+        <p>Sampling TCP timestamps at most every 4 ms per flow makes the filter 10–34% cheaper with the queue estimate as accurate as before (correlation 0.87–0.95); over five rounds it costs about +10 ms at the bidirectional p99 and 1–3 ms in download phases. Shipped at 4 ms.</p>
+      </header>
+      <div class="actions"><a href="2026-10-03-sample-thinning/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-03-fping-ts-testbed">
+      <header>
+        <h2>2026-10-03-fping-ts-testbed</h2>
+        <p>fping-ts on the testbed, where ICMP timestamps pass: its one-way delays track the real queues (upload correlation 0.94–0.97, false alarms ≤ 0.6% against 27–40% for RTT/2), and controlling with it cuts upload p95 from 102–104 to 60–65 ms and lifts bidirectional download from 38–41% to 69–72%. A sudden capacity drop peaked higher than with fping; internet reflectors remain unverified.</p>
+      </header>
+      <div class="actions"><a href="2026-10-03-fping-ts-testbed/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-03-ebpf-filter-cost">
+      <header>
+        <h2>2026-10-03-ebpf-filter-cost</h2>
+        <p>The TCP filter costs 1.5–1.9 µs per packet on the x86 VM (130 ns of it the kernel's): about 45% flow state, 45% the departures map, 10% the ring buffer. Counter changes and per-CPU LRU lists gain at most a few percent (LRU lists are 6% slower); only thinning the samples could cut it substantially. The kept filter still tracks the real queue (correlation 0.89–0.92).</p>
+      </header>
+      <div class="actions"><a href="2026-10-03-ebpf-filter-cost/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-03-ebpf-design-history">
+      <header>
+        <h2>2026-10-03-ebpf-design-history</h2>
+        <p>Design record: why fping alone is insufficient, the feasibility spike and CPU cost that justified the eBPF socket filter, the fixed-cap attempt that preceded the dynamic ACK share, and the net before/after numbers. No raw data; links to the two entries below for evidence.</p>
+      </header>
+      <div class="actions"><a href="2026-10-03-ebpf-design-history/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-03-ack-share-dynamic">
+      <header>
+        <h2>2026-10-03-ack-share-dynamic</h2>
+        <p>Download ACKs on a 900 kbit/s upload, off vs. <code>upload_ack_share_min 0.45</code>: ACKs took 46–74% and a 200 kbit/s UDP stream lost up to 48%; with the option, ACKs use what other upload traffic leaves, down to 45%, the stream loses 0–5.5%, and download gives up 4–12 Mbit/s while held.</p>
+      </header>
+      <div class="actions"><a href="2026-10-03-ack-share-dynamic/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-02-tcp-queue-split">
+      <header>
+        <h2>2026-10-02-tcp-queue-split</h2>
+        <p>fping alone vs. <code>tcp_delay_attribution</code>: the TCP-timestamp queue estimate follows the emulated ISP's real queue under control (correlation 0.85–0.95, against RTT/2's half-size, two-sided reading); splitting fping's delay by it took median added RTT under bidirectional load from 50 to 28 ms and download from 41% to 67% of capacity.</p>
+      </header>
+      <div class="actions"><a href="2026-10-02-tcp-queue-split/README.md">Read the report</a></div>
+    </section>
+    <section class="page" id="2026-09-30">
+      <header>
+        <h2>2026-09-30</h2>
+        <p>End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks.</p>
+      </header>
+      <div class="actions"><a href="2026-09-30/index.html">Open the dashboard</a><a href="2026-09-30/README.md">Read the report</a></div>
+    </section>
+    <section id="cake-autorate-resources">
+      <header>
+        <h2>cake-autorate-resources</h2>
+        <p>CPU, memory, process and reaction-time comparison with cake-autorate <code>ac75f49</code> under the same workload: about 5× less CPU (7.6× with all records enabled), a tenth of the memory, and a 7× faster median reply-to-decision time.</p>
+      </header>
+      <div class="actions"><a href="cake-autorate-resources/README.md">Read the report</a></div>
+    </section>
+    <section id="controller-comparison">
+      <header>
+        <h2>controller-comparison</h2>
+        <p>Side-by-side runs with cake-autorate <code>ac75f49</code> and the two traces the controller replays with no mismatching decisions.</p>
+      </header>
+      <div class="actions"><a href="controller-comparison/README.md">Read the report</a></div>
+    </section>
+    <section class="page" id="2026-09-26">
+      <header>
+        <h2>2026-09-26</h2>
+        <p>Superseded first flame graphs, from before the optimization pass and the source restructure.</p>
+      </header>
+      <div class="actions"><a href="2026-09-26/index.html">Open the dashboard</a><a href="2026-09-26/README.md">Read the report</a></div>
     </section>
   </main>
+  <footer>Generated from the table in <a href="README.md">profiling/README.md</a>; 59 evidence directories.</footer>
 </body>
 </html>

@@ -7,7 +7,7 @@ described in the [technical overview](../../technical.md#status-and-deferred-wor
 Agent execution: this historical spec applies equally to Claude and Codex.
 Use the corresponding route in [COLLABORATION.md](../../../COLLABORATION.md),
 the current [agent guide](../../../AGENTS.md) and
-[handoff](../../../HANDOFF.md). The two-SDK acceptance requirement below belongs
+`HANDOFF.md`. The two-SDK acceptance requirement below belongs
 to this milestone; it does not change the x86 default for subsequent work or
 authorize new downloads, copying, deployment or version changes.
 

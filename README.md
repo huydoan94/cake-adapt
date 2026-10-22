@@ -256,14 +256,24 @@ fixed.
 - [Configuration reference](docs/configuration.md): every option, with
   defaults.
 - [Technical overview](docs/technical.md): what the daemon does, how it
-  differs from cake-autorate, and the test and profiling evidence.
+  differs from cake-autorate, and the test and profiling evidence, with links
+  to every design document and dashboard.
 - [Development](docs/development.md): building with the OpenWrt SDK, source
-  layout and tests.
+  layout and tests; [testbed](tools/testbed/README.md) and
+  [simulator](tools/simulator/README.md).
 - [Flowcharts](flowchart/README.md): the event flow and controller decisions.
-- [Agent guide](AGENTS.md) and [collaboration workflows](COLLABORATION.md):
-  project rules and the Claude and Codex routes. Development defaults to x86.
-- [Current handoff](HANDOFF.md): active work, user decisions, approvals and
-  remaining checks.
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/flowchart/index.html).
+- [Profiling and behaviour evidence](profiling/README.md): every measured run.
+  [Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/index.html) or the latest profile's
+  [dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-22-log-writer-wake/index.html).
+- [Agent guide](AGENTS.md) and its topic rules:
+  [project status](docs/agents/status.md), [modules](docs/agents/modules.md),
+  [upstream behaviour](docs/agents/upstream.md),
+  [build and tests](docs/agents/build-and-tests.md),
+  [C style](docs/agents/c-style.md) and [VM testing](docs/agents/vm-testing.md);
+  the [coding style](CODING_STYLE.md) and the
+  [collaboration workflows](COLLABORATION.md) for Claude and Codex.
+  Development defaults to x86.
 
 ## License
 

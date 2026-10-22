@@ -1,5 +1,7 @@
 # Profile of 0.3.21 against 0.3.15 (2026-10-21)
 
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-21-profile/index.html): the tables and every flame graph on one page.
+
 ## Result
 
 0.3.21 with its default native pinger uses about as much CPU in total as

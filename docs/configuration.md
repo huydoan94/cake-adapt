@@ -6,8 +6,6 @@ lists only the common options; everything else uses the defaults below.
 
 For development or agent work, follow the [development guide](development.md)
 and the Claude or Codex route in [COLLABORATION.md](../COLLABORATION.md).
-The [handoff](../HANDOFF.md) distinguishes current development changes from
-released behavior and records their remaining validation.
 
 Change options with `uci`, by editing the file, or in LuCI under
 **Services → CAKE Adapt → Configuration** (package `luci-app-cake-adapt`),
@@ -152,7 +150,7 @@ RAM, so the defaults never write to flash. Another directory is set with
 | `output_cake_changes` | boolean | `0` | Log a `SHAPER` record for each rate change. |
 | `output_cpu_stats` | boolean | `0` | Log CPU usage. |
 | `output_cpu_raw_stats` | boolean | `0` | Log raw CPU counters. |
-| `output_memory_stats` | boolean | `0` | Not in cake-autorate: log the daemon's own memory every 10 s as a `MEMORY` record: resident (`RSS_KB`), peak resident (`PEAK_RSS_KB`), resident heap (`RSS_ANON_KB`) and data size (`DATA_KB`), from `/proc/self/status`. About 60,000 lines a week; use it to spot leaks on long runs. |
+| `output_memory_stats` | boolean | `0` | Not in cake-autorate: log the daemon's own memory every 10 s as a `MEMORY` record: resident (`RSS_KB`), peak resident (`PEAK_RSS_KB`: the highest VmHWM or sampled RSS, as the kernel updates VmHWM lazily), resident heap (`RSS_ANON_KB`) and data size (`DATA_KB`), from `/proc/self/status`. About 60,000 lines a week; use it to spot leaks on long runs. |
 
 MQTT settings are in LuCI under **Advanced → Logging**. Each MQTT message is
 one generated log line, unchanged, without the terminating newline: structured

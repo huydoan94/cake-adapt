@@ -2,7 +2,7 @@
 
 Agent execution: Claude and Codex follow the matching workflow in
 [COLLABORATION.md](../../COLLABORATION.md), the current restrictions in
-[AGENTS.md](../../AGENTS.md), and [HANDOFF.md](../../HANDOFF.md). Historical
+[AGENTS.md](../../AGENTS.md), and `HANDOFF.md`. Historical
 experiments and commands below are evidence, not standing authorization for
 new experiments, SDK changes or deferred tuple-lifetime work. Current target
 validation defaults to x86; expand it only for the active authorized task.

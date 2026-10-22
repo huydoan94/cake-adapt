@@ -57,3 +57,9 @@ int memory_read(const char *path, struct memory_sample *sample, char *error, siz
 		return error_set(error, error_size, "memory fields missing in %s", path);
 	return 0;
 }
+
+void memory_track_peak(struct memory_sample *sample, uint64_t *peak_bytes)
+{
+	*peak_bytes = max_u64(*peak_bytes, max_u64(sample->peak_rss_bytes, sample->rss_bytes));
+	sample->peak_rss_bytes = *peak_bytes;
+}
