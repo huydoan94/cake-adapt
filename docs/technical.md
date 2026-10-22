@@ -81,10 +81,10 @@ safety:
   for production shaping.
 - Deliberate departures aimed at less bufferbloat (the replayed upstream
   traces still match with them off):
-  - With `fping`, whose RTT/2 is one delay for both directions, a detected
+  - With `native` or `fping`, whose RTT/2 is one delay for both directions, a detected
     bufferbloat is attributed to a direction by download delivery: download
     delivering its full shaper rate has no standing queue.
-  - `tcp_delay_attribution` (default off, `fping` only): measure each
+  - `tcp_delay_attribution` (default off, `native` or `fping` only): measure each
     direction's queueing delay from TCP timestamps with an eBPF socket filter
     on the upload interface (`/lib/bpf/cake-adapt-tcpdelay.o`, loaded with
     libbpf). It sees packets after upload CAKE and before the ingress IFB, and
