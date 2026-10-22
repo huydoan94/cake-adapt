@@ -182,7 +182,7 @@ $(BINARY_DIR)/test_native: TEST_LDFLAGS := -Wl,--wrap=icmp_open,--wrap=icmp_clos
 $(BINARY_DIR)/icmp_driver: latency/icmp_driver.c $(SOURCE_DIR)/latency/icmp.c $(SOURCE_DIR)/latency/native.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ $^ $(LDLIBS)
-$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r,--wrap=closelog
+$(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r,--wrap=closelog,--wrap=pthread_cond_signal
 $(BINARY_DIR)/test_log: TEST_LDLIBS := -lz
 
 $(OBJECT_DIR)/%.o: %.c

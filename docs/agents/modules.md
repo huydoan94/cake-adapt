@@ -116,7 +116,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   export, reset behavior, and submission to the optional MQTT sender. Its
   writer thread does every file, stdout and syslog write; the main thread
   only queues (a bounded FIFO that overwrites and counts its oldest lines
-  when full) and never waits.
+  when full), never waits, and wakes the writer only for syslog entries,
+  requests, unbuffered lines or a half-full queue.
 - `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
   never cancels a thread: a network thread stuck in name resolution is joined
