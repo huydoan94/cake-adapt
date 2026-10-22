@@ -4,11 +4,12 @@
 		"read": {
 			"uci": [ "cake-adapt" ],
 			"file": {
-				"/usr/share/cake-adapt/features": [ "read" ]
+				"/usr/share/cake-adapt/features": [ "read" ],
+				"/usr/sbin/cake-adapt -D": [ "exec" ]
 			},
 			"ubus": {
 				"cake-adapt.*": [ "status" ],
-				"file": [ "read" ],
+				"file": [ "read", "exec" ],
 				"service": [ "list" ]
 			}
 		},

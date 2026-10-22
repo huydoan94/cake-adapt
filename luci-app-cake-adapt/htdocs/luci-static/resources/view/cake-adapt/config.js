@@ -19,74 +19,24 @@ function parseFeatures(text) {
 }
 
 /*
- * What the daemon uses for an option left empty (src/config/defaults.c), in the
- * units of the form. The placeholders and the checks below both read this table.
+ * What the daemon uses for an option left empty, in the units of the form:
+ * cake-adapt -D prints it, one "name=value" line each, and load() reads it.
+ * The placeholders and the checks below both read this table.
  */
-const defaults = {
-	enabled: '0',
-	adjust_dl_shaper_rate: '0',
-	adjust_ul_shaper_rate: '0',
-	enable_sleep_function: '1',
-	tcp_delay_attribution: '0',
-	tcp_ts_request: '0',
-	mqtt_enabled: '0',
-	mqtt_tls: '0',
-	mqtt_ca_file: '/etc/ssl/certs/ca-certificates.crt',
-	mqtt_port: '1883',
-	mqtt_topic: 'cake-adapt/log',
-	output_cpu_stats: '0',
-	output_cpu_raw_stats: '0',
-	pinger_method: 'native',
-	no_pingers: '6',
-	reflector_ping_interval_s: '0.3',
-	irtt_session_duration_m: '10',
-	min_dl_shaper_rate_kbps: '5000',
-	base_dl_shaper_rate_kbps: '20000',
-	max_dl_shaper_rate_kbps: '80000',
-	min_ul_shaper_rate_kbps: '5000',
-	base_ul_shaper_rate_kbps: '20000',
-	max_ul_shaper_rate_kbps: '35000',
-	log_file_max_size_KB: '2000',
-	log_file_max_time_mins: '10',
-	log_file_buffer_timeout_ms: '500',
-	ul_congest_ack_share: '0',
-	connection_active_thr_kbps: '2000',
-	sustained_idle_sleep_thr_s: '60.0',
-	stall_detection_thr: '5',
-	connection_stall_thr_kbps: '10',
-	global_ping_response_timeout_s: '10.0',
-	dl_owd_delta_delay_thr_ms: '30.0',
-	ul_owd_delta_delay_thr_ms: '30.0',
-	dl_avg_owd_delta_max_adjust_up_thr_ms: '10.0',
-	ul_avg_owd_delta_max_adjust_up_thr_ms: '10.0',
-	dl_avg_owd_delta_max_adjust_down_thr_ms: '60.0',
-	ul_avg_owd_delta_max_adjust_down_thr_ms: '60.0',
-	bufferbloat_detection_window: '6',
-	bufferbloat_detection_thr: '3',
-	high_load_thr: '0.75',
-	shaper_rate_min_adjust_down_bufferbloat: '0.99',
-	shaper_rate_max_adjust_down_bufferbloat: '0.75',
-	shaper_rate_min_adjust_up_load_high: '1.0',
-	shaper_rate_max_adjust_up_load_high: '1.04',
-	shaper_rate_adjust_down_load_low: '0.99',
-	shaper_rate_adjust_up_load_low: '1.01',
-	bufferbloat_refractory_period_ms: '300',
-	decay_refractory_period_ms: '1000',
-	alpha_baseline_increase: '0.001',
-	alpha_baseline_decrease: '0.9',
-	alpha_delta_ewma: '0.095',
-	reflector_health_check_interval_s: '1.0',
-	reflector_response_deadline_s: '1.0',
-	reflector_misbehaving_detection_window: '60',
-	reflector_misbehaving_detection_thr: '3',
-	reflector_replacement_interval_mins: '60',
-	reflector_comparison_interval_mins: '1',
-	reflector_sum_owd_baselines_delta_thr_ms: '20.0',
-	reflector_owd_delta_ewma_delta_thr_ms: '10.0',
-	monitor_achieved_rates_interval_ms: '200',
-	monitor_cpu_usage_interval_ms: '2000',
-	if_up_check_interval_s: '10.0'
-};
+const DAEMON = '/usr/sbin/cake-adapt';
+const defaults = {};
+
+function parseDefaults(text) {
+	const parsed = {};
+
+	for (const line of String(text ?? '').split('\n')) {
+		const index = line.indexOf('=');
+
+		if (index > 0)
+			parsed[line.slice(0, index)] = line.slice(index + 1);
+	}
+	return parsed;
+}
 
 /*
  * The numeric options, each with how many stored units one form unit is
@@ -496,17 +446,20 @@ function rootOnlyLeftovers(sections) {
 return view.extend({
 	/* Exposed for tests/luci_config.js. */
 	instanceErrors, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures,
-	rootOnlyLeftovers,
+	parseDefaults, rootOnlyLeftovers,
 
 	load() {
 		return Promise.all([
 			uci.load('cake-adapt'),
-			L.resolveDefault(fs.read(FEATURES_FILE), '')
+			L.resolveDefault(fs.read(FEATURES_FILE), ''),
+			L.resolveDefault(fs.exec_direct(DAEMON, [ '-D' ]), '')
 		]);
 	},
 
 	render(data) {
 		const features = parseFeatures(data[1]);
+
+		Object.assign(defaults, parseDefaults(data[2]));
 		/*
 		 * Settings the package cannot use stay in UCI, unshown. The MQTT switch
 		 * still shows while an instance has it on, with a warning, so it can be

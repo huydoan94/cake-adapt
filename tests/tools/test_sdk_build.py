@@ -414,8 +414,10 @@ int tls_disabled;
         self.assertIn('+cake-adapt', recipe)
         acl = json.loads((SOURCE / 'luci-app-cake-adapt/root/usr/share/rpcd/acl.d/luci-app-cake-adapt.json').read_text())
         read = acl['luci-app-cake-adapt']['read']
-        self.assertEqual(read['file'], {'/usr/share/cake-adapt/features': ['read']})
-        self.assertIn('read', read['ubus']['file'])
+        # Readers may read the features file and run only "cake-adapt -D", for the defaults.
+        self.assertEqual(read['file'], {'/usr/share/cake-adapt/features': ['read'],
+                                        '/usr/sbin/cake-adapt -D': ['exec']})
+        self.assertEqual(sorted(read['ubus']['file']), ['exec', 'read'])
 
     def test_ssl_stages_openssl_before_mosquitto_and_switches_back(self):
         self.ssl_feed()

@@ -101,8 +101,12 @@ global.setTimeout = (fn) => fn();
 const stored = {};
 const uciSections = [ { '.name': 'main' }, { '.name': 'guest', mqtt_enabled: mqttStored ? '1' : '0' } ];
 const files = { '/usr/share/cake-adapt/features': featureText };
+/* What cake-adapt -D prints; check-config keeps it equal to the daemon's output. */
+const daemonDefaults = fs.readFileSync(require('path').join(__dirname, 'luci_defaults.txt'), 'utf8');
 const fsStub = {
-	read: (path) => (path in files) ? Promise.resolve(files[path]) : Promise.reject(new Error('NotFoundError'))
+	read: (path) => (path in files) ? Promise.resolve(files[path]) : Promise.reject(new Error('NotFoundError')),
+	exec_direct: (path, args) => (path == '/usr/sbin/cake-adapt' && args.join(' ') == '-D') ?
+		Promise.resolve(daemonDefaults) : Promise.reject(new Error('PermissionError'))
 };
 const uciStub = {
 	load: (config) => Promise.resolve(config),
@@ -113,7 +117,13 @@ global.L = { resolveDefault: (promise, fallback) => promise.catch(() => fallback
 const view = new Function('view', 'form', 'fs', 'uci', '_', 'validation', src)(
 	{ extend: (o) => o }, form, fsStub, uciStub, (s) => s,
 	{ parseIPv4: (s) => require('net').isIP(s) == 4, parseIPv6: (s) => require('net').isIP(s) == 6 });
-const { instanceErrors: errorsWith, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures } = view;
+const { instanceErrors: errorsWith, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures, parseDefaults } = view;
+
+/* The daemon's "name=value" lines; a value may be empty or contain "=". */
+assert.deepStrictEqual(parseDefaults('a=1\nb=\nc=x=y\n\nbad\n'), { a: '1', b: '', c: 'x=y' });
+assert.deepStrictEqual(parseDefaults(undefined), {});
+/* The checks below run with the daemon's defaults, as render() fills them in. */
+Object.assign(defaults, parseDefaults(daemonDefaults));
 const features = parseFeatures(featureText);
 const instanceErrors = (screen) => errorsWith(screen, features);
 
@@ -130,6 +140,7 @@ assert.deepStrictEqual(parseFeatures('mqtt\n'), { mqtt: true, tls: false });
 assert.deepStrictEqual(parseFeatures('mqtt\ntls\n'), { mqtt: true, tls: true });
 const loaded = view.load().then((data) => {
 	assert.deepStrictEqual(parseFeatures(data[1]), features);
+	assert.strictEqual(data[2], daemonDefaults, 'load() asks the daemon for its defaults');
 	delete files['/usr/share/cake-adapt/features'];
 	return view.load();
 }).then((data) => {
@@ -393,7 +404,7 @@ assert.deepStrictEqual(instanceErrors((name) => ({
 })[name]), [], 'every default at once is valid');
 
 /* Drift: the view declares every option the rules and the table mention, and builds its widgets. */
-const rendered = view.render([ 'cake-adapt', featureText ]);
+const rendered = view.render([ 'cake-adapt', featureText, daemonDefaults ]);
 const [ outer, advanced ] = sections;
 const declared = sections.flatMap((sec) => sec.children);
 const allOptions = declared.filter((o) => !o.option.startsWith('_'));
@@ -413,7 +424,10 @@ errorsWith((name) => { asked.add(name); return name == 'mqtt_enabled' ? '1' : un
 errorsWith((name) => { asked.add(name); return [ 'mqtt_enabled', 'mqtt_tls' ].includes(name) ? '1' : undefined; }, { mqtt: true, tls: true });
 /* The legacy single target is read from the stored section; the form has no field for it. */
 asked.delete('latency_target');
-for (const name of new Set([ ...asked, ...Object.keys(defaults), ...Object.keys(scales) ])) {
+/* Only root sets these, in /etc/cake-adapt/exec; the daemon still reports their defaults. */
+const rootOnly = [ 'config_file', 'log_file_path_override', 'ping_extra_args', 'ping_prefix_string' ];
+const shownDefaults = Object.keys(defaults).filter((name) => !rootOnly.includes(name));
+for (const name of new Set([ ...asked, ...shownDefaults, ...Object.keys(scales) ])) {
 	if (unshown.includes(name))
 		assert.ok(!options.includes(name), `${name} is not shown by this package`);
 	else
