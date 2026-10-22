@@ -534,8 +534,12 @@ return view.extend({
 			_('Shuffle the reflector list at start.'));
 		o.default = o.enabled;
 		o.rmempty = false;
-		o = a.taboption('pinger', form.Value, 'pinger_method', _('Pinger method'),
+		o = a.taboption('pinger', form.ListValue, 'pinger_method', _('Pinger method'),
 			_('native (default) or native-ts (IPv4 only): ICMP probes sent by cake-adapt itself, to numeric addresses. fping, fping-ts and irtt are fallbacks that need their package installed; their extra arguments and command prefix, a shell configuration file and the log directory are set only by root, in /etc/cake-adapt/exec. native refuses an instance whose extra arguments or prefix root has set there.'));
+		/* Empty keeps the option unset: the daemon's default, which -D names. */
+		o.value('', defaults.pinger_method ? _('Default (%s)').format(defaults.pinger_method) : _('Default'));
+		for (const method of pingerMethods)
+			o.value(method, method);
 		o = a.taboption('pinger', form.Value, 'irtt_session_duration_m', _('IRTT session length (min)'),
 			_('Length of each IRTT session (irtt only).'));
 
