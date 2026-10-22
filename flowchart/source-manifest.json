@@ -1,7 +1,7 @@
 {
   "title": "cake-adapt: current code flowcharts",
-  "sourceCommit": "a0e46d9",
-  "packageVersion": "0.3.23-r1",
+  "sourceCommit": "45bb8bd",
+  "packageVersion": "0.3.24-r1",
   "graphviz": "16.1.0 (@hpcc-js/wasm-graphviz)",
   "chartCount": 16,
   "sourceSha256": {

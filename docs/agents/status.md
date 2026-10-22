@@ -82,7 +82,7 @@ verification against a real server.
 
 ### Current status (2026-10-22)
 
-- The packages are at 0.3.23-r1 (`main` released 0.3.22). The user builds them and runs them on their
+- The packages are at 0.3.24-r1 (`main` released 0.3.23). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
@@ -113,6 +113,8 @@ verification against a real server.
 - 0.3.23: the `MEMORY` record's `PEAK_RSS_KB` is the highest VmHWM or sampled RSS
   (VmHWM alone lagged and could drop); analyses of earlier logs take the
   maximum `RSS_KB` instead.
+- 0.3.24: records reach MQTT with `log_to_file` off; before, only `CPU`
+  records did.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
