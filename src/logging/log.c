@@ -231,24 +231,32 @@ static uint64_t log_realtime_us(void)
 	return clock_us(CLOCK_REALTIME);
 }
 
+/* Writes the header of each record type in records, in the order every log starts with. */
+static void write_record_headers(const struct log_records *records, void (*emit)(const char *))
+{
+	const struct {
+		bool enabled;
+		const char *header;
+	} record_headers[] = {
+		{ records->data, data_header },
+		{ records->load, load_header },
+		{ records->reflector, reflector_header },
+		{ records->summary, summary_header },
+		{ records->tcp_queue, tcp_queue_header },
+		{ records->tcp_inject, tcp_inject_header },
+		{ records->memory, memory_header },
+	};
+
+	for (size_t index = 0U; index < ARRAY_SIZE(record_headers); index++)
+		if (record_headers[index].enabled)
+			emit(record_headers[index].header);
+}
+
 static void write_headers_to_file(void)
 {
 	/* Rotation and reset run in the writer while the main thread may set headers. */
 	(void)pthread_mutex_lock(&header_lock);
-	if (headers.data)
-		write_file_line(data_header);
-	if (headers.load)
-		write_file_line(load_header);
-	if (headers.reflector)
-		write_file_line(reflector_header);
-	if (headers.summary)
-		write_file_line(summary_header);
-	if (headers.tcp_queue)
-		write_file_line(tcp_queue_header);
-	if (headers.tcp_inject)
-		write_file_line(tcp_inject_header);
-	if (headers.memory)
-		write_file_line(memory_header);
+	write_record_headers(&headers, write_file_line);
 	if (cpu_header != NULL)
 		write_file_line(cpu_header);
 	if (header_cpu_raw)
@@ -317,7 +325,9 @@ int log_export_file(char *export_path, size_t export_path_size)
 	time_t sec = time(NULL);
 	char stamp[LOG_DATETIME_SIZE];
 	size_t path_length = strlen(log_path);
-	const char *mode = log_compress_exports ? GZIP_MODE_COMPRESSED : GZIP_MODE_TRANSPARENT;
+	const size_t extension_length = sizeof(LOG_EXTENSION) - 1U;
+	const char *mode = GZIP_MODE_TRANSPARENT;
+	const char *compressed_extension = EMPTY_STRING;
 	int written;
 
 	if (log_file == NULL) {
@@ -328,9 +338,12 @@ int log_export_file(char *export_path, size_t export_path_size)
 	    strftime(stamp, sizeof(stamp), EXPORT_TIME_FORMAT, &local_time) == 0U) {
 		return -1;
 	}
-	if (path_length >= sizeof(LOG_EXTENSION) - 1U &&
-	    strcmp(log_path + path_length - (sizeof(LOG_EXTENSION) - 1U), LOG_EXTENSION) == 0) {
-		path_length -= sizeof(LOG_EXTENSION) - 1U;
+	if (path_length >= extension_length &&
+	    strcmp(log_path + path_length - extension_length, LOG_EXTENSION) == 0)
+		path_length -= extension_length;
+	if (log_compress_exports) {
+		mode = GZIP_MODE_COMPRESSED;
+		compressed_extension = GZIP_EXTENSION;
 	}
 	written = snprintf(
 		export_path,
@@ -339,7 +352,7 @@ int log_export_file(char *export_path, size_t export_path_size)
 		(int)path_length,
 		log_path,
 		stamp,
-		log_compress_exports ? GZIP_EXTENSION : EMPTY_STRING
+		compressed_extension
 	);
 	if (written < 0 || (size_t)written >= export_path_size) {
 		errno = ENAMETOOLONG;
@@ -722,19 +735,21 @@ int log_start_writer(char *error, size_t error_size)
 	state = calloc(1U, sizeof(*state));
 	if (state == NULL)
 		return error_set(error, error_size, "could not allocate the log writer");
-	/* Waits are timed on the monotonic clock, as the rest of the daemon. */
-	if (pthread_mutex_init(&state->lock, NULL) != 0 ||
-	    pthread_condattr_init(&attributes) != 0) {
-		free(state);
-		return error_set(error, error_size, "could not prepare the log writer");
+	if (pthread_mutex_init(&state->lock, NULL) != 0) {
+		(void)error_set(error, error_size, "could not prepare the log writer");
+		goto free_state;
 	}
+	if (pthread_condattr_init(&attributes) != 0) {
+		(void)error_set(error, error_size, "could not prepare the log writer");
+		goto destroy_lock;
+	}
+	/* Waits are timed on the monotonic clock, as the rest of the daemon. */
 	(void)pthread_condattr_setclock(&attributes, CLOCK_MONOTONIC);
 	result = pthread_cond_init(&state->wake, &attributes);
 	(void)pthread_condattr_destroy(&attributes);
 	if (result != 0) {
-		(void)pthread_mutex_destroy(&state->lock);
-		free(state);
-		return error_set(error, error_size, "could not prepare the log writer");
+		(void)error_set(error, error_size, "could not prepare the log writer");
+		goto destroy_lock;
 	}
 	/* Signals stay with the main thread's event loop. */
 	(void)sigfillset(&all);
@@ -742,18 +757,24 @@ int log_start_writer(char *error, size_t error_size)
 	result = pthread_create(&state->thread, NULL, writer_thread, state);
 	(void)pthread_sigmask(SIG_SETMASK, &previous, NULL);
 	if (result != 0) {
-		(void)pthread_cond_destroy(&state->wake);
-		(void)pthread_mutex_destroy(&state->lock);
-		free(state);
-		return error_set(
+		(void)error_set(
 			error,
 			error_size,
 			"could not start the log writer: %s",
 			strerror(result)
 		);
+		goto destroy_wake;
 	}
 	writer = state;
 	return 0;
+
+destroy_wake:
+	(void)pthread_cond_destroy(&state->wake);
+destroy_lock:
+	(void)pthread_mutex_destroy(&state->lock);
+free_state:
+	free(state);
+	return -1;
 }
 
 /*
@@ -891,20 +912,7 @@ void log_print_headers(const struct log_records *records)
 	(void)pthread_mutex_lock(&header_lock);
 	headers = *records;
 	(void)pthread_mutex_unlock(&header_lock);
-	if (records->data)
-		write_line(data_header);
-	if (records->load)
-		write_line(load_header);
-	if (records->reflector)
-		write_line(reflector_header);
-	if (records->summary)
-		write_line(summary_header);
-	if (records->tcp_queue)
-		write_line(tcp_queue_header);
-	if (records->tcp_inject)
-		write_line(tcp_inject_header);
-	if (records->memory)
-		write_line(memory_header);
+	write_record_headers(records, write_line);
 }
 
 void log_print_cpu_headers(
