@@ -361,14 +361,14 @@ function instanceErrors(screen, features) {
 			break;
 		}
 	}
-	/* fping sends ICMP timestamp requests over IPv4 only. */
+	/* ICMP timestamp requests (fping-ts, native-ts) are IPv4 only. */
 	if (method == 'fping-ts' || method == 'native-ts') {
 		const v6 = reflectors.find((target) => target.includes(':'));
 
 		if (v6 !== undefined)
 			fail(_("pinger_method '%s' uses IPv4-only ICMP timestamps; reflector '%s' is IPv6").format(method, v6), 'reflectors', 'pinger_method');
 	}
-	/* Only fping reports one shared delay that needs attributing. */
+	/* Only an echo pinger (native, fping) reports one shared delay that needs attributing. */
 	if (on('tcp_delay_attribution') && methodKnown && method != 'fping' && method != 'native')
 		fail(_("option 'tcp_delay_attribution' needs pinger_method 'fping' or 'native'"), 'tcp_delay_attribution', 'pinger_method');
 	if (method == 'native' || method == 'native-ts') {
@@ -663,7 +663,7 @@ return view.extend({
 
 		/* Advanced: TCP measurement (eBPF) */
 		o = a.taboption('tcp', form.Flag, 'tcp_delay_attribution', _('TCP delay attribution'),
-			_('With fping, split the round-trip delay between directions by queue delays measured from TCP timestamps.'));
+			_('With an echo pinger (native or fping), split the round-trip delay between directions by queue delays measured from TCP timestamps.'));
 		o = a.taboption('tcp', form.Value, 'ul_congest_ack_share', _('Upload ACK share'),
 			_('0 to 1, 0 is off: while upload is busy, hold download back so its ACKs keep this share of the upload rate.'));
 		o = a.taboption('tcp', form.Flag, 'tcp_ts_request', _('TCP timestamp request (experimental)'),

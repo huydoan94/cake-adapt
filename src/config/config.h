@@ -53,7 +53,7 @@ struct config {
 	bool enable_sleep_function;
 	bool minimum_shaper_rates_enforcement;
 	bool log_file_export_compress;
-	/* Attribute fping's shared delay with per-direction TCP-timestamp queues. */
+	/* Attribute an echo pinger's shared delay with per-direction TCP-timestamp queues. */
 	bool tcp_delay_attribution;
 	/* Experimental: add TCP timestamps to SYNs without them, so they can be measured. */
 	bool tcp_ts_request;

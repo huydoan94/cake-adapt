@@ -182,9 +182,9 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 
 	if (config->output_processing_stats) {
 		/*
-		 * Standard fping supplies RTT rather than directional timestamps.
-		 * Match cake-autorate's fping path by recording the same half-RTT
-		 * estimate in its separate download and upload OWD columns.
+		 * Echo pingers (native, fping) supply RTT rather than directional
+		 * timestamps. Match cake-autorate's fping path by recording the same
+		 * half-RTT estimate in its separate download and upload OWD columns.
 		 */
 		const struct log_data_record record = {
 			.download_achieved_rate_bps = download_achieved_bps,
