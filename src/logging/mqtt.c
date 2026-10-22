@@ -22,7 +22,8 @@
 #define MQTT_LINE_SIZE 2048U
 #define MQTT_RETRY_US (10U * SECOND)
 #define MQTT_TIMEOUT_US (5U * SECOND)
-#define MQTT_WAIT_MS 100
+/* The longest wait of the network loop and of the sender, between their checks. */
+#define MQTT_WAIT_US (100U * MILLISECOND)
 #define MQTT_STOP_US SECOND
 /* Shorter than MQTT_STOP_US, so a sender abandoning a connection still stops in time. */
 #define MQTT_NETWORK_STOP_US (500U * MILLISECOND)
@@ -141,7 +142,8 @@ static void *mqtt_network(void *argument)
 
 	if (result == MOSQ_ERR_SUCCESS || result == MOSQ_ERR_CONN_PENDING)
 		while (!atomic_load(&connection->stop) &&
-		       mosquitto_loop(connection->client, MQTT_WAIT_MS, 1) == MOSQ_ERR_SUCCESS)
+		       mosquitto_loop(connection->client, us_to_timeout_ms(MQTT_WAIT_US), 1) ==
+			       MOSQ_ERR_SUCCESS)
 			;
 	atomic_store(&connection->online, false);
 	(void)eventfd_write(state->wake_fd, 1U);
@@ -298,7 +300,7 @@ static void *mqtt_thread(void *argument)
 				continue;
 		}
 idle:
-		if (poll(&wake, 1U, MQTT_WAIT_MS) > 0)
+		if (poll(&wake, 1U, us_to_timeout_ms(MQTT_WAIT_US)) > 0)
 			(void)eventfd_read(state->wake_fd, &value);
 	}
 	if (connection != NULL)
@@ -328,32 +330,23 @@ int mqtt_start(const struct config_mqtt *settings, char *error, size_t error_siz
 	atomic_init(&state->stopping, false);
 	atomic_init(&state->online, false);
 	if ((result = pthread_mutex_init(&state->lock, NULL)) != 0) {
-		free(state);
-		return error_set(error, error_size, "creating the queue lock: %s", strerror(result));
+		(void)error_set(error, error_size, "creating the queue lock: %s", strerror(result));
+		goto free_state;
 	}
 	state->wake_fd = eventfd(0U, EFD_CLOEXEC | EFD_NONBLOCK);
 	if (state->wake_fd < 0) {
-		result = errno;
-		(void)pthread_mutex_destroy(&state->lock);
-		free(state);
-		return error_set(
-			error,
-			error_size,
-			"creating the wake eventfd: %s",
-			strerror(result)
-		);
+		(void)error_set(error, error_size, "creating the wake eventfd: %s", strerror(errno));
+		goto destroy_lock;
 	}
 	/* The library's last user is whichever owner releases the state last. */
 	if ((result = mosquitto_lib_init()) != MOSQ_ERR_SUCCESS) {
-		(void)close(state->wake_fd);
-		(void)pthread_mutex_destroy(&state->lock);
-		free(state);
-		return error_set(
+		(void)error_set(
 			error,
 			error_size,
 			"initializing libmosquitto: %s",
 			mosquitto_strerror(result)
 		);
+		goto close_wake;
 	}
 	/* Signals belong to the monitor, including while the library creates its network thread. */
 	(void)sigfillset(&all);
@@ -372,6 +365,14 @@ int mqtt_start(const struct config_mqtt *settings, char *error, size_t error_siz
 	}
 	sender = state;
 	return 0;
+
+close_wake:
+	(void)close(state->wake_fd);
+destroy_lock:
+	(void)pthread_mutex_destroy(&state->lock);
+free_state:
+	free(state);
+	return -1;
 }
 
 bool mqtt_enabled(void)
