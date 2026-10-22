@@ -80,7 +80,7 @@ testbed gate and jittered-drop comparisons); `fping` and `fping-ts` remain
 fallbacks, and `irtt` stays experimental until it has fixture and runtime
 verification against a real server.
 
-### Current status (2026-10-21)
+### Current status (2026-10-22)
 
 - This branch's packages are at 0.3.22-r1 (`main` has v0.3.18). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
@@ -110,6 +110,9 @@ verification against a real server.
   syslog entries, requests, unbuffered lines or a half-full queue, which
   cuts the daemon's CPU by a fifth to a third (`2026-10-21-profile`,
   `2026-10-22-log-writer-wake`).
+  The `MEMORY` record's `PEAK_RSS_KB` is the highest VmHWM or sampled RSS
+  (VmHWM alone lagged and could drop); analyses of earlier logs take the
+  maximum `RSS_KB` instead.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
@@ -125,8 +128,6 @@ verification against a real server.
   - the estimator's sustained change in remote reply timing (the user decides
     later whether to take it up);
   - the LuCI pages' look, which the user checks in a browser;
-  - the `MEMORY` record's `PEAK_RSS_KB` (VmHWM) is unreliable: analyses take
-    the maximum `RSS_KB`, and a daemon fix waits for a planned build.
 - The user keeps the version bump, pushing, the router install, fping-ts on
   internet reflectors, and the root README's own prose. The agent keeps
   `profiling/README.md` and the flowchart output current.

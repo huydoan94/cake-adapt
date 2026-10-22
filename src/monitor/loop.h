@@ -189,6 +189,8 @@ struct monitor {
 	size_t cpu_count;
 	bool cpu_observation_failed;
 	bool memory_observation_failed;
+	/* The highest resident size seen, the MEMORY record's peak. */
+	uint64_t memory_peak_bytes;
 	int result;
 };
 
