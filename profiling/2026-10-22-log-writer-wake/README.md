@@ -1,5 +1,7 @@
 # Waking the log writer only when needed (2026-10-22)
 
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-10-22-log-writer-wake/index.html): the tables and every flame graph on one page.
+
 ## Result
 
 The 0.3.21 main loop woke the log writer thread for every record. Waking it

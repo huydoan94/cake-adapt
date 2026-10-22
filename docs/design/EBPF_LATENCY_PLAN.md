@@ -7,7 +7,7 @@ Agent execution: both Claude and Codex use the workflows in
 [COLLABORATION.md](../../COLLABORATION.md) and constraints in
 [AGENTS.md](../../AGENTS.md). This proposal does not authorize implementation,
 router access, downloads or a change from the x86 development default. Preserve
-the open user decisions and consult [HANDOFF.md](../../HANDOFF.md) for active
+the open user decisions and consult `HANDOFF.md` for active
 work; do not restart this plan merely because a session resumed.
 
 ## Recommendation in short

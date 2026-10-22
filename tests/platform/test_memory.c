@@ -61,6 +61,31 @@ static void test_missing_field_and_file(void)
 	assert(strstr(error, "could not open") != NULL);
 }
 
+/*
+ * The peak is the highest VmHWM or VmRSS seen, never lower than an earlier
+ * one: a lazily updated VmHWM below the current RSS, then dropping, as seen on
+ * a router (2164 then 2148 kB).
+ */
+static void test_peak_never_drops(void)
+{
+	uint64_t peak_bytes = 0U;
+	struct memory_sample sample = {
+		.rss_bytes = 2164U * KILOBYTE,
+		.peak_rss_bytes = 2100U * KILOBYTE,
+	};
+
+	memory_track_peak(&sample, &peak_bytes);
+	assert(sample.peak_rss_bytes == 2164U * KILOBYTE && peak_bytes == sample.peak_rss_bytes);
+	sample.rss_bytes = 2140U * KILOBYTE;
+	sample.peak_rss_bytes = 2148U * KILOBYTE;
+	memory_track_peak(&sample, &peak_bytes);
+	assert(sample.peak_rss_bytes == 2164U * KILOBYTE);
+	/* A VmHWM above every sampled RSS, from growth between samples, is kept. */
+	sample.peak_rss_bytes = 2400U * KILOBYTE;
+	memory_track_peak(&sample, &peak_bytes);
+	assert(sample.peak_rss_bytes == 2400U * KILOBYTE && peak_bytes == 2400U * KILOBYTE);
+}
+
 /* The host's own status file has every field the daemon reads. */
 static void test_own_status(void)
 {
@@ -75,6 +100,7 @@ int main(void)
 {
 	test_status_parsing();
 	test_missing_field_and_file();
+	test_peak_never_drops();
 	test_own_status();
 	puts("memory tests passed");
 	return 0;

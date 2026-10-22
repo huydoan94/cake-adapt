@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cake-adapt profile, 2026-10-09: 0.3.15 against 0.3.12</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #080e1a;
+      --panel: #111b2e;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --link: #7dd3fc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 32px max(24px, 5vw);
+      background: linear-gradient(135deg, #082f49, #312e81);
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
+    header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
+    nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    a { color: var(--link); }
+    nav a, .actions a {
+      padding: 7px 11px;
+      border: 1px solid #64748b;
+      border-radius: 7px;
+      background: #0f172a;
+      text-decoration: none;
+    }
+    main { max-width: 1760px; margin: auto; padding: 24px; }
+    section {
+      margin-bottom: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+    section > header {
+      padding: 18px 22px;
+      background: #17233a;
+    }
+    section h2 { margin: 0 0 6px; }
+    section h3 { margin: 0 0 4px; font-size: 16px; }
+    section p { margin: 0; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px; }
+    .graphs { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; padding: 0 14px 14px; }
+    figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    figcaption { padding: 10px 14px; background: #17233a; }
+    figcaption a { margin-right: 12px; }
+    object {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: #0b1120;
+    }
+    .flame { height: min(50vw, 760px); min-height: 460px; }
+    table { border-collapse: collapse; margin: 14px 22px 22px; }
+    th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    .wrap { overflow-x: auto; }
+    footer { padding: 0 24px 28px; color: var(--muted); text-align: center; }
+    @media (max-width: 700px) {
+      .graphs { grid-template-columns: 1fr; }
+      .flame { min-height: 380px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>cake-adapt profile, 2026-10-09: 0.3.15 against 0.3.12</h1>
+    <p>OpenWrt 25.12 x86 VM, seven workloads, two of them over IPv6. The method and conclusions are in <a href="README.md">README.md</a>.</p>
+    <p>The flame graphs are generated from the stored perf stacks. Hover over frames for values and click frames to zoom.</p>
+    <nav>
+      <a href="#summary">Summary</a>
+      <a href="#idle">Quiet link, before sleep</a>
+      <a href="#download">Download</a>
+      <a href="#upload">Upload</a>
+      <a href="#bidirectional">Bidirectional</a>
+      <a href="#congested">Congested upload</a>
+      <a href="#download6">Download over IPv6</a>
+      <a href="#bidirectional6">Bidirectional over IPv6</a>
+      <a href="README.md">Written report</a>
+      <a href="../index.html">All profiling evidence</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="summary">
+      <header>
+        <h2>CPU, memory and BPF cost</h2>
+        <p>Ticks of 10 ms per 40-s workload; 40 ticks = 1% of one core. Medians of three passes. head is 0.3.15, base is 0.3.12.</p>
+      </header>
+      <div class="wrap"><table>
+<tr><th>Workload</th><th>CPU ticks / 40 s, head (median)</th><th>base (median)</th><th>% of one core (head)</th><th>Filter ns/run head / base</th><th>Injector ns/run head / base</th><th>RSS head / base</th></tr>
+<tr><td>idle</td><td>5 / 6 / 6 (6)</td><td>7 / 6 / 7 (7)</td><td>0.15</td><td>1380 / 1223</td><td>684 / 1536</td><td>2.1 / 2.1 MB</td></tr>
+<tr><td>download</td><td>13 / 11 / 11 (11)</td><td>13 / 13 / 12 (13)</td><td>0.28</td><td>2754 / 2983</td><td>354 / 721</td><td>2.1 / 2.1 MB</td></tr>
+<tr><td>upload</td><td>16 / 10 / 10 (10)</td><td>9 / 10 / 11 (10)</td><td>0.25</td><td>4697 / 5317</td><td>552 / 1044</td><td>2.1 / 2.1 MB</td></tr>
+<tr><td>bidirectional</td><td>18 / 17 / 15 (17)</td><td>17 / 15 / 15 (15)</td><td>0.42</td><td>3168 / 2723</td><td>399 / 725</td><td>2.1 / 2.1 MB</td></tr>
+<tr><td>congested</td><td>17 / 16 / 14 (16)</td><td>16 / 13 / 15 (15)</td><td>0.40</td><td>2845 / 2789</td><td>420 / 740</td><td>2.1 / 2.1 MB</td></tr>
+<tr><td>download6</td><td>14 / 14 / 12 (14)</td><td>13 / 12 / 14 (13)</td><td>0.35</td><td>2757 / 2933</td><td>649 / 690</td><td>2.1 / 2.1 MB</td></tr>
+<tr><td>bidirectional6</td><td>16 / 15 / 14 (15)</td><td>14 / 13 / 20 (14)</td><td>0.38</td><td>2878 / 2782</td><td>730 / 678</td><td>2.1 / 2.1 MB</td></tr>
+</table></div>
+    </section>
+
+    <section id="idle">
+      <header>
+        <h2>Quiet link, before sleep</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-idle.svg" target="_blank">Open interactive SVG</a><a href="folded/head-idle.folded">Folded stacks</a> · 107 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-idle.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-idle.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="download">
+      <header>
+        <h2>Download</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-download.svg" target="_blank">Open interactive SVG</a><a href="folded/head-download.folded">Folded stacks</a> · 213 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-download.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-download.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="upload">
+      <header>
+        <h2>Upload</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-upload.svg" target="_blank">Open interactive SVG</a><a href="folded/head-upload.folded">Folded stacks</a> · 181 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-upload.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-upload.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="bidirectional">
+      <header>
+        <h2>Bidirectional</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-bidirectional.svg" target="_blank">Open interactive SVG</a><a href="folded/head-bidirectional.folded">Folded stacks</a> · 369 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-bidirectional.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-bidirectional.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="congested">
+      <header>
+        <h2>Congested upload</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-congested.svg" target="_blank">Open interactive SVG</a><a href="folded/head-congested.folded">Folded stacks</a> · 285 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-congested.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-congested.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="download6">
+      <header>
+        <h2>Download over IPv6</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-download6.svg" target="_blank">Open interactive SVG</a><a href="folded/head-download6.folded">Folded stacks</a> · 168 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-download6.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-download6.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="bidirectional6">
+      <header>
+        <h2>Bidirectional over IPv6</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.15 (head)</h3><p><a href="flamegraphs/flamegraph-bidirectional6.svg" target="_blank">Open interactive SVG</a><a href="folded/head-bidirectional6.folded">Folded stacks</a> · 262 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/flamegraph-bidirectional6.svg" type="image/svg+xml"><a href="flamegraphs/flamegraph-bidirectional6.svg">Open the 0.3.15 (head) flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>Raw perf scripts, folded stacks and CPU measurements are in raw/ and folded/; tools/ holds the scripts that produced them.</footer>
+</body>
+</html>
