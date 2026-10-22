@@ -170,7 +170,7 @@ static void replace_active_reflector(struct monitor *monitor, size_t pinger, uin
 		"Resetting reflector offences associated with reflector: %s.",
 		reflector_name(monitor, pinger)
 	);
-	/* fping owns all active targets in one process, so rotate them together. */
+	/* One pinger session (native sockets or an fping process) owns all active targets. */
 	if (rotate)
 		pingers_reopen(monitor);
 }
@@ -190,7 +190,7 @@ static bool compare_active_reflectors(struct monitor *monitor, uint64_t timestam
 		const char *column;
 
 		if (monitor->config->output_reflector_stats) {
-			/* Keep both upstream columns even though fping shares the delay. */
+			/* Keep both upstream columns even though an echo pinger shares the delay. */
 			const struct log_reflector_record record = {
 				.reflector = reflector,
 				.minimum_sum_owd_baselines_us =
