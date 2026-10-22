@@ -1,6 +1,6 @@
 # 2026-09-30: end-to-end run and CPU profile after the optimization pass
 
-[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/icmp-native/profiling/2026-09-30/index.html): the CPU table and every flame graph on one page.
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-09-30/index.html): the CPU table and every flame graph on one page.
 
 ## Result
 
