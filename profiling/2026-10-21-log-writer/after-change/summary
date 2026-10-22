@@ -1,0 +1,6 @@
+before: 10 distinct of 10 samples
+paused: 20 distinct of 20 samples
+after: 10 distinct of 10 samples
+Wed Oct 21 18:52:21 2026 daemon.warn cake-adapt[14543]: WARNING: 1792630341.068565 1 log lines dropped: the log writer fell behind
+Wed Oct 21 18:52:21 2026 daemon.warn cake-adapt[14543]: WARNING: 1792630341.068774 159 log lines dropped: the log writer fell behind
+daemon 14543 alive=yes

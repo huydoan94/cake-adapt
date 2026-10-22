@@ -1,0 +1,21 @@
+cake-adapt-mqtt-0.3.19-r1
+drwxr-xr-x    2 root     root          4096 Oct 21 12:45 /etc/cake-adapt
+-rw-------    1 root     root           982 Oct 21 12:28 /etc/cake-adapt/exec
+PASS exec file 0600 root
+FAIL old exec file gone
+PASS comment-only file parses
+instance 14365
+PASS running native
+instance 14858
+PASS runtime has extra args
+PASS runtime has file value
+FAIL fping got the args
+PASS exec file still 0600
+cake-adapt configuration import: option 'ping_extra_args' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+PASS kept running
+Wed Oct 21 12:46:07 2026 daemon.err cake-adapt: configuration import: option 'ping_extra_args' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'ma
+PASS refusal logged
+PASS nothing planted
+manual rc=1
+PASS manual -V refused
+PASS back on native

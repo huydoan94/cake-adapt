@@ -1,0 +1,4 @@
+before: 10 distinct of 10 samples
+paused: 4 distinct of 20 samples
+after: 10 distinct of 10 samples
+daemon 12827 alive=yes
