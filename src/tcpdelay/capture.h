@@ -47,6 +47,9 @@ void tcpdelay_capture_enable_injection(struct tcpdelay_capture *capture);
  */
 int tcpdelay_capture_load(struct tcpdelay_capture *capture, char *error, size_t error_size);
 
+/* The interface's ARPHRD_* link type, as SIOCGIFHWADDR reports it; -1 with errno. */
+int tcpdelay_interface_type(const char *interface, uint32_t *hardware_type);
+
 /*
  * Attaches the loaded filter (loading it first if needed) to a new packet
  * socket on interface, with zeroed counters and an empty estimator. Records

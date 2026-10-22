@@ -19,6 +19,7 @@
 
 #include "common/constants.h"
 #include "common/error.h"
+#include "common/utils.h"
 #include "logging/log.h"
 
 /* Names in tcpdelay.bpf.c: the program and its maps. */
@@ -76,6 +77,37 @@ static int add_record(void *context, void *data, size_t size)
 	return 0;
 }
 
+int tcpdelay_interface_type(const char *interface, uint32_t *hardware_type)
+{
+	struct ifreq request = { 0 };
+	int descriptor = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	int failure = 0;
+
+	(void)snprintf(request.ifr_name, sizeof(request.ifr_name), "%s", interface);
+	if (descriptor < 0 || ioctl(descriptor, SIOCGIFHWADDR, &request) != 0)
+		failure = errno;
+	else
+		*hardware_type = (uint32_t)(unsigned short)request.ifr_hwaddr.sa_family;
+	if (descriptor >= 0)
+		(void)close(descriptor);
+	errno = failure;
+	return failure == 0 ? 0 : -1;
+}
+
+/* With injection off, its maps keep one entry each: the filter still looks them up. */
+static int shrink_injection_maps(struct bpf_object *object)
+{
+	static const char *const names[] = { INJECT_SERVERS, INJECT_HANDSHAKES, INJECT_CLIENTS };
+
+	for (size_t index = 0U; index < ARRAY_SIZE(names); index++) {
+		struct bpf_map *map = bpf_object__find_map_by_name(object, names[index]);
+
+		if (map == NULL || bpf_map__set_max_entries(map, INJECT_UNUSED_ENTRIES) != 0)
+			return -1;
+	}
+	return 0;
+}
+
 static int load_program(struct tcpdelay_capture *capture, char *error, size_t error_size)
 {
 	struct bpf_program *program;
@@ -96,19 +128,7 @@ static int load_program(struct tcpdelay_capture *capture, char *error, size_t er
 	accounting = bpf_object__find_map_by_name(capture->object, FILTER_ACCOUNTING);
 	injector = bpf_object__find_program_by_name(capture->object, INJECT_PROGRAM);
 	if (injector == NULL || bpf_program__set_autoload(injector, capture->injection) != 0 ||
-	    (!capture->injection &&
-	     (bpf_map__set_max_entries(
-		      bpf_object__find_map_by_name(capture->object, INJECT_SERVERS),
-		      INJECT_UNUSED_ENTRIES
-	      ) != 0 ||
-	      bpf_map__set_max_entries(
-		      bpf_object__find_map_by_name(capture->object, INJECT_HANDSHAKES),
-		      INJECT_UNUSED_ENTRIES
-	      ) != 0 ||
-	      bpf_map__set_max_entries(
-		      bpf_object__find_map_by_name(capture->object, INJECT_CLIENTS),
-		      INJECT_UNUSED_ENTRIES
-	      ) != 0)))
+	    (!capture->injection && shrink_injection_maps(capture->object) != 0))
 		return error_set(error, error_size, "TCP delay object lacks the timestamp injector");
 	if (counters == NULL || accounting == NULL ||
 	    bpf_map__value_size(counters) != sizeof(struct tcpdelay_counters) ||
@@ -169,18 +189,14 @@ static int attach_socket(
 		.sll_ifindex = (int)capture->interface_index,
 	};
 	struct tcpdelay_accounting *accounting = &capture->accounting;
-	struct ifreq request = { 0 };
 	uint32_t key = 0U;
 
 	capture->socket_descriptor = socket(AF_PACKET, SOCK_RAW | SOCK_CLOEXEC, 0);
 	if (capture->socket_descriptor < 0)
 		goto fail;
-	if (accounting->enabled) {
-		(void)snprintf(request.ifr_name, sizeof(request.ifr_name), "%s", interface);
-		if (ioctl(capture->socket_descriptor, SIOCGIFHWADDR, &request) != 0)
-			goto fail;
-		accounting->hardware_type = (uint32_t)(unsigned short)request.ifr_hwaddr.sa_family;
-	}
+	if (accounting->enabled &&
+	    tcpdelay_interface_type(interface, &accounting->hardware_type) != 0)
+		goto fail;
 	if (bpf_map_update_elem(capture->accounting_descriptor, &key, accounting, BPF_ANY) != 0)
 		goto fail;
 	if (setsockopt(

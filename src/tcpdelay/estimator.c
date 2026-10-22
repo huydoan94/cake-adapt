@@ -126,8 +126,8 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 	period_ns = span_ns / flow->ticks;
 	for (index = 0U; index < TCPDELAY_TICKS; index++) {
 		uint64_t standard_ns = standard_ticks_ns[index];
-		uint64_t error_ns = period_ns > standard_ns ? period_ns - standard_ns :
-							      standard_ns - period_ns;
+		uint64_t error_ns =
+			max_u64(period_ns, standard_ns) - min_u64(period_ns, standard_ns);
 
 		if (error_ns <= ratio_of(standard_ns, TICK_TOLERANCE_RATIO_E6)) {
 			flow->tick_ns = standard_ns;
