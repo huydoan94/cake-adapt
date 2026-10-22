@@ -116,10 +116,9 @@ uint64_t response_monotonic_us(
 	);
 }
 
-bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us)
+bool response_stale(uint64_t now_us, uint64_t response_us)
 {
-	return saturating_sub(processing_realtime_us, response_realtime_us) >
-	       LATENCY_STALE_RESPONSE_US;
+	return saturating_sub(now_us, response_us) > LATENCY_STALE_RESPONSE_US;
 }
 
 bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us)
@@ -204,7 +203,7 @@ int absolute_path(const char *path, char *buffer, size_t size)
 			buffer,
 			size,
 			"%s/%s",
-			strcmp(directory, "/") == 0 ? "" : directory,
+			strcmp(directory, "/") == 0 ? EMPTY_STRING : directory,
 			path
 		);
 	}
