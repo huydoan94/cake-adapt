@@ -35,6 +35,7 @@ so its documentation also applies; differences are noted below.
 - [Reflector health](#reflector-health)
 - [Timing](#timing)
 - [Multiple instances](#multiple-instances)
+- [Options only root sets](#options-only-root-sets)
 - [Standalone shell configuration](#standalone-shell-configuration)
 
 Booleans are `0` or `1`. Durations and rates carry their unit in the option
@@ -229,7 +230,7 @@ support the instance logs a warning and carries on without them.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `tcp_delay_attribution` | boolean | `0` | With `pinger_method fping`: split fping's round-trip delay between upload and download by queue delays measured from TCP timestamps, instead of half each way. Only the direction holding the queue is then slowed. |
+| `tcp_delay_attribution` | boolean | `0` | With an echo pinger (`native` or `fping`): split its round-trip delay between upload and download by queue delays measured from TCP timestamps, instead of half each way. Only the direction holding the queue is then slowed. |
 | `ul_congest_ack_share` | decimal | `0` | From `0` to `1`; `0` disables it. While upload is busy, download is held back so that its ACKs leave room for other upload traffic, but never below this share of the upload rate, for example `0.45`. It is not a reservation: when ACKs need less, other traffic uses the rest. |
 
 For a slow upload, CAKE's plain `ack-filter` on the upload qdisc also helps.
