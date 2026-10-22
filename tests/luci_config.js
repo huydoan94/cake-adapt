@@ -44,6 +44,9 @@ class Option {
 	depends(...values) { this.dependencies = values; }
 }
 class Value extends Option {}
+class ListValue extends Value {
+	value(key, label) { (this.choices ??= []).push([ key, label ]); }
+}
 class Flag extends Value { constructor(...a) { super(...a); this.enabled = '1'; } }
 class DynamicList extends Value {}
 class DummyValue extends Option {}
@@ -93,7 +96,7 @@ class NamedSection extends Section {
 	constructor(map, sid, ...args) { super(map, sid, ...args); this.section = sid; }
 	cfgsections() { return [ this.section ]; }
 }
-const form = { Map, TypedSection: Section, NamedSection, SectionValue, Value, Flag, DynamicList, DummyValue };
+const form = { Map, TypedSection: Section, NamedSection, SectionValue, Value, ListValue, Flag, DynamicList, DummyValue };
 global.E = (tag, attrs, nodes) => ({ tag, attrs, nodes });
 /* Nothing is kept between two calls here, as when a moment passes between them. */
 const realSetTimeout = global.setTimeout;
@@ -410,6 +413,11 @@ const declared = sections.flatMap((sec) => sec.children);
 const allOptions = declared.filter((o) => !o.option.startsWith('_'));
 const options = allOptions.map((o) => o.option);
 const option = (name) => allOptions.find((o) => o.option == name);
+/* The pinger is chosen from a list: the daemon's default first, then every method. */
+assert.ok(option('pinger_method') instanceof ListValue, 'pinger_method is a dropdown');
+assert.deepStrictEqual(option('pinger_method').choices.map(([ key ]) => key),
+	[ '', 'fping', 'fping-ts', 'irtt', 'native', 'native-ts' ]);
+assert.strictEqual(option('pinger_method').choices[0][1], 'Default (native)');
 /* Each option is declared once, across both sections. */
 assert.strictEqual(new Set(options).size, options.length, `duplicates: ${options.filter((n, i) => options.indexOf(n) != i)}`);
 /* What the package cannot use is not shown; the MQTT switch only while an instance has it on. */
