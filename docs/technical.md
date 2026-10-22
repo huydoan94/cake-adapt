@@ -16,7 +16,8 @@ cake-adapt currently:
 - uses the configured `interface` as upload and derives download as
   `ifb4<interface>`, unless both directional interface options override it;
 - measures traffic rates independently for upload and download;
-- runs one `fping` process against multiple reflectors;
+- pings multiple reflectors with its own ICMP sockets (`native`, the default),
+  or with one `fping` process (or `irtt`) as a fallback;
 - tracks latency baselines and reflector health;
 - detects high load, congestion, idle periods, and stalled connectivity;
 - adjusts upload and download CAKE bandwidth independently when enabled, and
@@ -65,16 +66,20 @@ safety:
   of `tc`, and is read back from the kernel to verify the effective rate.
 - Reflectors come only from local configuration. Remote reflector-list
   retrieval is not implemented.
-- `fping` is the supported pinger. The `fping-ts` method (fping with ICMP
-  timestamps, giving separate download and upload delays) is implemented as in
-  cake-autorate and verified on the emulated testbed, where its one-way delays
-  track the real queues and it beats fping's RTT/2 in every phase but a sudden
-  capacity drop
-  ([evidence](../profiling/2026-10-03-fping-ts-testbed/README.md)). It is not yet
-  verified on internet reflectors, whose clocks and timestamp support vary, so
-  it is not yet supported for production use. `fping-ts` accepts only IPv4
-  reflectors, because ICMP timestamps are IPv4 only; cake-autorate leaves
-  fping to fail on IPv6 targets at runtime.
+- The daemon pings reflectors itself: `native` (ICMP echo, IPv4 and IPv6,
+  the default since 0.3.21) and `native-ts` (ICMP timestamps for separate
+  download and upload delays, IPv4 only), numeric addresses only. On the
+  testbed native matched fping within its run-to-run noise with less combined
+  CPU ([gate](../profiling/2026-10-20-native-icmp-gate/README.md),
+  [jittered drops](../profiling/2026-10-21-native-icmp-jitter/README.md)).
+  `fping`, `fping-ts` and `irtt` remain as fallbacks, run as child processes;
+  fping is no longer installed with cake-adapt. The timestamp methods
+  (`fping-ts`, `native-ts`) are verified on the emulated testbed, where their
+  one-way delays track the real queues
+  ([evidence](../profiling/2026-10-03-fping-ts-testbed/README.md)), but not on
+  internet reflectors, whose clocks and timestamp support vary. They accept
+  only IPv4 reflectors, because ICMP timestamps are IPv4 only; cake-autorate
+  leaves fping to fail on IPv6 targets at runtime.
 - **The IRTT backend (`pinger_method 'irtt'`) is experimental.** It follows
   cake-autorate and passes its host tests, but it has never run against a
   real IRTT server and no runtime behavior has been verified. Do not use it
@@ -130,12 +135,18 @@ safety:
     and standalone shell configurations to `ul_congest_ack_share`.
 - Configuration is typed UCI. A cake-autorate configuration file can be
   imported (see [Standalone shell configuration](configuration.md#standalone-shell-configuration)),
-  but it is validated like UCI and never sourced by the daemon.
+  but it is validated like UCI and never sourced by the daemon. The four
+  options that make root run something, choose its arguments or choose where
+  it writes (`config_file`, `ping_prefix_string`, `ping_extra_args`,
+  `log_file_path_override`) are read only from the root-only
+  `/etc/cake-adapt/exec`, which the LuCI app cannot change
+  ([options only root sets](configuration.md#options-only-root-sets)). The
+  importer is plain sh; Bash is needed only to read a `config_file`.
 
 ## Data flow
 
 ```text
- CAKE qdisc dump (traffic timer)          fping reflector replies
+ CAKE qdisc dump (traffic timer)          reflector replies (ICMP)
    bytes, bandwidth, MTU                            |
             |                                       v
             v                           OWD baseline and delta
@@ -226,7 +237,7 @@ signal, such as `kill -TERM <pid>` with the pid from
 
 ```json
 {
-	"version": "0.3.16-r1",
+	"version": "0.3.21-r1",
 	"pid": 4767,
 	"started": 1791666047,
 	"state": "running",
@@ -308,6 +319,23 @@ running (pid N); exiting` and exits with status 1 before it opens the log file
 or touches a qdisc; the first one keeps running. The kernel drops the lock when
 the process exits, so procd's restart and respawn work as before. Validation
 (`-V`) and listing (`-L`) take no lock.
+
+## Logging off the control path
+
+Control never waits for logging either. musl's `syslog()` waits while logd's
+socket queue is full (10 messages), and log-file writes, rotation and a
+compressed `SIGUSR1` export can be slow, so a writer thread does all of them:
+the log file, stdout and syslog, the periodic flush, rotation, export and
+reset. The main thread only formats each record and copies it into a 128 KiB
+queue. The queue is a bounded FIFO: when it is full, the oldest waiting lines
+make room and are counted, so the newest records are kept, and the writer
+logs "N older log lines and M syslog messages were overwritten" where they
+are missing; an overwritten export or reset request still runs. At stop the
+writer gets 2 s to drain; a writer stuck in syslog or on storage is left
+behind and the daemon ends with `_exit()`. On the VM, a 20-s logd pause froze
+the previous build's main loop after 4 s and left this one working
+([evidence](../profiling/2026-10-21-log-writer/README.md)). Configuration
+checks (`-V`) log directly.
 
 ## Optional MQTT logging (current development work)
 
@@ -447,10 +475,10 @@ The cake-autorate parity and refactor sequence is complete:
 
 Deferred work:
 
-- Additional pinger backends. `fping` is the supported production backend;
-  `fping-ts` needs verification on internet reflectors, and the experimental
-  IRTT backend needs fixtures and runtime verification against an IRTT
-  server before either is supported.
+- Pinger verification: the timestamp methods (`native-ts`, `fping-ts`) need
+  verification on internet reflectors, native needs hostname support if it is
+  ever wanted, and the experimental IRTT fallback needs fixtures and runtime
+  verification against an IRTT server.
 - Native SQM ownership (CAKE, IFB, `ctinfo` and `mirred` setup) remains a
   possible later phase. It requires an explicit decision and is not part of
   the current daemon.

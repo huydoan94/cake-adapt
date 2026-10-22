@@ -1,5 +1,9 @@
 # Native timestamps with jittered capacity drops (2026-10-21)
 
+> **Update 2026-10-21:** after the jittered-drop rerun the user accepted
+> native ICMP as good enough; since 0.3.21 it is the default and fping a
+> fallback.
+
 **Result:** with the capacity drops at random points of the controller's
 sawtooth, native-ts no longer loses on upload-step p95; it is better (median
 131 against 153 ms). The gate still fails, now on three different metrics,

@@ -147,7 +147,7 @@ disabled:
 - disabled configuration when started by `procd`;
 - invalid or unreadable configuration;
 - missing interfaces or CAKE qdiscs;
-- measurement, `fping`, and netlink failures; and
+- measurement, pinger (native ICMP or `fping`), and netlink failures; and
 - degraded operation or failed kernel changes.
 
 High-frequency measurement records remain optional. When changing kernel state,

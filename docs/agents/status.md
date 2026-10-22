@@ -17,8 +17,8 @@ module ownership changes.
 Since parity, these deliberate departures are implemented, opt-in, and
 measured (evidence directories under `profiling/`, indexed in its README):
 
-- `tcp_delay_attribution` (fping only): the eBPF TCP queue estimate splits
-  fping's round-trip delta between the directions
+- `tcp_delay_attribution` (`native` or `fping`, the echo pingers): the eBPF
+  TCP queue estimate splits the round-trip delta between the directions
   (`2026-10-02-tcp-queue-split`);
 - `ul_congest_ack_share` (named `upload_ack_share_min` until 2026-10-04):
   download is held so its ACKs leave other upload traffic room, down to the
@@ -74,11 +74,13 @@ Remaining work must remain behavior-first:
   new runtime claim;
 - never run cake-autorate and cake-adapt concurrently against the same qdiscs.
 
-Do not claim parity for a new behavior from host tests alone. `fping` remains
-the only supported production pinger until every additional backend has
-independent parser, lifecycle, fixture, and runtime verification.
+Do not claim parity for a new behavior from host tests alone. The native
+ICMP probes are the default pinger (user decision 2026-10-21, after the
+testbed gate and jittered-drop comparisons); `fping` and `fping-ts` remain
+fallbacks, and `irtt` stays experimental until it has fixture and runtime
+verification against a real server.
 
-### Current status (2026-10-11)
+### Current status (2026-10-21)
 
 - This branch's packages are at 0.3.21-r1 (`main` has v0.3.18). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
@@ -87,6 +89,23 @@ independent parser, lifecycle, fixture, and runtime verification.
   ubus status object `cake-adapt.<section>` served from its own thread, the
   per-instance lock, the dnsmasq-style reload/restart and `respawn 3600 5 0`,
   and `luci-app-cake-adapt` (`2026-10-10-luci-app`, `2026-10-11-*`).
+- 0.3.18-0.3.19 added MQTT log forwarding in three package variants
+  (`cake-adapt`, `cake-adapt-mqtt`, `cake-adapt-mqtt-ssl`;
+  `2026-10-11-mqtt-logging`, `2026-10-12-mqtt-variants`).
+- 0.3.21 (0.3.20 was never released):
+  - native ICMP probes are the default pinger, with fping, fping-ts and irtt
+    as fallbacks and fping no longer a package dependency
+    (`2026-10-13-native-icmp*`, `2026-10-20-native-icmp-gate`,
+    `2026-10-21-native-icmp-jitter`);
+  - `config_file`, `ping_prefix_string`, `ping_extra_args` and
+    `log_file_path_override` are read only from the root-only
+    `/etc/cake-adapt/exec`, refused in `/etc/config/cake-adapt`, which LuCI
+    can write (`2026-10-21-phase4-lifecycle`);
+  - the importer runs under plain sh, Bash is needed only for a
+    `config_file`;
+  - a writer thread does all logging, so a stuck logd or slow storage never
+    stops control; its queue overwrites and counts its oldest lines when full
+    (`2026-10-21-log-writer`).
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
