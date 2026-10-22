@@ -1,10 +1,11 @@
 # Native ICMP probes: implementation and validation
 
-The native probe backend is experimental and opt-in through `pinger_method`
-`native` (IPv4/IPv6 echo) or `native-ts` (IPv4 timestamp). fping remains the
-default while the required control comparison is pending. There is no automatic
-fallback between backends. The eventual switch removes fping, irtt and their
-options, as specified by the user's temporary native ICMP plan.
+The native probes are the default `pinger_method`: `native` (IPv4/IPv6 echo)
+or `native-ts` (IPv4 timestamp). fping, fping-ts and irtt remain as fallbacks
+the user chooses; nothing switches between them automatically. The user
+accepted native on 2026-10-21 after the testbed comparisons in
+`profiling/2026-10-21-native-icmp-jitter/`: with jittered capacity drops
+native-ts matched fping-ts within the testbed's noise.
 
 `latency/icmp.c` owns nonblocking raw sockets, interface binding, protocol and
 identifier receive filters, packet encoding/decoding and receive timestamps.
@@ -74,5 +75,4 @@ times became a constant timestamp. Native timestamp requests and arrivals now
 divide the 64-bit epoch by `MILLISECOND` before reducing it to UTC milliseconds
 since midnight. A modern fractional-epoch regression checks the transmitted
 origin and both one-way delays; it fails against the original conversion.
-The x86 SDK build and Astra Medium review pass. Runtime control acceptance
-remains required; fping stays the default.
+The x86 SDK build and Astra Medium review pass.

@@ -41,7 +41,9 @@ also visit and support
   the rate.
 - Hardware flow offloading off: offloaded traffic bypasses CAKE.
 
-The package pulls in its dependencies, including `fping`.
+The package pulls in its dependencies. cake-adapt pings reflectors itself, so
+no ping program is needed; `fping` or `irtt` are needed only to use them as a
+fallback (`pinger_method`).
 
 Do not run cake-adapt and cake-autorate (or anything else that changes the same
 CAKE qdiscs) at the same time.
@@ -83,7 +85,20 @@ service is down between the two commands. A modified `/etc/config/cake-adapt` is
 kept, with the new default beside it as `/etc/config/cake-adapt.apk-new`.
 
 Installing a variant installs the daemon, its service `/etc/init.d/cake-adapt` and the
-configuration `/etc/config/cake-adapt`. The web interface is a separate
+configurations `/etc/config/cake-adapt` and `/etc/cake-adapt/exec` (root
+only).
+
+When upgrading from 0.3.19 or earlier:
+
+- cake-adapt now pings reflectors itself (`pinger_method` `native`), and
+  fping is no longer installed with it; apk may remove it in the upgrade. An
+  instance that sets `pinger_method` `fping` or `fping-ts` needs it: run
+  `apk add fping` too. An instance that left `pinger_method` unset now uses
+  `native`, which takes numeric reflector addresses only.
+- `config_file`, `ping_prefix_string`, `ping_extra_args` and
+  `log_file_path_override` are refused in
+  `/etc/config/cake-adapt`; move them to `/etc/cake-adapt/exec` (see
+  [Options only root sets](docs/configuration.md#options-only-root-sets)). The web interface is a separate
 package, `luci-app-cake-adapt`, installed the same way (see [LuCI](#luci)).
 
 ## Configuration
@@ -118,8 +133,9 @@ config cake_adapt 'main'
   - minimum: the lowest rate the line delivers without bufferbloat;
   - base: the rate for a lightly loaded line;
   - maximum: the highest rate cake-adapt may try.
-- **Reflectors** are hosts cake-adapt pings to measure delay. Six are used at
-  a time, so keep at least six.
+- **Reflectors** are hosts cake-adapt pings to measure delay, as numeric IP
+  addresses (the default pinger takes no hostnames). Six are used at a time,
+  so keep at least six.
 
 Rate adjustment is off in each direction until you turn it on. Start by
 observing only, check the log, then enable one direction at a time:
@@ -218,7 +234,11 @@ with download (blue, solid) and upload (green, dashed).
 interface or the `ul_if`/`dl_if` pair, rate adjustment), Shaper rates
 (minimum, base and maximum for each direction), Reflectors, and Advanced,
 whose own tabs group the other options: Pinger, Logging, TCP measurement,
-Idle and stall, Controller, Reflector health, Timing and Shell configuration. **Save & Apply** commits the change and
+Idle and stall, Controller, Reflector health and Timing. The options that make
+root run something, choose its arguments or choose where it writes
+(`config_file`, `ping_prefix_string`, `ping_extra_args` and
+`log_file_path_override`) are not on the page: only root sets them, in
+`/etc/cake-adapt/exec`. **Save & Apply** commits the change and
 reloads the service, which restarts only the instances whose configuration
 changed. Before saving, the page checks every option in the
 browser, against the values shown on screen and not the saved ones, with the

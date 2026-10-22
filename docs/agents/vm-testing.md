@@ -20,7 +20,9 @@ At the beginning of a test:
 3. truncate it in place with `: > /tmp/sqm-mon-test.log`;
 4. create an isolated log directory and hard-link its expected
    `cake-adapt[.<section>].log` name to that file; and
-5. point `log_file_path_override` at the isolated directory.
+5. point `log_file_path_override` at the isolated directory (for the
+   installed service, in `/etc/cake-adapt/exec`, followed by a reload; a run
+   with `-C` sets it in its own file).
 
 Never delete, move, replace, or pipe through `tee` to this file. Do not start or
 stop the user's `tail -f`. At the end, confirm the inode is unchanged.
