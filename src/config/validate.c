@@ -148,14 +148,14 @@ static int validate_pinger(const struct config *config, char *error, size_t erro
 			return error_set(
 				error,
 				error_size,
-				"native probes do not use ping_extra_args or ping_prefix_string"
+				"native probes do not use ping_extra_args or ping_prefix_string; set pinger_method 'fping' or 'irtt' to use them"
 			);
 		for (uint64_t index = 0U; index < config->reflector_count; index++)
 			if (icmp_address_parse(&address, config->reflectors[index]) != 0)
 				return error_set(
 					error,
 					error_size,
-					"native reflector '%s' must be a numeric IP address",
+					"native reflector '%s' must be a numeric IP address; use one, or set pinger_method 'fping' for hostnames",
 					config->reflectors[index]
 				);
 	}

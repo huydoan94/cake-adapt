@@ -325,10 +325,12 @@ int latency_check_backend(const char *pinger_method, char *error, size_t error_s
 		return error_set(
 			error,
 			error_size,
-			"ping binary %s for pinger_method '%s' is not available: %s",
+			"ping binary %s for pinger_method '%s' is not available: %s; install the %s package or use pinger_method '%s'",
 			executable,
 			pinger_method,
-			strerror(errno)
+			strerror(errno),
+			strrchr(executable, '/') + 1,
+			PINGER_METHOD_NATIVE
 		);
 	}
 	return 0;

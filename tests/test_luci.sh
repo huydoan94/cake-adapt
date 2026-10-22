@@ -22,7 +22,8 @@ tls
 '
 # Every daemon option is in the Configuration view, and nothing else: the
 # constants named in the options[] table, plus reflectors, which config.c reads
-# outside the table. The view names each option on the line of its
+# outside the table, minus config_file, log_file_path_override, ping_extra_args
+# and ping_prefix_string, which only root sets, in /etc/cake-adapt/exec. The view names each option on the line of its
 # taboption call, on the instance section (s) or on the nested Advanced
 # section (a); names starting with _ (the nested section's holder) are not
 # options.
@@ -30,7 +31,8 @@ daemon=$(sed -n '/^static const struct option_binding options\[\]/,/^};/p' ../sr
 	grep -ow 'OPTION_[A-Z0-9_]*' |
 	while read -r constant; do
 		sed -n "s/^#define $constant \"\(.*\)\"/\1/p" ../src/common/constants.h
-	done | sort)
+	done | grep -v -e '^config_file$' -e '^log_file_path_override$' -e '^ping_extra_args$' \
+		-e '^ping_prefix_string$' | sort)
 view=$(sed -n "s/.*[sa]\.taboption([^,]*, *form\.[A-Za-z]*, *'\([a-zA-Z0-9_]*\)'.*/\1/p" \
 	"$app/htdocs/luci-static/resources/view/cake-adapt/config.js" |
 	grep -v -e '^reflectors$' -e '^_' | sort -u)

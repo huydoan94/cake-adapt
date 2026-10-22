@@ -118,6 +118,24 @@ const char *config_option_name(size_t index);
 /* Checks a loaded configuration for consistency; config_load() calls it. */
 int config_validate(const struct config *config, char *error, size_t error_size);
 
+struct stat;
+
+/*
+ * Refuses ping_prefix_string, ping_extra_args and log_file_path_override when
+ * the configuration file, whose STATUS is given, is SHARED_PATH:
+ * /etc/config/cake-adapt, which LuCI can change. The service takes them only
+ * from the root-only /etc/cake-adapt/exec, into the runtime file it builds;
+ * this keeps a daemon started by hand from running a program, with arguments,
+ * or writing where a LuCI user chose.
+ */
+int config_check_shared_file(
+	const struct config *config,
+	const struct stat *status,
+	const char *shared_path,
+	char *error,
+	size_t error_size
+);
+
 /*
  * Loads SECTION_NAME from CONFIG_PATH, the absolute path of a file in UCI
  * syntax (libuci loads a name that starts with '/' as that file).

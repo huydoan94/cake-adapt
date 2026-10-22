@@ -3,6 +3,7 @@
 #include "common/utils.h"
 
 #include <assert.h>
+#include <unistd.h>
 
 /* Use real libuci inline accessors with a controlled single-option lookup. */
 static struct uci_option *lookup_option;
@@ -478,6 +479,63 @@ static void test_mqtt_validation(void)
 #endif
 }
 
+/* A prefix or extra arguments in the LuCI-writable file are refused; elsewhere, or without them, not. */
+static void test_shared_file(void)
+{
+	struct config config;
+	struct stat status;
+	char shared[] = "/tmp/cake-adapt-shared-XXXXXX";
+	char other[] = "/tmp/cake-adapt-other-XXXXXX";
+	char error[256] = "";
+	int shared_fd = mkstemp(shared);
+	int other_fd = mkstemp(other);
+
+	assert(shared_fd >= 0 && other_fd >= 0);
+	defaults_apply(&config);
+	assert(stat(shared, &status) == 0);
+	assert(config_check_shared_file(&config, &status, shared, error, sizeof(error)) == 0);
+	(void)strcpy(config.ping_prefix_string, "/tmp/planted");
+	assert(config_check_shared_file(&config, &status, shared, error, sizeof(error)) == -1);
+	assert(strstr(error, "option 'ping_prefix_string' is refused in") != NULL);
+	assert(strstr(error, "move it to /etc/cake-adapt/exec") != NULL);
+	assert(config_check_shared_file(&config, &status, other, error, sizeof(error)) == 0);
+	assert(config_check_shared_file(&config, &status, "/nonexistent", error, sizeof(error)) ==
+	       0);
+	config.ping_prefix_string[0] = '\0';
+	(void)strcpy(config.ping_extra_args, "-o /etc/shadow");
+	assert(config_check_shared_file(&config, &status, shared, error, sizeof(error)) == -1);
+	assert(strstr(error, "option 'ping_extra_args' is refused in") != NULL);
+	config.ping_extra_args[0] = '\0';
+	(void)strcpy(config.log_file_path_override, "/etc/hotplug.d/iface");
+	assert(config_check_shared_file(&config, &status, shared, error, sizeof(error)) == -1);
+	assert(strstr(error, "option 'log_file_path_override' is refused in") != NULL);
+	(void)close(shared_fd);
+	(void)close(other_fd);
+	(void)unlink(shared);
+	(void)unlink(other);
+}
+
+/* A log directory is made absolute; the result must fit the option's 512 bytes. */
+static void test_log_directory(void)
+{
+	struct config config;
+	char error[256] = "";
+
+	defaults_apply(&config);
+	assert(absolute_log_directory(&config, error, sizeof(error)) == 0);
+	assert(config.log_file_path_override[0] == '\0');
+	/* 511 bytes, the most the option holds, already absolute. */
+	config.log_file_path_override[0] = '/';
+	memset(config.log_file_path_override + 1, 'a', 510U);
+	config.log_file_path_override[511] = '\0';
+	assert(absolute_log_directory(&config, error, sizeof(error)) == 0);
+	assert(strlen(config.log_file_path_override) == 511U);
+	/* Relative, the working directory in front cannot fit. */
+	memset(config.log_file_path_override, 'a', 511U);
+	assert(absolute_log_directory(&config, error, sizeof(error)) == -1);
+	assert(strstr(error, "option 'log_file_path_override': File name too long") != NULL);
+}
+
 int main(void)
 {
 	struct config_direction rates;
@@ -512,6 +570,8 @@ int main(void)
 	assert(parse_decimal("+1", 1U, &value, error, sizeof(error)) != 0);
 	assert(strstr(error, "non-negative decimal") != NULL);
 
+	test_shared_file();
+	test_log_directory();
 	rates = (struct config_direction){
 		.adjust = true,
 		.minimum_rate_bps = 5000000U,
