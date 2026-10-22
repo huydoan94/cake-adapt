@@ -150,8 +150,7 @@ static bool process_latency_sample(
 	/* Native probes bring the kernel's receive time; a pinger's line its own timestamp. */
 	if (captured_response_us != NULL) {
 		response_us = *captured_response_us;
-		stale = saturating_sub(processing_monotonic_us, response_us) >
-			LATENCY_STALE_RESPONSE_US;
+		stale = response_stale(processing_monotonic_us, response_us);
 	} else {
 		response_us = response_monotonic_us(
 			processing_realtime_us,

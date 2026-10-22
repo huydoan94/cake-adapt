@@ -11,12 +11,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Down to a rate CAKE can hold: whole bytes per second. */
+static uint64_t holdable_rate(uint64_t rate_bps)
+{
+	return rate_bps / SHAPER_RATE_STEP_BPS * SHAPER_RATE_STEP_BPS;
+}
+
 /* rate * factor, down to a rate CAKE can hold. */
 static uint64_t scale_rate(uint64_t rate_bps, uint64_t factor_e6)
 {
-	uint64_t scaled_bps = ratio_of(rate_bps, factor_e6);
-
-	return scaled_bps / SHAPER_RATE_STEP_BPS * SHAPER_RATE_STEP_BPS;
+	return holdable_rate(ratio_of(rate_bps, factor_e6));
 }
 
 static uint64_t clamp_rate(uint64_t rate_bps, const struct controller_direction_config *config)
@@ -469,14 +473,10 @@ download_ceiling_bps(const struct controller *controller, const struct controlle
 	}
 	other_bps = saturating_sub(acks->upload_rate_bps, ack_rate_bps);
 	taken_bps = other_bps + ratio_of(room_bps, UPLOAD_ACK_HEADROOM_RATIO_E6);
-	allowed_bps = saturating_sub(room_bps, taken_bps);
-	if (allowed_bps < minimum_bps)
-		allowed_bps = minimum_bps;
+	allowed_bps = max_u64(saturating_sub(room_bps, taken_bps), minimum_bps);
 	if (ack_rate_bps <= allowed_bps)
 		return UINT64_MAX;
-	/* Down to a rate CAKE can hold, like other rates. */
-	return mul_div(download->traffic_rate_bps, allowed_bps, ack_rate_bps) /
-	       SHAPER_RATE_STEP_BPS * SHAPER_RATE_STEP_BPS;
+	return holdable_rate(mul_div(download->traffic_rate_bps, allowed_bps, ack_rate_bps));
 }
 
 /* A direction holding at least QUEUE_SHARE_RATIO_E6 of a positive total queue. */
@@ -506,6 +506,7 @@ void controller_update(
 	const struct controller_config *config = &controller->config;
 	uint64_t download_delivery_e6 = delivery_ratio_e6(&controller->download, &input->download);
 	const struct controller_queue_input *queue = &input->queue;
+	int64_t total_queue_us = queue->download_us + queue->upload_us;
 	struct direction_update download = {
 		.input = &input->download,
 		.latency = input->download_latency,
@@ -537,11 +538,10 @@ void controller_update(
 	 * TCP observes.
 	 */
 	if (config->shared_delay && queue->valid &&
-	    queue->download_us + queue->upload_us >= QUEUE_ATTRIBUTION_MINIMUM_US) {
-		int64_t total_us = queue->download_us + queue->upload_us;
-
-		download.bufferbloat_attributed = holds_queue_share(queue->download_us, total_us);
-		upload.bufferbloat_attributed = holds_queue_share(queue->upload_us, total_us);
+	    total_queue_us >= QUEUE_ATTRIBUTION_MINIMUM_US) {
+		download.bufferbloat_attributed =
+			holds_queue_share(queue->download_us, total_queue_us);
+		upload.bufferbloat_attributed = holds_queue_share(queue->upload_us, total_queue_us);
 		/*
 		 * Split the round-trip delta by the measured shares instead of RTT/2
 		 * each way, so a one-sided queue counts at its full size.
@@ -550,8 +550,10 @@ void controller_update(
 			int64_t round_trip_us =
 				download.latency.owd_delta_us + upload.latency.owd_delta_us;
 
-			download.latency.owd_delta_us =
-				signed_rounded_divide(round_trip_us * queue->download_us, total_us);
+			download.latency.owd_delta_us = signed_rounded_divide(
+				round_trip_us * queue->download_us,
+				total_queue_us
+			);
 			upload.latency.owd_delta_us = round_trip_us - download.latency.owd_delta_us;
 		}
 	}

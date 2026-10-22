@@ -86,6 +86,7 @@ static void test_saturating_signed_arithmetic(void)
 	assert(signed_sum(-3, 5) == 2);
 	assert(signed_sum(INT64_MAX, 1) == INT64_MAX);
 	assert(signed_sum(INT64_MIN, -1) == INT64_MIN);
+	assert(min_i64(-3, 2) == -3 && min_i64(INT64_MAX, INT64_MIN) == INT64_MIN);
 }
 
 static void test_saturating_unsigned_arithmetic(void)

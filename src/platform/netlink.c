@@ -32,6 +32,12 @@ struct response_context {
 
 static int handle_qdisc_event(struct nl_msg *message, void *context_data);
 
+/* Nothing to read yet, or a signal interrupted the read: try again later. */
+static bool transient_error(int result)
+{
+	return result == -NLE_AGAIN || result == -NLE_INTR;
+}
+
 /* A connected, nonblocking rtnetlink socket; purpose names it in errors. */
 static struct nl_sock *open_socket(const char *purpose, char *error, size_t error_size)
 {
@@ -156,7 +162,7 @@ int netlink_receive_qdisc_events(struct netlink *netlink, char *error, size_t er
 	result = nl_recvmsgs_default(netlink->events);
 	if (netlink->event_parse_failed)
 		return error_set(error, error_size, "could not parse qdisc event");
-	if (result == -NLE_AGAIN || result == -NLE_INTR)
+	if (transient_error(result))
 		return 0;
 	if (result < 0) {
 		return error_set(
@@ -332,7 +338,7 @@ static int receive_response(
 				strerror(-context->kernel_error)
 			);
 		}
-		if (result == -NLE_AGAIN || result == -NLE_INTR)
+		if (transient_error(result))
 			continue;
 		if (result < 0) {
 			return error_set(

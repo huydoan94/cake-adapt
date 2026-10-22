@@ -14,6 +14,9 @@
 #include <string.h>
 #include <time.h>
 
+/* The name and user, nice, system and idle: what every kernel's /proc/stat has. */
+#define CPU_MINIMUM_FIELDS 5
+
 static uint64_t counter_sum(const struct cpu_counter *counter)
 {
 	/* Match cake-autorate: sum all ten counters, treating only IDLE as idle. */
@@ -77,7 +80,7 @@ int cpu_read(const char *path, struct cpu_sample *sample, char *error, size_t er
 			   &counter->softirq_ticks,
 			   &counter->steal_ticks,
 			   &counter->guest_ticks,
-			   &counter->guest_nice_ticks) < 5) {
+			   &counter->guest_nice_ticks) < CPU_MINIMUM_FIELDS) {
 			error_set(error, error_size, "invalid CPU counters in %s", path);
 			goto done;
 		}

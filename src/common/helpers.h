@@ -33,8 +33,11 @@ uint64_t response_monotonic_us(
 	uint64_t response_realtime_us
 );
 
-/* Strictly older than 500 ms when processed; a future timestamp is never stale. */
-bool response_stale(uint64_t processing_realtime_us, uint64_t response_realtime_us);
+/*
+ * Strictly older than 500 ms at now_us, both on the same clock; a future
+ * timestamp is never stale.
+ */
+bool response_stale(uint64_t now_us, uint64_t response_us);
 
 bool read_clock_us(clockid_t clock_identifier, uint64_t *timestamp_us);
 
