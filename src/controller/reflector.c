@@ -87,12 +87,12 @@ void reflector_compare(
 			signed_sum(download->baseline_us, upload->baseline_us);
 		comparison->download_delta_ewma_us = download->delta_ewma_us;
 		comparison->upload_delta_ewma_us = upload->delta_ewma_us;
-		if (comparison->sum_owd_baselines_us < minimum_baseline_us)
-			minimum_baseline_us = comparison->sum_owd_baselines_us;
-		if (comparison->download_delta_ewma_us < minimum_download_delta_ewma_us)
-			minimum_download_delta_ewma_us = comparison->download_delta_ewma_us;
-		if (comparison->upload_delta_ewma_us < minimum_upload_delta_ewma_us)
-			minimum_upload_delta_ewma_us = comparison->upload_delta_ewma_us;
+		minimum_baseline_us =
+			min_i64(minimum_baseline_us, comparison->sum_owd_baselines_us);
+		minimum_download_delta_ewma_us =
+			min_i64(minimum_download_delta_ewma_us, comparison->download_delta_ewma_us);
+		minimum_upload_delta_ewma_us =
+			min_i64(minimum_upload_delta_ewma_us, comparison->upload_delta_ewma_us);
 	}
 
 	for (index = 0U; index < active_count; index++) {

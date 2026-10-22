@@ -14,7 +14,7 @@ void defaults_apply(struct config *config)
 		.upload.adjust = false,
 		.debug = true,
 		.log_to_file = true,
-		.mqtt.port = 1883U,
+		.mqtt.port = MQTT_DEFAULT_PORT,
 		.randomize_reflectors = true,
 		.retain_reflector_stats = true,
 		.enable_sleep_function = true,
