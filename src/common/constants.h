@@ -123,7 +123,6 @@
 #define BLANK_CHARACTERS " \t"
 #define DECIMAL_DIGITS "0123456789"
 #define TARGET_CHARACTERS "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.:_-"
-#define FRACTION_ZEROES "000000"
 #define EMPTY_STRING ""
 
 /* fping command-line arguments and output grammar. */
