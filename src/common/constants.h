@@ -46,7 +46,7 @@
 #define LATENCY_TIMESTAMP_ROLLOVER_DELTA_US (UINT64_C(50) * MINUTE)
 
 /* Program identity and integration names. */
-#define CLI_OPTIONS "C:LfS:Vh"
+#define CLI_OPTIONS "C:DLfS:Vh"
 #define IFB_PREFIX "ifb4"
 #define PINGER_METHOD_FPING "fping"
 #define PINGER_METHOD_FPING_TS "fping-ts"

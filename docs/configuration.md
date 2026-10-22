@@ -3,6 +3,8 @@
 cake-adapt is configured through UCI in `/etc/config/cake-adapt`. Each
 `config cake_adapt '<name>'` section runs as its own instance. The packaged file
 lists only the common options; everything else uses the defaults below.
+`cake-adapt -D` prints every option's default in these units, and the LuCI
+page shows them as each field's placeholder.
 
 For development or agent work, follow the [development guide](development.md)
 and the Claude or Codex route in [COLLABORATION.md](../COLLABORATION.md).

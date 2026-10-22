@@ -26,7 +26,7 @@ static void print_usage(const char *program_name)
 	(void)fprintf(
 		stderr,
 		"Usage: %s [-f] [-V] [-C UCI_CONFIG_FILE] [-S UCI_SECTION]\n"
-		"       %s -L\n",
+		"       %s -L | -D\n",
 		program_name,
 		program_name
 	);
@@ -36,7 +36,9 @@ struct options {
 	const char *config_path;
 	const char *section_name;
 	bool foreground;
+	/* -L lists the options, -D their built-in defaults. */
 	bool list;
+	bool defaults;
 	bool section_selected;
 	bool validate_only;
 };
@@ -53,6 +55,9 @@ static int parse_options(int argc, char **argv, struct options *options)
 			break;
 		case 'L':
 			options->list = true;
+			break;
+		case 'D':
+			options->defaults = true;
 			break;
 		case 'f':
 			options->foreground = true;
@@ -72,13 +77,30 @@ static int parse_options(int argc, char **argv, struct options *options)
 			return 2;
 		}
 	}
+	/* -L and -D each stand alone. */
 	if (optind != argc ||
-	    (options->list && (options->config_path != NULL || options->foreground ||
-			       options->section_selected || options->validate_only))) {
+	    ((options->list || options->defaults) &&
+	     (options->list == options->defaults || options->config_path != NULL ||
+	      options->foreground || options->section_selected || options->validate_only))) {
 		print_usage(argv[0]);
 		return 2;
 	}
 	return -1;
+}
+
+/* "name=value" for each option, as a section that sets none runs. */
+static int list_config_defaults(void)
+{
+	struct config defaults = { 0 };
+	char value[CONFIG_STRING_SIZE];
+
+	defaults_apply(&defaults);
+	for (size_t index = 0U; index < config_option_count(); index++) {
+		(void)config_option_value(&defaults, index, value, sizeof(value));
+		if (printf("%s=%s\n", config_option_name(index), value) < 0)
+			return 1;
+	}
+	return 0;
 }
 
 static int list_config_options(void)
@@ -289,6 +311,8 @@ int main(int argc, char **argv)
 		return ret;
 	if (options.list)
 		return list_config_options();
+	if (options.defaults)
+		return list_config_defaults();
 	requested_config = options.config_path ? options.config_path : DEFAULT_CONFIG_PATH;
 
 	log_init(PROGRAM_NAME, options.foreground);

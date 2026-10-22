@@ -541,12 +541,54 @@ static void test_log_directory(void)
 	assert(strstr(error, "option 'log_file_path_override': File name too long") != NULL);
 }
 
+/* The value text for option name, as -D prints it. */
+static const char *option_text(const struct config *config, const char *name)
+{
+	static char text[CONFIG_STRING_SIZE];
+
+	for (size_t index = 0U; index < config_option_count(); index++)
+		if (strcmp(config_option_name(index), name) == 0) {
+			assert(config_option_value(config, index, text, sizeof(text)) == 0);
+			return text;
+		}
+	assert(0);
+	return NULL;
+}
+
+/* Values in the units UCI writes: shortest decimals, exact, ratios as ratios. */
+static void test_option_values_in_uci_units(void)
+{
+	struct config config = { 0 };
+	char text[CONFIG_STRING_SIZE];
+
+	defaults_apply(&config);
+	assert(strcmp(option_text(&config, "enabled"), "0") == 0);
+	assert(strcmp(option_text(&config, "debug"), "1") == 0);
+	assert(strcmp(option_text(&config, "pinger_method"), "native") == 0);
+	assert(strcmp(option_text(&config, "mqtt_host"), "") == 0);
+	assert(strcmp(option_text(&config, "reflector_ping_interval_s"), "0.3") == 0);
+	assert(strcmp(option_text(&config, "min_dl_shaper_rate_kbps"), "5000") == 0);
+	assert(strcmp(option_text(&config, "log_file_max_size_KB"), "2000") == 0);
+	assert(strcmp(option_text(&config, "reflector_replacement_interval_mins"), "60") == 0);
+	assert(strcmp(option_text(&config, "alpha_baseline_increase"), "0.001") == 0);
+	assert(strcmp(option_text(&config, "shaper_rate_max_adjust_up_load_high"), "1.04") == 0);
+	/* Six places at most, rounded half up, carrying into the whole part. */
+	config.reflector_ping_interval_us = 1234567U;
+	assert(strcmp(option_text(&config, "reflector_ping_interval_s"), "1.234567") == 0);
+	config.log_file_max_size_bytes = 1023U;
+	assert(strcmp(option_text(&config, "log_file_max_size_KB"), "0.999023") == 0);
+	config.log_file_max_time_us = 2U * MINUTE - 1U;
+	assert(strcmp(option_text(&config, "log_file_max_time_mins"), "2") == 0);
+	assert(config_option_value(&config, config_option_count(), text, sizeof(text)) == -1);
+}
+
 int main(void)
 {
 	struct config_direction rates;
 	uint64_t value = 0U;
 	char error[256] = "";
 
+	test_option_values_in_uci_units();
 	assert(parse_decimal("18446744073709551615", 1U, &value, error, sizeof(error)) == 0);
 	assert(value == UINT64_MAX);
 	assert(parse_decimal("18446744073709551616", 1U, &value, error, sizeof(error)) != 0);

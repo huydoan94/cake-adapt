@@ -318,7 +318,7 @@ started with the same section name logs `instance '<section>' is already
 running (pid N); exiting` and exits with status 1 before it opens the log file
 or touches a qdisc; the first one keeps running. The kernel drops the lock when
 the process exits, so procd's restart and respawn work as before. Validation
-(`-V`) and listing (`-L`) take no lock.
+(`-V`) and listing the options (`-L`) or their defaults (`-D`) take no lock.
 
 ## Logging off the control path
 

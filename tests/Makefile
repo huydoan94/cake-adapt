@@ -128,8 +128,15 @@ CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c
 CONFIG_TESTS := $(BINARY_DIR)/test_config $(BINARY_DIR)/test_config_mqtt $(BINARY_DIR)/test_config_mqtt_ssl
 
 .PHONY: check-config
-check-config: $(CONFIG_TESTS)
+# The LuCI tests read the daemon's defaults from luci_defaults.txt, which must
+# match what cake-adapt -D prints.
+check-config: $(CONFIG_TESTS) $(BINARY_DIR)/print_defaults
 	set -e; for binary in $(CONFIG_TESTS); do $$binary; done
+	$(BINARY_DIR)/print_defaults | diff -u luci_defaults.txt -
+
+$(BINARY_DIR)/print_defaults: config/print_defaults.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=0 -DMQTT_TLS_SUPPORTED=0 $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/print_defaults.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES) $(LDLIBS) -lz
 
 $(BINARY_DIR)/test_config: CONFIG_FLAGS := -DMQTT_SUPPORTED=0 -DMQTT_TLS_SUPPORTED=0
 $(BINARY_DIR)/test_config_mqtt: CONFIG_FLAGS := -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=0
