@@ -82,7 +82,7 @@ verification against a real server.
 
 ### Current status (2026-10-22)
 
-- This branch's packages are at 0.3.22-r1 (`main` has v0.3.18). The user builds them and runs them on their
+- The packages are at 0.3.23-r1 (`main` released 0.3.22). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
@@ -110,7 +110,7 @@ verification against a real server.
   syslog entries, requests, unbuffered lines or a half-full queue, which
   cuts the daemon's CPU by a fifth to a third (`2026-10-21-profile`,
   `2026-10-22-log-writer-wake`).
-  The `MEMORY` record's `PEAK_RSS_KB` is the highest VmHWM or sampled RSS
+- 0.3.23: the `MEMORY` record's `PEAK_RSS_KB` is the highest VmHWM or sampled RSS
   (VmHWM alone lagged and could drop); analyses of earlier logs take the
   maximum `RSS_KB` instead.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
