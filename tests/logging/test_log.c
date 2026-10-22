@@ -980,6 +980,13 @@ static void test_mqtt_without_file(void)
 	log_print_headers(&(struct log_records){ .load = true });
 	assert(test_mqtt_count == 3U);
 	assert(strncmp(test_mqtt_line, "LOAD_HEADER;", 12U) == 0);
+	/* Records reach MQTT without a log file too, timed or not. */
+	log_load(&(struct log_load_record){ .download_achieved_rate_bps = 1000U });
+	assert(test_mqtt_count == 4U);
+	assert(strncmp(test_mqtt_line, "LOAD;", 5U) == 0);
+	log_shaper("eth0", 2000000U);
+	assert(test_mqtt_count == 5U);
+	assert(strncmp(test_mqtt_line, "SHAPER;", 7U) == 0);
 	log_close();
 	assert(!test_mqtt_active);
 }

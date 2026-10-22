@@ -969,6 +969,12 @@ write_record_fields(const char *type, const char *prefix, const char *format, va
 	write_record(type, message);
 }
 
+/* No record goes anywhere: no terminal, log file or MQTT, so formatting one is wasted. */
+static bool all_logs_disabled(void)
+{
+	return !log_to_stdout && log_file == NULL && !mqtt_enabled();
+}
+
 static void write_formatted_record(const char *type, const char *format, ...)
 	__attribute__((format(printf, 2, 3)));
 
@@ -976,7 +982,7 @@ static void write_formatted_record(const char *type, const char *format, ...)
 {
 	va_list arguments;
 
-	if (!log_to_stdout && log_file == NULL)
+	if (all_logs_disabled())
 		return;
 	va_start(arguments, format);
 	write_record_fields(type, NULL, format, arguments);
@@ -992,7 +998,7 @@ static void write_timed_record(const char *type, const char *format, ...)
 	char stamp[TIMESTAMP_SIZE];
 	va_list arguments;
 
-	if (!log_to_stdout && log_file == NULL)
+	if (all_logs_disabled())
 		return;
 	va_start(arguments, format);
 	write_record_fields(type, timestamp_text(stamp, log_realtime_us()), format, arguments);
@@ -1320,7 +1326,7 @@ void log_message(enum log_level level, const char *format, ...)
 		      (level <= LOG_LEVEL_WARNING || (level == LOG_LEVEL_DEBUG && debug_to_syslog));
 	/* In the foreground the message already reaches the terminal on stdout. */
 	send_stderr = problems_to_stderr && !log_to_stdout && level <= LOG_LEVEL_WARNING;
-	if (!send_syslog && !send_stderr && !log_to_stdout && log_file == NULL && !mqtt_enabled())
+	if (!send_syslog && !send_stderr && all_logs_disabled())
 		return;
 
 	va_start(arguments, format);
@@ -1332,6 +1338,6 @@ void log_message(enum log_level level, const char *format, ...)
 		write_syslog(levels[level].priority, levels[level].record, timestamp_us, message);
 	if (send_stderr)
 		(void)fprintf(stderr, "%s: %s\n", levels[level].record, message);
-	if (log_to_stdout || log_file != NULL || mqtt_enabled())
+	if (!all_logs_disabled())
 		write_record_at(levels[level].record, message, timestamp_us);
 }
