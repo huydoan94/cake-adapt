@@ -10,7 +10,7 @@ explicit target-specific request. Both Claude and Codex follow
 test-log inode and cleanup, and [COLLABORATION.md](../../COLLABORATION.md), which points to the
 general `test-systems.md` (bounded run plan, harness review) and the provider
 workflow in `~/ai-working-definitions/`. Read and update
-[HANDOFF.md](../../HANDOFF.md) with the selected target, approvals, evidence and
+`HANDOFF.md` with the selected target, approvals, evidence and
 remaining checks. Installing missing packages or fetching dependencies requires
 an applicable approval; these instructions do not authorize production access.
 
