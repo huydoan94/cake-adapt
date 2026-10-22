@@ -12,23 +12,35 @@ cat > "$temporary_directory/options" <<'EOF'
 #!/bin/sh
 printf '%s\n' \
     enabled interface ul_if dl_if config_file adjust_dl_shaper_rate \
-    pinger_method ping_extra_args
+    pinger_method ping_extra_args ping_prefix_string log_file_path_override
 EOF
 chmod +x "$temporary_directory/options"
 
 # A stand-in uci. Calls with -c write the runtime configuration and are
 # logged; others read the system UCI, where "get" answers from UCI_VALUES
-# ("name=value" entries separated by ";"), as if the section set them.
+# ("name=value" entries separated by ";"), as if the section set them; an
+# "exec.name=value" entry answers for /etc/cake-adapt/exec, which must be read
+# from the exec directory (-c), and is logged.
 cat > "$temporary_directory/uci" <<'EOF'
 #!/bin/sh
 case " $* " in
-*" -c "*)
+*" -c $EXEC_DIRECTORY "*)
+    printf 'exec %s\n' "$*" >> "$CALL_LOG"
+    ;;
+*" -t "*)
     printf '%s\n' "$*" >> "$CALL_LOG"
     exit 0
     ;;
 esac
+case " $* " in *" show "*) exit "${SHOW_STATUS:-0}" ;; esac
 for argument in "$@"; do last=$argument; done
 name=${last##*.}
+case $last in
+exec.*)
+    case " $* " in *" -c $EXEC_DIRECTORY "*) ;; *) exit 1 ;; esac
+    name=exec.$name
+    ;;
+esac
 IFS=';'
 for entry in ${UCI_VALUES:-}; do
     if [ "${entry%%=*}" = "$name" ]; then
@@ -49,12 +61,16 @@ chmod +x "$temporary_directory/logger"
 : > "$temporary_directory/syslog"
 
 # Plain sh, as on a router without Bash; Bash runs only to read a file.
+# run_import SECTION [CONFIG_FILE]: the file as the exec file's config_file.
 run_import() {
-    CALL_LOG="$temporary_directory/calls" UCI="$temporary_directory/uci" \
+    values=${UCI_VALUES:-}
+    [ "$#" -lt 2 ] || values="$values;exec.config_file=$2"
+    EXEC_DIRECTORY="$temporary_directory/exec-directory" \
+        UCI_VALUES=$values CALL_LOG="$temporary_directory/calls" UCI="$temporary_directory/uci" \
         LOGGER="$temporary_directory/logger" SYSLOG="$temporary_directory/syslog" \
         BASH_READER=../files/cake-adapt.import-bash \
         sh ../files/cake-adapt.import \
-        "$temporary_directory/stage" "$temporary_directory/options" "$@"
+        "$temporary_directory/stage" "$temporary_directory/options" "$1"
 }
 called() { grep -Fq -- "$1" "$temporary_directory/calls"; }
 
@@ -68,7 +84,42 @@ called 'set cake-adapt.primary.adjust_dl_shaper_rate=1'
 called 'add_list cake-adapt.primary.reflectors=1.1.1.1'
 called 'add_list cake-adapt.primary.reflectors=8.8.8.8'
 called 'commit cake-adapt'
-if called 'pinger_method' || called 'ping_extra_args'; then exit 1; fi
+if called 'set cake-adapt.primary.pinger_method' ||
+    called 'set cake-adapt.primary.ping_extra_args'; then
+    exit 1
+fi
+
+# An exec file uci cannot parse is refused rather than read as empty; one
+# that parses, or none at all, is fine.
+mkdir "$temporary_directory/exec-directory"
+: > "$temporary_directory/exec-directory/exec"
+if SHOW_STATUS=1 UCI_VALUES='enabled=1' run_import primary 2> /dev/null; then exit 1; fi
+grep -Fq "could not parse $temporary_directory/exec-directory/exec" "$temporary_directory/syslog"
+UCI_VALUES='enabled=1' run_import primary
+rm "$temporary_directory/exec-directory/exec"
+SHOW_STATUS=1 UCI_VALUES='enabled=1' run_import primary
+
+# The options that run something, or choose its arguments, come only from
+# the exec file, and the runtime configuration keeps them; any of them in
+# /etc/config/cake-adapt is refused, with the reason in syslog.
+: > "$temporary_directory/calls"
+UCI_VALUES='enabled=1;exec.ping_prefix_string=mwan3 use wan;exec.ping_extra_args=-S 192.0.2.1' \
+    run_import primary
+called 'set cake-adapt.primary.ping_prefix_string=mwan3 use wan'
+called 'set cake-adapt.primary.ping_extra_args=-S 192.0.2.1'
+called "exec -q -c $temporary_directory/exec-directory get exec.primary.ping_extra_args"
+: > "$temporary_directory/calls"
+UCI_VALUES='enabled=1;exec.log_file_path_override=/var/log/main' run_import primary
+called 'set cake-adapt.primary.log_file_path_override=/var/log/main'
+for name in config_file ping_prefix_string ping_extra_args log_file_path_override; do
+    : > "$temporary_directory/calls"
+    if UCI_VALUES="enabled=1;$name=/usr/bin/wrapper" run_import primary 2> /dev/null; then
+        exit 1
+    fi
+    grep -Fq "option '$name' is refused in /etc/config/cake-adapt, which LuCI can change; move it to" \
+        "$temporary_directory/syslog"
+    if called 'commit cake-adapt'; then exit 1; fi
+done
 
 # UCI and a file: UCI wins, the file fills the rest; the file's interface is
 # ignored, and UCI's reflectors replace the file's.
@@ -88,6 +139,7 @@ called 'set cake-adapt.primary.ul_if=eth1'
 called 'set cake-adapt.primary.dl_if=download'
 called 'set cake-adapt.primary.ping_extra_args=-I eth1'
 called 'add_list cake-adapt.primary.reflectors=1.1.1.1'
+called "set cake-adapt.primary.config_file=$temporary_directory/source/config.primary.sh"
 if called 'adjust_dl_shaper_rate=0' || called 'interface=wrong' ||
     called '9.9.9.9' || called '149.112.112.112'; then
     exit 1
@@ -98,6 +150,17 @@ fi
 UCI_VALUES='enabled=1' run_import primary "$temporary_directory/source/config.primary.sh"
 called 'add_list cake-adapt.primary.reflectors=9.9.9.9'
 called 'add_list cake-adapt.primary.reflectors=149.112.112.112'
+
+# The root-only file may set a prefix; the exec file's prefix wins over it.
+printf '%s\n' 'ul_if=eth1' 'ping_prefix_string="ip vrf exec wan"' > "$temporary_directory/source/prefix.sh"
+: > "$temporary_directory/calls"
+UCI_VALUES='enabled=1' run_import primary "$temporary_directory/source/prefix.sh"
+called 'set cake-adapt.primary.ping_prefix_string=ip vrf exec wan'
+: > "$temporary_directory/calls"
+UCI_VALUES='enabled=1;exec.ping_prefix_string=mwan3 use wan' \
+    run_import primary "$temporary_directory/source/prefix.sh"
+called 'set cake-adapt.primary.ping_prefix_string=mwan3 use wan'
+if called 'ip vrf'; then exit 1; fi
 
 # What the file prints is never read as values, even enabled.
 cat > "$temporary_directory/source/noisy.sh" <<'EOF'
