@@ -212,7 +212,7 @@ static void watch_cpu(struct monitor *monitor)
 	const struct config *config = monitor->config;
 	struct cpu_sample sample;
 
-	if (!config->output_cpu_stats && !config->output_cpu_raw_stats)
+	if (!config_cpu_stats(config))
 		return;
 	/* Detect the CPUs and print the headers now; records start with the timer. */
 	(void)read_cpu(monitor, &sample);

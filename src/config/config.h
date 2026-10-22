@@ -121,6 +121,12 @@ static inline bool config_adjusts(const struct config *config)
 	return download->adjust || upload->adjust;
 }
 
+/* Either CPU record is asked for, so the CPU timer runs. */
+static inline bool config_cpu_stats(const struct config *config)
+{
+	return config->output_cpu_stats || config->output_cpu_raw_stats;
+}
+
 size_t config_option_count(void);
 const char *config_option_name(size_t index);
 

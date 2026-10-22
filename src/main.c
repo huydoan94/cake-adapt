@@ -102,21 +102,28 @@ static int open_log_file(
 					config->log_file_path_override :
 					DEFAULT_LOG_DIRECTORY;
 	/* cake-adapt.log for the main section, cake-adapt.<section>.log otherwise. */
-	bool named = strcmp(section_name, DEFAULT_SECTION) != 0;
+	const char *separator = EMPTY_STRING;
+	const char *instance = EMPTY_STRING;
 	const struct log_file_settings settings = {
 		.maximum_time_us = config->log_file_max_time_us,
 		.maximum_size_bytes = config->log_file_max_size_bytes,
 		.buffer_timeout_us = config->log_file_buffer_timeout_us,
 		.compress_exports = config->log_file_export_compress,
 	};
-	int length = snprintf(
+	int length;
+
+	if (strcmp(section_name, DEFAULT_SECTION) != 0) {
+		separator = LOG_SECTION_SEPARATOR;
+		instance = section_name;
+	}
+	length = snprintf(
 		log_path,
 		log_path_size,
 		"%s/%s%s%s" LOG_EXTENSION,
 		directory,
 		DEFAULT_LOG_FILE_BASE,
-		named ? "." : "",
-		named ? section_name : ""
+		separator,
+		instance
 	);
 	if (length < 0 || (size_t)length >= log_path_size) {
 		log_message(LOG_LEVEL_ERROR, "log file path is too long");
