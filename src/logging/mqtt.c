@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 
 #include "logging/mqtt.h"
-#include "config/config.h"
 #include "common/error.h"
 #include "common/helpers.h"
 #include "common/utils.h"
@@ -40,7 +39,7 @@ struct mqtt_connection {
 
 /* The main thread, the sender thread and every network thread each hold a reference. */
 struct mqtt_sender {
-	struct config_mqtt settings;
+	struct mqtt_settings settings;
 	pthread_t thread;
 	pthread_mutex_t lock;
 	atomic_uint owners;
@@ -120,7 +119,7 @@ static void *mqtt_network(void *argument)
 {
 	struct mqtt_connection *connection = argument;
 	struct mqtt_sender *state = connection->state;
-	const struct config_mqtt *settings = &state->settings;
+	const struct mqtt_settings *settings = &state->settings;
 	/* Name resolution happens here and can block; the sender never waits for it unbounded. */
 	int result = mosquitto_connect_async(
 		connection->client,
@@ -143,7 +142,7 @@ static void *mqtt_network(void *argument)
 
 static struct mqtt_connection *mqtt_connect(struct mqtt_sender *state)
 {
-	const struct config_mqtt *settings = &state->settings;
+	const struct mqtt_settings *settings = &state->settings;
 	bool clean_session = true;
 	bool threaded = true;
 	struct mqtt_connection *connection = calloc(1U, sizeof(*connection));
@@ -204,7 +203,7 @@ static void mqtt_destroy(struct mqtt_sender *state, struct mqtt_connection *conn
 
 static void mqtt_send(struct mqtt_sender *state, struct mqtt_connection *connection)
 {
-	const struct config_mqtt *settings = &state->settings;
+	const struct mqtt_settings *settings = &state->settings;
 	char line[MQTT_LINE_SIZE];
 	bool retain = false;
 
@@ -298,7 +297,7 @@ idle:
 	return NULL;
 }
 
-int mqtt_start(const struct config_mqtt *settings, char *error, size_t error_size)
+int mqtt_start(const struct mqtt_settings *settings, char *error, size_t error_size)
 {
 	struct mqtt_sender *state;
 	sigset_t all;

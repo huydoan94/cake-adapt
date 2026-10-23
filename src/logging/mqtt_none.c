@@ -4,13 +4,12 @@
  * sending anything.
  */
 #include "logging/mqtt.h"
-#include "config/config.h"
 #include "common/error.h"
 #include "constants/program.h"
 
 #include <errno.h>
 
-int mqtt_start(const struct config_mqtt *settings, char *error, size_t error_size)
+int mqtt_start(const struct mqtt_settings *settings, char *error, size_t error_size)
 {
 	if (!settings->enabled)
 		return 0;
