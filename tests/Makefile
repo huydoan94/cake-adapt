@@ -73,7 +73,7 @@ check-mqtt: $(BINARY_DIR)/test_mqtt $(BINARY_DIR)/test_mqtt_tls
 	$(BINARY_DIR)/test_mqtt_tls
 
 MQTT_TEST_SOURCES := logging/test_mqtt.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
-MQTT_TEST_DEPENDENCIES := $(MQTT_TEST_SOURCES) $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h $(SOURCE_DIR)/config/config.h
+MQTT_TEST_DEPENDENCIES := $(MQTT_TEST_SOURCES) $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h
 
 $(BINARY_DIR)/test_mqtt: MQTT_TEST_FLAGS := -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=0
 $(BINARY_DIR)/test_mqtt_tls: MQTT_TEST_FLAGS := -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=1

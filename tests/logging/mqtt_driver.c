@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv)
 {
-	struct config_mqtt settings = {
+	struct mqtt_settings settings = {
 		.enabled = true,
 		.host = "localhost",
 		.topic = "cake-adapt/test",

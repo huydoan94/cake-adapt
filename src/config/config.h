@@ -1,6 +1,7 @@
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
 
+#include "logging/mqtt.h"
 #include "constants/options.h"
 #include "constants/units.h"
 
@@ -20,19 +21,8 @@ struct config_direction {
 	uint64_t average_owd_delta_maximum_adjust_down_us;
 };
 
-struct config_mqtt {
-	bool enabled;
-	bool tls;
-	char host[CONFIG_STRING_SIZE];
-	char topic[CONFIG_STRING_SIZE];
-	char username[CONFIG_STRING_SIZE];
-	char password[CONFIG_STRING_SIZE];
-	char ca_file[CONFIG_STRING_SIZE];
-	uint64_t port;
-};
-
 struct config {
-	struct config_mqtt mqtt;
+	struct mqtt_settings mqtt;
 	bool enabled;
 	bool output_processing_stats;
 	bool output_load_stats;

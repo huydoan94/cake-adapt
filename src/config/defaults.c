@@ -8,7 +8,7 @@
 
 void defaults_apply(struct config *config)
 {
-	struct config_mqtt *mqtt = &config->mqtt;
+	struct mqtt_settings *mqtt = &config->mqtt;
 
 	*config = (struct config){
 		/* Adjustment remains opt-in even though cake-autorate defaults it on. */

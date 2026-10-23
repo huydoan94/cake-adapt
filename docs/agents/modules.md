@@ -137,7 +137,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     only for syslog entries, requests, unbuffered lines or a half-full queue.
   - `records.c`: the record formats and headers, which start every rotated
     or reset file.
-- `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
+- `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS,
+  configured by `struct mqtt_settings` (declared in `mqtt.h`, embedded in the configuration);
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
   never cancels a thread: a network thread stuck in name resolution is joined
   within a bound or left behind with its own references, at most one at a time.

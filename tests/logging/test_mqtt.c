@@ -354,7 +354,7 @@ static void test_wake(void)
  */
 static void test_stuck_resolver(void)
 {
-	const struct config_mqtt settings = {
+	const struct mqtt_settings settings = {
 		.enabled = true,
 		.host = "localhost",
 		.topic = "cake-adapt/test",
@@ -404,7 +404,7 @@ static void test_stuck_resolver(void)
 static void test_stop_while_resolving(void)
 {
 	const struct timespec settle = us_to_timespec(100U * MILLISECOND);
-	const struct config_mqtt settings = {
+	const struct mqtt_settings settings = {
 		.enabled = true,
 		.host = "localhost",
 		.topic = "cake-adapt/test",
@@ -455,7 +455,7 @@ static void test_tls(void)
 
 int main(void)
 {
-	const struct config_mqtt disabled = { 0 };
+	const struct mqtt_settings disabled = { 0 };
 	char error[ERROR_SIZE] = { 0 };
 
 	assert(mqtt_start(&disabled, error, sizeof(error)) == 0);

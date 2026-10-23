@@ -313,7 +313,7 @@ static int validate_latency_config(const struct config *config, char *error, siz
 }
 
 /* The broker settings an MQTT package connects with. */
-static int validate_mqtt_broker(const struct config_mqtt *mqtt, char *error, size_t error_size)
+static int validate_mqtt_broker(const struct mqtt_settings *mqtt, char *error, size_t error_size)
 {
 	if (mqtt->host[0] == '\0' || strpbrk(mqtt->host, MQTT_INVALID_HOST_CHARACTERS) != NULL)
 		return error_set(
@@ -338,7 +338,7 @@ static int validate_mqtt_broker(const struct config_mqtt *mqtt, char *error, siz
 	return 0;
 }
 
-static int validate_mqtt(const struct config_mqtt *mqtt, char *error, size_t error_size)
+static int validate_mqtt(const struct mqtt_settings *mqtt, char *error, size_t error_size)
 {
 	if (!mqtt->enabled)
 		return 0;
