@@ -15,8 +15,10 @@
 #   that fix);
 # - no literal true or false passed as a function argument (atomic stores
 #   assign a value and are allowed);
-# - every checked file is clang-format-stable (the SDK's clang-format, when
-#   found; set CLANG_FORMAT to override).
+# - every checked file is clang-format-stable (the SDK's clang-format, or a
+#   clang-format of the same major version on PATH; set CLANG_FORMAT to
+#   override). Other versions format differently, so with none of the SDK's
+#   version the format is not checked and a note says so.
 # A line may opt out of the first two rules with the comment "style: allow".
 #
 # Exit status: 0 clean, 1 findings (printed as FILE:LINE: rule: text).
@@ -61,11 +63,20 @@ grep -E -- "$literal_bool" "$lines.code" | grep -vE 'return[[:space:]]+(true|fal
 	sed 's/^\([^:]*:[^:]*\):/\1: literal true\/false argument:/' >>"$findings"
 rm -f "$lines.code"
 
+# The major version of the x86 SDK's clang-format, which the tree is formatted with.
+clang_format_major=21
 clang_format=${CLANG_FORMAT:-}
+skipped_format=
 [ -n "$clang_format" ] || for candidate in \
 	"${OPENWRT_SDK_X86:-$repo/../openwrt-sdk-x86}/staging_dir/host/llvm-bpf/bin/clang-format" \
 	clang-format; do
-	if command -v "$candidate" >/dev/null 2>&1; then clang_format=$candidate; break; fi
+	command -v "$candidate" >/dev/null 2>&1 || continue
+	version=$("$candidate" --version 2>/dev/null | sed -n 's/.*clang-format version \([0-9]*\)\..*/\1/p')
+	if [ "$version" = "$clang_format_major" ]; then
+		clang_format=$candidate
+		break
+	fi
+	skipped_format="$candidate is version ${version:-unknown}, not $clang_format_major"
 done
 for file in $files; do
 	case $file in *.c | *.h) ;; *) continue ;; esac
@@ -75,7 +86,9 @@ for file in $files; do
 			echo "$file:1: not clang-format-stable" >>"$findings"
 	fi
 done
-[ -n "$clang_format" ] || echo "style-check: clang-format not found; format not checked" >&2
+if [ -z "$clang_format" ]; then
+	echo "style-check: no clang-format $clang_format_major found${skipped_format:+ ($skipped_format)}; format not checked" >&2
+fi
 
 if [ -s "$findings" ]; then
 	cat "$findings"
