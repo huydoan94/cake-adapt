@@ -53,7 +53,11 @@ SOURCES := \
 	config/describe.c \
 	config/options.c \
 	config/validate.c \
+	controller/activity.c \
+	controller/congestion.c \
 	controller/controller.c \
+	controller/coupling.c \
+	controller/rate.c \
 	controller/reflector.c \
 	latency/fping.c \
 	latency/irtt.c \

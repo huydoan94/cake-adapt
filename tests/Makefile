@@ -24,8 +24,8 @@ BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 TARGETS += test_icmp test_native
 BINARIES += $(BINARY_DIR)/test_icmp $(BINARY_DIR)/test_native
 
-test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/common/helpers.o
-test_replay_OBJECTS := controller/test_replay.o src/controller/controller.o src/common/helpers.o
+test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o src/common/helpers.o
+test_replay_OBJECTS := controller/test_replay.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o src/common/helpers.o
 test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/tracker.o src/common/helpers.o
 LATENCY_OBJECTS := src/latency/latency.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o src/latency/icmp.o src/latency/native.o
 test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o src/common/helpers.o

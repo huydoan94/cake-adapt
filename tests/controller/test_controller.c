@@ -1,3 +1,4 @@
+#include "controller/activity.h"
 #include "controller/controller.h"
 
 #include <assert.h>

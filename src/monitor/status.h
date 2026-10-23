@@ -3,6 +3,7 @@
 
 /* status.c: the instance's status snapshot, from state the monitor already holds. */
 
+#include "controller/activity.h"
 #include "controller/controller.h"
 
 #include <stdbool.h>

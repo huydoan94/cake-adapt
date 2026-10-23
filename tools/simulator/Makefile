@@ -5,7 +5,7 @@ OBJECT_DIR ?= ../../build/tools/simulator
 SOURCE_DIR := ../../src
 
 WARNINGS := -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Werror
-SOURCES := simulate.c $(SOURCE_DIR)/controller/controller.c $(SOURCE_DIR)/latency/tracker.c $(SOURCE_DIR)/common/helpers.c
+SOURCES := simulate.c $(SOURCE_DIR)/controller/controller.c $(SOURCE_DIR)/controller/activity.c $(SOURCE_DIR)/controller/congestion.c $(SOURCE_DIR)/controller/coupling.c $(SOURCE_DIR)/controller/rate.c $(SOURCE_DIR)/latency/tracker.c $(SOURCE_DIR)/common/helpers.c
 
 .PHONY: all run clean
 all: $(OBJECT_DIR)/simulate
