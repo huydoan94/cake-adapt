@@ -11,6 +11,8 @@
 #include <string.h>
 
 #include "../../src/monitor/pingers.c"
+#include "../../src/monitor/native_pinger.c"
+#include "../../src/monitor/child_pingers.c"
 #include "constants/latency.h"
 #include "constants/units.h"
 
@@ -233,7 +235,7 @@ int main(void)
 	assert(timer_delay == 50);
 	monitor.pingers.latency.native.next_send_us = SECOND + 1U;
 	assert(schedule_native_tick(&monitor, SECOND) == 0 && timer_delay == 1);
-	assert(watch_native_session(&monitor));
+	assert(native_pinger_watch(&monitor));
 	assert(monitor.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket.registered);
 	assert(!monitor.pingers.native_watches[NATIVE_CHANNEL_IPV6].socket.registered);
 	assert(monitor.pingers.native_timer.pending);
@@ -244,7 +246,7 @@ int main(void)
 	assert(monitor.pingers.latency.native.channels[NATIVE_CHANNEL_IPV4].fd == -1);
 	initialize(&monitor, &config);
 	add_result = -1;
-	assert(!watch_native_session(&monitor));
+	assert(!native_pinger_watch(&monitor));
 	assert(!monitor.pingers.latency.active && monitor.pingers.next_attempt_us > 0U);
 	add_result = 0;
 	initialize(&monitor, &config);
