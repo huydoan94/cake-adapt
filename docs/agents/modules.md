@@ -69,9 +69,19 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `defaults.c` and `defaults.h`: built-in application and configuration
     defaults.
 - `controller/`
-  - `controller.c`: platform-independent load classification, autorate,
-    congestion, and activity policy; keep it directly unit-testable with
-    synthetic inputs.
+  Platform-independent policy, directly unit-testable with synthetic inputs.
+  `controller.h` and `activity.h` are its interfaces; `direction.h` is
+  private to the directory.
+  - `controller.c`: set-up, and one update of both directions in order.
+  - `rate.c`: the rate arithmetic: cuts on bufferbloat, increases under
+    high load, decay toward the base rate, clamping.
+  - `congestion.c`: each direction's line state (saturation hysteresis) and
+    bufferbloat detection over the delay window.
+  - `coupling.c`: the rules that tie the directions together: the download
+    ceiling from upload's ACK share, queue attribution, delivery ratio, and
+    serialization compensation.
+  - `activity.c`: the load classes cake-autorate prints, and the
+    running/idle/stall state.
   - `reflector.c`: reflector health, comparison, and rotation policy over
     latency trackers.
 - `latency/`
