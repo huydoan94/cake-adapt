@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.113 MB /tmp/e2e/prof/07-vrestr-native-perf/download.perf.data (535 samples) ]

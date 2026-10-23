@@ -1,0 +1,25 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+r1-v0326       upload-steady        8320    7895     58.0    11505     174      34      78
+r1-v0326       upload-step          5977    5793     25.7    10169     136      24      59
+r1-v0326       download-steady      4419     447      0.0    43863   30615      38      34
+r1-v0326       bidirectional        8773    7631     62.3    26160   17954      70      57
+r1-vrestr      upload-steady        8065    7627     50.7    11568     165      35      70
+r1-vrestr      upload-step          5946    5768     24.2    10196     138      26      56
+r1-vrestr      download-steady      4433     489      0.0    48694   34086      48      14
+r1-vrestr      bidirectional        8225    7582     52.9    19999   11363      72      67
+r2-v0326       upload-steady        7759    7534     42.0    11758     171      38      65
+r2-v0326       upload-step          6094    5946     30.3    10127     142      23      63
+r2-v0326       download-steady      4044     458      0.0    48787   33765      57      22
+r2-v0326       bidirectional        8094    7561     52.0    18790   12093      61      57
+r2-vrestr      upload-steady        8057    7695     51.8    11552     172      35      68
+r2-vrestr      upload-step          5996    5830     26.4    10153     139      24      61
+r2-vrestr      download-steady      4787     518      0.0    48140   34887      53      15
+r2-vrestr      bidirectional        8210    7766     54.7    17433   10914      79      73
+r3-v0326       upload-steady        7744    7597     43.1    10594     166      33      62
+r3-v0326       upload-step          5936    5781     25.7    10175     137      25      59
+r3-v0326       download-steady      4319     466      8.0    43688   30718      41      35
+r3-v0326       bidirectional        8259    7606     53.3    22629   13914      64      56
+r3-vrestr      upload-steady        8183    7720     53.8    11533     178      34      73
+r3-vrestr      upload-step          6334    6116     28.6    10149     143      23      61
+r3-vrestr      download-steady      4219     460      0.0    46438   31745      43      32
+r3-vrestr      bidirectional        8313    7618     56.9    23091   12864      74      65
