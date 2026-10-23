@@ -1,0 +1,56 @@
+using Avalonia;
+namespace CakeAdaptMonitor;
+
+public static class UiLayout
+{
+    public const string ShellColumns = "172,*";
+    public const string RailRows = "88,*,Auto";
+    public const string MainRows = "78,52,Auto,*,30";
+    public const string HeaderColumns = "*,Auto,Auto";
+    public const string ToolbarColumns = "Auto,Auto,*,Auto";
+    public const string RateColumns = "*,*,*,*";
+    public const string DashboardRows = "Auto,*,*";
+    public const string DashboardColumns = "*,*";
+    public const string MetricsRows = "Auto,*";
+    public const string ChartRows = "42,Auto,*";
+    public const string SettingsRows = "Auto,Auto,Auto,*,Auto,Auto";
+    public static readonly Thickness ActionPadding = new(14, 9);
+    public static readonly Thickness BrandMargin = new(20, 24, 0, 0);
+    public static readonly Thickness NavigationMargin = new(12, 8);
+    public static readonly Thickness NavigationPadding = new(15, 12);
+    public static readonly Thickness RailFooterMargin = new(20, 16);
+    public static readonly Thickness MainMargin = new(24, 0, 24, 8);
+    public static readonly Thickness HeaderMargin = new(0, 12, 0, 0);
+    public static readonly Thickness StatusPadding = new(12, 6);
+    public static readonly Thickness StatusMargin = new(12, 0);
+    public static readonly Thickness ToolbarMargin = new(0, 5, 0, 6);
+    public static readonly Thickness TimeRangeMargin = new(10, 0);
+    public static readonly Thickness PagesMargin = new(0, 8, 0, 0);
+    public static readonly Thickness RatesMargin = new(0, 0, 0, 14);
+    public static readonly Thickness RatePadding = new(16, 12);
+    public static readonly Thickness SectionBottomMargin = new(0, 0, 0, 12);
+    public static readonly Thickness LegendMargin = new(16, 0, 10, 2);
+    public static readonly Thickness ChartHeaderMargin = new(12, 4);
+    public static readonly Thickness SnapshotMargin = new(15);
+    public static readonly Thickness ChartMargin = new(8, 0, 8, 5);
+    public static readonly Thickness LegendItemMargin = new(0, 0, 12, 3);
+    public static readonly Thickness SettingsPadding = new(24);
+    public static readonly Thickness SettingsHeadingMargin = new(0, 0, 0, 8);
+    public static readonly Thickness OptionMargin = new(4, 5);
+    public static readonly Thickness OptionsScrollPadding = new(0, 0, 14, 0);
+    public static readonly Thickness DialogButtonMargin = new(0, 0, 8, 6);
+    public static readonly Thickness ApplyButtonMargin = new(0, 0, 0, 6);
+    public static readonly Thickness ConnectionPadding = new(26);
+    public const double WindowWidth = 1440, WindowHeight = 920, MinimumWindowWidth = 1100, MinimumWindowHeight = 740;
+    public const double SourceWidth = 210, TimeRangeWidth = 130, SearchWidth = 320, ReportWidth = 160;
+    public const double TableRowHeight = 33, MinimumRateHeight = 96;
+    public const double RateGap = 8, ChartColumnGap = 7, ChartRowGap = 14;
+    public static readonly Thickness CardBorderThickness = new(1);
+    public const double ActionRadius = 5, CardRadius = 6, StatusRadius = 12;
+    public const double TinySpacing = 3, SmallSpacing = 4, ItemSpacing = 5, MediumSpacing = 6, FormSpacing = 8;
+    public const double SettingsWidth = 640, SettingsHeight = 650, MinimumSettingsWidth = 460, MinimumSettingsHeight = 350;
+    public const double ConnectionWidth = 470, ConnectionHeight = 700, SnapshotWidth = 1100, SnapshotHeight = 600;
+    public const int ChartColumns = 2, TopicLength = 30, TopicTailLength = 29;
+    public const char PasswordCharacter = '●';
+    public static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(1);
+}
