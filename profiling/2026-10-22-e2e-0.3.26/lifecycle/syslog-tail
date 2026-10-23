@@ -1,0 +1,35 @@
+Thu Oct 22 16:21:50 2026 daemon.info cake-adapt[3633]: INFO: 1792707710.770059 Starting cake-adapt 0.3.26-r1 with PID: 3633, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:21:52 2026 daemon.warn cake-adapt[3633]: WARNING: 1792707712.537364 CAKE bandwidth change failed: direction=download interface=ifb4eth1 old_rate=30000000 bit/s desired_rate=20000000 bit/s reason=initial: qdisc change failed: No such device
+Thu Oct 22 16:21:52 2026 daemon.warn cake-adapt[3633]: WARNING: 1792707712.537756 CAKE bandwidth change failed: direction=upload interface=eth1 old_rate=30000000 bit/s desired_rate=20000000 bit/s reason=initial: qdisc change failed: No such file or directory
+Thu Oct 22 16:21:52 2026 daemon.warn cake-adapt[3633]: WARNING: 1792707712.537990 CAKE observation degraded: no CAKE qdisc found on interface=eth1
+Thu Oct 22 16:21:52 2026 daemon.warn cake-adapt[3633]: WARNING: 1792707712.538245 CAKE observation degraded: no CAKE qdisc found on interface=ifb4eth1
+Thu Oct 22 16:21:52 2026 daemon.warn cake-adapt[3633]: WARNING: 1792707712.538248 traffic observation unavailable: direction=download interface=ifb4eth1
+Thu Oct 22 16:21:52 2026 daemon.warn cake-adapt[3633]: WARNING: 1792707712.538251 traffic observation unavailable: direction=upload interface=eth1
+Thu Oct 22 16:33:24 2026 daemon.warn cake-adapt[3633]: WARNING: 1792708404.809839 CAKE observation degraded: no CAKE qdisc found on interface=ifb4eth1
+Thu Oct 22 16:33:24 2026 daemon.warn cake-adapt[3633]: WARNING: 1792708404.809850 traffic observation unavailable: direction=download interface=ifb4eth1
+Thu Oct 22 16:33:24 2026 daemon.warn cake-adapt[3633]: WARNING: 1792708404.809853 traffic observation unavailable: direction=upload interface=eth1
+Thu Oct 22 16:33:25 2026 daemon.warn cake-adapt[3633]: WARNING: 1792708405.173546 line load unavailable: direction=download
+Thu Oct 22 16:35:11 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+Thu Oct 22 16:35:11 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+Thu Oct 22 16:35:11 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+Thu Oct 22 16:35:29 2026 daemon.info cake-adapt[3633]: INFO: 1792708529.779586 Stopped cake-adapt with PID: 3633, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:35:29 2026 daemon.info cake-adapt[5594]: INFO: 1792708529.840932 Starting cake-adapt 0.3.26-r1 with PID: 5594, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:36:24 2026 daemon.info cake-adapt[5594]: INFO: 1792708584.069208 Stopped cake-adapt with PID: 5594, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:36:24 2026 daemon.info cake-adapt[6114]: INFO: 1792708584.141580 Starting cake-adapt 0.3.26-r1 with PID: 6114, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:37:58 2026 daemon.info cake-adapt[6114]: INFO: 1792708678.170063 Stopped cake-adapt with PID: 6114, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:37:58 2026 daemon.info cake-adapt[6637]: INFO: 1792708678.220635 Starting cake-adapt 0.3.26-r1 with PID: 6637, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:13 2026 daemon.info cake-adapt[6637]: INFO: 1792708693.729366 Stopped cake-adapt with PID: 6637, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:13 2026 daemon.info cake-adapt[7174]: INFO: 1792708693.790553 Starting cake-adapt 0.3.26-r1 with PID: 7174, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:21 2026 daemon.info cake-adapt[7174]: INFO: 1792708701.509460 Stopped cake-adapt with PID: 7174, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:21 2026 daemon.info cake-adapt[8140]: INFO: 1792708701.571859 Starting cake-adapt 0.3.26-r1 with PID: 8140, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:22 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+Thu Oct 22 16:38:22 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+Thu Oct 22 16:38:22 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+Thu Oct 22 16:38:27 2026 daemon.info cake-adapt[8140]: INFO: 1792708707.979157 Stopped cake-adapt with PID: 8140, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:28 2026 daemon.info cake-adapt[8713]: INFO: 1792708708.040932 Starting cake-adapt 0.3.26-r1 with PID: 8713, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:35 2026 daemon.info cake-adapt[8713]: INFO: 1792708715.740321 Stopped cake-adapt with PID: 8713, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:35 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to connect to ubus
+Thu Oct 22 16:38:35 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to parse JSON data: unexpected end of data
+Thu Oct 22 16:38:35 2026 daemon.info cake-adapt[9223]: INFO: 1792708715.801282 Starting cake-adapt 0.3.26-r1 with PID: 9223, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:45 2026 daemon.info cake-adapt[9223]: INFO: 1792708725.630399 Stopped cake-adapt with PID: 9223, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:38:46 2026 daemon.info cake-adapt[10094]: INFO: 1792708726.921387 Starting cake-adapt 0.3.26-r1 with PID: 10094, config: /var/run/cake-adapt/main.uci, section: main
