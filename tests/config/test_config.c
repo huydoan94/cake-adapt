@@ -402,7 +402,7 @@ static void test_option_copy_boundaries(void)
 
 #if MQTT_SUPPORTED
 /* The MQTT rules of the cake-adapt-mqtt and cake-adapt-mqtt-ssl packages. */
-static void test_mqtt_rules(struct config_mqtt *mqtt)
+static void test_mqtt_rules(struct mqtt_settings *mqtt)
 {
 	char error[256];
 
@@ -459,7 +459,7 @@ static void test_mqtt_rules(struct config_mqtt *mqtt)
 static void test_mqtt_validation(void)
 {
 	struct config config;
-	struct config_mqtt *mqtt = &config.mqtt;
+	struct mqtt_settings *mqtt = &config.mqtt;
 	char error[256];
 
 	defaults_apply(&config);

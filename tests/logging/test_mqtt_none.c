@@ -8,7 +8,7 @@
 
 int main(void)
 {
-	struct config_mqtt settings = { .enabled = false };
+	struct mqtt_settings settings = { .enabled = false };
 	char error[256] = "";
 
 	assert(mqtt_start(&settings, error, sizeof(error)) == 0);
