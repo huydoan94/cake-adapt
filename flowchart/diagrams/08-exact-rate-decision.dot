@@ -2,7 +2,7 @@ digraph G {
   graph [rankdir=TB,bgcolor="white",pad="0.30",nodesep="0.35",ranksep="0.48",splines=polyline,fontname="Arial",label="08 — Exact per-direction rate decision order",labelloc=t,fontsize=22,fontcolor="#0f172a"];
   node [fontname="Arial",fontsize=11,margin="0.14,0.09",penwidth=1.2];
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
-  start [label="adjust_rate(direction)",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
+  start [label="rate_adjust(direction)",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   adjust [label="adjust enabled ∧ input valid?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   unchanged [label="UNCHANGED",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   initial [label="initial rate pending?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
@@ -18,7 +18,7 @@ digraph G {
   clamp [label="clamp to [minimum, maximum]",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   changed [label="rate changed?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   reason [label="reason: CONGESTION / HIGH_LOAD /\nRETURN_TO_BASE",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
-  output [label="set_rate_output:\nrate_changed if INITIAL or CAKE ≠ rate\n(unchanged but different → RECONCILE)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  output [label="rate_set_output:\nrate_changed if INITIAL or CAKE ≠ rate\n(unchanged but different → RECONCILE)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   start -> adjust;
   adjust -> unchanged [label="no"];
   adjust -> initial [label="yes"];

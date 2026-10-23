@@ -33,8 +33,8 @@
 <!-- line -->
 <g id="node3" class="node">
 <title>line</title>
-<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M179.42,-773.2C179.42,-773.2 96.41,-773.2 96.41,-773.2 90.41,-773.2 84.41,-767.2 84.41,-761.2 84.41,-761.2 84.41,-745.84 84.41,-745.84 84.41,-739.84 90.41,-733.84 96.41,-733.84 96.41,-733.84 179.42,-733.84 179.42,-733.84 185.42,-733.84 191.42,-739.84 191.42,-745.84 191.42,-745.84 191.42,-761.2 191.42,-761.2 191.42,-767.2 185.42,-773.2 179.42,-773.2"/>
-<text xml:space="preserve" text-anchor="middle" x="137.92" y="-756.82" font-family="Arial" font-size="11.00">update_line_state</text>
+<path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M209.08,-773.2C209.08,-773.2 66.75,-773.2 66.75,-773.2 60.75,-773.2 54.75,-767.2 54.75,-761.2 54.75,-761.2 54.75,-745.84 54.75,-745.84 54.75,-739.84 60.75,-733.84 66.75,-733.84 66.75,-733.84 209.08,-733.84 209.08,-733.84 215.08,-733.84 221.08,-739.84 221.08,-745.84 221.08,-745.84 221.08,-761.2 221.08,-761.2 221.08,-767.2 215.08,-773.2 209.08,-773.2"/>
+<text xml:space="preserve" text-anchor="middle" x="137.92" y="-756.82" font-family="Arial" font-size="11.00">congestion_update_line_state</text>
 <text xml:space="preserve" text-anchor="middle" x="137.92" y="-743.62" font-family="Arial" font-size="11.00">(logged only)</text>
 </g>
 <!-- dir&#45;&gt;line -->
@@ -89,7 +89,7 @@
 <g id="node14" class="node">
 <title>rate</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M277.27,-36C277.27,-36 176.56,-36 176.56,-36 170.56,-36 164.56,-30 164.56,-24 164.56,-24 164.56,-12 164.56,-12 164.56,-6 170.56,0 176.56,0 176.56,0 277.27,0 277.27,0 283.27,0 289.27,-6 289.27,-12 289.27,-12 289.27,-24 289.27,-24 289.27,-30 283.27,-36 277.27,-36"/>
-<text xml:space="preserve" text-anchor="middle" x="226.92" y="-14.7" font-family="Arial" font-size="11.00">adjust_rate (chart 08)</text>
+<text xml:space="preserve" text-anchor="middle" x="226.92" y="-14.7" font-family="Arial" font-size="11.00">rate_adjust (chart 08)</text>
 </g>
 <!-- unknown&#45;&gt;rate -->
 <g id="edge16" class="edge">

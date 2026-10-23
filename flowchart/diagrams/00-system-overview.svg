@@ -81,7 +81,7 @@
 <g id="node11" class="node">
 <title>log</title>
 <polygon fill="#e9f7ff" stroke="#24749c" stroke-width="1.2" points="833.36,-462.27 457.78,-462.27 361.16,-383.55 736.75,-383.55 833.36,-462.27"/>
-<text xml:space="preserve" text-anchor="middle" x="597.26" y="-426.21" font-family="Arial" font-size="11.00">logging/log.c</text>
+<text xml:space="preserve" text-anchor="middle" x="597.26" y="-426.21" font-family="Arial" font-size="11.00">logging/</text>
 <text xml:space="preserve" text-anchor="middle" x="597.26" y="-413.01" font-family="Arial" font-size="11.00">syslog + cake&#45;autorate&#45;compatible records</text>
 </g>
 <!-- loop&#45;&gt;log -->
