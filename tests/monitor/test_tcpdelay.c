@@ -1,6 +1,7 @@
 /* Exercise the monitor's actual ACK sampling with deterministic capture reads. */
 #include "monitor/tcpdelay.c"
 #include "monitor/links.c"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <stdio.h>

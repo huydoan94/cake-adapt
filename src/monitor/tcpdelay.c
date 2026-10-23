@@ -2,12 +2,13 @@
 
 #include "monitor/loop.h"
 
-#include "common/constants.h"
 #include "common/error.h"
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "config/defaults.h"
 #include "logging/log.h"
+#include "constants/tcpdelay.h"
+#include "constants/text.h"
 
 #include <errno.h>
 #include <inttypes.h>

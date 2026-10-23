@@ -6,12 +6,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "common/constants.h"
 #include "latency/parser.h"
 #include "latency/native.h"
-
-/* Longest pinger output line, including its newline. */
-#define LATENCY_OUTPUT_SIZE 512U
+#include "constants/latency.h"
+#include "constants/options.h"
 
 bool target_is_valid(const char *target);
 

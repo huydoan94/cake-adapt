@@ -6,11 +6,7 @@
 #include <stdint.h>
 
 #include "tcpdelay/record.h"
-
-/* Flow slots; the flow with the least recently accepted sample is replaced. */
-#define TCPDELAY_FLOWS 32U
-/* Standard TCP timestamp clock periods: 1, 4, 10 and 100 ms. */
-#define TCPDELAY_TICKS 4U
+#include "constants/tcpdelay.h"
 
 /* One arriving packet with TCP timestamps, as seen at the WAN interface. */
 struct tcpdelay_sample {

@@ -4,6 +4,9 @@
  * dnsmasq handles, with the messages and levels the main thread logs for it.
  */
 #include "monitor/publish.c"
+#include "constants/program.h"
+#include "constants/ubus.h"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <stdarg.h>

@@ -11,9 +11,9 @@
  * thresholds, which follow the rate, within THRESHOLD_TOLERANCE_US.
  */
 #include "controller/controller.h"
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <inttypes.h>

@@ -1,6 +1,7 @@
 /* Prints "name=value" for every option's built-in default, as cake-adapt -D does. */
 #include "config/config.h"
 #include "config/defaults.h"
+#include "constants/options.h"
 
 #include <stdio.h>
 

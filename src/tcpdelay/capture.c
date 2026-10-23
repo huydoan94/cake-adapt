@@ -17,22 +17,11 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include "common/constants.h"
 #include "common/error.h"
 #include "common/utils.h"
 #include "logging/log.h"
-
-/* Names in tcpdelay.bpf.c: the program and its maps. */
-#define FILTER_PROGRAM "tcpdelay"
-#define FILTER_COUNTERS "counters"
-#define FILTER_ACCOUNTING "accounting"
-#define FILTER_SAMPLES "samples"
-#define INJECT_PROGRAM "inject_egress"
-#define INJECT_SERVERS "inject_servers"
-#define INJECT_HANDSHAKES "inject_handshakes"
-#define INJECT_CLIENTS "inject_clients"
-/* The injection maps' size while injection is off; the filter still looks them up. */
-#define INJECT_UNUSED_ENTRIES 1U
+#include "constants/tcpdelay.h"
+#include "constants/text.h"
 
 static int
 forward_libbpf_message(enum libbpf_print_level level, const char *format, va_list arguments)
@@ -97,12 +86,15 @@ int tcpdelay_interface_type(const char *interface, uint32_t *hardware_type)
 /* With injection off, its maps keep one entry each: the filter still looks them up. */
 static int shrink_injection_maps(struct bpf_object *object)
 {
-	static const char *const names[] = { INJECT_SERVERS, INJECT_HANDSHAKES, INJECT_CLIENTS };
+	static const char *const names[] = { TCPDELAY_INJECT_SERVERS_MAP,
+					     TCPDELAY_INJECT_HANDSHAKES_MAP,
+					     TCPDELAY_INJECT_CLIENTS_MAP };
 
 	for (size_t index = 0U; index < ARRAY_SIZE(names); index++) {
 		struct bpf_map *map = bpf_object__find_map_by_name(object, names[index]);
 
-		if (map == NULL || bpf_map__set_max_entries(map, INJECT_UNUSED_ENTRIES) != 0)
+		if (map == NULL ||
+		    bpf_map__set_max_entries(map, TCPDELAY_INJECT_UNUSED_ENTRIES) != 0)
 			return -1;
 	}
 	return 0;
@@ -124,9 +116,9 @@ static int load_program(struct tcpdelay_capture *capture, char *error, size_t er
 			TCPDELAY_OBJECT_PATH,
 			strerror(errno)
 		);
-	counters = bpf_object__find_map_by_name(capture->object, FILTER_COUNTERS);
-	accounting = bpf_object__find_map_by_name(capture->object, FILTER_ACCOUNTING);
-	injector = bpf_object__find_program_by_name(capture->object, INJECT_PROGRAM);
+	counters = bpf_object__find_map_by_name(capture->object, TCPDELAY_FILTER_COUNTERS);
+	accounting = bpf_object__find_map_by_name(capture->object, TCPDELAY_FILTER_ACCOUNTING);
+	injector = bpf_object__find_program_by_name(capture->object, TCPDELAY_INJECT_PROGRAM);
 	if (injector == NULL || bpf_program__set_autoload(injector, capture->injection) != 0 ||
 	    (!capture->injection && shrink_injection_maps(capture->object) != 0))
 		return error_set(error, error_size, "TCP delay object lacks the timestamp injector");
@@ -151,11 +143,11 @@ static int load_program(struct tcpdelay_capture *capture, char *error, size_t er
 			TCPDELAY_OBJECT_PATH,
 			strerror(errno)
 		);
-	program = bpf_object__find_program_by_name(capture->object, FILTER_PROGRAM);
+	program = bpf_object__find_program_by_name(capture->object, TCPDELAY_FILTER_PROGRAM);
 	capture->counters_descriptor = bpf_map__fd(counters);
 	capture->accounting_descriptor = bpf_map__fd(accounting);
 	capture->ring = ring_buffer__new(
-		bpf_object__find_map_fd_by_name(capture->object, FILTER_SAMPLES),
+		bpf_object__find_map_fd_by_name(capture->object, TCPDELAY_FILTER_SAMPLES),
 		add_record,
 		&capture->estimator,
 		NULL

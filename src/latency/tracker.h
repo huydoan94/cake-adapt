@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "latency/parser.h"
+#include "constants/units.h"
 
 struct latency_observation {
 	int64_t download_owd_us;

@@ -6,6 +6,10 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
+#include "constants/latency.h"
+#include "constants/options.h"
+#include "constants/states.h"
+#include "constants/text.h"
 
 #include <libubox/utils.h>
 
@@ -13,9 +17,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
-/* Replies read per wake-up, so foreign datagrams cannot starve the other timers. */
-#define NATIVE_RECEIVE_BATCH 64U
 
 static bool schedule_irtt_child_start(struct monitor *monitor);
 static bool watch_native_session(struct monitor *monitor);

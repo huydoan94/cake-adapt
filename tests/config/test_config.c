@@ -1,6 +1,9 @@
 #include "config/config.c"
 #include "config/validate.c"
 #include "common/utils.h"
+#include "constants/options.h"
+#include "constants/program.h"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <unistd.h>

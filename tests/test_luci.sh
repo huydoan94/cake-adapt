@@ -30,7 +30,7 @@ tls
 daemon=$(sed -n '/^static const struct option_binding options\[\]/,/^};/p' ../src/config/config.c |
 	grep -ow 'OPTION_[A-Z0-9_]*' |
 	while read -r constant; do
-		sed -n "s/^#define $constant \"\(.*\)\"/\1/p" ../src/common/constants.h
+		sed -n "s/^#define $constant \"\(.*\)\"/\1/p" ../src/constants/options.h
 	done | grep -v -e '^config_file$' -e '^log_file_path_override$' -e '^ping_extra_args$' \
 		-e '^ping_prefix_string$' | sort)
 view=$(sed -n "s/.*[sa]\.taboption([^,]*, *form\.[A-Za-z]*, *'\([a-zA-Z0-9_]*\)'.*/\1/p" \

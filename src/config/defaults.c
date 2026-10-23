@@ -1,6 +1,8 @@
 #include "config/defaults.h"
 #include "config/config.h"
-#include "common/constants.h"
+#include "constants/latency.h"
+#include "constants/mqtt.h"
+#include "constants/units.h"
 
 #include <string.h>
 
