@@ -108,11 +108,24 @@ measurement -> controller decision -> desired CAKE state -> kernel update
 module belongs to exactly one subsystem directory. Put new code in the
 directory that owns the concept, and do not create a new directory or nested
 layer without a real ownership reason. Do not add unnecessary
-abstraction layers, wrapper libraries, or one-use helpers.
+abstraction layers, wrapper libraries, or one-use helpers. Keep one concern
+per file: when a file holds several (a transport and the data it serves, a
+session and its process mechanics), split it by concern within its
+subsystem, and give each part of a shared state its own header (user,
+2026-10-22).
 
 Include project headers relative to `src/`, for example
 `#include "latency/tracker.h"`. A header shared only inside one subsystem stays
 in that directory and is not included from outside it.
+
+Named values live in `src/constants/`, one header per topic (`units.h`,
+`options.h`, `logging.h`, `latency.h`, `tcpdelay.h`, ...), never in the file
+that uses them, even when only one file does (user decision 2026-10-22): a
+constant is found by its topic, and its prefix names the topic where it can.
+Each file includes the topic headers it uses. Only feature-test macros,
+include guards, function-like macros and the UCI defaults in
+`config/defaults.h` stay outside; `make check` enforces it
+(`tests/test_constants.sh`).
 
 
 ## Configuration rules
