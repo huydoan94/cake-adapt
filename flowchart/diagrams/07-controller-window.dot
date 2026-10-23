@@ -4,7 +4,7 @@ digraph G {
   edge [fontname="Arial",fontsize=9,color="#475569",fontcolor="#334155",arrowsize=0.7,penwidth=1.1];
   input [label="control_update(latency observation)",shape=oval,style="filled",fillcolor="#d9f7f1",color="#17806d"];
   dir [label="direction_input:\nvalid = fresh rate ∧ CAKE valid ∧ bandwidth > 0\nsample_id, achieved rate, CAKE rate",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  line [label="update_line_state\n(logged only)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  line [label="congestion_update_line_state\n(logged only)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   lat [label="latency valid?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   unknown [label="congestion UNKNOWN;\naverage 0",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   slot [label="replace oldest slot:\nsum −= old; sum += delta",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
@@ -15,7 +15,7 @@ digraph G {
   thr [label="delayed_count ≥ detection_threshold?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   det [label="DETECTED",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   clear [label="CLEAR",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
-  rate [label="adjust_rate (chart 08)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  rate [label="rate_adjust (chart 08)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   input -> dir;
   dir -> line;
   line -> lat;
