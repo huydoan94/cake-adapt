@@ -27,7 +27,7 @@ BINARIES += $(BINARY_DIR)/test_icmp $(BINARY_DIR)/test_native
 test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o src/common/helpers.o
 test_replay_OBJECTS := controller/test_replay.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o src/common/helpers.o
 test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/tracker.o src/common/helpers.o
-LATENCY_OBJECTS := src/latency/latency.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o src/latency/icmp.o src/latency/native.o
+LATENCY_OBJECTS := src/latency/latency.o src/latency/children.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o src/latency/icmp.o src/latency/native.o
 test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o src/common/helpers.o
 test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/helpers.o
 test_icmp_OBJECTS := latency/test_icmp.o src/latency/icmp.o src/common/error.o src/common/helpers.o
@@ -96,7 +96,7 @@ check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_r
 	$(BINARY_DIR)/test_monitor_publish
 	$(BINARY_DIR)/test_monitor_pingers
 
-$(BINARY_DIR)/test_monitor_pingers: monitor/test_pingers.c $(SOURCE_DIR)/monitor/pingers.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o
+$(BINARY_DIR)/test_monitor_pingers: monitor/test_pingers.c $(SOURCE_DIR)/monitor/pingers.c $(SOURCE_DIR)/monitor/native_pinger.c $(SOURCE_DIR)/monitor/child_pingers.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o $(LDLIBS)
 
@@ -124,7 +124,7 @@ $(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
 # It is built once per package variant: without MQTT, with MQTT, and with MQTT and TLS.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c logging/file.c logging/records.c logging/writer.c common/error.c common/helpers.c) logging/mqtt_stub.c
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/children.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c logging/file.c logging/records.c logging/writer.c common/error.c common/helpers.c) logging/mqtt_stub.c
 CONFIG_TESTS := $(BINARY_DIR)/test_config $(BINARY_DIR)/test_config_mqtt $(BINARY_DIR)/test_config_mqtt_ssl
 
 .PHONY: check-config
