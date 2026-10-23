@@ -1,7 +1,7 @@
 # Bufferbloat simulator
 
 A closed-loop, deterministic simulator for comparing controller variants. It
-links the real `src/controller/controller.c` and `src/latency/tracker.c`, so it
+links the real controller (`src/controller/`) and `src/latency/tracker.c`, so it
 measures the code the daemon runs.
 
 Claude and Codex follow the same model and verification limits here; use their

@@ -12,6 +12,7 @@
 #include "monitor/tcpdelay.h"
 #include "monitor/upkeep.h"
 #include "config/config.h"
+#include "controller/activity.h"
 #include "controller/controller.h"
 #include "latency/latency.h"
 #include "logging/log.h"
