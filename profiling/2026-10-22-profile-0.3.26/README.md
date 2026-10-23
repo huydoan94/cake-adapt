@@ -15,7 +15,7 @@ process, and 3.1 MB.
 
 Flame graphs of every workload, with the log writer fix's beside them, are on
 the [dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-22-profile-0.3.26/index.html)
-([`index.html`](index.html)).
+([`index.html`](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-22-profile-0.3.26/index.html)).
 
 ## Builds
 
