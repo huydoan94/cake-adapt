@@ -98,6 +98,21 @@ The Windows executable is cross-published from WSL. Native headless UI and
 protocol checks run on Linux; Windows execution and the user's broker have
 not been tested here.
 
+## GitHub Actions
+
+The **Build OpenWrt packages and Windows dashboard** workflow tests and builds
+this viewer on dashboard changes pushed to main, version-tag pushes, and manual
+runs. Dashboard-only changes do not require a router package version bump.
+The job runs the unit, loopback MQTT/TLS and headless UI checks on Linux, then
+cross-publishes the same self-contained Windows x64 executable used locally.
+This validates the build; it does not execute the application on Windows.
+
+Download **dashboard-windows-x64** from the run's Artifacts section. It contains
+`CakeAdaptMonitor-Windows-x64.zip` and its `.sha256` checksum. Extract the inner
+ZIP and run `CakeAdaptMonitor.exe`. Successful release runs attach these same
+two files alongside the OpenWrt/LuCI packages; a failed dashboard build blocks
+that release along with failed router package builds.
+
 ## Code structure
 
 The app remains Avalonia. The executable project contains only presentation
