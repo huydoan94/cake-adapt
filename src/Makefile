@@ -73,6 +73,7 @@ SOURCES := \
 	monitor/tcpdelay.c \
 	monitor/status.c \
 	monitor/publish.c \
+	monitor/upkeep.c \
 	platform/cpu.c \
 	platform/memory.c \
 	platform/netlink.c \

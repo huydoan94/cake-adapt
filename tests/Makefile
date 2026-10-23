@@ -96,7 +96,7 @@ check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_r
 	$(BINARY_DIR)/test_monitor_publish
 	$(BINARY_DIR)/test_monitor_pingers
 
-$(BINARY_DIR)/test_monitor_pingers: monitor/test_pingers.c $(SOURCE_DIR)/monitor/pingers.c $(SOURCE_DIR)/monitor/loop.h $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o
+$(BINARY_DIR)/test_monitor_pingers: monitor/test_pingers.c $(SOURCE_DIR)/monitor/pingers.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o $(LDLIBS)
 
@@ -105,20 +105,20 @@ $(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=gnu11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_reflectors: monitor/test_reflectors.c $(SOURCE_DIR)/monitor/reflectors.c $(SOURCE_DIR)/monitor/loop.h
+$(BINARY_DIR)/test_monitor_reflectors: monitor/test_reflectors.c $(SOURCE_DIR)/monitor/reflectors.c $(wildcard $(SOURCE_DIR)/monitor/*.h)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/tcpdelay/injector.h $(SOURCE_DIR)/tcpdelay/inject.h $(SOURCE_DIR)/cake/accounting.h $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/tcpdelay/injector.h $(SOURCE_DIR)/tcpdelay/inject.h $(SOURCE_DIR)/cake/accounting.h $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_status: monitor/test_status.c $(SOURCE_DIR)/monitor/status.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_monitor_status: monitor/test_status.c $(SOURCE_DIR)/monitor/status.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 
 # libubus and blobmsg are replaced by the test's recorders.
-$(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor/publish.c $(SOURCE_DIR)/monitor/loop.h $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor/publish.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 -pthread $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 

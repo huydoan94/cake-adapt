@@ -11,11 +11,13 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
 - `monitor/`: uloop orchestration and coordination between measurements,
   controller decisions, qdisc lifecycle, timers, and signals. All state is one
   `struct monitor` in the private `loop.h`, passed to every function; each
-  file owns one part of it and prefixes its functions with that part's name.
-  `monitor.h` is the only public header.
+  file owns one part of it, declared with its functions in the header of the
+  same name (`links.h`, `pingers.h`, ...), and prefixes its functions with
+  that part's name. `monitor.h` is the only public header.
   - `monitor.c`: loop setup and teardown, the traffic tick
-    (`monitor_tick`), the activity state machine, CPU and log timers, and
-    signals.
+    (`monitor_tick`) and the activity state machine.
+  - `upkeep.c` (`upkeep`): CPU and memory records, the log file's timer, and
+    the export and reset signals.
   - `links.c` (`links`): both directions' CAKE discovery, achieved rates,
     compensated traffic cadence, and qdisc lifecycle events.
   - `control.c` (`control`): controller configuration and input, CAKE
