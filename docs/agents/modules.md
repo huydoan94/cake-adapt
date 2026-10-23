@@ -29,10 +29,9 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     rate, and the timestamp injector's attachment and `TCP_INJECT` records.
   - `status.c` (`status`): the instance's status snapshot from state the
     monitor already holds.
-  - `publish.c` (`publish`): the status object on ubus, served from its own
-    thread so a stalled `ubusd` never blocks control; the main thread only
-    copies a snapshot under a mutex each traffic tick and logs what the thread
-    reports.
+  - `publish.c` (`publish`): the status object on ubus: its reply, its
+    identity and the messages for what its server reports; the main thread
+    only replaces the snapshot each traffic tick and logs those events.
 - `constants/`: every named value, one header per topic: `units.h` (units and
   conversions), `program.h` (identity, build features, runtime directory),
   `options.h` (UCI option names, booleans, configuration limits), `states.h`,
@@ -133,6 +132,10 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     so a second daemon with a running instance's name exits with an error).
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
   - `traffic.c`: counter samples and achieved-rate calculations only.
+  - `ubus.c`: one ubus object served from a thread of its own, answering from
+    a snapshot copied under a lock, so a stalled `ubusd` never blocks
+    control; it connects, adds the object and reconnects as dnsmasq does, and
+    reports events for its caller to log.
   - `cpu.c`: CPU sampling and usage calculations only.
   - `memory.c`: the daemon's memory sampling from `/proc/self/status`, and
     the peak resident size it has seen (VmHWM lags).

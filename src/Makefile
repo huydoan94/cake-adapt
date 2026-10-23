@@ -85,6 +85,7 @@ SOURCES := \
 	platform/memory.c \
 	platform/netlink.c \
 	platform/traffic.c \
+	platform/ubus.c \
 	tcpdelay/capture.c \
 	tcpdelay/estimator.c \
 	tcpdelay/injector.c

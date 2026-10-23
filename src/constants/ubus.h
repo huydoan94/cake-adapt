@@ -10,7 +10,7 @@
 /* ubus: the status object is UBUS_OBJECT_PREFIX "." <section>, method UBUS_METHOD_STATUS. */
 #define UBUS_OBJECT_PREFIX PROGRAM_NAME
 #define UBUS_METHOD_STATUS "status"
-#define PUBLISH_OBJECT_NAME_SIZE (sizeof(UBUS_OBJECT_PREFIX) + 1U + CONFIG_STRING_SIZE)
+#define UBUS_OBJECT_NAME_SIZE (sizeof(UBUS_OBJECT_PREFIX) + 1U + CONFIG_STRING_SIZE)
 
 /* Status reply fields. */
 #define STATUS_FIELD_VERSION "version"
@@ -28,10 +28,9 @@
 #define STATUS_FIELD_BUFFERBLOAT "bufferbloat"
 #define STATUS_FIELD_TCP_QUEUE "tcp_queue_us"
 
-/* The status thread. */
-/* The thread's longest wait, both between connection attempts and for requests. */
-#define PUBLISH_WAIT_US SECOND
-/* How long shutdown waits for the thread before leaving it behind, checked this often. */
+/* The server thread's longest wait, both between connection attempts and for requests. */
+#define UBUS_SERVER_WAIT_US SECOND
+/* How long shutdown waits for the status thread before leaving it behind. */
 #define PUBLISH_STOP_US (2U * SECOND)
 
 #endif

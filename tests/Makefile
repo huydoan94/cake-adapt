@@ -118,7 +118,7 @@ $(BINARY_DIR)/test_monitor_status: monitor/test_status.c $(SOURCE_DIR)/monitor/s
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 
 # libubus and blobmsg are replaced by the test's recorders.
-$(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor/publish.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor/publish.c $(SOURCE_DIR)/platform/ubus.c $(SOURCE_DIR)/platform/ubus.h $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/common/helpers.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 -pthread $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
 
