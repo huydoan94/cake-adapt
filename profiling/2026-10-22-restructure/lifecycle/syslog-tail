@@ -1,0 +1,40 @@
+Thu Oct 22 16:40:00 2026 daemon.warn cake-adapt[3627]: WARNING: 1792708800.040347 traffic observation unavailable: direction=download interface=ifb4eth1
+Thu Oct 22 16:40:00 2026 daemon.warn cake-adapt[3627]: WARNING: 1792708800.040354 traffic observation unavailable: direction=upload interface=eth1
+Thu Oct 22 16:40:00 2026 daemon.warn cake-adapt[3627]: WARNING: 1792708800.265171 line load unavailable: direction=download
+Thu Oct 22 16:44:01 2026 daemon.warn cake-adapt[3627]: WARNING: 1792709041.447095 CAKE observation degraded: no CAKE qdisc found on interface=ifb4eth1
+Thu Oct 22 16:44:01 2026 daemon.warn cake-adapt[3627]: WARNING: 1792709041.447337 traffic observation unavailable: direction=download interface=ifb4eth1
+Thu Oct 22 16:44:01 2026 daemon.warn cake-adapt[3627]: WARNING: 1792709041.447341 traffic observation unavailable: direction=upload interface=eth1
+Thu Oct 22 16:44:01 2026 daemon.warn cake-adapt[3627]: WARNING: 1792709041.828634 line load unavailable: direction=download
+Thu Oct 22 16:45:27 2026 daemon.info cake-adapt[3627]: INFO: 1792709127.199022 Stopped cake-adapt with PID: 3627, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 16:45:29 2026 daemon.info cake-adapt[5604]: INFO: 1792709129.552869 Starting cake-adapt 0.3.26-r1 with PID: 5604, config: /tmp/cake-adapt-test/uci-r1-v0326/cake-adapt, section: main
+Thu Oct 22 16:50:15 2026 daemon.info cake-adapt[5604]: INFO: 1792709415.364887 Stopped cake-adapt with PID: 5604, config: /tmp/cake-adapt-test/uci-r1-v0326/cake-adapt, section: main
+Thu Oct 22 16:50:16 2026 daemon.info cake-adapt[5735]: INFO: 1792709416.405424 Starting cake-adapt 0.3.25-r1 with PID: 5735, config: /tmp/cake-adapt-test/uci-r1-v0325/cake-adapt, section: main
+Thu Oct 22 16:55:02 2026 daemon.info cake-adapt[5735]: INFO: 1792709702.228157 Stopped cake-adapt with PID: 5735, config: /tmp/cake-adapt-test/uci-r1-v0325/cake-adapt, section: main
+Thu Oct 22 16:55:03 2026 daemon.info cake-adapt[5833]: INFO: 1792709703.274084 Starting cake-adapt 0.3.25-r1 with PID: 5833, config: /tmp/cake-adapt-test/uci-r2-v0325/cake-adapt, section: main
+Thu Oct 22 16:59:49 2026 daemon.info cake-adapt[5833]: INFO: 1792709989.096470 Stopped cake-adapt with PID: 5833, config: /tmp/cake-adapt-test/uci-r2-v0325/cake-adapt, section: main
+Thu Oct 22 16:59:50 2026 daemon.info cake-adapt[5959]: INFO: 1792709990.142972 Starting cake-adapt 0.3.26-r1 with PID: 5959, config: /tmp/cake-adapt-test/uci-r2-v0326/cake-adapt, section: main
+Thu Oct 22 17:04:35 2026 daemon.info cake-adapt[5959]: INFO: 1792710275.918986 Stopped cake-adapt with PID: 5959, config: /tmp/cake-adapt-test/uci-r2-v0326/cake-adapt, section: main
+Thu Oct 22 17:04:36 2026 daemon.info cake-adapt[6083]: INFO: 1792710276.957738 Starting cake-adapt 0.3.26-r1 with PID: 6083, config: /tmp/cake-adapt-test/uci-r3-v0326/cake-adapt, section: main
+Thu Oct 22 17:09:22 2026 daemon.info cake-adapt[6083]: INFO: 1792710562.905710 Stopped cake-adapt with PID: 6083, config: /tmp/cake-adapt-test/uci-r3-v0326/cake-adapt, section: main
+Thu Oct 22 17:09:23 2026 daemon.info cake-adapt[6181]: INFO: 1792710563.946014 Starting cake-adapt 0.3.25-r1 with PID: 6181, config: /tmp/cake-adapt-test/uci-r3-v0325/cake-adapt, section: main
+Thu Oct 22 17:14:10 2026 daemon.info cake-adapt[6181]: INFO: 1792710850.126792 Stopped cake-adapt with PID: 6181, config: /tmp/cake-adapt-test/uci-r3-v0325/cake-adapt, section: main
+Thu Oct 22 17:14:12 2026 daemon.info cake-adapt[6705]: INFO: 1792710852.519974 Starting cake-adapt 0.3.26-r1 with PID: 6705, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:28 2026 daemon.info cake-adapt[6705]: INFO: 1792725268.543585 Stopped cake-adapt with PID: 6705, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:28 2026 daemon.info cake-adapt[7955]: INFO: 1792725268.644213 Starting cake-adapt 0.3.26-r1 with PID: 7955, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:29 2026 daemon.info cake-adapt[8424]: INFO: 1792725269.539868 Starting cake-adapt 0.3.26-r1 with PID: 8424, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:37 2026 daemon.info cake-adapt[8424]: INFO: 1792725277.457545 Stopped cake-adapt with PID: 8424, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:37 2026 daemon.info cake-adapt[9395]: INFO: 1792725277.519650 Starting cake-adapt 0.3.26-r1 with PID: 9395, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:38 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+Thu Oct 22 21:14:38 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+Thu Oct 22 21:14:38 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+Thu Oct 22 21:14:44 2026 daemon.info cake-adapt[9395]: INFO: 1792725284.098017 Stopped cake-adapt with PID: 9395, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:44 2026 daemon.info cake-adapt[9968]: INFO: 1792725284.149391 Starting cake-adapt 0.3.26-r1 with PID: 9968, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:51 2026 daemon.notice procd: /etc/init.d/cake-adapt: Command failed: ubus call service list { "name": "cake-adapt" } (Connection failed)
+Thu Oct 22 21:14:51 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to parse JSON data: unexpected end of data
+Thu Oct 22 21:14:51 2026 daemon.info cake-adapt[9968]: INFO: 1792725291.557911 Stopped cake-adapt with PID: 9968, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:14:51 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to connect to ubus
+Thu Oct 22 21:14:51 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to parse JSON data: unexpected end of data
+Thu Oct 22 21:14:51 2026 daemon.info cake-adapt[10475]: INFO: 1792725291.639871 Starting cake-adapt 0.3.26-r1 with PID: 10475, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:15:02 2026 daemon.info cake-adapt[10475]: INFO: 1792725302.397767 Stopped cake-adapt with PID: 10475, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:15:03 2026 daemon.info cake-adapt[11350]: INFO: 1792725303.750464 Starting cake-adapt 0.3.26-r1 with PID: 11350, config: /var/run/cake-adapt/main.uci, section: main
+Thu Oct 22 21:15:05 2026 daemon.info cake-adapt[11809]: INFO: 1792725305.201081 Starting cake-adapt 0.3.26-r1 with PID: 11809, config: /var/run/cake-adapt/main.uci, section: main

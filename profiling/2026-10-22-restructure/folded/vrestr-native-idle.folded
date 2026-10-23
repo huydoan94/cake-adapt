@@ -1,0 +1,8 @@
+vrestr;[libc.so] 1
+vrestr;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_epoll_pwait_[k];do_epoll_pwait.part.0_[k];do_epoll_wait.part.0_[k];schedule_hrtimeout_range_[k];schedule_hrtimeout_range_clock_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k] 205
+vrestr;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_futex_time32_[k];do_futex_[k];futex_wait_[k];__futex_wait_[k];futex_wait_queue_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k] 4
+vrestr;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_poll_[k];do_sys_poll_[k];fdget_[k] 1
+vrestr;[libc.so];restore_all_switch_stack_[k];do_int80_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_poll_[k];do_sys_poll_[k];schedule_hrtimeout_range_[k];schedule_hrtimeout_range_clock_[k];schedule_[k];__schedule_[k];finish_task_switch.isra.0_[k] 1
+vrestr;[unknown];[unknown];[libc.so];main;monitor_run;[libubox.so.20260213];[libubox.so.20260213];handle_traffic_timer;monitor_tick;links_observe;log_load;write_timed_record;write_record_fields;write_record_at;log_write_line;writer_queue 1
+vrestr;[unknown];__kernel_vsyscall_[k];__irqentry_text_end_[k];do_SYSENTER_32_[k];do_fast_syscall_32_[k];__do_fast_syscall_32_[k];ia32_sys_call_[k];__ia32_sys_writev_[k];do_writev_[k];vfs_writev_[k];do_iter_readv_writev_[k];shmem_file_write_iter_[k];generic_perform_write_[k];shmem_get_folio_gfp.isra.0_[k] 1
+vrestr;[unknown];__kernel_vsyscall_[k];__irqentry_text_end_[k];do_SYSENTER_32_[k];do_fast_syscall_32_[k];__do_fast_syscall_32_[k];syscall_exit_to_user_mode_[k];task_work_run_[k];____fput_[k];__fput_[k] 1

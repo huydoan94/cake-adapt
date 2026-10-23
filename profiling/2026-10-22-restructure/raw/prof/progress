@@ -1,0 +1,17 @@
+21:13:55 start 01-vrestr-native-cpu
+21:18:51 done 01-vrestr-native-cpu
+21:18:51 start 02-v0326-native-cpu
+21:23:48 done 02-v0326-native-cpu
+21:23:48 start 03-v0326-native-cpu
+21:28:43 done 03-v0326-native-cpu
+21:28:43 start 04-vrestr-native-cpu
+21:33:38 done 04-vrestr-native-cpu
+21:33:38 start 05-vrestr-native-cpu
+21:38:33 done 05-vrestr-native-cpu
+21:38:33 start 06-v0326-native-cpu
+21:43:28 done 06-v0326-native-cpu
+21:43:28 start 07-vrestr-native-perf
+21:48:31 done 07-vrestr-native-perf
+21:48:31 start 08-vrestr-native-strace
+21:49:22 done 08-vrestr-native-strace
+21:49:22 finished

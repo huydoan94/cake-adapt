@@ -61,6 +61,7 @@
     <p>Raw evidence, mostly from the OpenWrt 25.12 x86 test VMs, kept with the code it measured; newest first. Each directory's report gives its method, result and limits.</p>
     <p>Pages with tables and flame graphs:</p>
     <nav>
+      <a href="#2026-10-22-restructure">2026-10-22-restructure</a>
       <a href="#2026-10-22-profile-0.3.26">2026-10-22-profile-0.3.26</a>
       <a href="#2026-10-22-log-writer-wake">2026-10-22-log-writer-wake</a>
       <a href="#2026-10-21-profile">2026-10-21-profile</a>
@@ -72,10 +73,17 @@
     </nav>
   </header>
   <main>
-    <section class="latest" id="2026-10-22-profile-0.3.26">
+    <section class="latest" id="2026-10-22-restructure">
+      <header>
+        <h2>2026-10-22-restructure</h2>
+        <p><strong>Latest profile.</strong> The restructure (0.3.27 code) against 0.3.26: lifecycle 29 of 30 as before, the same ubus status fields, control rounds overlapping in every phase, the same CPU within the spread, 7,355 system calls with 79 <code>futex</code>. A first run on VM .2 was discarded after 34 host stalls.</p>
+      </header>
+      <div class="actions"><a href="2026-10-22-restructure/index.html">Open the dashboard</a><a href="2026-10-22-restructure/README.md">Read the report</a></div>
+    </section>
+    <section class="page" id="2026-10-22-profile-0.3.26">
       <header>
         <h2>2026-10-22-profile-0.3.26</h2>
-        <p><strong>Latest profile.</strong> The 0.3.26 refactor against 0.3.25 with flame graphs over seven workloads: the same CPU (21-32 against 22-34 ticks per 40 s, native pinger) and 10 kB less memory; system calls match the log writer fix (7,351, 79 <code>futex</code>).</p>
+        <p>The 0.3.26 refactor against 0.3.25 with flame graphs over seven workloads: the same CPU (21-32 against 22-34 ticks per 40 s, native pinger) and 10 kB less memory; system calls match the log writer fix (7,351, 79 <code>futex</code>).</p>
       </header>
       <div class="actions"><a href="2026-10-22-profile-0.3.26/index.html">Open the dashboard</a><a href="2026-10-22-profile-0.3.26/README.md">Read the report</a></div>
     </section>

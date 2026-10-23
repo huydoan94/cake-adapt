@@ -1,0 +1,11 @@
+23447.12 start
+23462.13 upload-steady
+23522.42 idle
+23532.43 upload-step
+23552.43 capacity-low
+23572.45 capacity-back
+23592.66 idle
+23602.67 download-steady
+23662.93 idle
+23672.93 bidirectional
+23733.14 end

@@ -1,0 +1,31 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+r1-v0326               upload-steady    41.3   93.6  102.6   64.5   56.5     0      93.4       nan
+r1-v0326               upload-step       9.6  146.6  198.6   46.3   39.9     0      85.1       nan
+r1-v0326               download-steady   20.5   79.6  115.6   59.8   33.7     0       nan      70.2
+r1-v0326               bidirectional    34.3   98.6  135.6   74.5   56.1     0      83.6      45.5
+                       (idle base RTT 22.4 ms; delays are added RTT in ms)
+r1-vrestr              upload-steady    36.7  108.5  135.5   60.4   53.4     0      90.8       nan
+r1-vrestr              upload-step       8.0  147.5  206.5   43.1   37.5     0      84.3       nan
+r1-vrestr              download-steady   21.1   73.8   93.5   60.4   37.5     0       nan      77.7
+r1-vrestr              bidirectional    32.7  110.5  141.5   58.1   51.9     0      86.7      29.0
+                       (idle base RTT 22.5 ms; delays are added RTT in ms)
+r2-v0326               upload-steady    11.7  115.5  128.4   48.7   42.2     0      89.7       nan
+r2-v0326               upload-step      10.2  150.4  234.4   48.5   45.0     0      86.6       nan
+r2-v0326               download-steady   29.8   82.5  100.5   73.5   49.4     0       nan      76.9
+r2-v0326               bidirectional    23.2  111.5  142.4   54.4   44.6     0      84.0      32.2
+                       (idle base RTT 23.6 ms; delays are added RTT in ms)
+r2-vrestr              upload-steady    32.1  101.0  136.0   58.8   51.7     0      91.4       nan
+r2-vrestr              upload-step      10.3  147.0  184.0   47.4   40.8     0      85.4       nan
+r2-vrestr              download-steady   26.8   78.0   95.0   70.7   44.0     0       nan      79.6
+r2-vrestr              bidirectional    32.8   98.0  118.0   60.7   51.2     0      88.6      26.6
+                       (idle base RTT 24.0 ms; delays are added RTT in ms)
+r3-v0326               upload-steady    18.1  106.8  137.8   51.8   44.0     0      90.3       nan
+r3-v0326               upload-step       8.8  148.8  252.8   45.8   39.2     0      84.8       nan
+r3-v0326               download-steady   11.4   92.8  121.8   44.4   23.3     0       nan      70.3
+r3-v0326               bidirectional    24.8  106.8  136.8   58.7   48.3     0      84.0      36.0
+                       (idle base RTT 23.1 ms; delays are added RTT in ms)
+r3-vrestr              upload-steady    40.0   98.3  128.3   62.4   54.7     0      91.7       nan
+r3-vrestr              upload-step      11.1  124.3  160.3   47.8   41.9     0      89.1       nan
+r3-vrestr              download-steady   17.8   83.3  113.3   53.9   30.5     0       nan      72.6
+r3-vrestr              bidirectional    35.5  106.3  130.3   63.5   54.0     0      84.1      33.1
+                       (idle base RTT 22.7 ms; delays are added RTT in ms)

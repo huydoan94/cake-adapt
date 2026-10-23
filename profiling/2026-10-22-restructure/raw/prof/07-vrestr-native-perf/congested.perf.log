@@ -1,0 +1,2 @@
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.078 MB /tmp/e2e/prof/07-vrestr-native-perf/congested.perf.data (405 samples) ]

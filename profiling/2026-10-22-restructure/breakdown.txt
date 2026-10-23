@@ -1,0 +1,55 @@
+vrestr-native-bidirectional: 467 samples
+   40.7%   190  epoll wait (idle in the event loop)
+   20.3%    95  userspace (cake-adapt, libc, libubox)
+   15.4%    72  native ICMP probes (raw sockets)
+   11.6%    54  netlink qdisc dump
+    7.9%    37  interrupt/softirq (packet processing charged to the task)
+    3.9%    18  other kernel
+    0.2%     1  pinger pipe read
+vrestr-native-bidirectional6: 483 samples
+   43.1%   208  epoll wait (idle in the event loop)
+   19.3%    93  userspace (cake-adapt, libc, libubox)
+   12.4%    60  native ICMP probes (raw sockets)
+   11.0%    53  netlink qdisc dump
+    7.5%    36  interrupt/softirq (packet processing charged to the task)
+    5.0%    24  other kernel
+    1.2%     6  pinger pipe read
+    0.6%     3  BPF ring buffer drain and counters
+vrestr-native-congested: 405 samples
+   52.1%   211  epoll wait (idle in the event loop)
+   14.8%    60  userspace (cake-adapt, libc, libubox)
+   10.9%    44  netlink qdisc dump
+    9.4%    38  native ICMP probes (raw sockets)
+    7.4%    30  interrupt/softirq (packet processing charged to the task)
+    4.9%    20  other kernel
+    0.5%     2  pinger pipe read
+vrestr-native-download: 535 samples
+   34.2%   183  epoll wait (idle in the event loop)
+   26.9%   144  native ICMP probes (raw sockets)
+   17.0%    91  userspace (cake-adapt, libc, libubox)
+    9.2%    49  interrupt/softirq (packet processing charged to the task)
+    7.3%    39  netlink qdisc dump
+    5.2%    28  other kernel
+    0.2%     1  pinger pipe read
+vrestr-native-download6: 454 samples
+   43.0%   195  epoll wait (idle in the event loop)
+   18.9%    86  native ICMP probes (raw sockets)
+   17.4%    79  userspace (cake-adapt, libc, libubox)
+    9.7%    44  interrupt/softirq (packet processing charged to the task)
+    5.5%    25  other kernel
+    5.3%    24  netlink qdisc dump
+    0.2%     1  pinger pipe read
+vrestr-native-idle: 215 samples
+   95.3%   205  epoll wait (idle in the event loop)
+    2.8%     6  other kernel
+    0.9%     2  userspace (cake-adapt, libc, libubox)
+    0.9%     2  interrupt/softirq (packet processing charged to the task)
+vrestr-native-upload: 535 samples
+   58.5%   313  epoll wait (idle in the event loop)
+   12.3%    66  userspace (cake-adapt, libc, libubox)
+   10.5%    56  native ICMP probes (raw sockets)
+    8.2%    44  interrupt/softirq (packet processing charged to the task)
+    6.7%    36  netlink qdisc dump
+    3.4%    18  other kernel
+    0.2%     1  BPF ring buffer drain and counters
+    0.2%     1  pinger pipe read
