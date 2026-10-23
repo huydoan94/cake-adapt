@@ -40,7 +40,7 @@ function parseDefaults(text) {
 
 /*
  * The numeric options, each with how many stored units one form unit is
- * (config.c's option table): kbit/s to bit/s, seconds to microseconds, and so
+ * (options.c's option table): kbit/s to bit/s, seconds to microseconds, and so
  * on. A ratio is stored per million.
  */
 const KILO = 1000n, MILLI = 1000n, SECOND = 1000000n, MINUTE = 60n * SECOND;

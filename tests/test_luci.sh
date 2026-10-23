@@ -21,13 +21,13 @@ node ./luci_config.js "$config" 'mqtt
 tls
 '
 # Every daemon option is in the Configuration view, and nothing else: the
-# constants named in the options[] table, plus reflectors, which config.c reads
+# constants named in the options[] table (options.c), plus reflectors, which config.c reads
 # outside the table, minus config_file, log_file_path_override, ping_extra_args
 # and ping_prefix_string, which only root sets, in /etc/cake-adapt/exec. The view names each option on the line of its
 # taboption call, on the instance section (s) or on the nested Advanced
 # section (a); names starting with _ (the nested section's holder) are not
 # options.
-daemon=$(sed -n '/^static const struct option_binding options\[\]/,/^};/p' ../src/config/config.c |
+daemon=$(sed -n '/^static const struct option_binding options\[\]/,/^};/p' ../src/config/options.c |
 	grep -ow 'OPTION_[A-Z0-9_]*' |
 	while read -r constant; do
 		sed -n "s/^#define $constant \"\(.*\)\"/\1/p" ../src/constants/options.h
