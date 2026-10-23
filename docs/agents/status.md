@@ -82,7 +82,7 @@ verification against a real server.
 
 ### Current status (2026-10-22)
 
-- The packages are at 0.3.27-r1 (`main` has 0.3.26). The user builds them and runs them on their
+- The packages are at 0.3.28-r1 (`main` has 0.3.27). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
@@ -126,6 +126,9 @@ verification against a real server.
   `src/constants/`; logging, the controller, the pinger and config split
   into one file per concern; the ubus server thread in `platform/ubus.c`;
   each monitor part with its own header.
+- 0.3.28: the style check tests the format only with clang-format 21, the
+  SDK's version, so CI no longer flags files another version formats
+  differently.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
