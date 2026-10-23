@@ -39,10 +39,15 @@ typedef void
 ubus_server_reply_fn(struct blob_buf *reply, const void *snapshot, const void *context);
 
 struct ubus_server_settings {
+	/* Copied, and cut to UBUS_OBJECT_NAME_SIZE. */
 	const char *object_name;
+	/* Kept as given: both must outlive the server, as string literals do. */
 	const char *type_name;
 	const char *method;
-	/* The first snapshot, copied; later ones come through ubus_server_update(). */
+	/*
+	 * The first snapshot, copied; later ones come through ubus_server_update().
+	 * Both sizes are above zero.
+	 */
 	const void *snapshot;
 	size_t snapshot_size;
 	ubus_server_reply_fn *reply;
