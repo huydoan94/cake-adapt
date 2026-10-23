@@ -188,28 +188,41 @@ generator's target. Report an unresolved include as unresolved.
 ```text
 src/
 ├── main.c              CLI, configuration loading, logging setup, lifecycle
-├── monitor/            uloop event loop; one struct monitor, a part per file:
-│   ├── monitor.c         loop setup and teardown, traffic tick, activity
-│   │                     state, CPU and log timers, signals
+├── constants/          every named value, one header per topic (units,
+│                       options, logging, latency, tcpdelay, ubus, ...)
+├── monitor/            uloop event loop; one struct monitor, a part per file,
+│   │                   each declared in the header of the same name:
+│   ├── monitor.c         loop setup and teardown, traffic tick, activity state
+│   ├── upkeep.c          CPU and memory records, log timer, export/reset signals
 │   ├── status.c          pure status snapshot of the current state (no I/O)
-│   ├── publish.c         ubus object cake-adapt.<section> answering status
-│   │                     requests from the snapshot, reconnecting to ubusd
+│   ├── publish.c         the ubus status object: reply, identity, its messages
 │   ├── links.c           both directions' CAKE, achieved rates, qdisc events
 │   ├── control.c         controller input, CAKE updates and readback, records
-│   ├── pingers.c         pinger start, output, exit, restart, and grace
+│   ├── pingers.c         pinger session: start, retries, restart, grace, replies
+│   ├── native_pinger.c   native ICMP sockets and probe timer
+│   ├── child_pingers.c   fping and irtt children: output, exits, starts
 │   ├── reflectors.c      latency trackers, reflector order, health, replacement
 │   └── tcpdelay.c        TCP capture, queue estimate, upload ACK rate
-├── common/             shared constants, generic helpers, error formatting
-├── config/             typed UCI loading (config.c), validation
-│                       (validate.c), and built-in defaults
-├── controller/         rate/congestion/activity policy (controller.c) and
-│                       reflector health and selection (reflector.c)
-├── latency/            pinger sessions, fping/IRTT backends, parsing, tracking
+├── common/             generic helpers, error formatting
+├── config/             typed UCI loading (config.c), the option table
+│                       (options.c), validation (validate.c), the -L/-D
+│                       listings and startup summary (describe.c), defaults
+├── controller/         policy: set-up and update (controller.c), rate
+│                       arithmetic (rate.c), congestion detection
+│                       (congestion.c), upload/download coupling (coupling.c),
+│                       load and activity (activity.c), reflector health and
+│                       selection (reflector.c)
+├── latency/            pinger methods and sessions (latency.c), child
+│                       processes (children.c), native ICMP, fping/IRTT
+│                       backends, parsing, tracking
 ├── cake/               CAKE discovery, state decoding, and bandwidth updates
 ├── tcpdelay/           eBPF TCP filter and timestamp injector, their loaders,
 │                       and the per-flow queue estimator
-├── platform/           rtnetlink transport, traffic rates, CPU and memory sampling
-└── logging/            syslog, records, rotation/export/reset and optional MQTT
+├── platform/           rtnetlink transport, traffic rates, CPU and memory
+│                       sampling, the instance lock, and the ubus server thread
+└── logging/            messages and syslog (log.c), the log file (file.c), the
+                        writer thread (writer.c), records (records.c), and
+                        optional MQTT
 files/
 ├── cake-adapt.init     procd service: runtime files, reload, restart, respawn
 ├── cake-adapt.import   builds /var/run/cake-adapt/<section>.uci from UCI
