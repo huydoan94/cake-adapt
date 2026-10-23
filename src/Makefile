@@ -60,7 +60,10 @@ SOURCES := \
 	latency/latency.c \
 	latency/parser.c \
 	latency/tracker.c \
+	logging/file.c \
 	logging/log.c \
+	logging/records.c \
+	logging/writer.c \
 	$(MQTT_SOURCE) \
 	monitor/control.c \
 	monitor/monitor.c \

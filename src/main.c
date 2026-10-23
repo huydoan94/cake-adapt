@@ -6,6 +6,7 @@
 #include "common/error.h"
 #include "latency/latency.h"
 #include "logging/log.h"
+#include "logging/records.h"
 #include "logging/mqtt.h"
 #include "monitor/monitor.h"
 #include "constants/logging.h"

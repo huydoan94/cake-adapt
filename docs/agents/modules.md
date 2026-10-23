@@ -120,12 +120,21 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `cpu.c`: CPU sampling and usage calculations only.
   - `memory.c`: the daemon's memory sampling from `/proc/self/status`, and
     the peak resident size it has seen (VmHWM lags).
-- `logging/log.c`: all logging, cake-autorate-compatible records, rotation,
-  export, reset behavior, and submission to the optional MQTT sender. Its
-  writer thread does every file, stdout and syslog write; the main thread
-  only queues (a bounded FIFO that overwrites and counts its oldest lines
-  when full), never waits, and wakes the writer only for syslog entries,
-  requests, unbuffered lines or a half-full queue.
+- `logging/`: all logging, cake-autorate-compatible records, rotation,
+  export, reset behavior, and submission to the optional MQTT sender.
+  `log.h` is the interface for messages, the log file and the writer;
+  `records.h` for the structured records; `output.h` is private to the
+  directory.
+  - `log.c`: levels, messages, syslog, the line every part writes and the
+    date-time cache; shutdown.
+  - `file.c`: the log file, its buffer, rotation by age and size, export
+    and reset, keeping the file's inode.
+  - `writer.c`: the writer thread, which does every file, stdout and syslog
+    write; the main thread only queues (a bounded FIFO that overwrites and
+    counts its oldest lines when full), never waits, and wakes the writer
+    only for syslog entries, requests, unbuffered lines or a half-full queue.
+  - `records.c`: the record formats and headers, which start every rotated
+    or reset file.
 - `logging/mqtt.c`: asynchronous MQTT transport through libmosquitto, with optional verified TLS;
   owns its bounded queue, sender/network threads, connection retries and cleanup. It
   never cancels a thread: a network thread stuck in name resolution is joined

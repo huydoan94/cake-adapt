@@ -5,6 +5,7 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
+#include "logging/records.h"
 #include "constants/controller.h"
 #include "constants/options.h"
 #include "constants/states.h"
