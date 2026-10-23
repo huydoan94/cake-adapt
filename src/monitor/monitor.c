@@ -7,6 +7,7 @@
 #include "common/utils.h"
 #include "config/defaults.h"
 #include "logging/log.h"
+#include "logging/records.h"
 #include "platform/memory.h"
 #include "constants/proc.h"
 #include "constants/states.h"
