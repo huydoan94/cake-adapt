@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_LICENSE:=GPL-2.0-only
 # Released together with cake-adapt.
-PKG_VERSION:=0.3.27
+PKG_VERSION:=0.3.28
 PKG_RELEASE:=1
 
 LUCI_TITLE:=LuCI support for cake-adapt
