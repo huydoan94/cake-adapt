@@ -1,0 +1,2 @@
+Thu Oct 22 16:35:11 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+Thu Oct 22 16:38:22 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')

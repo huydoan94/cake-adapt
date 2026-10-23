@@ -1,0 +1,69 @@
+== 312.99 before
+5d5f129f-adb4-4284-9ce0-3f05923f11e7
+bash-5.3-r5
+cake-adapt-mqtt-0.3.26-r1
+fping-5.3-r1
+luci-app-cake-adapt-0.3.26-r1
+6637
+== 313.00 test log, created once, inode kept
+    180 /tmp/sqm-mon-test.log
+== 313.02 upgrade
+OK: 32.1 MiB in 226 packages
+cake-adapt-mqtt-0.3.26-r1
+fping-5.3-r1
+luci-app-cake-adapt-0.3.26-r1
+-rw-------    1 root     root            91 Oct 22 16:38 /etc/cake-adapt/exec
+-rw-------    1 root     root          1725 Oct 22 16:35 /etc/config/cake-adapt
+
+/usr/libexec/cake-adapt/:
+-rwxr-xr-x    1 root     root          5226 Oct 22 16:09 import
+-rwxr-xr-x    1 root     root          2152 Oct 22 16:09 import-bash
+PASS version 0.3.26
+PASS fping kept
+PASS exec file 0600
+== 319.66 defaults: -D, and through rpcd as LuCI asks for them
+PASS -D lists every option
+PASS -D native default
+PASS -D alone
+PASS rpcd runs -D
+PASS ACL grants -D
+== 319.67 restart on the new build: native by default
+pid 7174, DATA 33
+PASS running
+PASS no fping child
+PASS native samples
+INFO; 2026-10-22-16:38:13; 1792708693.790543; configuration loaded: upload_interface=eth1 download_interface=ifb4eth1 reflectors=30 active_pingers=6 reflector_ping_interval=300000 us traffic_monitor_interval=200000 us debug=1 log_file=/tmp/cake-adapt-lifecycle/cake-adapt.log
+0
+PASS ubus status
+PASS LuCI answers
+== 324.13 reload without a change keeps the instance
+PASS same pid after reload
+== 327.49 exec file change: config_file fills an unset option, reload restarts
+PASS restarted by exec change
+PASS file value imported
+PASS config_file in runtime
+== 328.88 config_file in /etc/config/cake-adapt is refused; instance keeps running
+cake-adapt configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+PASS kept running
+Thu Oct 22 16:35:11 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+Thu Oct 22 16:38:22 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+PASS refusal logged
+== 333.99 fping fallback
+PASS fping child running
+PASS fping samples
+PASS back to native
+== 342.10 ubusd restart: the daemon keeps running
+FAIL same daemon
+PASS still sampling
+PASS ubus object back
+4+0 records in
+4+0 records out
+PASS LuCI answers after
+== 351.93 stop and start
+PASS stopped
+PASS started
+== 354.65 leave the VM on the new build: exec file emptied, log override removed
+    180 /tmp/sqm-mon-test.log
+PASS test-log inode kept
+10094
+== 355.04 done

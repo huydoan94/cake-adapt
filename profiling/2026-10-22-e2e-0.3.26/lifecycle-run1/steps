@@ -1,0 +1,81 @@
+== 8455.31 before
+54e22421-2720-4da7-be2c-0d4b960e6b36
+bash-5.3-r5
+cake-adapt-mqtt-0.3.20-r1
+fping-5.3-r1
+luci-app-cake-adapt-0.3.19-r1
+3632
+== 8455.34 test log, created once, inode kept
+    191 /tmp/sqm-mon-test.log
+== 8455.36 upgrade
+(1/2) Upgrading cake-adapt-mqtt (0.3.20-r1 -> 0.3.26-r1)
+  Installing file to etc/cake-adapt/exec.apk-new
+  Installing file to etc/config/cake-adapt.apk-new
+  Executing cake-adapt-mqtt-0.3.26-r1.post-upgrade
+(2/2) Upgrading luci-app-cake-adapt (0.3.19-r1 -> 0.3.26-r1)
+  Executing luci-app-cake-adapt-0.3.26-r1.post-upgrade
+OK: 32.1 MiB in 226 packages
+cake-adapt-mqtt-0.3.26-r1
+fping-5.3-r1
+luci-app-cake-adapt-0.3.26-r1
+-rw-------    1 root     root            91 Oct 22 16:20 /etc/cake-adapt/exec
+-rw-------    1 root     root          1725 Oct 21 20:05 /etc/config/cake-adapt
+
+/usr/libexec/cake-adapt/:
+-rwxr-xr-x    1 root     root          5226 Oct 22 16:09 import
+-rwxr-xr-x    1 root     root          2152 Oct 22 16:09 import-bash
+PASS version 0.3.26
+PASS fping kept
+PASS exec file 0600
+== 8461.99 defaults: -D, and through rpcd as LuCI asks for them
+PASS -D lists every option
+PASS -D native default
+PASS -D alone
+PASS rpcd runs -D
+PASS ACL grants -D
+== 8462.01 restart on the new build: native by default
+sh: 0
+0: bad number
+sh: 0
+0: bad number
+sh: 0
+0: bad number
+pid 6457, DATA 26
+PASS running
+PASS no fping child
+PASS native samples
+INFO; 2026-10-22-16:20:18; 1792707618.447608; configuration loaded: upload_interface=eth1 download_interface=ifb4eth1 reflectors=30 active_pingers=6 reflector_ping_interval=300000 us traffic_monitor_interval=200000 us debug=1 log_file=/tmp/cake-adapt-lifecycle/cake-adapt.log
+INFO; 2026-10-22-16:20:19; 1792707619.436301; configuration loaded: upload_interface=eth1 download_interface=ifb4eth1 reflectors=30 active_pingers=6 reflector_ping_interval=300000 us traffic_monitor_interval=200000 us debug=1 log_file=/tmp/cake-adapt-lifecycle/cake-adapt.log
+0
+PASS ubus status
+PASS LuCI answers
+== 8466.66 reload without a change keeps the instance
+PASS same pid after reload
+== 8470.08 exec file change: config_file fills an unset option, reload restarts
+PASS restarted by exec change
+PASS file value imported
+PASS config_file in runtime
+== 8470.51 config_file in /etc/config/cake-adapt is refused; instance keeps running
+cake-adapt configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+FAIL kept running
+Thu Oct 22 16:20:27 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+PASS refusal logged
+== 8501.76 fping fallback
+PASS fping child running
+PASS fping samples
+PASS back to native
+== 8538.11 ubusd restart: the daemon keeps running
+FAIL same daemon
+PASS still sampling
+PASS ubus object back
+4+0 records in
+4+0 records out
+PASS LuCI answers after
+== 8548.55 stop and start
+PASS stopped
+PASS started
+== 8549.92 leave the VM on the new build: exec file emptied, log override removed
+    191 /tmp/sqm-mon-test.log
+PASS test-log inode kept
+9836
+== 8550.30 done
