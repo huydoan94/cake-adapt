@@ -17,7 +17,7 @@ digraph G {
   run [label="uloop_run()",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   fail [label="required setup failed\n→ cleanup, result -1",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   cb [label="callbacks:\nhandle_traffic_timer · handle_health_timer\nhandle_qdisc_events · handle_pinger_output/exit\nhandle_cpu_timer · handle_log_timer · SIGUSR1/2",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
-  thread [label="ubus thread (own context, not in uloop):\nconnect, retry every 1 s → add object\n→ poll ≤ 1 s → publish_status;\nlost → reconnect at once",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
+  thread [label="ubus thread (own context, not in uloop):\nconnect, retry every 1 s → add object\n→ poll ≤ 1 s → server_request;\nlost → reconnect at once",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   start -> pingers;
   pingers -> controller;
   controller -> reflectors;

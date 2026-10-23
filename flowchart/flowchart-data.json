@@ -10,7 +10,7 @@
         "files/cake-adapt.init:start_service",
         "src/main.c:main",
         "src/monitor/monitor.c:monitor_run",
-        "src/monitor/pingers.c:process_latency_line",
+        "src/monitor/pingers.c:pingers_process_line",
         "src/monitor/control.c:control_update",
         "src/cake/cake.c:cake_set_bandwidth",
         "src/logging/mqtt.c:mqtt_submit"
@@ -74,7 +74,7 @@
         },
         {
           "id": "log",
-          "label": "logging/log.c\nsyslog + cake-autorate-compatible records",
+          "label": "logging/\nsyslog + cake-autorate-compatible records",
           "kind": "io"
         },
         {
@@ -176,7 +176,7 @@
         "files/cake-adapt.init:reload_service",
         "files/cake-adapt.init:stop_service",
         "src/main.c:main",
-        "src/main.c:lock_instance",
+        "src/platform/instance.c:instance_lock",
         "src/config/config.c:config_load",
         "src/config/config.c:resolve_interfaces",
         "src/config/validate.c:config_validate",
@@ -482,18 +482,18 @@
         "src/monitor/reflectors.c:reflectors_start",
         "src/monitor/links.c:links_watch_events",
         "src/monitor/publish.c:publish_start",
-        "src/monitor/publish.c:publish_thread",
-        "src/monitor/publish.c:publish_status",
+        "src/platform/ubus.c:server_thread",
+        "src/platform/ubus.c:server_request",
         "src/monitor/status.c:status_snapshot",
-        "src/monitor/monitor.c:watch_cpu",
-        "src/monitor/monitor.c:watch_log_maintenance"
+        "src/monitor/upkeep.c:watch_cpu",
+        "src/monitor/upkeep.c:watch_log_maintenance"
       ],
       "notes": [
-        "All monitor state lives in one struct monitor on monitor_run's stack, split into parts owned by links.c, control.c, pingers.c, reflectors.c, tcpdelay.c and publish.c. The aggregate initializer zeroes everything that is not set explicitly.",
+        "All monitor state lives in one struct monitor on monitor_run's stack, split into parts owned by links.c, control.c, pingers.c (with native_pinger.c and child_pingers.c), reflectors.c, tcpdelay.c, publish.c and upkeep.c. The aggregate initializer zeroes everything that is not set explicitly.",
         "control_start copies the UCI settings into the controller configuration unchanged: ratios per million, durations in microseconds and rates in bit/s.",
         "reflectors_start initializes one latency tracker per configured reflector. With randomize_reflectors it shuffles the order using getentropy.",
         "The first traffic cycle runs before uloop_run, so CAKE discovery and the first counter baseline happen immediately.",
-        "publish_start, after uloop_init, starts one thread with every signal blocked. It owns its own ubus context, never added to uloop, so libubus calls that can block without a timeout on a stalled ubusd block only that thread. It handles each ubus state as dnsmasq does: no ubusd is retried every second; a lost connection is reconnected at once (re-adding the object) or closed and retried; POLLHUP or POLLERR closes and retries; a refused object ends the run when it happens on the first connection and otherwise ends the attempts. publish.c:publish_status answers on that thread from the snapshot the main thread copies in on every traffic tick (chart 03).",
+        "publish_start, after uloop_init, starts one thread with every signal blocked. It owns its own ubus context, never added to uloop, so libubus calls that can block without a timeout on a stalled ubusd block only that thread. It handles each ubus state as dnsmasq does: no ubusd is retried every second; a lost connection is reconnected at once (re-adding the object) or closed and retried; POLLHUP or POLLERR closes and retries; a refused object ends the run when it happens on the first connection and otherwise ends the attempts. platform/ubus.c:server_request answers on that thread from the snapshot the main thread copies in on every traffic tick (chart 03).",
         "Pinger output, pinger exits, qdisc events, timers and SIGUSR1/SIGUSR2 are all uloop callbacks on the main thread. The ubus thread is the only other thread; it never calls into the monitor and never logs: it raises event bits that the main thread logs."
       ],
       "nodes": [
@@ -574,7 +574,7 @@
         },
         {
           "id": "thread",
-          "label": "ubus thread (own context, not in uloop):\nconnect, retry every 1 s → add object\n→ poll ≤ 1 s → publish_status;\nlost → reconnect at once",
+          "label": "ubus thread (own context, not in uloop):\nconnect, retry every 1 s → add object\n→ poll ≤ 1 s → server_request;\nlost → reconnect at once",
           "kind": "note"
         }
       ],
@@ -1119,16 +1119,16 @@
         "src/latency/native.c:native_accept",
         "src/latency/icmp.c:icmp_open",
         "src/latency/icmp.c:icmp_receive",
-        "src/monitor/pingers.c:watch_native_session",
-        "src/monitor/pingers.c:handle_native_tick",
-        "src/monitor/pingers.c:handle_native_reply",
+        "src/monitor/native_pinger.c:native_pinger_watch",
+        "src/monitor/native_pinger.c:handle_native_tick",
+        "src/monitor/native_pinger.c:handle_native_reply",
         "src/latency/latency.c:latency_open",
         "src/latency/fping.c:fping_open",
-        "src/monitor/pingers.c:watch_started_latency_children",
-        "src/monitor/pingers.c:handle_pinger_output",
+        "src/monitor/child_pingers.c:child_pingers_watch",
+        "src/monitor/child_pingers.c:handle_pinger_output",
         "src/latency/latency.c:latency_next_line",
         "src/latency/parser.c:parse_fping_line",
-        "src/monitor/pingers.c:handle_pinger_exit",
+        "src/monitor/child_pingers.c:handle_pinger_exit",
         "src/monitor/pingers.c:pingers_close"
       ],
       "notes": [
@@ -1396,12 +1396,12 @@
       "id": "06-latency-tracking",
       "title": "06 — Per-reflector baseline and delay tracking",
       "refs": [
-        "src/monitor/pingers.c:process_latency_sample",
+        "src/monitor/pingers.c:pingers_process_sample",
         "src/monitor/reflectors.c:reflectors_record",
         "src/latency/tracker.c:tracker_update",
         "src/latency/tracker.c:tracker_update_direction",
         "src/latency/tracker.c:tracker_update_delta_ewma",
-        "src/controller/controller.c:controller_low_load",
+        "src/controller/activity.c:controller_low_load",
         "src/common/helpers.c:response_monotonic_us",
         "src/common/helpers.c:response_stale"
       ],
@@ -1579,8 +1579,8 @@
         "src/monitor/control.c:direction_input",
         "src/controller/controller.c:controller_update",
         "src/controller/controller.c:update_direction",
-        "src/controller/controller.c:update_congestion",
-        "src/controller/controller.c:update_line_state"
+        "src/controller/congestion.c:congestion_update",
+        "src/controller/congestion.c:congestion_update_line_state"
       ],
       "notes": [
         "Every reflector reply feeds both directions into a rolling window of bufferbloat_detection_window (6) samples. Its sum and delayed count are maintained incrementally.",
@@ -1602,7 +1602,7 @@
         },
         {
           "id": "line",
-          "label": "update_line_state\n(logged only)",
+          "label": "congestion_update_line_state\n(logged only)",
           "kind": "process"
         },
         {
@@ -1657,7 +1657,7 @@
         },
         {
           "id": "rate",
-          "label": "adjust_rate (chart 08)",
+          "label": "rate_adjust (chart 08)",
           "kind": "process"
         }
       ],
@@ -1764,8 +1764,8 @@
       "id": "08-exact-rate-decision",
       "title": "08 — Exact per-direction rate decision order",
       "refs": [
-        "src/controller/controller.c:adjust_rate",
-        "src/controller/controller.c:set_rate_output",
+        "src/controller/rate.c:rate_adjust",
+        "src/controller/rate.c:rate_set_output",
         "src/common/utils.h:interval_elapsed",
         "src/common/helpers.h:load_ratio_e6"
       ],
@@ -1780,7 +1780,7 @@
       "nodes": [
         {
           "id": "start",
-          "label": "adjust_rate(direction)",
+          "label": "rate_adjust(direction)",
           "kind": "start"
         },
         {
@@ -1860,7 +1860,7 @@
         },
         {
           "id": "output",
-          "label": "set_rate_output:\nrate_changed if INITIAL or CAKE ≠ rate\n(unchanged but different → RECONCILE)",
+          "label": "rate_set_output:\nrate_changed if INITIAL or CAKE ≠ rate\n(unchanged but different → RECONCILE)",
           "kind": "process"
         }
       ],
@@ -2009,12 +2009,12 @@
       "id": "09-rate-math",
       "title": "09 — Rate factors, thresholds, rounding, and bounds",
       "refs": [
-        "src/controller/controller.c:downward_factor_e6",
-        "src/controller/controller.c:upward_factor_e6",
-        "src/controller/controller.c:interpolate_factor_e6",
-        "src/controller/controller.c:scale_rate",
-        "src/controller/controller.c:rate_toward_base",
-        "src/controller/controller.c:compensate_direction",
+        "src/controller/rate.c:downward_factor_e6",
+        "src/controller/rate.c:upward_factor_e6",
+        "src/controller/rate.c:interpolate_factor_e6",
+        "src/controller/rate.c:scale_rate",
+        "src/controller/rate.c:rate_toward_base",
+        "src/controller/coupling.c:compensate_direction",
         "src/monitor/control.c:control_start"
       ],
       "notes": [
@@ -2290,7 +2290,7 @@
       "title": "11 — RUNNING, IDLE, STALL, and recovery state machine",
       "refs": [
         "src/monitor/monitor.c:update_activity",
-        "src/controller/controller.c:activity_update",
+        "src/controller/activity.c:activity_update",
         "src/monitor/pingers.c:pingers_resume",
         "src/monitor/pingers.c:pingers_restart",
         "src/monitor/control.c:control_enforce_minimum"
@@ -2681,14 +2681,14 @@
       "title": "13 — Structured logging, CPU sampling, rotation, export, and reset",
       "refs": [
         "src/logging/log.c:log_message",
-        "src/logging/log.c:write_timed_record",
+        "src/logging/records.c:write_timed_record",
         "src/logging/log.c:log_tick",
-        "src/logging/log.c:rotate_log_file",
-        "src/logging/log.c:log_export_file",
-        "src/logging/log.c:log_reset_file",
-        "src/logging/log.c:queue_entry",
-        "src/logging/log.c:writer_thread",
-        "src/monitor/monitor.c:handle_cpu_timer",
+        "src/logging/file.c:rotate_log_file",
+        "src/logging/file.c:log_export_file",
+        "src/logging/file.c:log_reset_file",
+        "src/logging/writer.c:writer_queue",
+        "src/logging/writer.c:writer_thread",
+        "src/monitor/upkeep.c:handle_cpu_timer",
         "src/logging/mqtt.c:mqtt_submit",
         "src/logging/mqtt.c:mqtt_thread",
         "src/logging/mqtt.c:mqtt_network"
@@ -2861,8 +2861,8 @@
       "refs": [
         "src/monitor/monitor.c:monitor_run",
         "src/monitor/pingers.c:pingers_stop_now",
-        "src/latency/latency.c:latency_stop_now",
-        "src/latency/latency.c:stop_child",
+        "src/latency/children.c:latency_stop_now",
+        "src/latency/children.c:stop_child",
         "src/monitor/publish.c:publish_stop",
         "src/monitor/publish.c:publish_update",
         "src/monitor/reflectors.c:reflectors_stop",
@@ -2980,14 +2980,14 @@
       "id": "15-worked-20mbps",
       "title": "15 — Worked example: 20 Mbit/s under load with a delay burst",
       "refs": [
-        "src/controller/controller.c:adjust_rate",
-        "src/controller/controller.c:upward_factor_e6",
-        "src/controller/controller.c:downward_factor_e6",
-        "src/controller/controller.c:scale_rate"
+        "src/controller/rate.c:rate_adjust",
+        "src/controller/rate.c:upward_factor_e6",
+        "src/controller/rate.c:downward_factor_e6",
+        "src/controller/rate.c:scale_rate"
       ],
       "notes": [
         "Inputs: cake-autorate defaults; minimum/base/maximum 10/20/50 Mbit/s; a 12,000-bit maximum wire packet; one reply every 50 ms. Download is at 19 Mbit/s (95% of the shaper, so high load) throughout.",
-        "Every number here was produced by running the real controller (controller.c) on these inputs. The replay test checks the same arithmetic against recorded cake-autorate traces, within its tolerances for cake-autorate's truncations.",
+        "Every number here was produced by running the real controller (src/controller/) on these inputs. The replay test checks the same arithmetic against recorded cake-autorate traces, within its tolerances for cake-autorate's truncations.",
         "With 12,000 bits at 20 Mbit/s, compensation is 600 µs and the thresholds become 10.6, 30.6 and 60.6 ms. They are recomputed at each new shaper rate.",
         "No increase happens before 350 ms: the initial write starts the bufferbloat refractory clock, and the comparison is strict.",
         "The cut uses the minimum factor because the window average (25.0 ms) is still below the delay threshold. The 6-slot average lags the instantaneous delay.",

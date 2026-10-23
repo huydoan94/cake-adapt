@@ -14,7 +14,7 @@
 <g id="node1" class="node">
 <title>start</title>
 <ellipse fill="#d9f7f1" stroke="#17806d" stroke-width="1.2" cx="162.65" cy="-1348.06" rx="87.32" ry="18.5"/>
-<text xml:space="preserve" text-anchor="middle" x="162.65" y="-1344.76" font-family="Arial" font-size="11.00">adjust_rate(direction)</text>
+<text xml:space="preserve" text-anchor="middle" x="162.65" y="-1344.76" font-family="Arial" font-size="11.00">rate_adjust(direction)</text>
 </g>
 <!-- adjust -->
 <g id="node2" class="node">
@@ -60,7 +60,7 @@
 <g id="node17" class="node">
 <title>output</title>
 <path fill="#e9f2ff" stroke="#3676b9" stroke-width="1.2" d="M480.92,-52.56C480.92,-52.56 282.38,-52.56 282.38,-52.56 276.38,-52.56 270.38,-46.56 270.38,-40.56 270.38,-40.56 270.38,-12 270.38,-12 270.38,-6 276.38,0 282.38,0 282.38,0 480.92,0 480.92,0 486.92,0 492.92,-6 492.92,-12 492.92,-12 492.92,-40.56 492.92,-40.56 492.92,-46.56 486.92,-52.56 480.92,-52.56"/>
-<text xml:space="preserve" text-anchor="middle" x="381.65" y="-36.18" font-family="Arial" font-size="11.00">set_rate_output:</text>
+<text xml:space="preserve" text-anchor="middle" x="381.65" y="-36.18" font-family="Arial" font-size="11.00">rate_set_output:</text>
 <text xml:space="preserve" text-anchor="middle" x="381.65" y="-22.98" font-family="Arial" font-size="11.00">rate_changed if INITIAL or CAKE ≠ rate</text>
 <text xml:space="preserve" text-anchor="middle" x="381.65" y="-9.78" font-family="Arial" font-size="11.00">(unchanged but different → RECONCILE)</text>
 </g>
