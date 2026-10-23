@@ -50,6 +50,7 @@ SOURCES := \
 	common/helpers.c \
 	config/config.c \
 	config/defaults.c \
+	config/describe.c \
 	config/validate.c \
 	controller/controller.c \
 	controller/reflector.c \
@@ -75,6 +76,7 @@ SOURCES := \
 	monitor/publish.c \
 	monitor/upkeep.c \
 	platform/cpu.c \
+	platform/instance.c \
 	platform/memory.c \
 	platform/netlink.c \
 	platform/traffic.c \
