@@ -39,6 +39,9 @@ constant would make the check tautological.
 keeps finding (mixed `->`/`.` chains and literal `true`/`false` arguments) and
 for clang-format stability; run it before reporting a C change. `make check`
 runs it on every tracked file in `src/` and `tests/`, which are kept clean.
+Stability is checked only with clang-format 21, the SDK's version: another
+version formats differently, so without it (as on the CI runner) the check
+says the format was not checked and the other rules still apply.
 
 Never pass a literal `true` or `false` as a function argument. Give the call a
 meaning instead: separate functions sharing a static worker, an enum, a
