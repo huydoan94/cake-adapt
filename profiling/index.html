@@ -61,6 +61,7 @@
     <p>Raw evidence, mostly from the OpenWrt 25.12 x86 test VMs, kept with the code it measured; newest first. Each directory's report gives its method, result and limits.</p>
     <p>Pages with tables and flame graphs:</p>
     <nav>
+      <a href="#2026-10-22-profile-0.3.26">2026-10-22-profile-0.3.26</a>
       <a href="#2026-10-22-log-writer-wake">2026-10-22-log-writer-wake</a>
       <a href="#2026-10-21-profile">2026-10-21-profile</a>
       <a href="#2026-10-09-profile">2026-10-09-profile</a>
@@ -71,10 +72,24 @@
     </nav>
   </header>
   <main>
-    <section class="latest" id="2026-10-22-log-writer-wake">
+    <section class="latest" id="2026-10-22-profile-0.3.26">
+      <header>
+        <h2>2026-10-22-profile-0.3.26</h2>
+        <p><strong>Latest profile.</strong> The 0.3.26 refactor against 0.3.25 with flame graphs over seven workloads: the same CPU (21-32 against 22-34 ticks per 40 s, native pinger) and 10 kB less memory; system calls match the log writer fix (7,351, 79 <code>futex</code>).</p>
+      </header>
+      <div class="actions"><a href="2026-10-22-profile-0.3.26/index.html">Open the dashboard</a><a href="2026-10-22-profile-0.3.26/README.md">Read the report</a></div>
+    </section>
+    <section id="2026-10-22-e2e-0.3.26">
+      <header>
+        <h2>2026-10-22-e2e-0.3.26</h2>
+        <p>0.3.26 on VM .2: 28 of 29 lifecycle checks pass (the daemon was restarted when ubusd died seconds after a reload; by hand it survived); three rounds each against 0.3.25 under load match in three phases; bidirectional's median delay was higher in all three rounds with no decision-making code changed, not separable from the testbed's spread.</p>
+      </header>
+      <div class="actions"><a href="2026-10-22-e2e-0.3.26/README.md">Read the report</a></div>
+    </section>
+    <section class="page" id="2026-10-22-log-writer-wake">
       <header>
         <h2>2026-10-22-log-writer-wake</h2>
-        <p><strong>Latest profile.</strong> Waking the log writer only for syslog entries, requests, unbuffered lines or a half-full queue: daemon CPU down a fifth to a third (20 against 31 ticks per 40 s quiet, 22-34 against 35-48 under load), below 0.3.15 with fping under every load; <code>futex</code> calls 79 against 4,874 per 40 s.</p>
+        <p>Waking the log writer only for syslog entries, requests, unbuffered lines or a half-full queue: daemon CPU down a fifth to a third (20 against 31 ticks per 40 s quiet, 22-34 against 35-48 under load), below 0.3.15 with fping under every load; <code>futex</code> calls 79 against 4,874 per 40 s.</p>
       </header>
       <div class="actions"><a href="2026-10-22-log-writer-wake/index.html">Open the dashboard</a><a href="2026-10-22-log-writer-wake/README.md">Read the report</a></div>
     </section>
