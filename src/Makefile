@@ -51,6 +51,7 @@ SOURCES := \
 	config/config.c \
 	config/defaults.c \
 	config/describe.c \
+	config/options.c \
 	config/validate.c \
 	controller/controller.c \
 	controller/reflector.c \

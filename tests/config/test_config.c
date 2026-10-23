@@ -1,5 +1,6 @@
 #include "config/config.c"
 #include "config/validate.c"
+#include "config/options.c"
 #include "common/utils.h"
 #include "constants/options.h"
 #include "constants/program.h"

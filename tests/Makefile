@@ -134,14 +134,14 @@ check-config: $(CONFIG_TESTS) $(BINARY_DIR)/print_defaults
 	set -e; for binary in $(CONFIG_TESTS); do $$binary; done
 	$(BINARY_DIR)/print_defaults | diff -u luci_defaults.txt -
 
-$(BINARY_DIR)/print_defaults: config/print_defaults.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/describe.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
+$(BINARY_DIR)/print_defaults: config/print_defaults.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/options.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/describe.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=0 -DMQTT_TLS_SUPPORTED=0 $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/print_defaults.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/describe.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES) $(LDLIBS) -lz
+	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=0 -DMQTT_TLS_SUPPORTED=0 $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/print_defaults.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/options.c $(SOURCE_DIR)/config/describe.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES) $(LDLIBS) -lz
 
 $(BINARY_DIR)/test_config: CONFIG_FLAGS := -DMQTT_SUPPORTED=0 -DMQTT_TLS_SUPPORTED=0
 $(BINARY_DIR)/test_config_mqtt: CONFIG_FLAGS := -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=0
 $(BINARY_DIR)/test_config_mqtt_ssl: CONFIG_FLAGS := -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=1
-$(CONFIG_TESTS): config/test_config.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/describe.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
+$(CONFIG_TESTS): config/test_config.c $(SOURCE_DIR)/config/config.c $(SOURCE_DIR)/config/options.c $(SOURCE_DIR)/config/config.h $(SOURCE_DIR)/config/describe.c $(SOURCE_DIR)/config/validate.c $(CONFIG_SOURCES)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CONFIG_FLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ config/test_config.c $(CONFIG_SOURCES) $(LDLIBS) -lz
 

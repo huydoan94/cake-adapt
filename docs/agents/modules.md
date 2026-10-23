@@ -56,10 +56,12 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     (`bps`), and ratios (`fraction_to_ratio_e6`, `load_ratio_e6`).
   - `error.c`: shared error-buffer formatting.
 - `config/`
-  - `config.c`: typed UCI loading and conversion through `libuci`, driven by
-    one table of typed option bindings (`options[]`, whose order is also the
-    `-L` listing, and `-D` prints each one's default in its UCI units for the
-    LuCI app); never parse `/etc/config/cake-adapt` manually.
+  - `config.c`: typed UCI loading and conversion through `libuci`; never
+    parse `/etc/config/cake-adapt` manually.
+  - `options.c`: the one table of typed option bindings (`options[]`, whose
+    order is also the `-L` listing and the loading order) and each option's
+    value in its UCI units, which `-D` prints for the LuCI app; `options.h`
+    is private to `config/`.
   - `describe.c`: the `-L` and `-D` listings, and the startup messages that
     say what was loaded and whether the instance controls CAKE.
   - `validate.c`: cross-option validation of a loaded configuration
