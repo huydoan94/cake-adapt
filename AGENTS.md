@@ -151,7 +151,8 @@ or another process controlling the same qdiscs.
 
 ## Logging and failure behavior
 
-All application logging goes through `logging/log.c`.
+All application logging goes through `logging/` (`log.h` for messages,
+`records.h` for the structured records).
 
 Syslog must make these conditions visible even when detailed file output is
 disabled:
