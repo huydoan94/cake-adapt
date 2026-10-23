@@ -171,13 +171,13 @@ void upkeep_init(struct monitor *monitor)
 {
 	struct monitor_upkeep *upkeep = &monitor->upkeep;
 
-	upkeep->cpu_timer.cb = handle_cpu_timer;
-	upkeep->memory_timer.cb = handle_memory_timer;
-	upkeep->log_timer.cb = handle_log_timer;
-	upkeep->log_export_signal.cb = handle_log_export_signal;
-	upkeep->log_export_signal.signo = SIGUSR1;
-	upkeep->log_reset_signal.cb = handle_log_reset_signal;
-	upkeep->log_reset_signal.signo = SIGUSR2;
+	upkeep->cpu_timer = (struct uloop_interval){ .cb = handle_cpu_timer };
+	upkeep->memory_timer = (struct uloop_interval){ .cb = handle_memory_timer };
+	upkeep->log_timer = (struct uloop_interval){ .cb = handle_log_timer };
+	upkeep->log_export_signal =
+		(struct uloop_signal){ .cb = handle_log_export_signal, .signo = SIGUSR1 };
+	upkeep->log_reset_signal =
+		(struct uloop_signal){ .cb = handle_log_reset_signal, .signo = SIGUSR2 };
 }
 
 void upkeep_start(struct monitor *monitor)
