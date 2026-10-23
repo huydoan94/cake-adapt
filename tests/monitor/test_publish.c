@@ -1,9 +1,10 @@
 /*
- * publish.c with libubus and blobmsg replaced by recorders: the reply built from
+ * publish.c and its ubus server with libubus and blobmsg replaced by recorders: the reply built from
  * a snapshot, the thread's start, request and bounded stop, and every ubus state
  * dnsmasq handles, with the messages and levels the main thread logs for it.
  */
 #include "monitor/publish.c"
+#include "platform/ubus.c"
 #include "constants/program.h"
 #include "constants/ubus.h"
 #include "constants/units.h"
@@ -304,11 +305,11 @@ static void wait_for_count(atomic_int *counter, int count)
 static void wait_for_events(struct monitor *monitor, unsigned int events)
 {
 	const struct monitor_publish *publish = &monitor->publish;
-	struct publish_shared *shared = publish->shared;
+	struct ubus_server *server = publish->server;
 	uint64_t waited_us;
 
 	for (waited_us = 0U; waited_us < WAIT_LIMIT_US; waited_us += WAIT_STEP_US) {
-		if ((atomic_load(&shared->events) & events) == events)
+		if ((atomic_load(&server->events) & events) == events)
 			return;
 		pause_step();
 	}
@@ -321,7 +322,7 @@ static void assert_no_attempt(void)
 	const int before = atomic_load(&connects) + atomic_load(&reconnects);
 	uint64_t waited_us;
 
-	for (waited_us = 0U; waited_us < PUBLISH_WAIT_US + 300U * MILLISECOND;
+	for (waited_us = 0U; waited_us < UBUS_SERVER_WAIT_US + 300U * MILLISECOND;
 	     waited_us += WAIT_STEP_US)
 		pause_step();
 	assert(atomic_load(&connects) + atomic_load(&reconnects) == before);
@@ -375,15 +376,16 @@ static void stop_and_check(struct monitor *monitor)
 	assert(read_clock_us(CLOCK_MONOTONIC, &before_us));
 	publish_stop(monitor);
 	assert(read_clock_us(CLOCK_MONOTONIC, &after_us));
-	assert(publish->shared == NULL);
-	assert(after_us - before_us < PUBLISH_WAIT_US);
+	assert(publish->server == NULL);
+	assert(after_us - before_us < UBUS_SERVER_WAIT_US);
 	for (size_t index = 0U; index < message_count; index++)
 		assert(strstr(messages[index], "leaving it behind") == NULL);
 }
 
 static void test_reply_from_snapshot(void)
 {
-	struct publish_shared shared = { .pid = 1234U, .started_sec = 1700000000U };
+	struct publish_identity identity = { .pid = 1234U, .started_sec = 1700000000U };
+	struct blob_buf reply = { 0 };
 	struct status_snapshot snapshot = {
 		.state = CONTROLLER_RUNNING,
 		.download = { .interface = "ignored",
@@ -418,9 +420,9 @@ static void test_reply_from_snapshot(void)
 		"}",
 	};
 
-	(void)snprintf(shared.download_interface, sizeof(shared.download_interface), "ifb4wan");
-	(void)snprintf(shared.upload_interface, sizeof(shared.upload_interface), "wan");
-	publish_reply(&shared.reply, &shared, &snapshot);
+	(void)snprintf(identity.download_interface, sizeof(identity.download_interface), "ifb4wan");
+	(void)snprintf(identity.upload_interface, sizeof(identity.upload_interface), "wan");
+	publish_reply(&reply, &snapshot, &identity);
 	assert(field_count == ARRAY_SIZE(expected));
 	for (size_t index = 0U; index < field_count; index++)
 		assert(strcmp(fields[index], expected[index]) == 0);
@@ -432,7 +434,7 @@ static void test_stop_without_start(void)
 
 	publish_stop(&monitor);
 	publish_update(&monitor);
-	assert(monitor.publish.shared == NULL);
+	assert(monitor.publish.server == NULL);
 }
 
 /*
@@ -442,14 +444,14 @@ static void test_stop_without_start(void)
 static void test_unavailable_then_connected(void)
 {
 	struct monitor monitor;
-	const struct publish_shared *shared;
+	const struct ubus_server *server;
 
 	reset(&monitor);
 	publish_start(&monitor, "main");
-	shared = monitor.publish.shared;
-	assert(shared != NULL);
-	assert(strcmp(shared->object_name, "cake-adapt.main") == 0);
-	wait_for_events(&monitor, PUBLISH_NO_CONNECTION);
+	server = monitor.publish.server;
+	assert(server != NULL);
+	assert(strcmp(ubus_server_object_name(server), "cake-adapt.main") == 0);
+	wait_for_events(&monitor, UBUS_SERVER_NO_CONNECTION);
 	publish_update(&monitor);
 	assert(message_count == 1U);
 	assert_message(0U, LOG_LEVEL_ERROR, "cannot publish status on ubus: no connection");
@@ -458,7 +460,7 @@ static void test_unavailable_then_connected(void)
 	assert(message_count == 1U);
 
 	atomic_store(&ubusd_running, true);
-	wait_for_events(&monitor, PUBLISH_CONNECTED);
+	wait_for_events(&monitor, UBUS_SERVER_CONNECTED);
 	publish_update(&monitor);
 	assert(message_count == 2U);
 	assert_system_message(1U, "connected to ubus; status published as cake-adapt.main");
@@ -492,14 +494,14 @@ static void test_publish_serve_lose_recover(void)
 
 	atomic_store(&ubusd_running, false);
 	(void)close(atomic_load(&ubusd_fd));
-	wait_for_events(&monitor, PUBLISH_RECONNECT_FAILED | PUBLISH_NO_CONNECTION);
+	wait_for_events(&monitor, UBUS_SERVER_RECONNECT_FAILED | UBUS_SERVER_NO_CONNECTION);
 	publish_update(&monitor);
 	assert(message_count == 2U);
 	assert_message(0U, LOG_LEVEL_ERROR, "cannot reconnect to ubus: Connection failed");
 	assert_message(1U, LOG_LEVEL_ERROR, "cannot publish status on ubus: no connection");
 
 	atomic_store(&ubusd_running, true);
-	wait_for_events(&monitor, PUBLISH_CONNECTED);
+	wait_for_events(&monitor, UBUS_SERVER_CONNECTED);
 	assert(atomic_load(&object_id_before_add) == 0U);
 	assert(atomic_load(&type_id_before_add) == 0U);
 	publish_update(&monitor);
@@ -541,7 +543,7 @@ static void test_hangup(void)
 	publish_start(&monitor, "main");
 	wait_for_count(&adds, 1);
 	(void)close(atomic_load(&ubusd_fd));
-	wait_for_events(&monitor, PUBLISH_DISCONNECTED | PUBLISH_CONNECTED);
+	wait_for_events(&monitor, UBUS_SERVER_DISCONNECTED | UBUS_SERVER_CONNECTED);
 	assert(atomic_load(&reconnects) == 0);
 	publish_update(&monitor);
 	assert(message_count == 2U);
@@ -561,7 +563,7 @@ static void test_add_refused_at_start(void)
 	atomic_store(&ubusd_running, true);
 	atomic_store(&add_result, UBUS_STATUS_PERMISSION_DENIED);
 	publish_start(&monitor, "main");
-	wait_for_events(&monitor, PUBLISH_ADD_FAILED_AT_START);
+	wait_for_events(&monitor, UBUS_SERVER_ADD_FAILED_AT_START);
 	publish_update(&monitor);
 	assert(message_count == 1U);
 	assert_message(0U, LOG_LEVEL_ERROR, "ubus error: Permission denied; exiting");
@@ -578,9 +580,9 @@ static void test_add_refused_later(void)
 	reset(&monitor);
 	atomic_store(&add_result, UBUS_STATUS_PERMISSION_DENIED);
 	publish_start(&monitor, "main");
-	wait_for_events(&monitor, PUBLISH_NO_CONNECTION);
+	wait_for_events(&monitor, UBUS_SERVER_NO_CONNECTION);
 	atomic_store(&ubusd_running, true);
-	wait_for_events(&monitor, PUBLISH_ADD_FAILED);
+	wait_for_events(&monitor, UBUS_SERVER_ADD_FAILED);
 	assert_no_attempt();
 	publish_update(&monitor);
 	assert(message_count == 2U);
@@ -602,7 +604,7 @@ static void test_add_refused_on_reconnect(void)
 	wait_for_count(&adds, 1);
 	atomic_store(&add_result, UBUS_STATUS_PERMISSION_DENIED);
 	(void)close(atomic_load(&ubusd_fd));
-	wait_for_events(&monitor, PUBLISH_ADD_FAILED);
+	wait_for_events(&monitor, UBUS_SERVER_ADD_FAILED);
 	assert_no_attempt();
 	publish_update(&monitor);
 	assert(message_count == 1U);
@@ -615,7 +617,7 @@ static void test_add_refused_on_reconnect(void)
 static void test_stuck_thread_left_behind(void)
 {
 	struct monitor monitor;
-	struct publish_shared *shared;
+	struct ubus_server *server;
 	uint64_t before_us;
 	uint64_t after_us;
 
@@ -623,13 +625,13 @@ static void test_stuck_thread_left_behind(void)
 	atomic_store(&connect_hangs, true);
 	atomic_store(&thread_finished, false);
 	publish_start(&monitor, "main");
-	shared = monitor.publish.shared;
+	server = monitor.publish.server;
 	while (atomic_load(&connects) == 0)
 		pause_step();
 	assert(read_clock_us(CLOCK_MONOTONIC, &before_us));
 	publish_stop(&monitor);
 	assert(read_clock_us(CLOCK_MONOTONIC, &after_us));
-	assert(monitor.publish.shared == NULL);
+	assert(monitor.publish.server == NULL);
 	assert(after_us - before_us >= PUBLISH_STOP_US);
 	assert(after_us - before_us < PUBLISH_STOP_US + 500U * MILLISECOND);
 	assert(message_count == 1U);
@@ -641,7 +643,7 @@ static void test_stuck_thread_left_behind(void)
 	while (!atomic_load(&thread_finished))
 		pause_step();
 	pause_step();
-	publish_free(shared);
+	server_free(server);
 }
 
 int main(void)
