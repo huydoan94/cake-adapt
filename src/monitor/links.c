@@ -6,6 +6,7 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
+#include "logging/records.h"
 #include "constants/cake.h"
 #include "constants/states.h"
 #include "constants/text.h"

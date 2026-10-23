@@ -33,7 +33,7 @@ test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/hel
 test_icmp_OBJECTS := latency/test_icmp.o src/latency/icmp.o src/common/error.o src/common/helpers.o
 test_native_OBJECTS := latency/test_native.o src/latency/native.o src/latency/icmp.o src/common/error.o src/common/helpers.o
 test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/helpers.o
-test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/common/helpers_log.o src/common/error.o
+test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/logging/file.o src/logging/records.o src/logging/writer.o src/common/helpers_log.o src/common/error.o
 test_mqtt_none_OBJECTS := logging/test_mqtt_none.o src/logging/mqtt_none.o src/common/error.o
 test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
 test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
@@ -81,9 +81,9 @@ $(BINARY_DIR)/test_mqtt $(BINARY_DIR)/test_mqtt_tls: $(MQTT_TEST_DEPENDENCIES)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(MQTT_TEST_FLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $(MQTT_TEST_SOURCES) $(LDLIBS) $(MQTT_LIBS)
 
-$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
+$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/logging/file.c $(SOURCE_DIR)/logging/records.c $(SOURCE_DIR)/logging/writer.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(MQTT_LIBS) -lz
+	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/logging/file.c $(SOURCE_DIR)/logging/records.c $(SOURCE_DIR)/logging/writer.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(MQTT_LIBS) -lz
 
 # The monitor needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
@@ -124,7 +124,7 @@ $(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
 # It is built once per package variant: without MQTT, with MQTT, and with MQTT and TLS.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c common/error.c common/helpers.c) logging/mqtt_stub.c
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c logging/file.c logging/records.c logging/writer.c common/error.c common/helpers.c) logging/mqtt_stub.c
 CONFIG_TESTS := $(BINARY_DIR)/test_config $(BINARY_DIR)/test_config_mqtt $(BINARY_DIR)/test_config_mqtt_ssl
 
 .PHONY: check-config
