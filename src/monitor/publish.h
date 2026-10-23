@@ -2,26 +2,23 @@
 #define MONITOR_PUBLISH_H_INCLUDED
 
 /*
- * publish.c: the main thread's side of the status object on ubus. A thread of
- * its own serves it from shared, so the main thread never calls libubus
- * beyond ubus_strerror().
+ * publish.c: the status object on ubus, its reply and what its server
+ * reports. The server (platform/ubus.h) serves it from its own thread, so the
+ * main thread never calls libubus beyond ubus_strerror().
  */
-
-#include <pthread.h>
 
 struct monitor;
 
-struct publish_shared;
+struct ubus_server;
 
 struct monitor_publish {
 	/* NULL while no thread runs. */
-	struct publish_shared *shared;
-	pthread_t thread;
+	struct ubus_server *server;
 };
 
 /*
  * Starts the thread that publishes the status object as cake-adapt.<section>
- * whenever ubus is reachable. Needs uloop_init() first; see publish.c.
+ * whenever ubus is reachable. Needs uloop_init() first; see platform/ubus.h.
  */
 void publish_start(struct monitor *monitor, const char *section_name);
 
