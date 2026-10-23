@@ -2,10 +2,13 @@
 
 #include "monitor/loop.h"
 
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
+#include "constants/program.h"
+#include "constants/states.h"
+#include "constants/ubus.h"
+#include "constants/units.h"
 
 #include <libubus.h>
 #include <libubox/blobmsg.h>
@@ -20,28 +23,6 @@
 #include <string.h>
 #include <sys/eventfd.h>
 #include <unistd.h>
-
-#define FIELD_VERSION "version"
-#define FIELD_PID "pid"
-#define FIELD_STARTED "started"
-#define FIELD_STATE "state"
-#define FIELD_DOWNLOAD "download"
-#define FIELD_UPLOAD "upload"
-#define FIELD_INTERFACE "interface"
-#define FIELD_AVAILABLE "available"
-#define FIELD_SHAPER "shaper_bps"
-#define FIELD_ACHIEVED "achieved_bps"
-#define FIELD_LOAD "load_e6"
-#define FIELD_DELAY "delay_us"
-#define FIELD_BUFFERBLOAT "bufferbloat"
-#define FIELD_TCP_QUEUE "tcp_queue_us"
-
-#define PUBLISH_OBJECT_NAME_SIZE (sizeof(UBUS_OBJECT_PREFIX) + 1U + CONFIG_STRING_SIZE)
-
-/* The thread's longest wait, both between connection attempts and for requests. */
-#define PUBLISH_WAIT_US SECOND
-/* How long shutdown waits for the thread before leaving it behind, checked this often. */
-#define PUBLISH_STOP_US (2U * SECOND)
 
 /* Whether the thread should keep running; the zeroed state is running. */
 enum publish_run {
@@ -136,17 +117,21 @@ publish_direction(struct blob_buf *reply, const char *name, const struct status_
 {
 	void *table = blobmsg_open_table(reply, name);
 
-	blobmsg_add_string(reply, FIELD_INTERFACE, direction->interface);
-	blobmsg_add_u8(reply, FIELD_AVAILABLE, direction->available);
+	blobmsg_add_string(reply, STATUS_FIELD_INTERFACE, direction->interface);
+	blobmsg_add_u8(reply, STATUS_FIELD_AVAILABLE, direction->available);
 	if (direction->available) {
-		blobmsg_add_u64(reply, FIELD_SHAPER, direction->shaper_bps);
-		blobmsg_add_u64(reply, FIELD_ACHIEVED, direction->achieved_bps);
-		blobmsg_add_u64(reply, FIELD_LOAD, direction->load_e6);
+		blobmsg_add_u64(reply, STATUS_FIELD_SHAPER, direction->shaper_bps);
+		blobmsg_add_u64(reply, STATUS_FIELD_ACHIEVED, direction->achieved_bps);
+		blobmsg_add_u64(reply, STATUS_FIELD_LOAD, direction->load_e6);
 		/* blobmsg prints INT64 as signed, so a negative delay survives. */
-		blobmsg_add_u64(reply, FIELD_DELAY, (uint64_t)direction->delay_us);
-		blobmsg_add_u8(reply, FIELD_BUFFERBLOAT, direction->bufferbloat);
+		blobmsg_add_u64(reply, STATUS_FIELD_DELAY, (uint64_t)direction->delay_us);
+		blobmsg_add_u8(reply, STATUS_FIELD_BUFFERBLOAT, direction->bufferbloat);
 		if (direction->tcp_queue_valid)
-			blobmsg_add_u64(reply, FIELD_TCP_QUEUE, (uint64_t)direction->tcp_queue_us);
+			blobmsg_add_u64(
+				reply,
+				STATUS_FIELD_TCP_QUEUE,
+				(uint64_t)direction->tcp_queue_us
+			);
 	}
 	blobmsg_close_table(reply, table);
 }
@@ -164,12 +149,12 @@ static void publish_reply(
 	download.interface = shared->download_interface;
 	upload.interface = shared->upload_interface;
 	blob_buf_init(reply, 0);
-	blobmsg_add_string(reply, FIELD_VERSION, PROGRAM_VERSION);
-	blobmsg_add_u32(reply, FIELD_PID, shared->pid);
-	blobmsg_add_u64(reply, FIELD_STARTED, shared->started_sec);
-	blobmsg_add_string(reply, FIELD_STATE, publish_state_name(snapshot->state));
-	publish_direction(reply, FIELD_DOWNLOAD, &download);
-	publish_direction(reply, FIELD_UPLOAD, &upload);
+	blobmsg_add_string(reply, STATUS_FIELD_VERSION, PROGRAM_VERSION);
+	blobmsg_add_u32(reply, STATUS_FIELD_PID, shared->pid);
+	blobmsg_add_u64(reply, STATUS_FIELD_STARTED, shared->started_sec);
+	blobmsg_add_string(reply, STATUS_FIELD_STATE, publish_state_name(snapshot->state));
+	publish_direction(reply, STATUS_FIELD_DOWNLOAD, &download);
+	publish_direction(reply, STATUS_FIELD_UPLOAD, &upload);
 }
 
 /* Runs on the ubus thread. */

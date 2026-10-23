@@ -2,10 +2,12 @@
 
 #include "logging/log.h"
 #include "logging/mqtt.h"
-#include "common/constants.h"
 #include "common/error.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/logging.h"
+#include "constants/text.h"
+#include "constants/units.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -23,20 +25,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <zlib.h>
-
-#define LOG_MESSAGE_SIZE 2048U
-#define LOG_COPY_BUFFER_SIZE 4096U
-#define LOG_FILE_BUFFER_SIZE (16U * KILOBYTE)
-/* UINT64_MAX seconds, a point, six digits and the terminating NUL. */
-#define TIMESTAMP_SIZE 28U
-/* Room for queued lines while the writer thread is slower than the records. */
-#define LOG_QUEUE_BYTES (128U * KILOBYTE)
-/* The queue fill at which a line wakes the writer instead of waiting for its timer. */
-#define LOG_QUEUE_WAKE_BYTES (LOG_QUEUE_BYTES / 2U)
-/* The writer's longest sleep with nothing queued, between maintenance checks. */
-#define LOG_WRITER_IDLE_US SECOND
-/* How long stopping waits for the writer to drain the queue. */
-#define LOG_WRITER_STOP_US (2U * SECOND)
 
 static bool log_to_stdout;
 static bool log_to_syslog;
@@ -197,11 +185,11 @@ static uint64_t clock_us(clockid_t clock_identifier)
 }
 
 /* "<seconds>.<microseconds>", the timestamp format of every record. */
-static const char *timestamp_text(char text[TIMESTAMP_SIZE], uint64_t us)
+static const char *timestamp_text(char text[LOG_TIMESTAMP_SIZE], uint64_t us)
 {
 	(void)snprintf(
 		text,
-		TIMESTAMP_SIZE,
+		LOG_TIMESTAMP_SIZE,
 		"%" PRIu64 ".%06" PRIu64,
 		us / MICROSECONDS_PER_SECOND,
 		us % MICROSECONDS_PER_SECOND
@@ -586,7 +574,7 @@ static void format_record(
 	uint64_t timestamp_us
 )
 {
-	char stamp[TIMESTAMP_SIZE];
+	char stamp[LOG_TIMESTAMP_SIZE];
 
 	(void)snprintf(
 		line,
@@ -1004,7 +992,7 @@ static void write_timed_record(const char *type, const char *format, ...)
 /* Starts with the processing time, cake-autorate's PROC_TIME_US column. */
 static void write_timed_record(const char *type, const char *format, ...)
 {
-	char stamp[TIMESTAMP_SIZE];
+	char stamp[LOG_TIMESTAMP_SIZE];
 	va_list arguments;
 
 	if (all_logs_disabled())
@@ -1154,7 +1142,7 @@ void log_reflector(const struct log_reflector_record *record)
 void log_cpu(const struct cpu_sample *sample, const struct cpu_busy *usage)
 {
 	char *message = NULL;
-	char stamp[TIMESTAMP_SIZE];
+	char stamp[LOG_TIMESTAMP_SIZE];
 	size_t size;
 	size_t index;
 	FILE *stream = open_memstream(&message, &size);
@@ -1182,7 +1170,7 @@ void log_cpu(const struct cpu_sample *sample, const struct cpu_busy *usage)
 
 void log_cpu_raw(const struct cpu_sample *sample)
 {
-	char stamp[TIMESTAMP_SIZE];
+	char stamp[LOG_TIMESTAMP_SIZE];
 	size_t index;
 
 	(void)timestamp_text(stamp, sample->timestamp_us);
@@ -1227,7 +1215,7 @@ static void
 write_syslog(int priority, const char *record, uint64_t timestamp_us, const char *message)
 {
 	char text[LOG_MESSAGE_SIZE];
-	char stamp[TIMESTAMP_SIZE];
+	char stamp[LOG_TIMESTAMP_SIZE];
 
 	(void)snprintf(
 		text,
@@ -1252,7 +1240,7 @@ static void note(enum log_level level, const char *format, ...)
 {
 	char message[LOG_MESSAGE_SIZE];
 	char line[LOG_MESSAGE_SIZE];
-	char stamp[TIMESTAMP_SIZE];
+	char stamp[LOG_TIMESTAMP_SIZE];
 	va_list arguments;
 	uint64_t timestamp_us;
 

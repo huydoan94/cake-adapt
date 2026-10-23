@@ -4,6 +4,9 @@
 #include "config/defaults.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/cake.h"
+#include "constants/controller.h"
+#include "constants/units.h"
 
 #include <errno.h>
 #include <limits.h>

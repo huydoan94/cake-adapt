@@ -2,8 +2,11 @@
 #define _GNU_SOURCE
 
 #include "common/helpers.h"
-#include "common/constants.h"
 #include "common/utils.h"
+#include "constants/latency.h"
+#include "constants/program.h"
+#include "constants/text.h"
+#include "constants/units.h"
 
 #include <limits.h>
 #include <errno.h>
@@ -14,10 +17,6 @@
 #include <sys/file.h>
 #include <time.h>
 #include <unistd.h>
-
-/* A pid in decimal, its newline and the terminator. */
-#define LOCK_PID_TEXT_SIZE 24U
-#define THREAD_JOIN_CHECK_US (10U * MILLISECOND)
 
 bool parse_unsigned(const char *start, const char *end, uint64_t *value)
 {

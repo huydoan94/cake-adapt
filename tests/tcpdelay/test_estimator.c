@@ -1,6 +1,7 @@
 #include "tcpdelay/estimator.h"
-#include "common/constants.h"
 #include "common/utils.h"
+#include "constants/tcpdelay.h"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <stdint.h>

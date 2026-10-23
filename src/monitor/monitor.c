@@ -8,6 +8,10 @@
 #include "config/defaults.h"
 #include "logging/log.h"
 #include "platform/memory.h"
+#include "constants/proc.h"
+#include "constants/states.h"
+#include "constants/text.h"
+#include "constants/units.h"
 
 #include <libubox/utils.h>
 

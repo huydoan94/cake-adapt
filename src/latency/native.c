@@ -5,6 +5,10 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "config/defaults.h"
+#include "constants/icmp.h"
+#include "constants/latency.h"
+#include "constants/options.h"
+#include "constants/units.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -15,13 +19,10 @@
 #include <string.h>
 #include <sys/random.h>
 
-/* ICMP timestamps count milliseconds since UTC midnight. */
-#define DAY_MS (24U * 60U * MINUTE / MILLISECOND)
-
 static uint32_t midnight_ms(uint64_t realtime_us)
 {
 	/* Divide the 64-bit epoch first: us_to_ms() saturates, for uloop durations. */
-	return (uint32_t)(realtime_us / MILLISECOND % DAY_MS);
+	return (uint32_t)(realtime_us / MILLISECOND % ICMP_DAY_MS);
 }
 
 static enum native_channel native_channel(int family)

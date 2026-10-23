@@ -1,5 +1,5 @@
 #include "platform/traffic.h"
-#include "common/constants.h"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <stdint.h>

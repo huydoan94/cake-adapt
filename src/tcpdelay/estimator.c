@@ -1,15 +1,10 @@
 #include "tcpdelay/estimator.h"
 #include "config/defaults.h"
-#include "common/constants.h"
 #include "common/utils.h"
+#include "constants/tcpdelay.h"
+#include "constants/units.h"
 
 #include <string.h>
-
-/* Samples carry kernel nanoseconds; the defaults are in microseconds. */
-#define WINDOW_NS (TCPDELAY_WINDOW_US * NANOSECONDS_PER_MICROSECOND)
-#define TICK_SPAN_NS (TCPDELAY_TICK_FIT_US * NANOSECONDS_PER_MICROSECOND)
-#define IMPLAUSIBLE_QUEUE_NS \
-	((int64_t)(TCPDELAY_IMPLAUSIBLE_QUEUE_US * NANOSECONDS_PER_MICROSECOND))
 
 /* Standard TCP timestamp clock periods (1 ms on Linux and the BSDs). */
 static const uint64_t standard_ticks_ns[TCPDELAY_TICKS] = {
@@ -39,7 +34,7 @@ static int64_t floor_update(
 
 static void window_add(struct tcpdelay_window *window, int64_t queue_ns, uint64_t time_ns)
 {
-	uint64_t index = time_ns / WINDOW_NS;
+	uint64_t index = time_ns / TCPDELAY_WINDOW_NS;
 	uint64_t slot;
 
 	if (!window->valid[0] && !window->valid[1])
@@ -63,7 +58,7 @@ static void window_add(struct tcpdelay_window *window, int64_t queue_ns, uint64_
 
 static bool window_result(const struct tcpdelay_window *window, uint64_t now_ns, int64_t *queue_ns)
 {
-	uint64_t index = now_ns / WINDOW_NS;
+	uint64_t index = now_ns / TCPDELAY_WINDOW_NS;
 	bool valid = false;
 
 	/* Only windows that are the current or the previous one at now_ns count. */
@@ -112,16 +107,13 @@ flow_for(struct tcpdelay_estimator *estimator, const struct tcpdelay_sample *sam
 	return oldest;
 }
 
-/* A fitted period may differ this much from the standard one it snaps to. */
-#define TICK_TOLERANCE_RATIO_E6 (5U * RATIO_PERCENT_E6)
-
 /* Adopts the remote clock period once it fits a standard one within the tolerance. */
 static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 {
 	uint64_t period_ns;
 	size_t index;
 
-	if (span_ns < TICK_SPAN_NS || flow->ticks == 0U)
+	if (span_ns < TCPDELAY_TICK_SPAN_NS || flow->ticks == 0U)
 		return;
 	period_ns = span_ns / flow->ticks;
 	for (index = 0U; index < TCPDELAY_TICKS; index++) {
@@ -129,7 +121,7 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 		uint64_t error_ns =
 			max_u64(period_ns, standard_ns) - min_u64(period_ns, standard_ns);
 
-		if (error_ns <= ratio_of(standard_ns, TICK_TOLERANCE_RATIO_E6)) {
+		if (error_ns <= ratio_of(standard_ns, TCPDELAY_TICK_TOLERANCE_RATIO_E6)) {
 			flow->tick_ns = standard_ns;
 			flow->tick_index = index;
 			return;
@@ -208,7 +200,8 @@ void tcpdelay_estimator_add(
 		return;
 	}
 	queues = flow_measure(estimator, flow, flow->tick_index, sample);
-	if (queues.download_ns > IMPLAUSIBLE_QUEUE_NS || queues.upload_ns > IMPLAUSIBLE_QUEUE_NS) {
+	if (queues.download_ns > TCPDELAY_IMPLAUSIBLE_QUEUE_NS ||
+	    queues.upload_ns > TCPDELAY_IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
 		return;
 	}

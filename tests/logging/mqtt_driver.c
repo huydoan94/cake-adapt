@@ -1,6 +1,7 @@
 /* A command-driven fixture uses the production sender and logging paths. */
 #include "logging/mqtt.c"
 #include "logging/log.h"
+#include "constants/text.h"
 
 #include <assert.h>
 #include <stdio.h>

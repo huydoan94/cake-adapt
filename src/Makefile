@@ -18,7 +18,7 @@ BPF_INCLUDES ?=
 VERSION ?= unknown
 # The package variant: cake-adapt 0/0, cake-adapt-mqtt 1/0, cake-adapt-mqtt-ssl 1/1.
 # Without MQTT the no-op sender replaces mqtt.c and libmosquitto is not linked.
-# The default is cake-adapt's, as in common/constants.h.
+# The default is cake-adapt's, as in constants/program.h.
 MQTT_SUPPORTED ?= 0
 MQTT_TLS_SUPPORTED ?= 0
 MQTT_SELECTION := $(MQTT_SUPPORTED)$(MQTT_TLS_SUPPORTED)

@@ -5,6 +5,10 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
+#include "constants/controller.h"
+#include "constants/options.h"
+#include "constants/states.h"
+#include "constants/text.h"
 
 #include <libubox/utils.h>
 
@@ -12,8 +16,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-
-#define LOAD_CONDITION_SIZE 16U
 
 /* One ping reply's pass through the controller. */
 struct control_step {
@@ -128,7 +130,7 @@ static const char *const load_names[] = {
 
 /* The DATA and SUMMARY load column, such as "dl_high_bb". */
 static void load_condition(
-	char condition[LOAD_CONDITION_SIZE],
+	char condition[CONTROLLER_LOAD_CONDITION_SIZE],
 	const char *direction,
 	enum controller_load load,
 	enum controller_congestion_state congestion
@@ -136,7 +138,7 @@ static void load_condition(
 {
 	(void)snprintf(
 		condition,
-		LOAD_CONDITION_SIZE,
+		CONTROLLER_LOAD_CONDITION_SIZE,
 		"%s_%s%s",
 		direction,
 		load_names[load],
@@ -157,8 +159,8 @@ static void log_controller_stats(const struct monitor *monitor, const struct con
 	/* Records report the serialization-compensated thresholds in effect. */
 	const struct controller_direction_config *download_effective = &controller->download.config;
 	const struct controller_direction_config *upload_effective = &controller->upload.config;
-	char download_condition[LOAD_CONDITION_SIZE];
-	char upload_condition[LOAD_CONDITION_SIZE];
+	char download_condition[CONTROLLER_LOAD_CONDITION_SIZE];
+	char upload_condition[CONTROLLER_LOAD_CONDITION_SIZE];
 	uint64_t download_rate_bps = download_output->rate_bps;
 	uint64_t upload_rate_bps = upload_output->rate_bps;
 	uint64_t download_achieved_bps = download_input->traffic_rate_bps;

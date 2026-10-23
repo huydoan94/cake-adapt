@@ -1,12 +1,10 @@
 #ifndef LATENCY_PARSER_H_INCLUDED
 #define LATENCY_PARSER_H_INCLUDED
 
+#include "constants/latency.h"
+
 #include <stdbool.h>
 #include <stdint.h>
-
-#define LATENCY_TARGET_SIZE 256U
-/* Room for the pinger's own timestamp token, logged verbatim like cake-autorate. */
-#define LATENCY_TIMESTAMP_TEXT_SIZE 48U
 
 struct latency_sample {
 	char target[LATENCY_TARGET_SIZE];

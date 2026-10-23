@@ -51,6 +51,11 @@ static int mock_lib_cleanup(void);
 #define mosquitto_destroy mock_destroy
 #define mosquitto_lib_cleanup mock_lib_cleanup
 #include "logging/mqtt.c"
+#include "constants/mqtt.h"
+#include "constants/options.h"
+#include "constants/program.h"
+#include "constants/text.h"
+#include "constants/units.h"
 #undef mosquitto_connect_async
 #undef mosquitto_loop
 #undef mosquitto_publish

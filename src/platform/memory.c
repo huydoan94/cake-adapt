@@ -2,9 +2,10 @@
 
 #include "platform/memory.h"
 
-#include "common/constants.h"
 #include "common/error.h"
 #include "common/utils.h"
+#include "constants/logging.h"
+#include "constants/proc.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -12,23 +13,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define FIELD_RSS "VmRSS"
-#define FIELD_PEAK_RSS "VmHWM"
-#define FIELD_ANONYMOUS "RssAnon"
-#define FIELD_DATA "VmData"
-/* Longer than any field name in /proc/<pid>/status; the scan below reads 31. */
-#define FIELD_NAME_SIZE 32U
-
 int memory_read(const char *path, struct memory_sample *sample, char *error, size_t error_size)
 {
 	const struct {
 		const char *name;
 		uint64_t *value;
 	} fields[] = {
-		{ FIELD_RSS, &sample->rss_bytes },
-		{ FIELD_PEAK_RSS, &sample->peak_rss_bytes },
-		{ FIELD_ANONYMOUS, &sample->anonymous_bytes },
-		{ FIELD_DATA, &sample->data_bytes },
+		{ PROC_FIELD_RSS, &sample->rss_bytes },
+		{ PROC_FIELD_PEAK_RSS, &sample->peak_rss_bytes },
+		{ PROC_FIELD_ANONYMOUS, &sample->anonymous_bytes },
+		{ PROC_FIELD_DATA, &sample->data_bytes },
 	};
 	unsigned int found = 0U;
 	char *line = NULL;
@@ -39,7 +33,7 @@ int memory_read(const char *path, struct memory_sample *sample, char *error, siz
 		return error_set(error, error_size, "could not open %s: %s", path, strerror(errno));
 	/* Lines read "VmRSS:\t    1234 kB"; the values are always in kB. */
 	while (getline(&line, &capacity, file) >= 0) {
-		char name[FIELD_NAME_SIZE];
+		char name[PROC_FIELD_NAME_SIZE];
 		uint64_t kilobytes;
 
 		if (sscanf(line, "%31[^:]: %" SCNu64, name, &kilobytes) != 2)

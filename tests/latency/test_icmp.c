@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 
 #include "latency/icmp.h"
-#include "common/constants.h"
+#include "constants/icmp.h"
 
 #include <assert.h>
 #include <netinet/in.h>

@@ -1,4 +1,5 @@
 #include "tcpdelay/inject.h"
+#include "constants/tcpdelay.h"
 
 #include <assert.h>
 #include <stdint.h>

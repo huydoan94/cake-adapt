@@ -17,6 +17,8 @@
 #include "tcpdelay/capture.h"
 #include "tcpdelay/estimator.h"
 #include "tcpdelay/injector.h"
+#include "constants/options.h"
+#include "constants/text.h"
 
 #include <libubox/uloop.h>
 #include <libubox/ustream.h>

@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "config/config.h"
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "config/defaults.h"
 #include "common/error.h"
@@ -9,6 +8,11 @@
 #include "logging/log.h"
 #include "logging/mqtt.h"
 #include "monitor/monitor.h"
+#include "constants/logging.h"
+#include "constants/options.h"
+#include "constants/program.h"
+#include "constants/states.h"
+#include "constants/text.h"
 
 #include <errno.h>
 #include <getopt.h>

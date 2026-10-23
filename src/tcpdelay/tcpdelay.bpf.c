@@ -33,19 +33,7 @@
 #include <bpf/bpf_helpers.h>
 
 #include "tcpdelay/inject.h"
-
-#define TCP_OPTIONS_MAX 40U
-#define TCP_OPTION_END 0U
-#define TCP_OPTION_NOP 1U
-#define TCP_OPTION_TIMESTAMP 8U
-#define TCP_OPTION_TIMESTAMP_LENGTH 10U
-#define TCP_HEADER_BYTES 20U
-#define TCP_HEADER_MAX_BYTES 60U
-#define TCP_FLAGS_OFFSET 12U
-#define TCP_CHECKSUM_OFFSET 16U
-#define IPV6_LENGTH_OFFSET 4U
-/* NOP, NOP and a timestamp option, appended to a SYN. */
-#define INJECT_ADDED_BYTES 12U
+#include "constants/tcpdelay.h"
 
 struct departure_key {
 	struct tcpdelay_record_flow flow;
@@ -688,7 +676,7 @@ append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsv
 
 	if (bpf_skb_change_tail(
 		    skb,
-		    segment->network_offset + segment->ip_bytes + INJECT_ADDED_BYTES,
+		    segment->network_offset + segment->ip_bytes + TCPDELAY_INJECT_ADDED_BYTES,
 		    0
 	    ) < 0 ||
 	    bpf_skb_store_bytes(skb, end, added, sizeof(added), 0) < 0 ||
@@ -701,7 +689,7 @@ append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsv
 		return -1;
 	/* The data offset is the high nibble of this word's first byte. */
 	new_word = old_word;
-	((__u8 *)&new_word)[0] = (__u8)((((header_bytes + INJECT_ADDED_BYTES) / 4U) << 4) |
+	((__u8 *)&new_word)[0] = (__u8)((((header_bytes + TCPDELAY_INJECT_ADDED_BYTES) / 4U) << 4) |
 					(((__u8 *)&old_word)[0] & 0x0fU));
 	if (bpf_skb_store_bytes(
 		    skb,
@@ -717,13 +705,14 @@ append_timestamp(struct __sk_buff *skb, const struct segment *segment, __u32 tsv
 		skb,
 		checksum,
 		bpf_htons(header_bytes),
-		bpf_htons(header_bytes + INJECT_ADDED_BYTES),
+		bpf_htons(header_bytes + TCPDELAY_INJECT_ADDED_BYTES),
 		BPF_F_PSEUDO_HDR | 2
 	);
 	diff = bpf_csum_diff(NULL, 0, added, sizeof(added), 0);
 	bpf_l4_csum_replace(skb, checksum, 0, (__u32)diff, 0);
 	/* IPv6 has no header checksum; only its payload length grows. */
-	payload = bpf_htons(segment->ip_bytes - sizeof(struct ipv6hdr) + INJECT_ADDED_BYTES);
+	payload =
+		bpf_htons(segment->ip_bytes - sizeof(struct ipv6hdr) + TCPDELAY_INJECT_ADDED_BYTES);
 	return bpf_skb_store_bytes(
 		skb,
 		segment->network_offset + IPV6_LENGTH_OFFSET,
@@ -779,7 +768,7 @@ static __always_inline int inject_syn_eligible(struct __sk_buff *skb, const stru
 	      ) < 0 ||
 	      inject_options_may_timestamp(options, segment->options_bytes))) ||
 	    segment->ip_bytes != segment->tcp_offset - segment->network_offset + header_bytes ||
-	    header_bytes + INJECT_ADDED_BYTES > TCP_HEADER_MAX_BYTES)
+	    header_bytes + TCPDELAY_INJECT_ADDED_BYTES > TCP_HEADER_MAX_BYTES)
 		return 0;
 	return 1;
 }

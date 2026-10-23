@@ -2,6 +2,7 @@
 
 #include "platform/cpu.h"
 #include "common/helpers.h"
+#include "constants/proc.h"
 
 #include <assert.h>
 #include <stdio.h>

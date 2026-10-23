@@ -24,17 +24,16 @@ Move generic names such as `read_u32()` or `fraction_to_ratio_e6()` to
 `common/helpers` when they are shared; keep module-specific helpers local and
 `static`.
 
-Put shared semantic string values in `common/constants.h` and built-in defaults
-in `config/defaults.c`/`config/defaults.h`. Keep complete diagnostics, format
-strings, and module-owned schemas beside the code that uses them. Tests should
-keep literal expected values when importing the production constant would make
-the check tautological.
-
-Every fixed string value, meaning a name, token or label stored or passed as
-data, is a named constant in `common/constants.h`, or a `#define` beside the
-file's other names when only that file uses it (as `capture.c` names the BPF
-program and maps). Only format strings and complete messages stay inline; do
-not split a message into fragments that are passed around as values.
+Every named value, meaning a fixed string (a name, token or label stored or
+passed as data), a size, a limit, a timeout or a protocol field, is a `#define`
+in the topic header of `src/constants/` it belongs to, even when only one file
+uses it (as the BPF program and map names are in `constants/tcpdelay.h`).
+Configuration defaults stay in `config/defaults.c`/`config/defaults.h`. Only
+format strings and complete messages stay inline; do not split a message into
+fragments that are passed around as values. Keep complete diagnostics, format
+strings, and module-owned schemas (struct layouts) beside the code that uses
+them. Tests should keep literal expected values when importing the production
+constant would make the check tautological.
 
 `sh tools/style-check.sh` checks the changed lines for the two rules review
 keeps finding (mixed `->`/`.` chains and literal `true`/`false` arguments) and
@@ -73,7 +72,7 @@ Convert only where a value enters or leaves the daemon (UCI, the kernel,
 uloop, pinger arguments and output, logs), through the named helpers. A name
 holding a quantity ends in its unit: `_us`, `_ns`, `_ms` (boundary only),
 `_sec`, `_bps`, `_kbps` (boundary only), `_byte_ps`, `_bytes`, `_bits`,
-`_ticks` or `_e6`. The unit constants in `constants.h` keep full names
+`_ticks` or `_e6`. The unit constants in `constants/units.h` keep full names
 (`MICROSECOND`, `MILLISECOND`, `SECOND`, `MICROSECONDS_PER_SECOND`,
 `NANOSECONDS_PER_MICROSECOND`); durations use `SECOND`, conversions the
 `*_PER_*` constants. Do not copy upstream's integer truncations (whole kbit/s,

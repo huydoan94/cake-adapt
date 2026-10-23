@@ -33,9 +33,15 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     thread so a stalled `ubusd` never blocks control; the main thread only
     copies a snapshot under a mutex each traffic tick and logs what the thread
     reports.
+- `constants/`: every named value, one header per topic: `units.h` (units and
+  conversions), `program.h` (identity, build features, runtime directory),
+  `options.h` (UCI option names, booleans, configuration limits), `states.h`,
+  `text.h`, `logging.h`, `mqtt.h`, `latency.h` (pinger methods, command lines,
+  output grammar, timing), `icmp.h`, `cake.h` (qdiscs, netlink, accounting),
+  `proc.h`, `controller.h` (fixed policy), `tcpdelay.h` (filter object, maps,
+  packet layout, estimator) and `ubus.h`. Headers include only the topics
+  they build on; each source file includes the topics it uses.
 - `common/`
-  - `constants.h`: shared semantic names, paths, modes, and state tokens; keep
-    prose diagnostics, format strings, and module-owned record schemas local.
   - `utils.h`: trivial operations as `static inline` functions: saturating
     arithmetic (`saturating_add`, `saturating_sub`, `saturating_mul`,
     `signed_sum`), `min_u64`, `max_u64`, `mul_div`, rounding

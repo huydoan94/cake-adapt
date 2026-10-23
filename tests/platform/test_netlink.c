@@ -6,6 +6,8 @@
 #define nl_send_auto_complete test_send
 #define read_clock_us test_clock
 #include "platform/netlink.c"
+#include "constants/cake.h"
+#include "constants/units.h"
 #undef poll
 #undef nl_recvmsgs_default
 #undef nl_send_auto_complete

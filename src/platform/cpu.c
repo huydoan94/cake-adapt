@@ -3,9 +3,10 @@
 #include "platform/cpu.h"
 
 #include "common/error.h"
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/logging.h"
+#include "constants/proc.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -13,9 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-/* The name and user, nice, system and idle: what every kernel's /proc/stat has. */
-#define CPU_MINIMUM_FIELDS 5
 
 static uint64_t counter_sum(const struct cpu_counter *counter)
 {

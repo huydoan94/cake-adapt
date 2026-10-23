@@ -6,6 +6,7 @@
 #include "logging/mqtt.h"
 #include "config/config.h"
 #include "common/error.h"
+#include "constants/program.h"
 
 #include <errno.h>
 

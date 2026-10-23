@@ -1,15 +1,13 @@
 #ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
 
+#include "constants/options.h"
+#include "constants/units.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <net/if.h>
-
-#include "common/constants.h"
-
-#define CONFIG_STRING_SIZE 512U
-#define CONFIG_REFLECTOR_SIZE 256U
 
 /* One direction's shaper rates and the delay thresholds that adjust them. */
 struct config_direction {

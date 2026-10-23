@@ -169,6 +169,7 @@ check: $(BINARIES)
 	sh ./test_luci.sh
 	sh ./test_docs.sh
 	sh ./test_style.sh
+	sh ./test_constants.sh
 	sh ./test_wait.sh
 	python3 tools/test_sdk_build.py
 

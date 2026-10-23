@@ -16,11 +16,7 @@
 #include <unistd.h>
 
 #include "common/error.h"
-
-/* Names in tcpdelay.bpf.c: the injector program and its maps. */
-#define INJECT_PROGRAM "inject_egress"
-#define INJECT_COUNTERS "inject_counters"
-#define INJECT_SETTINGS "inject_settings"
+#include "constants/tcpdelay.h"
 
 void tcpdelay_injector_init(struct tcpdelay_injector *injector)
 {
@@ -77,7 +73,7 @@ static int find_counters(
 		return 0;
 	cpus = libbpf_num_possible_cpus();
 	injector->counters_descriptor =
-		bpf_object__find_map_fd_by_name(capture->object, INJECT_COUNTERS);
+		bpf_object__find_map_fd_by_name(capture->object, TCPDELAY_INJECT_COUNTERS_MAP);
 	if (cpus <= 0 || injector->counters_descriptor < 0)
 		return error_set(
 			error,
@@ -111,15 +107,24 @@ int tcpdelay_injector_attach(
 
 	tcpdelay_injector_detach(injector);
 	if (capture->object != NULL && capture->injection)
-		program = bpf_object__find_program_by_name(capture->object, INJECT_PROGRAM);
+		program =
+			bpf_object__find_program_by_name(capture->object, TCPDELAY_INJECT_PROGRAM);
 	if (program == NULL || bpf_program__fd(program) < 0)
 		return error_set(error, error_size, "TCP timestamp injection program is not loaded");
 	/*
 	 * The daemon and the object must agree on the layouts it reads and writes;
 	 * a mismatch, such as an object from another build, would corrupt memory.
 	 */
-	if (!layout_matches(capture, INJECT_COUNTERS, sizeof(struct tcpdelay_inject_counters)) ||
-	    !layout_matches(capture, INJECT_SETTINGS, sizeof(struct tcpdelay_inject_settings)))
+	if (!layout_matches(
+		    capture,
+		    TCPDELAY_INJECT_COUNTERS_MAP,
+		    sizeof(struct tcpdelay_inject_counters)
+	    ) ||
+	    !layout_matches(
+		    capture,
+		    TCPDELAY_INJECT_SETTINGS_MAP,
+		    sizeof(struct tcpdelay_inject_settings)
+	    ))
 		return error_set(
 			error,
 			error_size,
@@ -131,7 +136,7 @@ int tcpdelay_injector_attach(
 	interface_index = if_nametoindex(interface);
 	if (interface_index == 0U ||
 	    bpf_map_update_elem(
-		    bpf_object__find_map_fd_by_name(capture->object, INJECT_SETTINGS),
+		    bpf_object__find_map_fd_by_name(capture->object, TCPDELAY_INJECT_SETTINGS_MAP),
 		    &key,
 		    &values,
 		    BPF_ANY

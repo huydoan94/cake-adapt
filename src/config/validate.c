@@ -1,14 +1,15 @@
 #include "config/config.h"
-#include "common/constants.h"
 #include "config/defaults.h"
 #include "common/error.h"
 #include "latency/latency.h"
+#include "constants/cake.h"
+#include "constants/mqtt.h"
+#include "constants/program.h"
+#include "constants/states.h"
+#include "constants/units.h"
 
 #include <limits.h>
 #include <string.h>
-
-#define MQTT_INVALID_HOST_CHARACTERS " /[]\t\r\n"
-#define MQTT_TOPIC_WILDCARDS "+#"
 
 /* A uloop interval: a positive whole number of milliseconds that fits its unsigned argument. */
 static bool timer_interval_valid(uint64_t interval_us)

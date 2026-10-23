@@ -1,25 +1,18 @@
 #ifndef LATENCY_ICMP_H_INCLUDED
 #define LATENCY_ICMP_H_INCLUDED
 
+#include "constants/icmp.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/socket.h>
-
-/* Linux's fixed time64 socket option; older musl headers expose only SO_TIMESTAMPNS. */
-#ifndef SO_TIMESTAMPNS_NEW
-#define SO_TIMESTAMPNS_NEW 64
-#endif
 
 /* Echo requests (IPv4 or IPv6), or IPv4 timestamp requests (types 13 and 14). */
 enum icmp_mode {
 	ICMP_MODE_ECHO,
 	ICMP_MODE_TIMESTAMP
 };
-
-/* Request sizes: echo carries the session token and serial in 56 data bytes. */
-#define ICMP_ECHO_REQUEST_BYTES 64U
-#define ICMP_TIMESTAMP_REQUEST_BYTES 20U
 
 /* What icmp_receive() found on the socket. */
 enum icmp_receive_result {

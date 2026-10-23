@@ -2,12 +2,10 @@
 
 #include "platform/traffic.h"
 
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
-
-/* As cake-autorate: a sample covers at least ten maximum-size packets each way. */
-#define COMPENSATION_PACKET_TIMES 10U
+#include "constants/cake.h"
+#include "constants/units.h"
 
 uint64_t traffic_compensated_interval_us(
 	uint64_t configured_interval_us,
@@ -16,7 +14,7 @@ uint64_t traffic_compensated_interval_us(
 {
 	return max_u64(
 		configured_interval_us,
-		saturating_mul(round_trip_serialization_us, COMPENSATION_PACKET_TIMES)
+		saturating_mul(round_trip_serialization_us, CAKE_COMPENSATION_PACKET_TIMES)
 	);
 }
 

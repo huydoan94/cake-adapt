@@ -2,12 +2,12 @@
 #define UTILS_H
 
 /* Trivial arithmetic shared by every module; anything longer is in helpers.c. */
+#include "constants/units.h"
+
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
-
-#include "common/constants.h"
 
 /* Same definition as libubox/utils.h, for modules that do not include it. */
 #ifndef ARRAY_SIZE

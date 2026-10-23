@@ -2,9 +2,11 @@
 
 #include "latency/latency.h"
 #include "latency/pinger.h"
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/latency.h"
+#include "constants/options.h"
+#include "constants/units.h"
 
 #include <assert.h>
 #include <errno.h>
