@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cake-adapt, 2026-10-22: 0.3.26 against 0.3.25</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #080e1a;
+      --panel: #111b2e;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --link: #7dd3fc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 32px max(24px, 5vw);
+      background: linear-gradient(135deg, #082f49, #312e81);
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
+    header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
+    nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    a { color: var(--link); }
+    nav a, .actions a {
+      padding: 7px 11px;
+      border: 1px solid #64748b;
+      border-radius: 7px;
+      background: #0f172a;
+      text-decoration: none;
+    }
+    main { max-width: 1760px; margin: auto; padding: 24px; }
+    section {
+      margin-bottom: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+    section > header {
+      padding: 18px 22px;
+      background: #17233a;
+    }
+    section h2 { margin: 0 0 6px; }
+    section h3 { margin: 0 0 4px; font-size: 16px; }
+    section p { margin: 0; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px; }
+    .graphs { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; padding: 0 14px 14px; }
+    figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    figcaption { padding: 10px 14px; background: #17233a; }
+    figcaption a { margin-right: 12px; }
+    object {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: #0b1120;
+    }
+    .flame { height: min(50vw, 760px); min-height: 460px; }
+    table { border-collapse: collapse; margin: 14px 22px 22px; }
+    th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    .wrap { overflow-x: auto; }
+    footer { padding: 0 24px 28px; color: var(--muted); text-align: center; }
+    @media (max-width: 700px) {
+      .graphs { grid-template-columns: 1fr; }
+      .flame { min-height: 380px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>cake-adapt, 2026-10-22: 0.3.26 against 0.3.25</h1>
+    <p>OpenWrt 25.12 x86 VM clone: the 0.3.26 refactor against 0.3.25. The method and conclusions are in <a href="README.md">README.md</a>; the comparison graphs are the log writer fix from <a href="../2026-10-22-log-writer-wake/index.html">its profile</a>, the last perf pass before the refactor.</p>
+    <p>The flame graphs are generated from the stored perf stacks. Hover over frames for values and click frames to zoom.</p>
+    <nav>
+      <a href="#summary">Summary</a>
+      <a href="#idle">Quiet link, before sleep</a>
+      <a href="#download">Download</a>
+      <a href="#upload">Upload</a>
+      <a href="#bidirectional">Bidirectional</a>
+      <a href="#congested">Congested upload</a>
+      <a href="#download6">Download over IPv6</a>
+      <a href="#bidirectional6">Bidirectional over IPv6</a>
+      <a href="README.md">Written report</a>
+      <a href="../index.html">All profiling evidence</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="summary">
+      <header>
+        <h2>CPU</h2>
+        <p>Ticks of 10 ms per 40-s workload; 40 ticks = 1% of one core. Medians of three passes.</p>
+      </header>
+      <div class="wrap"><table>
+<tr><th>Workload</th><th>0.3.25 native</th><th>0.3.26 native</th><th>0.3.26 fping total</th><th>of which fping</th></tr>
+<tr><td>idle</td><td>22</td><td>21</td><td>19</td><td>12</td></tr>
+<tr><td>download</td><td>34</td><td>32</td><td>38</td><td>25</td></tr>
+<tr><td>upload</td><td>24</td><td>21</td><td>30</td><td>18</td></tr>
+<tr><td>bidirectional</td><td>33</td><td>32</td><td>41</td><td>24</td></tr>
+<tr><td>congested</td><td>32</td><td>31</td><td>41</td><td>23</td></tr>
+<tr><td>download6</td><td>31</td><td>32</td><td>44</td><td>29</td></tr>
+<tr><td>bidirectional6</td><td>33</td><td>31</td><td>43</td><td>25</td></tr>
+</table></div>
+      <header>
+        <h2>System calls and samples</h2>
+        <p>strace and perf over 40 s; one pass each.</p>
+      </header>
+      <div class="wrap"><table>
+<tr><th></th><th>log writer fix (0.3.22)</th><th>0.3.26</th></tr>
+<tr><td><code>futex</code> calls, 40 s bidirectional</td><td>79</td><td>79</td></tr>
+<tr><td>all system calls</td><td>7,396</td><td>7,351</td></tr>
+<tr><td>bidirectional perf samples</td><td>513</td><td>480</td></tr>
+</table></div>
+    </section>
+
+    <section id="idle">
+      <header>
+        <h2>Quiet link, before sleep</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-idle.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-idle.folded">Folded stacks</a> · 233 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-idle.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-idle.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-idle.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-idle.folded">Folded stacks</a> · 179 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-idle.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-idle.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="download">
+      <header>
+        <h2>Download</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-download.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-download.folded">Folded stacks</a> · 500 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-download.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-download.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-download.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-download.folded">Folded stacks</a> · 413 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-download.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-download.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="upload">
+      <header>
+        <h2>Upload</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-upload.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-upload.folded">Folded stacks</a> · 424 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-upload.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-upload.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-upload.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-upload.folded">Folded stacks</a> · 312 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-upload.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-upload.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="bidirectional">
+      <header>
+        <h2>Bidirectional</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-bidirectional.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-bidirectional.folded">Folded stacks</a> · 480 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-bidirectional.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-bidirectional.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-bidirectional.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-bidirectional.folded">Folded stacks</a> · 513 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-bidirectional.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-bidirectional.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="congested">
+      <header>
+        <h2>Congested upload</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-congested.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-congested.folded">Folded stacks</a> · 500 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-congested.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-congested.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-congested.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-congested.folded">Folded stacks</a> · 471 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-congested.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-congested.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="download6">
+      <header>
+        <h2>Download over IPv6</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-download6.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-download6.folded">Folded stacks</a> · 456 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-download6.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-download6.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-download6.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-download6.folded">Folded stacks</a> · 443 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-download6.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-download6.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="bidirectional6">
+      <header>
+        <h2>Bidirectional over IPv6</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>0.3.26, native pinger</h3><p><a href="flamegraphs/v0326-native-bidirectional6.svg" target="_blank">Open interactive SVG</a><a href="folded/v0326-native-bidirectional6.folded">Folded stacks</a> · 449 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/v0326-native-bidirectional6.svg" type="image/svg+xml"><a href="flamegraphs/v0326-native-bidirectional6.svg">Open the 0.3.26, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.22 log writer fix, native pinger</h3><p><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-bidirectional6.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-log-writer-wake/folded/vfix-native-bidirectional6.folded">Folded stacks</a> · 431 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-bidirectional6.svg" type="image/svg+xml"><a href="../2026-10-22-log-writer-wake/flamegraphs/vfix-native-bidirectional6.svg">Open the 0.3.22 log writer fix, native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>Raw runs are in raw/prof, folded stacks in folded/, categories in breakdown.txt; tools/ holds the scripts that produced them.</footer>
+</body>
+</html>

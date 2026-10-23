@@ -1,0 +1,23 @@
+16:14:11 start 01-v0326-native-cpu
+16:19:07 done 01-v0326-native-cpu
+16:19:07 start 02-v0325-native-cpu
+16:24:05 done 02-v0325-native-cpu
+16:24:05 start 03-v0326-fping-cpu
+16:29:00 done 03-v0326-fping-cpu
+16:29:00 start 04-v0326-fping-cpu
+16:33:55 done 04-v0326-fping-cpu
+16:33:55 start 05-v0326-native-cpu
+16:38:50 done 05-v0326-native-cpu
+16:38:50 start 06-v0325-native-cpu
+16:43:45 done 06-v0325-native-cpu
+16:43:45 start 07-v0325-native-cpu
+16:48:40 done 07-v0325-native-cpu
+16:48:40 start 08-v0326-fping-cpu
+16:53:36 done 08-v0326-fping-cpu
+16:53:36 start 09-v0326-native-cpu
+16:58:31 done 09-v0326-native-cpu
+16:58:31 start 10-v0326-native-perf
+17:03:32 done 10-v0326-native-perf
+17:03:32 start 11-v0326-native-strace
+17:04:23 done 11-v0326-native-strace
+17:04:23 finished
