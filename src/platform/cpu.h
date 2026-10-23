@@ -1,11 +1,10 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "constants/proc.h"
+
 #include <stddef.h>
 #include <stdint.h>
-
-#define CPU_MAX_COUNT 65U
-#define CPU_IDENTIFIER_SIZE 16U
 
 struct cpu_counter {
 	char identifier[CPU_IDENTIFIER_SIZE];

@@ -20,7 +20,7 @@
  *   --trace  print a per-100 ms CSV for one scenario instead of the summary
  */
 #include "controller/controller.h"
-#include "common/constants.h"
+#include "constants/units.h"
 #include "common/utils.h"
 #include "latency/tracker.h"
 

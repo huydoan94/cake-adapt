@@ -1,10 +1,11 @@
 #define _GNU_SOURCE
 
 #include "latency/icmp.h"
-#include "common/constants.h"
 #include "common/error.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/icmp.h"
+#include "constants/units.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -14,16 +15,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-
-/* linux/icmp.h's raw-socket type filter, at SOL_RAW; that header conflicts with netinet's. */
-#define LINUX_ICMP_FILTER 1
-#define IPV4_HEADER_MIN_BYTES 20U
-/* Type, code, checksum, identifier, sequence, then the token and serial. */
-#define ICMP_ECHO_REPLY_MIN_BYTES 24U
-/* IPv4 flags and fragment offset: any set bit other than DF means a fragment. */
-#define IPV4_FRAGMENT_MASK 0x3fffU
-/* Room for any reply: larger datagrams are foreign, and MSG_TRUNC drops them. */
-#define ICMP_RECEIVE_BYTES 2048U
 
 /* The request's length: a timestamp request, or an echo request with token and serial. */
 static size_t request_bytes(enum icmp_mode mode)

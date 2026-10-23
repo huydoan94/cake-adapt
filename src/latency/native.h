@@ -3,7 +3,7 @@
 
 #include "latency/icmp.h"
 #include "latency/parser.h"
-#include "common/constants.h"
+#include "constants/options.h"
 
 struct native_request {
 	uint64_t serial;

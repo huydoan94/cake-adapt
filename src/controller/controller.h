@@ -1,6 +1,8 @@
 #ifndef CONTROLLER_H_INCLUDED
 #define CONTROLLER_H_INCLUDED
 
+#include "constants/units.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 

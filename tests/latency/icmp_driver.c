@@ -4,6 +4,7 @@
 #include "latency/native.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/units.h"
 
 #include <errno.h>
 #include <inttypes.h>

@@ -32,8 +32,8 @@
  */
 #include <linux/types.h>
 
-#include "common/constants.h"
 #include "tcpdelay/record.h"
+#include "constants/tcpdelay.h"
 
 /*
  * Every function here is inlined: a BPF program with calls between functions
@@ -41,25 +41,6 @@
  */
 #define INJECT_INLINE static inline __attribute__((always_inline))
 
-/*
- * The TSval of an injected SYN while no better one is known; a SYN-ACK of the
- * same 4-tuple that echoes the injected value accepted the timestamp. Not zero,
- * which some stacks read as no echo.
- */
-#define TCPDELAY_INJECT_TSVAL 1U
-/*
- * For a client whose handshake stalled with TSVAL, until its clock is
- * learned: half the clock away, so it suits the clocks TSVAL does not (Windows
- * up 24.8 to 49.7 days).
- */
-#define TCPDELAY_INJECT_STALLED_TSVAL 0x80000000U
-
-/* Each map holds about 100 KB of kernel memory. */
-#define TCPDELAY_INJECT_SERVERS 1024
-#define TCPDELAY_INJECT_HANDSHAKES 1024
-#define TCPDELAY_INJECT_CLIENTS 1024
-/* A skip and a learned clock each last a day. */
-#define TCPDELAY_INJECT_DAY_NS (24U * 60U * MINUTE * NANOSECONDS_PER_MICROSECOND)
 /* A skipped server, for every client. */
 struct tcpdelay_inject_server_key {
 	__u8 address[16];

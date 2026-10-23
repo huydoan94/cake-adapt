@@ -3,6 +3,8 @@
 
 #include "common/error.h"
 #include "platform/netlink.h"
+#include "constants/cake.h"
+#include "constants/text.h"
 
 #include <stdbool.h>
 #include <stddef.h>

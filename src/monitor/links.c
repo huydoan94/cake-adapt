@@ -6,6 +6,9 @@
 #include "common/helpers.h"
 #include "common/utils.h"
 #include "logging/log.h"
+#include "constants/cake.h"
+#include "constants/states.h"
+#include "constants/text.h"
 
 #include <libubox/utils.h>
 
@@ -95,14 +98,11 @@ static void observe_traffic(struct monitor_direction *direction, uint64_t timest
 	}
 }
 
-/* Longest "<rate> bit/s": UINT64_MAX has 20 digits. */
-#define BANDWIDTH_TEXT_SIZE 32U
-
 static void
 log_cake_discovery(const char *interface, const struct cake_observation *observation, bool recovered)
 {
 	const struct qdisc_id *qdisc = &observation->qdisc;
-	char bandwidth[BANDWIDTH_TEXT_SIZE];
+	char bandwidth[CAKE_BANDWIDTH_TEXT_SIZE];
 
 	if (!observation->has_bandwidth || observation->bandwidth_bps == 0U) {
 		(void)snprintf(bandwidth, sizeof(bandwidth), "%s", STATE_UNLIMITED);

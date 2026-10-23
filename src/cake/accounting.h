@@ -1,13 +1,10 @@
 #ifndef CAKE_ACCOUNTING_H_INCLUDED
 #define CAKE_ACCOUNTING_H_INCLUDED
 
+#include "constants/cake.h"
+
 #include <linux/pkt_sched.h>
 #include <linux/types.h>
-
-/* ATM sends 48 payload bytes in each 53-byte cell; PTM adds a byte per 64. */
-#define CAKE_ATM_CELL_PAYLOAD_BYTES 48U
-#define CAKE_ATM_CELL_BYTES 53U
-#define CAKE_PTM_BLOCK_BYTES 64U
 
 /* Shared with the socket filter; fixed-width fields keep its map ABI stable. */
 struct cake_accounting {

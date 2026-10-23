@@ -2,9 +2,11 @@
 
 #include "cake/cake.h"
 #include "cake/accounting.h"
-#include "common/constants.h"
 #include "common/error.h"
 #include "common/utils.h"
+#include "constants/cake.h"
+#include "constants/text.h"
+#include "constants/units.h"
 
 #include <errno.h>
 #include <limits.h>

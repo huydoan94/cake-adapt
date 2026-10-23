@@ -11,6 +11,8 @@
 #include <string.h>
 
 #include "../../src/monitor/pingers.c"
+#include "constants/latency.h"
+#include "constants/units.h"
 
 static int timer_delay;
 static int add_result;

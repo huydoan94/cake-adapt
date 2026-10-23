@@ -3,10 +3,13 @@
 #include "latency/latency.h"
 #include "latency/pinger.h"
 #include "common/error.h"
-#include "common/constants.h"
 #include "config/defaults.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/latency.h"
+#include "constants/options.h"
+#include "constants/text.h"
+#include "constants/units.h"
 
 #include <ctype.h>
 #include <errno.h>

@@ -1,7 +1,9 @@
 #include "latency/parser.h"
-#include "common/constants.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/latency.h"
+#include "constants/text.h"
+#include "constants/units.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -42,17 +44,14 @@ static int64_t half_round_trip(uint64_t round_trip_ns)
 	return half_us > (uint64_t)INT64_MAX ? INT64_MAX : (int64_t)half_us;
 }
 
-/* fping keeps six decimals: of a second for timestamps, of a millisecond for RTTs. */
-#define FRACTION_DIGITS 6U
-
 /* The first six of count decimals as an integer, the seventh rounding half up. */
 static uint64_t six_decimals(const char *digits, size_t count)
 {
 	uint64_t value = 0U;
 
-	for (size_t index = 0U; index < FRACTION_DIGITS; index++)
+	for (size_t index = 0U; index < LATENCY_FRACTION_DIGITS; index++)
 		value = value * 10U + (index < count ? (uint64_t)(digits[index] - '0') : 0U);
-	if (count > FRACTION_DIGITS && digits[FRACTION_DIGITS] >= '5')
+	if (count > LATENCY_FRACTION_DIGITS && digits[LATENCY_FRACTION_DIGITS] >= '5')
 		value++;
 	return value;
 }

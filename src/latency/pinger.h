@@ -8,9 +8,6 @@
 
 #include "latency/latency.h"
 
-/* Room for one formatted number argument, such as an interval. */
-#define PINGER_ARGUMENT_SIZE 32U
-
 struct pinger_ops {
 	/* Names the pinger in exit diagnostics. */
 	const char *name;

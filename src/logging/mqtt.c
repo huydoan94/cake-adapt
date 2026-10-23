@@ -5,6 +5,8 @@
 #include "common/error.h"
 #include "common/helpers.h"
 #include "common/utils.h"
+#include "constants/mqtt.h"
+#include "constants/program.h"
 
 #include <mosquitto.h>
 #include <errno.h>
@@ -17,19 +19,6 @@
 #include <sys/eventfd.h>
 #include <time.h>
 #include <unistd.h>
-
-#define MQTT_QUEUE_RECORDS 32U
-#define MQTT_LINE_SIZE 2048U
-#define MQTT_RETRY_US (10U * SECOND)
-#define MQTT_TIMEOUT_US (5U * SECOND)
-/* The longest wait of the network loop and of the sender, between their checks. */
-#define MQTT_WAIT_US (100U * MILLISECOND)
-#define MQTT_STOP_US SECOND
-/* Shorter than MQTT_STOP_US, so a sender abandoning a connection still stops in time. */
-#define MQTT_NETWORK_STOP_US (500U * MILLISECOND)
-#define MQTT_KEEPALIVE_SEC 30
-/* The main thread's and the sender thread's references; each live network thread adds one. */
-#define MQTT_SENDER_OWNERS 2U
 
 struct mqtt_sender;
 
