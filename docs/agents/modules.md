@@ -5,9 +5,7 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
 ### Module boundaries
 
 - `main.c`: CLI, startup, logging initialization, configuration loading,
-  the per-instance lock (`/var/run/cake-adapt/<section>.lock`, so a second
-  daemon with a running instance's name exits with an error), top-level
-  lifecycle, and orderly shutdown only.
+  top-level lifecycle, and orderly shutdown only.
 - `monitor/`: uloop orchestration and coordination between measurements,
   controller decisions, qdisc lifecycle, timers, and signals. All state is one
   `struct monitor` in the private `loop.h`, passed to every function; each
@@ -62,6 +60,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     one table of typed option bindings (`options[]`, whose order is also the
     `-L` listing, and `-D` prints each one's default in its UCI units for the
     LuCI app); never parse `/etc/config/cake-adapt` manually.
+  - `describe.c`: the `-L` and `-D` listings, and the startup messages that
+    say what was loaded and whether the instance controls CAKE.
   - `validate.c`: cross-option validation of a loaded configuration
     (`config_validate`), run before control starts.
   - `defaults.c` and `defaults.h`: built-in application and configuration
@@ -117,6 +117,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   CAKE-specific operations; `cake/accounting.h` holds the upload CAKE's packet
   charge settings shared with the socket filter.
 - `platform/`
+  - `instance.c`: the per-instance lock (`/var/run/cake-adapt/<section>.lock`,
+    so a second daemon with a running instance's name exits with an error).
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.
   - `traffic.c`: counter samples and achieved-rate calculations only.
   - `cpu.c`: CPU sampling and usage calculations only.
