@@ -63,6 +63,7 @@ SOURCES := \
 	latency/irtt.c \
 	latency/icmp.c \
 	latency/native.c \
+	latency/children.c \
 	latency/latency.c \
 	latency/parser.c \
 	latency/tracker.c \
@@ -74,6 +75,8 @@ SOURCES := \
 	monitor/control.c \
 	monitor/monitor.c \
 	monitor/links.c \
+	monitor/child_pingers.c \
+	monitor/native_pinger.c \
 	monitor/pingers.c \
 	monitor/reflectors.c \
 	monitor/tcpdelay.c \

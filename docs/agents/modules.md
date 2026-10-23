@@ -21,8 +21,12 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `control.c` (`control`): controller configuration and input, CAKE
     bandwidth changes with readback, minimum-rate enforcement, and controller
     records.
-  - `pingers.c` (`pingers`): pinger start, output, exit, restart, setup grace,
-    and per-reply latency processing.
+  - `pingers.c` (`pingers`): the pinger session: start, retries, restart,
+    suspension, setup grace, and per-reply latency processing.
+  - `native_pinger.c` (`native_pinger`): the native ICMP sockets and probe
+    timer on uloop.
+  - `child_pingers.c` (`child_pingers`): the fping and irtt children on uloop:
+    their output, exits, SIGKILL escalation and irtt's staggered starts.
   - `reflectors.c` (`reflectors`): latency trackers, reflector ordering,
     scheduled comparison and replacement, and health checks.
   - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
@@ -89,11 +93,13 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   - `native.c`: native probe scheduling (the default pinger), outstanding
     requests, expiry and reply matching; its samples use the same
     logging/tracker contract as the fping and irtt fallbacks.
-    `monitor/pingers.c` registers its sockets and timer with uloop. Legacy
+    `monitor/native_pinger.c` registers its sockets and timer with uloop. Legacy
     backends remain until the native live comparison passes.
-  - `latency.c`: pinger session and child-process ownership, line splitting,
-    and dispatch to the active backend. Children are reaped by the monitor
-    through `uloop_process`. The only synchronous, bounded waits are shutdown
+  - `latency.c`: the pinger methods, the session, line splitting, and
+    dispatch to the active backend.
+  - `children.c`: the pinger children: command words, spawning, stopping
+    and their exits. Children are reaped by the monitor through
+    `uloop_process`. The only synchronous, bounded waits are shutdown
     (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
   - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
   - `pinger.h`: private interface between the session and its backends;
