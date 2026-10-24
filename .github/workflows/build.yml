@@ -1,14 +1,17 @@
-name: Build OpenWrt package
+name: Build OpenWrt packages and Windows dashboard
 
 on:
   push:
     # A tag builds and publishes its release. On main, only a change of
-    # PKG_VERSION or PKG_RELEASE builds; it then creates tag v<PKG_VERSION>
+    # PKG_VERSION or PKG_RELEASE builds router packages; it then creates tag v<PKG_VERSION>
     # and its release in this run, because a tag pushed with GITHUB_TOKEN
     # starts no workflow.
     tags: ["v*"]
     branches: [main]
-    paths: [Makefile]
+    paths:
+      - Makefile
+      - tools/mqtt-monitor-modern/**
+      - .github/workflows/build.yml
   workflow_dispatch:
 
 permissions:
@@ -60,6 +63,78 @@ jobs:
             echo "Version changed from ${previous:-none} to $current: build and release $tag."
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
+
+  build-dashboard:
+    name: Test and build Windows dashboard
+    # Independent of the router version gate: dashboard-only pushes still build.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      DOTNET_GENERATE_ASPNET_CERTIFICATE: "false"
+      DASHBOARD_DOTNET_VERSION: "10.0.402"
+      DASHBOARD_PROJECT: tools/mqtt-monitor-modern/CakeAdaptMonitor.csproj
+      DASHBOARD_TEST_PROJECT: tools/mqtt-monitor-modern/Tests/Tests.csproj
+      DASHBOARD_README: tools/mqtt-monitor-modern/README.md
+      DASHBOARD_OUTPUT: build/dashboard
+      DASHBOARD_ARCHIVE: CakeAdaptMonitor-Windows-x64.zip
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ env.DASHBOARD_DOTNET_VERSION }}
+
+      - name: Install headless rendering dependencies
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1 libfreetype6
+
+      - name: Run dashboard unit, MQTT/TLS and headless UI tests
+        run: |
+          set -euo pipefail
+          mkdir -p "$DASHBOARD_OUTPUT/previews"
+          dotnet run --project "$DASHBOARD_TEST_PROJECT" -c Release -- "$GITHUB_WORKSPACE/$DASHBOARD_OUTPUT/previews/preview.png"
+
+      - name: Publish self-contained Windows x64 dashboard
+        run: |
+          set -euo pipefail
+          dotnet publish "$DASHBOARD_PROJECT" -c Release -r win-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:DebugType=None -o "$DASHBOARD_OUTPUT/publish"
+
+      - name: Package Windows dashboard and checksum
+        shell: python
+        run: |
+          import hashlib
+          import os
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          output = Path(os.environ["DASHBOARD_OUTPUT"])
+          executable = output / "publish" / "CakeAdaptMonitor.exe"
+          if executable.read_bytes()[:2] != b"MZ":
+              raise RuntimeError("Publish did not produce a Windows executable")
+          archive = output / os.environ["DASHBOARD_ARCHIVE"]
+          with ZipFile(archive, "w", ZIP_DEFLATED) as bundle:
+              bundle.write(executable, "CakeAdaptMonitor/CakeAdaptMonitor.exe")
+              bundle.write(os.environ["DASHBOARD_README"], "CakeAdaptMonitor/README.md")
+          with ZipFile(archive) as bundle:
+              if bundle.testzip() is not None:
+                  raise RuntimeError("Windows dashboard archive failed integrity verification")
+          checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
+          archive.with_suffix(archive.suffix + ".sha256").write_text(
+              f"{checksum}  {archive.name}\n", encoding="utf-8")
+          print(f"Built {archive}")
+
+      - name: Upload Windows dashboard
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-windows-x64
+          path: |
+            ${{ env.DASHBOARD_OUTPUT }}/${{ env.DASHBOARD_ARCHIVE }}
+            ${{ env.DASHBOARD_OUTPUT }}/${{ env.DASHBOARD_ARCHIVE }}.sha256
+          if-no-files-found: error
+          compression-level: 0
 
   test:
     name: Host tests
@@ -224,7 +299,7 @@ jobs:
 
   release:
     name: Publish release assets
-    needs: [version, build, build-luci]
+    needs: [version, build, build-luci, build-dashboard]
     # A push that reached here is a tag or a version change; a manual run
     # releases only when started on a tag.
     if: github.event_name == 'push' || github.ref_type == 'tag'
@@ -238,6 +313,12 @@ jobs:
           pattern: packages-*
           path: dist
           merge-multiple: true
+
+      - name: Download Windows dashboard
+        uses: actions/download-artifact@v4
+        with:
+          name: dashboard-windows-x64
+          path: dist
 
       # On a tag push this is that tag; on main it creates the tag at this commit.
       - name: Create or update release

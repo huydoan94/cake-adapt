@@ -1,5 +1,6 @@
 {
-    // The test and build tasks run tools/host-test.sh and tools/sdk-build.sh.
+    // OpenWrt tasks run tools/host-test.sh and tools/sdk-build.sh.
+    // The Windows dashboard task uses the system-wide .NET SDK.
     // SDK locations default to siblings of this repository (../openwrt-sdk-x86,
     // ../openwrt-sdk-filogic); set OPENWRT_SDK_X86 or OPENWRT_SDK_FILOGIC to
     // override. The host tests take the uci.h, libubox and libbpf headers from
@@ -32,6 +33,33 @@
                 "runOn": "folderOpen"
             },
             "problemMatcher": []
+        },
+        {
+            "label": "Build Windows dashboard (x64)",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "publish",
+                "tools/mqtt-monitor-modern/CakeAdaptMonitor.csproj",
+                "-c", "Release",
+                "-r", "win-x64",
+                "--self-contained", "true",
+                "-p:PublishSingleFile=true",
+                "-p:IncludeNativeLibrariesForSelfExtract=true",
+                "-p:DebugType=None",
+                "-o", "${workspaceFolder}/build/dashboard/publish"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+                    "DOTNET_NOLOGO": "1",
+                    "DOTNET_GENERATE_ASPNET_CERTIFICATE": "false",
+                    "NUGET_PACKAGES": "${workspaceFolder}/build/mqtt-monitor-modern/nuget"
+                }
+            },
+            "group": "build",
+            "problemMatcher": "$msCompile"
         },
         {
             "label": "Build cake-adapt (OpenWrt SDK x86)",
