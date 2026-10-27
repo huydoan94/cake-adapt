@@ -5,7 +5,7 @@ digraph G {
   procd [label="procd\n/etc/init.d/cake-adapt",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
   uci [label="/etc/config/cake-adapt (UCI)\n+ root-only /etc/cake-adapt/exec\n+ optional cake-autorate config_file import",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   main [label="main.c\nCLI, config_load, logging setup",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  loop [label="monitor/\nuloop timers, fds, child processes, signals",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  loop [label="daemon/\nuloop timers, fds, child processes, signals",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   pinger [label="native ICMP sockets,\nor fping / irtt children",shape=cylinder,style="filled",fillcolor="#eee8ff",color="#7253a6"];
   latency [label="latency/\nparse replies, per-reflector OWD baseline and delta",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   observe [label="cake/ + platform/traffic\none qdisc dump per tick → achieved rates",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
@@ -16,7 +16,7 @@ digraph G {
   mqtt [label="logging/mqtt.c (cake-adapt-mqtt[-ssl]; opt-in, TCP or verified TLS)\nnonblocking queue → sender/network threads\nMQTT broker\n(cake-adapt: logging/mqtt_none.c sends nothing)",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   procd -> main [label="one instance per enabled section\n-C runtime dir -S section"];
   uci -> main [label="validated with -V before spawn",style=dashed,color="#64748b"];
-  main -> loop [label="monitor_run()"];
+  main -> loop [label="daemon_run()"];
   pinger -> latency [label="stdout lines (ustream)"];
   latency -> loop [label="OWD deltas"];
   kernel -> observe [label="RTM_GETQDISC dump"];

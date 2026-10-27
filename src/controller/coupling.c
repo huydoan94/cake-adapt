@@ -1,10 +1,11 @@
 #include "controller/direction.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/rate.h"
 #include "constants/controller.h"
 #include "constants/units.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 uint64_t coupling_download_ceiling_bps(
@@ -14,9 +15,10 @@ uint64_t coupling_download_ceiling_bps(
 {
 	const struct controller_config *config = &controller->config;
 	const struct controller_ack_input *acks = &input->acks;
-	const struct controller_direction_input *download = &input->download;
-	const struct controller_direction_input *upload = &input->upload;
-	const struct controller_direction *shaped_upload = &controller->upload;
+	const struct controller_direction_input *download = &input->directions[DIRECTION_DOWNLOAD];
+	const struct controller_direction_input *upload = &input->directions[DIRECTION_UPLOAD];
+	const struct controller_direction *shaped_upload =
+		&controller->directions[DIRECTION_UPLOAD];
 	uint64_t room_bps = shaped_upload->shaper_rate_bps;
 	uint64_t ack_rate_bps = acks->upload_ack_rate_bps;
 	uint64_t minimum_bps = ratio_of(room_bps, config->ul_congest_ack_share_ratio_e6);
@@ -63,22 +65,27 @@ static void compensate_direction(
 	struct controller_direction_config *effective = &direction->config;
 	uint64_t compensation_us = serialization_us(wire_packet_bits, direction->shaper_rate_bps);
 
-	effective->average_delay_maximum_adjust_up_us =
-		saturating_add(configured->average_delay_maximum_adjust_up_us, compensation_us);
-	effective->delay_threshold_us =
-		saturating_add(configured->delay_threshold_us, compensation_us);
-	effective->average_delay_maximum_adjust_down_us =
-		saturating_add(configured->average_delay_maximum_adjust_down_us, compensation_us);
+	effective->average_owd_delta_maximum_adjust_up_us =
+		saturating_add(configured->average_owd_delta_maximum_adjust_up_us, compensation_us);
+	effective->owd_delta_delay_threshold_us =
+		saturating_add(configured->owd_delta_delay_threshold_us, compensation_us);
+	effective->average_owd_delta_maximum_adjust_down_us = saturating_add(
+		configured->average_owd_delta_maximum_adjust_down_us,
+		compensation_us
+	);
 }
 
 void controller_set_serialization_compensation(
 	struct controller *controller,
-	uint64_t download_wire_packet_bits,
-	uint64_t upload_wire_packet_bits
+	const uint64_t wire_packet_bits[DIRECTION_COUNT]
 )
 {
 	const struct controller_config *config = &controller->config;
 
-	compensate_direction(&controller->download, &config->download, download_wire_packet_bits);
-	compensate_direction(&controller->upload, &config->upload, upload_wire_packet_bits);
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+		compensate_direction(
+			&controller->directions[direction],
+			&config->directions[direction],
+			wire_packet_bits[direction]
+		);
 }

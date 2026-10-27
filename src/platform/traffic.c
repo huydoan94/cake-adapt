@@ -2,8 +2,9 @@
 
 #include "platform/traffic.h"
 
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
+#include "common/rate.h"
 #include "constants/cake.h"
 #include "constants/units.h"
 

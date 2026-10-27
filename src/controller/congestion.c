@@ -1,5 +1,5 @@
 #include "controller/direction.h"
-#include "common/utils.h"
+#include "common/arith.h"
 #include "constants/controller.h"
 
 #include <stdint.h>
@@ -85,7 +85,7 @@ enum controller_congestion_state congestion_update(
 	if (*delayed != 0U)
 		direction->delayed_sample_count--;
 	if (latency->owd_delta_us > 0 &&
-	    (uint64_t)latency->owd_delta_us > limits->delay_threshold_us) {
+	    (uint64_t)latency->owd_delta_us > limits->owd_delta_delay_threshold_us) {
 		direction->delayed_sample_count++;
 		*delayed = 1U;
 	} else {

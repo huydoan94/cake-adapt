@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 #include "common/error.h"
-#include "common/utils.h"
+#include "common/arith.h"
 #include "logging/log.h"
 #include "constants/tcpdelay.h"
 #include "constants/text.h"

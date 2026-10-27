@@ -18,20 +18,20 @@
 /* What the thread reports, as bits the caller takes with ubus_server_take_events(). */
 enum ubus_server_event {
 	/* POLLHUP or POLLERR on the socket: closed, retried. */
-	UBUS_SERVER_DISCONNECTED = 1U << 0,
+	UBUS_SERVER_EVENT_DISCONNECTED = 1U << 0,
 	/* A lost connection that could not be made again at once: closed, retried. */
-	UBUS_SERVER_RECONNECT_FAILED = 1U << 1,
+	UBUS_SERVER_EVENT_RECONNECT_FAILED = 1U << 1,
 	/* No connection to ubusd, reported once until one is made. */
-	UBUS_SERVER_NO_CONNECTION = 1U << 2,
+	UBUS_SERVER_EVENT_NO_CONNECTION = 1U << 2,
 	/*
 	 * Connected and published by any attempt but the first: after no ubusd, a
 	 * failed reconnection or a hang-up.
 	 */
-	UBUS_SERVER_CONNECTED = 1U << 3,
+	UBUS_SERVER_EVENT_CONNECTED = 1U << 3,
 	/* ubusd refused the object on a later connection: the thread stops trying. */
-	UBUS_SERVER_ADD_FAILED = 1U << 4,
+	UBUS_SERVER_EVENT_ADD_FAILED = 1U << 4,
 	/* ubusd refused the object on the first connection. */
-	UBUS_SERVER_ADD_FAILED_AT_START = 1U << 5,
+	UBUS_SERVER_EVENT_ADD_FAILED_AT_START = 1U << 5,
 };
 
 /* Fills reply from a copy of the snapshot; runs on the server's thread. */
@@ -71,7 +71,7 @@ void ubus_server_update(struct ubus_server *server, const void *snapshot);
 /* The enum ubus_server_event bits reported since the last call. */
 unsigned int ubus_server_take_events(struct ubus_server *server);
 
-/* The ubus status behind UBUS_SERVER_RECONNECT_FAILED, and behind the add failures. */
+/* The ubus status behind UBUS_SERVER_EVENT_RECONNECT_FAILED, and behind the add failures. */
 int ubus_server_reconnect_status(const struct ubus_server *server);
 int ubus_server_add_status(const struct ubus_server *server);
 

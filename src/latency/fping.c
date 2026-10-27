@@ -1,10 +1,9 @@
 #define _GNU_SOURCE
 
 #include "latency/latency.h"
-#include "latency/pinger.h"
+#include "latency/children.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
 #include "config/defaults.h"
 #include "constants/latency.h"
 #include "constants/units.h"
@@ -87,7 +86,7 @@ static int fping_open(
 	uint64_t response_interval_ms =
 		rounded_divide(interval_us, target_count * MICROSECONDS_PER_MILLISECOND);
 	uint64_t timeout_ms = rounded_divide(FPING_TIMEOUT_US, MICROSECONDS_PER_MILLISECOND);
-	struct pinger_command command;
+	struct child_command command;
 	char period[PINGER_ARGUMENT_SIZE];
 	char interval[PINGER_ARGUMENT_SIZE];
 	char timeout[PINGER_ARGUMENT_SIZE];
@@ -101,50 +100,50 @@ static int fping_open(
 	(void)snprintf(timeout, sizeof(timeout), "%" PRIu64, timeout_ms);
 
 	/* Up to 13 fixed arguments besides the targets. */
-	if (pinger_command_init(&command, latency, 13U + target_count, error, error_size) != 0)
+	if (child_command_init(&command, latency, 13U + target_count, error, error_size) != 0)
 		return -1;
-	pinger_command_add(&command, FPING_PATH);
+	child_command_add(&command, FPING_PATH);
 	for (index = 0U; index < command.extra.we_wordc; index++) {
-		pinger_command_add(&command, command.extra.we_wordv[index]);
+		child_command_add(&command, command.extra.we_wordv[index]);
 		if (selects_interface(command.extra.we_wordv[index]))
 			interface_selected = true;
 	}
 	/* Keep the SQM interface default, but honor an explicit routing override. */
 	if (!interface_selected) {
-		pinger_command_add(&command, FPING_INTERFACE_SHORT);
-		pinger_command_add(&command, settings->interface);
+		child_command_add(&command, FPING_INTERFACE_SHORT);
+		child_command_add(&command, settings->interface);
 	}
-	pinger_command_add(&command, FPING_TIMESTAMP);
-	pinger_command_add(&command, FPING_LOOP);
-	pinger_command_add(&command, FPING_PERIOD);
-	pinger_command_add(&command, period);
-	pinger_command_add(&command, FPING_INTERVAL);
-	pinger_command_add(&command, interval);
-	pinger_command_add(&command, FPING_TIMEOUT);
-	pinger_command_add(&command, timeout);
-	if (latency_timestamps(settings->method))
-		pinger_command_add(&command, FPING_ICMP_TIMESTAMP);
+	child_command_add(&command, FPING_TIMESTAMP);
+	child_command_add(&command, FPING_LOOP);
+	child_command_add(&command, FPING_PERIOD);
+	child_command_add(&command, period);
+	child_command_add(&command, FPING_INTERVAL);
+	child_command_add(&command, interval);
+	child_command_add(&command, FPING_TIMEOUT);
+	child_command_add(&command, timeout);
+	if (pinger_uses_timestamps(settings->method))
+		child_command_add(&command, FPING_ICMP_TIMESTAMP);
 	for (index = 0U; index < target_count; index++)
-		pinger_command_add(&command, targets[index]);
+		child_command_add(&command, targets[index]);
 
-	ret = start_child(latency, 0U, command.argv, error, error_size);
+	ret = child_start(latency, 0U, command.argv, error, error_size);
 	if (ret == 0) {
 		latency->active = true;
 		latency->child_count = 1U;
 	}
-	pinger_command_free(&command);
+	child_command_free(&command);
 	return ret;
 }
 
-const struct pinger_ops fping_ops = {
-	.name = PINGER_METHOD_FPING,
+const struct child_ops fping_ops = {
+	.name = PINGER_NAME_FPING,
 	.open = fping_open,
 	.parse = fping_parse,
 	.exited = fping_exited,
 };
 
-const struct pinger_ops fping_ts_ops = {
-	.name = PINGER_METHOD_FPING,
+const struct child_ops fping_ts_ops = {
+	.name = PINGER_NAME_FPING,
 	.open = fping_open,
 	.parse = fping_ts_parse,
 	.exited = fping_exited,

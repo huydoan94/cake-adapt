@@ -3,7 +3,8 @@
 #include "cake/cake.h"
 #include "cake/accounting.h"
 #include "common/error.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
 #include "constants/cake.h"
 #include "constants/text.h"
 #include "constants/units.h"
@@ -206,7 +207,7 @@ static void finish_read(struct cake_read *read)
 {
 	const struct cake_observation *previous = &read->previous;
 	struct cake_observation *observation = read->observation;
-	struct qdisc_id *qdisc = &observation->qdisc;
+	struct netlink_qdisc_id *qdisc = &observation->qdisc;
 
 	/* The dump cannot reject a stale index, so keep it only while CAKE is found. */
 	if (!read->found) {
@@ -240,7 +241,7 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 
 	for (index = 0U; index < count; index++) {
 		struct cake_read *read = &reads[index];
-		const struct qdisc_id *previous_qdisc = &read->previous.qdisc;
+		const struct netlink_qdisc_id *previous_qdisc = &read->previous.qdisc;
 
 		read->previous = *read->observation;
 		read->interface_index = previous_qdisc->interface_index;
@@ -272,7 +273,7 @@ void cake_read(struct netlink *netlink, struct cake_read *reads, size_t count)
 		netlink_close_requests(netlink);
 		for (index = 0U; index < count; index++) {
 			struct cake_read *read = &reads[index];
-			struct qdisc_id *qdisc = &read->observation->qdisc;
+			struct netlink_qdisc_id *qdisc = &read->observation->qdisc;
 
 			if (read->interface_index == 0U)
 				continue;
@@ -296,7 +297,7 @@ int cake_set_bandwidth(
 )
 {
 	uint64_t bandwidth_byte_ps = bit_to_byte(bandwidth_bps);
-	const struct qdisc_option option = {
+	const struct netlink_qdisc_option option = {
 		.kind = observation->kind,
 		.type = TCA_CAKE_BASE_RATE64,
 		.data = &bandwidth_byte_ps,

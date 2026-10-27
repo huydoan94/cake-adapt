@@ -2,8 +2,9 @@
 
 #include "logging/output.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
+#include "platform/thread.h"
 #include "constants/logging.h"
 
 #include <inttypes.h>
@@ -54,7 +55,7 @@ bool writer_running(void)
 
 /* Appends one entry to the queue, which has room for it; the lock is held. */
 static void
-put_entry(struct log_writer *state, enum entry_kind kind, int priority, const char *text)
+put_entry(struct log_writer *state, enum writer_entry_kind kind, int priority, const char *text)
 {
 	size_t length = strnlen(text, LOG_MESSAGE_SIZE - 1U) + 1U;
 	struct entry_header header = {
@@ -108,11 +109,11 @@ static void overwrite_oldest(struct log_writer *state)
 	struct entry_header header = oldest_header(state);
 	size_t bytes = sizeof(header) + header.bytes;
 
-	if (header.kind == ENTRY_EXPORT)
+	if (header.kind == WRITER_ENTRY_EXPORT)
 		state->export_pending = true;
-	else if (header.kind == ENTRY_RESET)
+	else if (header.kind == WRITER_ENTRY_RESET)
 		state->reset_pending = true;
-	else if (header.kind == ENTRY_SYSLOG)
+	else if (header.kind == WRITER_ENTRY_SYSLOG)
 		state->overwritten_syslog++;
 	else
 		state->overwritten_lines++;
@@ -127,13 +128,13 @@ static void overwrite_oldest(struct log_writer *state)
  * buffer timeout, as they waited in the file buffer before: a wake per record
  * cost a thread switch per record.
  */
-static bool entry_wakes_writer(const struct log_writer *state, enum entry_kind kind)
+static bool entry_wakes_writer(const struct log_writer *state, enum writer_entry_kind kind)
 {
-	return kind != ENTRY_LINE || file_buffer_timeout_us() == 0U || log_stdout_enabled() ||
-	       state->used >= LOG_QUEUE_WAKE_BYTES;
+	return kind != WRITER_ENTRY_LINE || file_buffer_timeout_us() == 0U ||
+	       log_stdout_enabled() || state->used >= LOG_QUEUE_WAKE_BYTES;
 }
 
-void writer_queue(enum entry_kind kind, int priority, const char *text)
+void writer_queue(enum writer_entry_kind kind, int priority, const char *text)
 {
 	struct log_writer *state = writer;
 	size_t bytes = entry_bytes(text);
@@ -172,17 +173,17 @@ static struct entry_header take_entry(struct log_writer *state, char text[LOG_ME
 
 static void write_entry(struct entry_header header, const char *text)
 {
-	switch ((enum entry_kind)header.kind) {
-	case ENTRY_LINE:
+	switch ((enum writer_entry_kind)header.kind) {
+	case WRITER_ENTRY_LINE:
 		file_sink_line(text);
 		break;
-	case ENTRY_SYSLOG:
+	case WRITER_ENTRY_SYSLOG:
 		syslog(header.priority, "%s", text);
 		break;
-	case ENTRY_EXPORT:
+	case WRITER_ENTRY_EXPORT:
 		log_export_now();
 		break;
-	case ENTRY_RESET:
+	case WRITER_ENTRY_RESET:
 		log_reset_now();
 		break;
 	}

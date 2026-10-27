@@ -2,7 +2,7 @@
 
 #include "controller/controller.h"
 #include "controller/direction.h"
-#include "common/utils.h"
+#include "common/arith.h"
 #include "constants/controller.h"
 #include "constants/units.h"
 
@@ -47,28 +47,25 @@ int controller_init(struct controller *controller, const struct controller_confi
 	    config->bufferbloat_detection_threshold > config->bufferbloat_detection_window ||
 	    !factor_valid(config->rate_minimum_adjust_down_bufferbloat_ratio_e6) ||
 	    !factor_valid(config->rate_maximum_adjust_down_bufferbloat_ratio_e6) ||
-	    !factor_valid(config->rate_minimum_adjust_up_high_load_ratio_e6) ||
-	    !factor_valid(config->rate_maximum_adjust_up_high_load_ratio_e6) ||
-	    !factor_valid(config->rate_adjust_down_low_load_ratio_e6) ||
-	    !factor_valid(config->rate_adjust_up_low_load_ratio_e6)) {
+	    !factor_valid(config->rate_minimum_adjust_up_load_high_ratio_e6) ||
+	    !factor_valid(config->rate_maximum_adjust_up_load_high_ratio_e6) ||
+	    !factor_valid(config->rate_adjust_down_load_low_ratio_e6) ||
+	    !factor_valid(config->rate_adjust_up_load_low_ratio_e6)) {
 		errno = EINVAL;
 		return -1;
 	}
 
 	controller->config = *config;
-	if (initialize_direction(
-		    &controller->download,
-		    &config->download,
-		    config->bufferbloat_detection_window
-	    ) != 0 ||
-	    initialize_direction(
-		    &controller->upload,
-		    &config->upload,
-		    config->bufferbloat_detection_window
-	    ) != 0) {
-		/* The controller was zeroed above, so unallocated arrays are NULL. */
-		controller_close(controller);
-		return -1;
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++) {
+		if (initialize_direction(
+			    &controller->directions[direction],
+			    &config->directions[direction],
+			    config->bufferbloat_detection_window
+		    ) != 0) {
+			/* The controller was zeroed above, so unallocated arrays are NULL. */
+			controller_close(controller);
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -83,8 +80,8 @@ static void close_direction(struct controller_direction *direction)
 
 void controller_close(struct controller *controller)
 {
-	close_direction(&controller->download);
-	close_direction(&controller->upload);
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+		close_direction(&controller->directions[direction]);
 }
 
 static void update_direction(
@@ -128,34 +125,38 @@ void controller_update(
 )
 {
 	const struct controller_config *config = &controller->config;
-	uint64_t download_delivery_e6 =
-		coupling_delivery_ratio_e6(&controller->download, &input->download);
+	uint64_t download_delivery_e6 = coupling_delivery_ratio_e6(
+		&controller->directions[DIRECTION_DOWNLOAD],
+		&input->directions[DIRECTION_DOWNLOAD]
+	);
 	const struct controller_queue_input *queue = &input->queue;
-	int64_t total_queue_us = queue->download_us + queue->upload_us;
-	struct direction_update download = {
-		.input = &input->download,
-		.latency = input->download_latency,
-		/*
-		 * With one shared delay, download delivering its full shaper rate has
-		 * no standing queue, so the delay is upload's; download loaded but
-		 * delivering less than its shaper rate is the bottleneck, so the delay
-		 * is its own.
-		 */
-		.bufferbloat_attributed = !config->shared_delay ||
-					  download_delivery_e6 < FULL_DELIVERY_RATIO_E6,
-		.ceiling_bps = coupling_download_ceiling_bps(controller, input),
-		.timestamp_us = input->timestamp_us,
-	};
-	struct direction_update upload = {
-		.input = &input->upload,
-		.latency = input->upload_latency,
-		.bufferbloat_attributed = !config->shared_delay ||
-					  download_delivery_e6 <=
-						  config->high_load_threshold_ratio_e6 ||
-					  download_delivery_e6 >= FULL_DELIVERY_RATIO_E6,
-		.ceiling_bps = UINT64_MAX,
-		.timestamp_us = input->timestamp_us,
-	};
+	int64_t total_queue_us =
+		queue->delay_us[DIRECTION_DOWNLOAD] + queue->delay_us[DIRECTION_UPLOAD];
+	struct direction_update updates[DIRECTION_COUNT];
+	struct direction_update *download = &updates[DIRECTION_DOWNLOAD];
+	struct direction_update *upload = &updates[DIRECTION_UPLOAD];
+	struct controller_latency_input *download_latency = &download->latency;
+	struct controller_latency_input *upload_latency = &upload->latency;
+
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+		updates[direction] = (struct direction_update){
+			.input = &input->directions[direction],
+			.latency = input->latency[direction],
+			.ceiling_bps = UINT64_MAX,
+			.timestamp_us = input->timestamp_us,
+		};
+	/*
+	 * With one shared delay, download delivering its full shaper rate has no
+	 * standing queue, so the delay is upload's; download loaded but delivering
+	 * less than its shaper rate is the bottleneck, so the delay is its own.
+	 */
+	download->bufferbloat_attributed = !config->shared_delay ||
+					   download_delivery_e6 < FULL_DELIVERY_RATIO_E6;
+	upload->bufferbloat_attributed = !config->shared_delay ||
+					 download_delivery_e6 <=
+						 config->high_load_threshold_ratio_e6 ||
+					 download_delivery_e6 >= FULL_DELIVERY_RATIO_E6;
+	download->ceiling_bps = coupling_download_ceiling_bps(controller, input);
 
 	/*
 	 * Measured per-direction queues replace the heuristic, unless they are too
@@ -164,37 +165,41 @@ void controller_update(
 	 */
 	if (config->shared_delay && queue->valid &&
 	    total_queue_us >= QUEUE_ATTRIBUTION_MINIMUM_US) {
-		download.bufferbloat_attributed =
-			coupling_holds_queue_share(queue->download_us, total_queue_us);
-		upload.bufferbloat_attributed =
-			coupling_holds_queue_share(queue->upload_us, total_queue_us);
+		for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+			updates[direction].bufferbloat_attributed = coupling_holds_queue_share(
+				queue->delay_us[direction],
+				total_queue_us
+			);
 		/*
 		 * Split the round-trip delta by the measured shares instead of RTT/2
 		 * each way, so a one-sided queue counts at its full size.
 		 */
-		if (download.latency.valid && upload.latency.valid) {
+		if (download_latency->valid && upload_latency->valid) {
 			int64_t round_trip_us =
-				download.latency.owd_delta_us + upload.latency.owd_delta_us;
+				download_latency->owd_delta_us + upload_latency->owd_delta_us;
 
-			download.latency.owd_delta_us = signed_rounded_divide(
-				round_trip_us * queue->download_us,
+			download_latency->owd_delta_us = signed_rounded_divide(
+				round_trip_us * queue->delay_us[DIRECTION_DOWNLOAD],
 				total_queue_us
 			);
-			upload.latency.owd_delta_us = round_trip_us - download.latency.owd_delta_us;
+			upload_latency->owd_delta_us =
+				round_trip_us - download_latency->owd_delta_us;
 		}
 	}
 
-	update_direction(&controller->download, controller, &download, &output->download);
-	update_direction(&controller->upload, controller, &upload, &output->upload);
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+		update_direction(
+			&controller->directions[direction],
+			controller,
+			&updates[direction],
+			&output->directions[direction]
+		);
 }
 
 void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_us)
 {
-	struct controller_direction *directions[] = { &controller->download, &controller->upload };
-	size_t index;
-
-	for (index = 0U; index < ARRAY_SIZE(directions); index++) {
-		struct controller_direction *direction = directions[index];
+	for (size_t index = 0U; index < DIRECTION_COUNT; index++) {
+		struct controller_direction *direction = &controller->directions[index];
 		const struct controller_direction_config *limits = &direction->config;
 
 		if (!limits->adjust)

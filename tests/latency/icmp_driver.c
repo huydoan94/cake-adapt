@@ -2,8 +2,9 @@
 
 /* Bounded probe driver for the VM spike, not installed with the daemon. */
 #include "latency/native.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
+#include "common/text.h"
 #include "constants/units.h"
 
 #include <errno.h>
@@ -131,8 +132,8 @@ int main(int argc, char **argv)
 				       response_us -
 					       session.requests[reply.sequence % session.capacity]
 						       .sent_us,
-				       sample.upload_owd_us,
-				       sample.download_owd_us,
+				       sample.owd_us[DIRECTION_UPLOAD],
+				       sample.owd_us[DIRECTION_DOWNLOAD],
 				       reply.kernel_timestamp ? 1U : 0U,
 				       reply.originate_ms,
 				       reply.receive_ms,

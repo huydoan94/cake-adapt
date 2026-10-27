@@ -1,5 +1,5 @@
-#ifndef TRAFFIC_H_INCLUDED
-#define TRAFFIC_H_INCLUDED
+#ifndef PLATFORM_TRAFFIC_H_INCLUDED
+#define PLATFORM_TRAFFIC_H_INCLUDED
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -9,7 +9,7 @@
 struct traffic_sample {
 	uint64_t bytes;
 	/* Another qdisc's counter starts over, so a change re-baselines. */
-	struct qdisc_id qdisc;
+	struct netlink_qdisc_id qdisc;
 	uint64_t timestamp_us;
 };
 

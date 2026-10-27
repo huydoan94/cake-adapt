@@ -1,5 +1,5 @@
-#ifndef NETLINK_H_INCLUDED
-#define NETLINK_H_INCLUDED
+#ifndef PLATFORM_NETLINK_H_INCLUDED
+#define PLATFORM_NETLINK_H_INCLUDED
 
 #include <linux/netlink.h>
 
@@ -12,30 +12,31 @@ struct nl_sock;
 typedef int (*netlink_message_handler)(const struct nlmsghdr *message, void *context);
 
 /* A qdisc as rtnetlink addresses it. */
-struct qdisc_id {
+struct netlink_qdisc_id {
 	unsigned int interface_index;
 	uint32_t handle;
 	uint32_t parent;
 };
 
-static inline bool qdisc_same(const struct qdisc_id *first, const struct qdisc_id *second)
+static inline bool
+qdisc_same(const struct netlink_qdisc_id *first, const struct netlink_qdisc_id *second)
 {
 	return first->interface_index == second->interface_index &&
 	       first->handle == second->handle && first->parent == second->parent;
 }
 
-enum qdisc_event_type {
-	QDISC_CREATED,
-	QDISC_REMOVED
+enum netlink_qdisc_event_type {
+	NETLINK_QDISC_EVENT_CREATED,
+	NETLINK_QDISC_EVENT_REMOVED
 };
 
-struct qdisc_event {
-	enum qdisc_event_type type;
-	struct qdisc_id qdisc;
+struct netlink_qdisc_event {
+	enum netlink_qdisc_event_type type;
+	struct netlink_qdisc_id qdisc;
 };
 
 /* One attribute nested in a qdisc's TCA_OPTIONS. */
-struct qdisc_option {
+struct netlink_qdisc_option {
 	const char *kind;
 	unsigned short type;
 	const void *data;
@@ -45,13 +46,16 @@ struct qdisc_option {
 struct netlink;
 
 /* Like a uloop callback: the owner finds itself with container_of(). */
-typedef void (*qdisc_event_handler)(struct netlink *netlink, const struct qdisc_event *event);
+typedef void (*qdisc_event_handler)(
+	struct netlink *netlink,
+	const struct netlink_qdisc_event *event
+);
 
 struct netlink {
 	struct nl_sock *socket;
 	struct nl_sock *events;
 	/* Set by the owner before netlink_subscribe_qdiscs(). */
-	qdisc_event_handler qdisc_event;
+	qdisc_event_handler netlink_qdisc_event;
 	bool event_parse_failed;
 };
 
@@ -77,8 +81,8 @@ int netlink_dump_qdiscs(
 
 int netlink_change_qdisc(
 	struct netlink *netlink,
-	const struct qdisc_id *qdisc,
-	const struct qdisc_option *option,
+	const struct netlink_qdisc_id *qdisc,
+	const struct netlink_qdisc_option *option,
 	char *error,
 	size_t error_size
 );

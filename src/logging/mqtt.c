@@ -2,8 +2,10 @@
 
 #include "logging/mqtt.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
+#include "common/convert.h"
+#include "platform/thread.h"
 #include "constants/mqtt.h"
 #include "constants/program.h"
 
@@ -336,7 +338,7 @@ int mqtt_start(const struct mqtt_settings *settings, char *error, size_t error_s
 		);
 		goto close_wake;
 	}
-	/* Signals belong to the monitor, including while the library creates its network thread. */
+	/* Signals belong to the daemon, including while the library creates its network thread. */
 	(void)sigfillset(&all);
 	(void)pthread_sigmask(SIG_SETMASK, &all, &previous);
 	result = pthread_create(&state->thread, NULL, mqtt_thread, state);

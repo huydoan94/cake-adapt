@@ -1,6 +1,7 @@
 #ifndef LATENCY_PARSER_H_INCLUDED
 #define LATENCY_PARSER_H_INCLUDED
 
+#include "common/direction.h"
 #include "constants/latency.h"
 
 #include <stdbool.h>
@@ -8,8 +9,7 @@
 
 struct latency_sample {
 	char target[LATENCY_TARGET_SIZE];
-	int64_t download_owd_us;
-	int64_t upload_owd_us;
+	int64_t owd_us[DIRECTION_COUNT];
 	uint64_t timestamp_us;
 	/* fping's "[seconds.fraction]" token, or IRTT's receive time in whole microseconds. */
 	char timestamp_text[LATENCY_TIMESTAMP_TEXT_SIZE];

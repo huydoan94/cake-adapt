@@ -1,9 +1,9 @@
 #define _GNU_SOURCE
 
 #include "latency/latency.h"
+#include "latency/children.h"
 #include "latency/pinger.h"
 #include "common/error.h"
-#include "common/utils.h"
 #include "constants/latency.h"
 #include "constants/options.h"
 #include "constants/text.h"
@@ -16,62 +16,12 @@
 #include <string.h>
 #include <unistd.h>
 
-/* Every pinger_method: what it runs and how it measures. */
-static const struct {
-	const char *name;
-	/* NULL for the native probes, which the daemon sends itself. */
-	const char *executable;
-	const struct pinger_ops *ops;
-	/* The native probes' packets; echo unless timestamps. */
-	enum icmp_mode mode;
-	bool shared_delay;
-	bool timestamps;
-} methods[] = {
-	[PINGER_NATIVE] = { .name = PINGER_METHOD_NATIVE, .shared_delay = true },
-	[PINGER_NATIVE_TS] = {
-		.name = PINGER_METHOD_NATIVE_TS,
-		.mode = ICMP_MODE_TIMESTAMP,
-		.timestamps = true,
-	},
-	[PINGER_FPING] = {
-		.name = PINGER_METHOD_FPING,
-		.executable = FPING_PATH,
-		.ops = &fping_ops,
-		.shared_delay = true,
-	},
-	[PINGER_FPING_TS] = {
-		.name = PINGER_METHOD_FPING_TS,
-		.executable = FPING_PATH,
-		.ops = &fping_ts_ops,
-		.timestamps = true,
-	},
-	[PINGER_IRTT] = { .name = PINGER_METHOD_IRTT, .executable = IRTT_PATH, .ops = &irtt_ops },
-};
-
-enum pinger_method latency_method(const char *name)
-{
-	for (size_t index = 0U; index < ARRAY_SIZE(methods); index++)
-		if (strcmp(methods[index].name, name) == 0)
-			return (enum pinger_method)index;
-	return PINGER_UNKNOWN;
-}
-
-const char *latency_method_name(enum pinger_method method)
-{
-	return methods[method].name;
-}
-
-bool latency_native(enum pinger_method method)
-{
-	return methods[method].executable == NULL;
-}
-
 void latency_init(struct latency *latency, const struct latency_settings *settings)
 {
 	size_t index;
 
 	*latency = (struct latency){
-		.ops = methods[settings->method].ops,
+		.ops = pinger_child_ops(settings->method),
 		.settings = *settings,
 	};
 	native_init(&latency->native);
@@ -83,41 +33,7 @@ void latency_init(struct latency *latency, const struct latency_settings *settin
 	}
 }
 
-bool latency_shared_delay(enum pinger_method method)
-{
-	return methods[method].shared_delay;
-}
-
-bool latency_timestamps(enum pinger_method method)
-{
-	return methods[method].timestamps;
-}
-
-const char *latency_backend_executable(enum pinger_method method)
-{
-	return methods[method].executable;
-}
-
-int latency_check_backend(enum pinger_method method, char *error, size_t error_size)
-{
-	const char *executable = methods[method].executable;
-
-	if (executable != NULL && access(executable, X_OK) != 0) {
-		return error_set(
-			error,
-			error_size,
-			"ping binary %s for pinger_method '%s' is not available: %s; install the %s package or use pinger_method '%s'",
-			executable,
-			methods[method].name,
-			strerror(errno),
-			strrchr(executable, '/') + 1,
-			PINGER_METHOD_NATIVE
-		);
-	}
-	return 0;
-}
-
-bool target_is_valid(const char *target)
+bool latency_target_valid(const char *target)
 {
 	size_t length = strlen(target);
 
@@ -165,10 +81,10 @@ int latency_open(
 {
 	const struct latency_settings *settings = &latency->settings;
 
-	if (latency_native(settings->method)) {
+	if (pinger_is_native(settings->method)) {
 		if (native_open(
 			    &latency->native,
-			    methods[settings->method].mode,
+			    pinger_icmp_mode(settings->method),
 			    settings->interface,
 			    targets,
 			    target_count,

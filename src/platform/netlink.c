@@ -3,8 +3,9 @@
 #include "platform/netlink.h"
 #include "config/defaults.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
+#include "common/convert.h"
 #include "constants/cake.h"
 
 #include <errno.h>
@@ -135,7 +136,7 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 	struct netlink *netlink = context_data;
 	const struct nlmsghdr *header = nlmsg_hdr(message);
 	const struct tcmsg *traffic_control;
-	struct qdisc_event event;
+	struct netlink_qdisc_event event;
 
 	if (header->nlmsg_type != RTM_NEWQDISC && header->nlmsg_type != RTM_DELQDISC)
 		return NL_OK;
@@ -144,11 +145,12 @@ static int handle_qdisc_event(struct nl_msg *message, void *context_data)
 		return NL_OK;
 	}
 	traffic_control = NLMSG_DATA(header);
-	event.type = header->nlmsg_type == RTM_NEWQDISC ? QDISC_CREATED : QDISC_REMOVED;
+	event.type = header->nlmsg_type == RTM_NEWQDISC ? NETLINK_QDISC_EVENT_CREATED :
+							  NETLINK_QDISC_EVENT_REMOVED;
 	event.qdisc.interface_index = (unsigned int)traffic_control->tcm_ifindex;
 	event.qdisc.handle = traffic_control->tcm_handle;
 	event.qdisc.parent = traffic_control->tcm_parent;
-	netlink->qdisc_event(netlink, &event);
+	netlink->netlink_qdisc_event(netlink, &event);
 	return NL_OK;
 }
 
@@ -420,8 +422,8 @@ int netlink_dump_qdiscs(
 
 int netlink_change_qdisc(
 	struct netlink *netlink,
-	const struct qdisc_id *qdisc,
-	const struct qdisc_option *option,
+	const struct netlink_qdisc_id *qdisc,
+	const struct netlink_qdisc_option *option,
 	char *error,
 	size_t error_size
 )

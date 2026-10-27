@@ -1,11 +1,11 @@
 #include "latency/tracker.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
 #include "config/defaults.h"
 #include "constants/latency.h"
 #include "constants/units.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config)
@@ -20,8 +20,8 @@ void tracker_reset(struct latency_tracker *tracker)
 		.baseline_us = (int64_t)INITIAL_ONE_WAY_BASELINE_US,
 	};
 
-	tracker->download = initial;
-	tracker->upload = initial;
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+		tracker->directions[direction] = initial;
 }
 
 static bool sample_has_timestamp_rollover(
@@ -29,15 +29,17 @@ static bool sample_has_timestamp_rollover(
 	const struct latency_sample *sample
 )
 {
-	const struct latency_direction_tracker *download = &tracker->download;
-	const struct latency_direction_tracker *upload = &tracker->upload;
+	const struct latency_direction_tracker *download = &tracker->directions[DIRECTION_DOWNLOAD];
+	const struct latency_direction_tracker *upload = &tracker->directions[DIRECTION_UPLOAD];
 	uint64_t download_delta_us;
 	uint64_t upload_delta_us;
 
 	if (!sample->timestamp_rollover_sensitive)
 		return false;
-	download_delta_us = absolute_difference(sample->download_owd_us, download->baseline_us);
-	upload_delta_us = absolute_difference(sample->upload_owd_us, upload->baseline_us);
+	download_delta_us =
+		absolute_difference(sample->owd_us[DIRECTION_DOWNLOAD], download->baseline_us);
+	upload_delta_us =
+		absolute_difference(sample->owd_us[DIRECTION_UPLOAD], upload->baseline_us);
 	return download_delta_us >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US ||
 	       upload_delta_us >= LATENCY_TIMESTAMP_ROLLOVER_DELTA_US - download_delta_us;
 }
@@ -87,42 +89,30 @@ static int64_t tracker_update_direction(
 	return signed_difference(value_us, state->baseline_us);
 }
 
-static void
-report_delta_ewma(const struct latency_tracker *tracker, struct latency_observation *observation)
-{
-	const struct latency_direction_tracker *download = &tracker->download;
-	const struct latency_direction_tracker *upload = &tracker->upload;
-
-	observation->download_owd_delta_ewma_us = download->delta_ewma_us;
-	observation->upload_owd_delta_ewma_us = upload->delta_ewma_us;
-}
-
 void tracker_update(
 	struct latency_tracker *tracker,
 	const struct latency_sample *sample,
 	struct latency_observation *observation
 )
 {
-	struct latency_direction_tracker *download = &tracker->download;
-	struct latency_direction_tracker *upload = &tracker->upload;
+	/* Restart both baselines at a rolled-over sample, so neither direction has a delta. */
+	bool rollover = sample_has_timestamp_rollover(tracker, sample);
 
-	observation->download_owd_us = sample->download_owd_us;
-	observation->upload_owd_us = sample->upload_owd_us;
-	if (sample_has_timestamp_rollover(tracker, sample)) {
-		/* Restart both baselines at the sample, so neither direction has a delta. */
-		download->baseline_us = sample->download_owd_us;
-		upload->baseline_us = sample->upload_owd_us;
-		observation->download_owd_delta_us = 0;
-		observation->upload_owd_delta_us = 0;
-	} else {
-		observation->download_owd_delta_us =
-			tracker_update_direction(tracker, download, sample->download_owd_us);
-		observation->upload_owd_delta_us =
-			tracker_update_direction(tracker, upload, sample->upload_owd_us);
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++) {
+		struct latency_direction_tracker *state = &tracker->directions[direction];
+		int64_t owd_us = sample->owd_us[direction];
+
+		observation->owd_us[direction] = owd_us;
+		if (rollover) {
+			state->baseline_us = owd_us;
+			observation->owd_delta_us[direction] = 0;
+		} else {
+			observation->owd_delta_us[direction] =
+				tracker_update_direction(tracker, state, owd_us);
+		}
+		observation->owd_baseline_us[direction] = state->baseline_us;
+		observation->owd_delta_ewma_us[direction] = state->delta_ewma_us;
 	}
-	observation->download_owd_baseline_us = download->baseline_us;
-	observation->upload_owd_baseline_us = upload->baseline_us;
-	report_delta_ewma(tracker, observation);
 }
 
 static void update_delta_ewma(int64_t alpha_e6, int64_t delta_us, int64_t *ewma_us)
@@ -139,22 +129,18 @@ void tracker_update_delta_ewma(
 )
 {
 	const struct latency_tracker_config *config = &tracker->config;
-	struct latency_direction_tracker *download = &tracker->download;
-	struct latency_direction_tracker *upload = &tracker->upload;
 	int64_t alpha_e6 = (int64_t)config->alpha_delta_ewma_ratio_e6;
 
-	/* cake-autorate freezes reflector delay EWMA while either link is busy. */
-	if (low_load) {
-		update_delta_ewma(
-			alpha_e6,
-			observation->download_owd_delta_us,
-			&download->delta_ewma_us
-		);
-		update_delta_ewma(
-			alpha_e6,
-			observation->upload_owd_delta_us,
-			&upload->delta_ewma_us
-		);
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++) {
+		struct latency_direction_tracker *state = &tracker->directions[direction];
+
+		/* cake-autorate freezes reflector delay EWMA while either link is busy. */
+		if (low_load)
+			update_delta_ewma(
+				alpha_e6,
+				observation->owd_delta_us[direction],
+				&state->delta_ewma_us
+			);
+		observation->owd_delta_ewma_us[direction] = state->delta_ewma_us;
 	}
-	report_delta_ewma(tracker, observation);
 }

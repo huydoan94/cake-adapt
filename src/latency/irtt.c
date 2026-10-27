@@ -1,10 +1,10 @@
 #define _GNU_SOURCE
 
 #include "latency/latency.h"
-#include "latency/pinger.h"
+#include "latency/children.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
 #include "constants/latency.h"
 #include "constants/units.h"
 
@@ -35,14 +35,14 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 {
 	const struct latency_settings *settings = &latency->settings;
 	const struct latency_child *child = &latency->children[child_index];
-	struct pinger_command command;
+	struct child_command command;
 	char endpoint[LATENCY_TARGET_SIZE + 3U];
 	char interval[PINGER_ARGUMENT_SIZE];
 	char duration[PINGER_ARGUMENT_SIZE];
 	size_t index;
 	int ret;
 
-	if (pinger_command_init(&command, latency, 7U, error, error_size) != 0)
+	if (child_command_init(&command, latency, 7U, error, error_size) != 0)
 		return -1;
 
 	format_duration(interval, settings->reflector_ping_interval_us);
@@ -52,18 +52,18 @@ spawn_irtt_child(struct latency *latency, size_t child_index, char *error, size_
 	else
 		(void)snprintf(endpoint, sizeof(endpoint), "[%s]", child->target);
 
-	pinger_command_add(&command, IRTT_PATH);
-	pinger_command_add(&command, IRTT_CLIENT);
+	child_command_add(&command, IRTT_PATH);
+	child_command_add(&command, IRTT_CLIENT);
 	for (index = 0U; index < command.extra.we_wordc; index++)
-		pinger_command_add(&command, command.extra.we_wordv[index]);
-	pinger_command_add(&command, IRTT_INTERVAL);
-	pinger_command_add(&command, interval);
-	pinger_command_add(&command, IRTT_DURATION);
-	pinger_command_add(&command, duration);
-	pinger_command_add(&command, endpoint);
+		child_command_add(&command, command.extra.we_wordv[index]);
+	child_command_add(&command, IRTT_INTERVAL);
+	child_command_add(&command, interval);
+	child_command_add(&command, IRTT_DURATION);
+	child_command_add(&command, duration);
+	child_command_add(&command, endpoint);
 
-	ret = start_child(latency, child_index, command.argv, error, error_size);
-	pinger_command_free(&command);
+	ret = child_start(latency, child_index, command.argv, error, error_size);
+	child_command_free(&command);
 	return ret;
 }
 
@@ -82,13 +82,13 @@ static int irtt_open(
 	uint64_t elapsed_us = timestamp_us - settings->slot_origin_us;
 	uint64_t first_start_us = timestamp_us + interval_us - elapsed_us % interval_us;
 	uint64_t spacing_us = rounded_divide(interval_us, target_count);
-	struct pinger_command command;
+	struct child_command command;
 	size_t index;
 
 	/* Each child expands the options again when it starts; check them now. */
-	if (pinger_command_init(&command, latency, 0U, error, error_size) != 0)
+	if (child_command_init(&command, latency, 0U, error, error_size) != 0)
 		return -1;
-	pinger_command_free(&command);
+	child_command_free(&command);
 
 	for (index = 0U; index < target_count; index++) {
 		struct latency_child *child = &latency->children[index];
@@ -101,7 +101,7 @@ static int irtt_open(
 	return 0;
 }
 
-int latency_start_irtt_children(
+int latency_irtt_start_children(
 	struct latency *latency,
 	uint64_t timestamp_us,
 	char *error,
@@ -129,7 +129,7 @@ bool latency_irtt_start_pending(const struct latency *latency)
 	const struct latency_settings *settings = &latency->settings;
 	size_t index;
 
-	if (!latency->active || settings->method != PINGER_IRTT)
+	if (!latency->active || settings->method != PINGER_METHOD_IRTT)
 		return false;
 	for (index = 0U; index < latency->child_count; index++) {
 		const struct latency_child *child = &latency->children[index];
@@ -194,8 +194,8 @@ irtt_exited(struct latency_child *child, char *error, size_t error_size)
 	return LATENCY_PROBE_RESTART;
 }
 
-const struct pinger_ops irtt_ops = {
-	.name = PINGER_METHOD_IRTT,
+const struct child_ops irtt_ops = {
+	.name = PINGER_NAME_IRTT,
 	.open = irtt_open,
 	.parse = irtt_parse,
 	.exited = irtt_exited,

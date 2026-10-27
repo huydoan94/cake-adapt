@@ -1,5 +1,5 @@
-#ifndef LATENCY_H_INCLUDED
-#define LATENCY_H_INCLUDED
+#ifndef LATENCY_LATENCY_H_INCLUDED
+#define LATENCY_LATENCY_H_INCLUDED
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -8,37 +8,11 @@
 
 #include "latency/parser.h"
 #include "latency/native.h"
+#include "latency/pinger.h"
 #include "constants/latency.h"
 #include "constants/options.h"
 
-bool target_is_valid(const char *target);
-
-/*
- * The pinger_method values, looked up once from the option and passed around;
- * the functions below take a known method, never PINGER_UNKNOWN.
- */
-enum pinger_method {
-	PINGER_NATIVE,
-	PINGER_NATIVE_TS,
-	PINGER_FPING,
-	PINGER_FPING_TS,
-	PINGER_IRTT,
-	PINGER_UNKNOWN,
-};
-
-enum pinger_method latency_method(const char *name);
-const char *latency_method_name(enum pinger_method method);
-/* The daemon's own ICMP probes, with no executable. */
-bool latency_native(enum pinger_method method);
-/* The executable a method runs, or NULL for the native probes. */
-const char *latency_backend_executable(enum pinger_method method);
-/* Echo methods report half the round trip as the delay of both directions. */
-bool latency_shared_delay(enum pinger_method method);
-/* ICMP timestamp methods, IPv4 only. */
-bool latency_timestamps(enum pinger_method method);
-
-/* Like cake-autorate, refuse to start when the selected pinger cannot run. */
-int latency_check_backend(enum pinger_method method, char *error, size_t error_size);
+bool latency_target_valid(const char *target);
 
 struct latency_child {
 	int output_descriptor;
@@ -65,13 +39,13 @@ struct latency_settings {
 	uint64_t slot_origin_us;
 };
 
-struct pinger_ops;
+struct child_ops;
 
 struct latency {
-	/* Transitional native backend; legacy backends stay until live comparison passes. */
+	/* The daemon's own ICMP probes, the default pinger. */
 	struct native_session native;
-	/* The backend of settings.method: fping_ops, fping_ts_ops or irtt_ops; NULL for native. */
-	const struct pinger_ops *ops;
+	/* The child pinger of settings.method: fping_ops, fping_ts_ops or irtt_ops; NULL for native. */
+	const struct child_ops *ops;
 	struct latency_settings settings;
 	bool active;
 	struct latency_child children[CONFIG_MAX_REFLECTORS];
@@ -95,7 +69,7 @@ enum latency_line_result {
 	LATENCY_LINE_TOO_LONG
 };
 
-/* settings.method must have passed latency_check_backend(). */
+/* settings.method must have passed pinger_check(). */
 void latency_init(struct latency *latency, const struct latency_settings *settings);
 
 bool latency_is_open(const struct latency *latency);
@@ -114,7 +88,7 @@ bool latency_stopping(const struct latency *latency);
  * The validated configuration bounds targets and their spacing. fping and
  * fping-ts start one process for all targets now; IRTT schedules a session per
  * target from the next ping slot after timestamp_us, started by
- * latency_start_irtt_children().
+ * latency_irtt_start_children().
  */
 int latency_open(
 	struct latency *latency,
@@ -139,7 +113,7 @@ void latency_kill_stopping(struct latency *latency);
 void latency_stop_now(struct latency *latency);
 
 /* Starts the IRTT sessions that are due; only while latency_irtt_start_pending(). */
-int latency_start_irtt_children(
+int latency_irtt_start_children(
 	struct latency *latency,
 	uint64_t timestamp_us,
 	char *error,

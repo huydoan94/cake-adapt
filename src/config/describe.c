@@ -79,14 +79,17 @@ void config_log_loaded(const struct config *config, const char *log_path)
 		config->debug ? 1U : 0U,
 		config->log_to_file ? log_path : STATUS_DISABLED
 	);
-	log_adjustment(DIRECTION_DOWNLOAD, &config->download);
-	log_adjustment(DIRECTION_UPLOAD, &config->upload);
+	for (size_t direction = 0U; direction < DIRECTION_COUNT; direction++)
+		log_adjustment(
+			direction_name((enum direction)direction),
+			&config->directions[direction]
+		);
 }
 
 void config_log_control_mode(const struct config *config)
 {
-	const struct config_direction *download = &config->download;
-	const struct config_direction *upload = &config->upload;
+	const struct config_direction *download = &config->directions[DIRECTION_DOWNLOAD];
+	const struct config_direction *upload = &config->directions[DIRECTION_UPLOAD];
 
 	if (config_adjusts(config))
 		log_message(

@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "config/config.h"
-#include "common/helpers.h"
+#include "platform/path.h"
 #include "config/defaults.h"
 #include "config/describe.h"
 #include "common/error.h"
@@ -9,7 +9,7 @@
 #include "logging/log.h"
 #include "logging/records.h"
 #include "logging/mqtt.h"
-#include "monitor/monitor.h"
+#include "daemon/daemon.h"
 #include "platform/instance.h"
 #include "constants/logging.h"
 #include "constants/program.h"
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
 		log_problems_to_stderr();
 
 	ret = 1;
-	if (absolute_path(requested_config, config_path, sizeof(config_path)) != 0) {
+	if (path_absolute(requested_config, config_path, sizeof(config_path)) != 0) {
 		log_message(
 			LOG_LEVEL_ERROR,
 			"configuration error: path '%s': %s",
@@ -198,8 +198,8 @@ int main(int argc, char **argv)
 		log_message(LOG_LEVEL_ERROR, "configuration error: %s", error);
 		goto out;
 	}
-	pinger_method = latency_method(config.pinger_method);
-	if (config.enabled && latency_check_backend(pinger_method, error, sizeof(error)) != 0) {
+	pinger_method = pinger_method_parse(config.pinger_method);
+	if (config.enabled && pinger_check(pinger_method, error, sizeof(error)) != 0) {
 		log_message(LOG_LEVEL_ERROR, "%s; exiting", error);
 		goto out;
 	}
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 		options.section_name
 	);
 	config_log_control_mode(&config);
-	ret = monitor_run(&config, options.section_name) == 0 ? 0 : 1;
+	ret = daemon_run(&config, options.section_name) == 0 ? 0 : 1;
 	log_system_message(
 		"Stopped cake-adapt with PID: %ld, config: %s, section: %s",
 		(long)getpid(),

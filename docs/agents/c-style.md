@@ -19,10 +19,37 @@ log_message();
 ```
 
 Do not blanket-prefix functions, constants, or types with `sqm_mon_` or
-`cake_adapt_`. Add a prefix only to prevent a concrete collision or ambiguity.
-Move generic names such as `read_u32()` or `fraction_to_ratio_e6()` to
-`common/helpers` when they are shared; keep module-specific helpers local and
-`static`.
+`cake_adapt_`. Names follow one rule, so a name says where its code lives
+(user decision 2026-10-27):
+
+1. A file's stem names its concern; a directory names a subsystem.
+2. Every non-static function, type and enum starts with its file's stem
+   (singular is fine: `child_*` in `children.c`), or with
+   `<subsystem>_<stem>` when the stem alone is too generic
+   (`tcpdelay_capture_*` in `tcpdelay/capture.c`). Functions on a
+   subsystem's main object use the subsystem name wherever they live
+   (`latency_*`, `config_*`, `log_*`, `daemon_*`); `parser.c` uses `parse_`.
+   `common/` holds generic operations named for what they do
+   (`saturating_add`, `fraction_to_ratio_e6`).
+3. Enum constants start with the enum's name in upper case, without a
+   trailing `_state`, `_result`, `_reason` or `_type`
+   (`enum controller_activity_state` → `CONTROLLER_ACTIVITY_RUNNING`); a
+   count member ends in `_COUNT`.
+4. Header guards are `<DIR>_<STEM>_H_INCLUDED`.
+5. Quantities end in their unit (below).
+6. A setting's internal name follows its UCI option, minus the direction
+   prefix where the value is kept per direction
+   (`shaper_rate_adjust_up_load_low` → `rate_adjust_up_load_low_ratio_e6`).
+7. One vocabulary for latency: a **pinger** sends probes (`enum
+   pinger_method` and its queries); a **latency session** owns the running
+   pinger; a **reflector** is a probed host; **native** means the daemon's
+   own ICMP probes and **child** a pinger process (fping, irtt).
+
+Everything kept per direction is an array indexed by `enum direction`
+(`common/direction.h`), so code that treats download and upload alike is one
+loop; code that does not indexes `DIRECTION_DOWNLOAD` or `DIRECTION_UPLOAD`.
+Move shared generic operations to the `common/` file of their kind; keep
+module-specific helpers local and `static`.
 
 Every named value, meaning a fixed string (a name, token or label stored or
 passed as data), a size, a limit, a timeout or a protocol field, is a `#define`
@@ -52,7 +79,7 @@ setter (`tcpdelay_estimator_set_bound(estimator, queue_bound_us)`), and are
 passed around instead of long argument lists or values copied between structs.
 Callbacks find their owner with `container_of()`, as uloop does, not through a
 `void *` context. Never mix `->` and `.` in one member-access chain: take a
-local pointer (`struct monitor_tcp *tcp = &monitor->tcp;`).
+local pointer (`struct daemon_tcp *tcp = &daemon->tcp;`).
 
 Write quantities for quick visual understanding. Express durations and rates
 in readable units using the existing unit constants (for example,
@@ -142,7 +169,7 @@ Commit a pure reformat on its own, apart from any logic change.
 
 Write code that reads like `unetd`'s `wg-user.c`: small static functions with
 a module prefix that form a little internal API, and trivial operations from
-`common/utils.h` instead of open-coded arithmetic. Comments should explain
+`common/arith.h` and `common/convert.h` instead of open-coded arithmetic. Comments should explain
 formulas, invariants, units, ownership, or non-obvious kernel/upstream
 behavior. Do not narrate obvious syntax. Do not reformat unrelated working
 code during a focused change.
