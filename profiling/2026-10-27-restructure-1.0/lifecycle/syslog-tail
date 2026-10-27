@@ -1,0 +1,39 @@
+Tue Oct 27 17:02:11 2026 daemon.err cake-adapt[3643]: ERROR: 1793142131.646341 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:16 2026 daemon.err cake-adapt[4503]: ERROR: 1793142136.697124 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:21 2026 daemon.err cake-adapt[4536]: ERROR: 1793142141.732208 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:26 2026 daemon.err cake-adapt[4721]: ERROR: 1793142146.767421 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:31 2026 daemon.err cake-adapt[5042]: ERROR: 1793142151.807888 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:36 2026 daemon.err cake-adapt[5067]: ERROR: 1793142156.867255 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:41 2026 daemon.err cake-adapt[5092]: ERROR: 1793142161.907084 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:46 2026 daemon.err cake-adapt[5117]: ERROR: 1793142166.947162 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:51 2026 daemon.err cake-adapt[5142]: ERROR: 1793142171.986538 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:02:57 2026 daemon.err cake-adapt[5167]: ERROR: 1793142177.036520 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:02 2026 daemon.err cake-adapt[5192]: ERROR: 1793142182.088076 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:07 2026 daemon.err cake-adapt[5217]: ERROR: 1793142187.136624 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:12 2026 daemon.err cake-adapt[5242]: ERROR: 1793142192.186725 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:17 2026 daemon.err cake-adapt[5267]: ERROR: 1793142197.239379 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:22 2026 daemon.err cake-adapt[5298]: ERROR: 1793142202.276392 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:27 2026 daemon.err cake-adapt[5323]: ERROR: 1793142207.327219 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:32 2026 daemon.err cake-adapt[5362]: ERROR: 1793142212.387674 could not open log file '/tmp/cake-adapt-lifecycle/cake-adapt.log': No such file or directory
+Tue Oct 27 17:03:35 2026 daemon.info cake-adapt[5817]: INFO: 1793142215.371684 Starting cake-adapt 0.3.30-r1 with PID: 5817, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:03:47 2026 daemon.info cake-adapt[5817]: INFO: 1793142227.476342 Stopped cake-adapt with PID: 5817, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:03:47 2026 daemon.info cake-adapt[6784]: INFO: 1793142227.546424 Starting cake-adapt 0.3.26-r1 with PID: 6784, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:03:56 2026 daemon.info cake-adapt[6784]: INFO: 1793142236.346554 Stopped cake-adapt with PID: 6784, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:03:56 2026 daemon.info cake-adapt[7325]: INFO: 1793142236.407054 Starting cake-adapt 0.3.30-r1 with PID: 7325, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:03:57 2026 daemon.info cake-adapt[7794]: INFO: 1793142237.057145 Starting cake-adapt 0.3.30-r1 with PID: 7794, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:04 2026 daemon.info cake-adapt[7794]: INFO: 1793142244.186202 Stopped cake-adapt with PID: 7794, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:04 2026 daemon.info cake-adapt[8760]: INFO: 1793142244.227694 Starting cake-adapt 0.3.30-r1 with PID: 8760, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:05 2026 daemon.err cake-adapt: configuration import: option 'config_file' is refused in /etc/config/cake-adapt, which LuCI can change; move it to /etc/cake-adapt/exec (section 'main')
+Tue Oct 27 17:04:05 2026 daemon.err cake-adapt: configuration of instance 'main' refused
+Tue Oct 27 17:04:05 2026 daemon.err cake-adapt: instance 'main' keeps its previous configuration /var/run/cake-adapt/main.uci
+Tue Oct 27 17:04:10 2026 daemon.info cake-adapt[8760]: INFO: 1793142250.625124 Stopped cake-adapt with PID: 8760, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:10 2026 daemon.info cake-adapt[9332]: INFO: 1793142250.686898 Starting cake-adapt 0.3.30-r1 with PID: 9332, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:18 2026 daemon.notice procd: /etc/init.d/cake-adapt: Command failed: Invalid argument
+Tue Oct 27 17:04:18 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to parse JSON data: unexpected end of data
+Tue Oct 27 17:04:18 2026 daemon.info cake-adapt[9332]: INFO: 1793142258.335222 Stopped cake-adapt with PID: 9332, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:18 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to connect to ubus
+Tue Oct 27 17:04:18 2026 daemon.notice procd: /etc/init.d/cake-adapt: Failed to parse JSON data: unexpected end of data
+Tue Oct 27 17:04:18 2026 daemon.info cake-adapt[9839]: INFO: 1793142258.428040 Starting cake-adapt 0.3.30-r1 with PID: 9839, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:28 2026 daemon.info cake-adapt[9839]: INFO: 1793142268.805418 Stopped cake-adapt with PID: 9839, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:30 2026 daemon.info cake-adapt[10708]: INFO: 1793142270.097216 Starting cake-adapt 0.3.30-r1 with PID: 10708, config: /var/run/cake-adapt/main.uci, section: main
+Tue Oct 27 17:04:31 2026 daemon.info cake-adapt[10708]: INFO: 1793142271.439464 Stopped cake-adapt with PID: 10708, config: /var/run/cake-adapt/main.uci, section: main

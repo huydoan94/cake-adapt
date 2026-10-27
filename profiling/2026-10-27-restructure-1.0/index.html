@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cake-adapt, 2026-10-27: the restructure toward 1.0 against 0.3.30</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #080e1a;
+      --panel: #111b2e;
+      --line: #334155;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --link: #7dd3fc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    header {
+      padding: 32px max(24px, 5vw);
+      background: linear-gradient(135deg, #082f49, #312e81);
+    }
+    header h1 { margin: 0 0 8px; font-size: clamp(28px, 4vw, 44px); }
+    header p { max-width: 1000px; margin: 6px 0; color: #dbeafe; }
+    nav { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    a { color: var(--link); }
+    nav a, .actions a {
+      padding: 7px 11px;
+      border: 1px solid #64748b;
+      border-radius: 7px;
+      background: #0f172a;
+      text-decoration: none;
+    }
+    main { max-width: 1760px; margin: auto; padding: 24px; }
+    section {
+      margin-bottom: 28px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+    section > header {
+      padding: 18px 22px;
+      background: #17233a;
+    }
+    section h2 { margin: 0 0 6px; }
+    section h3 { margin: 0 0 4px; font-size: 16px; }
+    section p { margin: 0; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 9px; padding: 14px 22px; }
+    .graphs { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; padding: 0 14px 14px; }
+    figure { margin: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    figcaption { padding: 10px 14px; background: #17233a; }
+    figcaption a { margin-right: 12px; }
+    object {
+      display: block;
+      width: 100%;
+      border: 0;
+      background: #0b1120;
+    }
+    .flame { height: min(50vw, 760px); min-height: 460px; }
+    table { border-collapse: collapse; margin: 14px 22px 22px; }
+    th, td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    .wrap { overflow-x: auto; }
+    footer { padding: 0 24px 28px; color: var(--muted); text-align: center; }
+    @media (max-width: 700px) {
+      .graphs { grid-template-columns: 1fr; }
+      .flame { min-height: 380px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>cake-adapt, 2026-10-27: the restructure toward 1.0 against 0.3.30</h1>
+    <p>OpenWrt 25.12 x86 VM clone: the restructured tree (built as 0.3.30-r1) against 0.3.30 before it. The method and conclusions are in <a href="README.md">README.md</a>. The comparison graphs are the <a href="../2026-10-22-restructure/index.html">2026-10-22 run</a>'s, of the same code as 0.3.30.</p>
+    <p>The perf pass ran while an OpenWrt image build loaded the host, so its sample counts are not comparable with earlier runs; the shares within each graph are. Hover over frames for values and click frames to zoom.</p>
+    <nav>
+      <a href="#summary">Summary</a>
+      <a href="#idle">Quiet link, before sleep</a>
+      <a href="#download">Download</a>
+      <a href="#upload">Upload</a>
+      <a href="#bidirectional">Bidirectional</a>
+      <a href="#congested">Congested upload</a>
+      <a href="#download6">Download over IPv6</a>
+      <a href="#bidirectional6">Bidirectional over IPv6</a>
+      <a href="README.md">Written report</a>
+      <a href="../index.html">All profiling evidence</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="summary">
+      <header>
+        <h2>CPU</h2>
+        <p>Ticks of 10 ms per 40-s workload; 40 ticks = 1% of one core. Medians of three passes, with each pass.</p>
+      </header>
+      <div class="wrap"><table>
+<tr><th>Workload</th><th>0.3.30 native</th><th>restructured, native</th></tr>
+<tr><td>idle</td><td>18 (18 / 18 / 23)</td><td>20 (18 / 20 / 25)</td></tr>
+<tr><td>download</td><td>31 (31 / 28 / 35)</td><td>32 (31 / 32 / 44)</td></tr>
+<tr><td>upload</td><td>22 (22 / 22 / 19)</td><td>24 (24 / 22 / 24)</td></tr>
+<tr><td>bidirectional</td><td>30 (30 / 34 / 29)</td><td>37 (37 / 49 / 34)</td></tr>
+<tr><td>congested</td><td>39 (31 / 39 / 63)</td><td>32 (37 / 32 / 31)</td></tr>
+<tr><td>download6</td><td>32 (33 / 30 / 32)</td><td>37 (37 / 35 / 39)</td></tr>
+<tr><td>bidirectional6</td><td>31 (31 / 29 / 31)</td><td>36 (37 / 36 / 32)</td></tr>
+</table></div>
+      <header>
+        <h2>System calls</h2>
+        <p>strace over 40 s of bidirectional load; one pass. 0.3.30's code was measured on 2026-10-22.</p>
+      </header>
+      <div class="wrap"><table>
+<tr><th></th><th>0.3.30 code (2026-10-22)</th><th>restructured</th></tr>
+<tr><td><code>futex</code> calls</td><td>79</td><td>79</td></tr>
+<tr><td>all system calls</td><td>7,355</td><td>7,416</td></tr>
+</table></div>
+    </section>
+
+    <section id="idle">
+      <header>
+        <h2>Quiet link, before sleep</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-idle.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-idle.folded">Folded stacks</a> · 312 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-idle.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-idle.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-idle.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-idle.folded">Folded stacks</a> · 215 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-idle.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-idle.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="download">
+      <header>
+        <h2>Download</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-download.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-download.folded">Folded stacks</a> · 537 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-download.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-download.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-download.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-download.folded">Folded stacks</a> · 535 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-download.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-download.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="upload">
+      <header>
+        <h2>Upload</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-upload.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-upload.folded">Folded stacks</a> · 364 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-upload.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-upload.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-upload.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-upload.folded">Folded stacks</a> · 535 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-upload.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-upload.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="bidirectional">
+      <header>
+        <h2>Bidirectional</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-bidirectional.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-bidirectional.folded">Folded stacks</a> · 813 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-bidirectional.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-bidirectional.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-bidirectional.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-bidirectional.folded">Folded stacks</a> · 467 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-bidirectional.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-bidirectional.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="congested">
+      <header>
+        <h2>Congested upload</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-congested.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-congested.folded">Folded stacks</a> · 922 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-congested.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-congested.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-congested.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-congested.folded">Folded stacks</a> · 405 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-congested.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-congested.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="download6">
+      <header>
+        <h2>Download over IPv6</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-download6.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-download6.folded">Folded stacks</a> · 628 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-download6.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-download6.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-download6.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-download6.folded">Folded stacks</a> · 454 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-download6.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-download6.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+
+    <section id="bidirectional6">
+      <header>
+        <h2>Bidirectional over IPv6</h2>
+        <p>40-second cpu-clock capture at 999 Hz, one perf pass per build.</p>
+      </header>
+      <div class="graphs">
+        <figure>
+          <figcaption><h3>restructured, native pinger</h3><p><a href="flamegraphs/vnew-native-bidirectional6.svg" target="_blank">Open interactive SVG</a><a href="folded/vnew-native-bidirectional6.folded">Folded stacks</a> · 441 samples</p></figcaption>
+          <object class="flame" data="flamegraphs/vnew-native-bidirectional6.svg" type="image/svg+xml"><a href="flamegraphs/vnew-native-bidirectional6.svg">Open the restructured, native pinger flame graph</a></object>
+        </figure>
+        <figure>
+          <figcaption><h3>0.3.30 code (2026-10-22), native pinger</h3><p><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-bidirectional6.svg" target="_blank">Open interactive SVG</a><a href="../2026-10-22-restructure/folded/vrestr-native-bidirectional6.folded">Folded stacks</a> · 483 samples</p></figcaption>
+          <object class="flame" data="../2026-10-22-restructure/flamegraphs/vrestr-native-bidirectional6.svg" type="image/svg+xml"><a href="../2026-10-22-restructure/flamegraphs/vrestr-native-bidirectional6.svg">Open the 0.3.30 code (2026-10-22), native pinger flame graph</a></object>
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer>Raw runs are in raw/prof, folded stacks in folded/, categories in breakdown.txt; tools/ holds the scripts that produced them.</footer>
+</body>
+</html>

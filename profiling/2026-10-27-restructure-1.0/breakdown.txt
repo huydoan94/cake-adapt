@@ -1,0 +1,58 @@
+vnew-native-bidirectional: 813 samples
+   40.3%   328  epoll wait (idle in the event loop)
+   21.0%   171  native ICMP probes (raw sockets)
+   14.3%   116  userspace (cake-adapt, libc, libubox)
+   10.5%    85  interrupt/softirq (packet processing charged to the task)
+    9.5%    77  netlink qdisc dump
+    3.8%    31  other kernel
+    0.4%     3  pinger pipe read
+    0.2%     2  BPF ring buffer drain and counters
+vnew-native-bidirectional6: 441 samples
+   43.3%   191  epoll wait (idle in the event loop)
+   20.2%    89  userspace (cake-adapt, libc, libubox)
+   14.5%    64  native ICMP probes (raw sockets)
+    9.3%    41  interrupt/softirq (packet processing charged to the task)
+    7.7%    34  netlink qdisc dump
+    4.8%    21  other kernel
+    0.2%     1  pinger pipe read
+vnew-native-congested: 922 samples
+   35.8%   330  epoll wait (idle in the event loop)
+   17.9%   165  userspace (cake-adapt, libc, libubox)
+   16.8%   155  native ICMP probes (raw sockets)
+   12.0%   111  netlink qdisc dump
+   11.2%   103  interrupt/softirq (packet processing charged to the task)
+    5.3%    49  other kernel
+    0.5%     5  pinger pipe read
+    0.4%     4  BPF ring buffer drain and counters
+vnew-native-download: 537 samples
+   41.9%   225  epoll wait (idle in the event loop)
+   19.7%   106  native ICMP probes (raw sockets)
+   14.9%    80  userspace (cake-adapt, libc, libubox)
+    8.8%    47  interrupt/softirq (packet processing charged to the task)
+    7.3%    39  netlink qdisc dump
+    6.5%    35  other kernel
+    0.9%     5  pinger pipe read
+vnew-native-download6: 628 samples
+   40.9%   257  epoll wait (idle in the event loop)
+   19.3%   121  native ICMP probes (raw sockets)
+   13.2%    83  userspace (cake-adapt, libc, libubox)
+   11.0%    69  interrupt/softirq (packet processing charged to the task)
+    9.4%    59  netlink qdisc dump
+    5.4%    34  other kernel
+    0.5%     3  BPF ring buffer drain and counters
+    0.3%     2  pinger pipe read
+vnew-native-idle: 312 samples
+   74.0%   231  epoll wait (idle in the event loop)
+    9.3%    29  userspace (cake-adapt, libc, libubox)
+    5.8%    18  native ICMP probes (raw sockets)
+    5.1%    16  other kernel
+    3.8%    12  interrupt/softirq (packet processing charged to the task)
+    1.3%     4  netlink qdisc dump
+    0.6%     2  pinger pipe read
+vnew-native-upload: 364 samples
+   63.2%   230  epoll wait (idle in the event loop)
+   11.3%    41  native ICMP probes (raw sockets)
+   10.7%    39  userspace (cake-adapt, libc, libubox)
+    7.1%    26  other kernel
+    5.8%    21  netlink qdisc dump
+    1.9%     7  interrupt/softirq (packet processing charged to the task)
