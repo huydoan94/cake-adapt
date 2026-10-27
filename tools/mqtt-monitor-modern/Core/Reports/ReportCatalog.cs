@@ -26,6 +26,17 @@ public static class ReportCatalog
             .SelectMany(g => g.Any(m => m.Dimension.Length == 0)
                 ? g.Where(m => m.Dimension.Length == 0) : g);
     }
+    // Keep report/topic/field priority, but replace rotated reflectors with the
+    // most recently received series. Restore candidate order to avoid reshuffling
+    // the legend as individual probes arrive.
+    public static MetricView[] Defaults(MetricView[] candidates)
+    {
+        var active = candidates.GroupBy(metric => (metric.Topic, metric.Name))
+            .SelectMany(group => group.OrderByDescending(metric => metric.ReceivedTime))
+            .Take(ChartDefaults.AutomaticTraces).Select(metric => metric.Key).ToHashSet();
+        return candidates.Where(metric => active.Contains(metric.Key)).ToArray();
+    }
+
     // Prefer current, numeric series when several records publish the same field.
     public static IEnumerable<MetricView> SelectSeries(IEnumerable<MetricView> metrics) =>
         metrics.GroupBy(metric => (metric.Topic, metric.Dimension, metric.Name)).Select(group => group
