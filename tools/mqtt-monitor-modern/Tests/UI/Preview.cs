@@ -31,6 +31,7 @@ static partial class Tests
         DialogAndEventChecks(window, path);
         ChartRenderingChecks(window, path);
         ChartPanelChecks();
+        DefaultRotationChecks();
         window.Close();
     }
 

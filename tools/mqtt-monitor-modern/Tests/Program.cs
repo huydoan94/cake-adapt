@@ -22,6 +22,7 @@ static partial class Tests
         await TlsIntegration("wrong-name");
         await TlsIntegration("client-only");
         SelectionChecks();
+        DefaultTraceChecks();
         RatePeakChecks();
         BatchPeakChecks();
         Preview(args.Length > 0 ? args[0] : "preview.png");
