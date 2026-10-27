@@ -28,7 +28,9 @@ The optional CA certificate is read from the path you provide.
 - Dark panels with colored line traces, hover values and expandable snapshots.
   Each panel has **Settings** to choose which source/metric traces to draw
   within its selected report, up to 24 traces. **Use defaults** restores the
-  automatic first six. Settings lists only the selected topic. Choices stay in memory separately
+  automatic six most recently updated traces within each topic/field priority.
+  Automatic choices follow reflector rotation as new telemetry arrives, without
+  pressing Use defaults again. Manually chosen traces stay pinned. Settings lists only the selected topic. Choices stay in memory separately
   per panel, report and topic, including a separate All sources view. Global
   fields use their LOAD/SUMMARY series when available instead of repeating
   the same field for each reflector. Closing the settings window cancels changes.

@@ -50,7 +50,7 @@ public static class UiText
     public const string SelectionHelp = "Use Settings or change the source filter";
     public const string ConnectionHelp = "Connect a broker to start this chart";
     public const string SettingsHint = "Use Settings to choose traces";
-    public const string AutomaticHint = "First 6 traces; use Settings to choose";
+    public const string AutomaticHint = "6 recently updated traces; use Settings to choose";
     public const string SettingsSuffix = " · chart settings";
     public const string DrawPrefix = "Draw on ";
     public const string SettingsHelp = "Choose up to 24 traces. Choices are remembered for this topic and chart while the app is open.";

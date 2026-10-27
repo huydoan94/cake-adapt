@@ -102,7 +102,7 @@ public sealed class ChartPanel : Grid
         var selection = selections.Get((Report, topic));
         var custom = selection != null;
         var chosen = custom ? candidates.Where(metric => selection!.Contains(TraceKey.From(metric))).ToArray()
-            : candidates.Take(ChartDefaults.AutomaticTraces).ToArray();
+            : ReportCatalog.Defaults(candidates);
         drawnKeys = chosen.Select(TraceKey.From).ToHashSet();
         chart.EmptyMessage = custom ? UiText.NothingSelected : UiText.Waiting;
         chart.EmptyHint = custom ? UiText.SelectionHelp : UiText.ConnectionHelp;
