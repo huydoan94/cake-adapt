@@ -1,5 +1,5 @@
-#ifndef DEFAULTS_H_INCLUDED
-#define DEFAULTS_H_INCLUDED
+#ifndef CONFIG_DEFAULTS_H_INCLUDED
+#define CONFIG_DEFAULTS_H_INCLUDED
 
 #include "constants/options.h"
 #include "constants/program.h"

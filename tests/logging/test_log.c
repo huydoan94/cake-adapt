@@ -430,53 +430,53 @@ static void test_cake_autorate_headers_and_record_format(void)
 	char path[] = "/tmp/sqm-mon-log-test-XXXXXX";
 	char contents[8192];
 	const struct log_data_record data_record = {
-		.download_achieved_rate_bps = 10U * KILOBIT,
-		.upload_achieved_rate_bps = 20U * KILOBIT,
-		.download_load_ratio_e6 = 305000U,
-		.upload_load_ratio_e6 = 400000U,
+		.achieved_rate_bps[DIRECTION_DOWNLOAD] = 10U * KILOBIT,
+		.achieved_rate_bps[DIRECTION_UPLOAD] = 20U * KILOBIT,
+		.load_ratio_e6[DIRECTION_DOWNLOAD] = 305000U,
+		.load_ratio_e6[DIRECTION_UPLOAD] = 400000U,
 		.icmp_timestamp = "[50.00006]",
 		.reflector = "1.1.1.1",
 		.sequence = 70U,
-		.download_owd_baseline_us = -80,
-		.download_owd_us = -90,
-		.download_owd_delta_ewma_us = -100,
-		.download_owd_delta_us = -110,
-		.download_adjust_delay_threshold_us = 120U,
-		.upload_owd_baseline_us = -130,
-		.upload_owd_us = -140,
-		.upload_owd_delta_ewma_us = -150,
-		.upload_owd_delta_us = -160,
-		.upload_adjust_delay_threshold_us = 170U,
-		.download_sum_delays = 180U,
-		.download_average_owd_delta_us = -190,
-		.download_maximum_adjust_up_threshold_us = 200U,
-		.download_maximum_adjust_down_threshold_us = 210U,
-		.upload_sum_delays = 220U,
-		.upload_average_owd_delta_us = -230,
-		.upload_maximum_adjust_up_threshold_us = 240U,
-		.upload_maximum_adjust_down_threshold_us = 250U,
-		.download_load_condition = "dl_low",
-		.upload_load_condition = "ul_high_bb",
-		.cake_download_rate_bps = 260U * KILOBIT,
-		.cake_upload_rate_bps = 270U * KILOBIT,
+		.owd_baseline_us[DIRECTION_DOWNLOAD] = -80,
+		.owd_us[DIRECTION_DOWNLOAD] = -90,
+		.owd_delta_ewma_us[DIRECTION_DOWNLOAD] = -100,
+		.owd_delta_us[DIRECTION_DOWNLOAD] = -110,
+		.adjust_delay_threshold_us[DIRECTION_DOWNLOAD] = 120U,
+		.owd_baseline_us[DIRECTION_UPLOAD] = -130,
+		.owd_us[DIRECTION_UPLOAD] = -140,
+		.owd_delta_ewma_us[DIRECTION_UPLOAD] = -150,
+		.owd_delta_us[DIRECTION_UPLOAD] = -160,
+		.adjust_delay_threshold_us[DIRECTION_UPLOAD] = 170U,
+		.sum_delays[DIRECTION_DOWNLOAD] = 180U,
+		.average_owd_delta_us[DIRECTION_DOWNLOAD] = -190,
+		.maximum_adjust_up_threshold_us[DIRECTION_DOWNLOAD] = 200U,
+		.maximum_adjust_down_threshold_us[DIRECTION_DOWNLOAD] = 210U,
+		.sum_delays[DIRECTION_UPLOAD] = 220U,
+		.average_owd_delta_us[DIRECTION_UPLOAD] = -230,
+		.maximum_adjust_up_threshold_us[DIRECTION_UPLOAD] = 240U,
+		.maximum_adjust_down_threshold_us[DIRECTION_UPLOAD] = 250U,
+		.load_condition[DIRECTION_DOWNLOAD] = "dl_low",
+		.load_condition[DIRECTION_UPLOAD] = "ul_high_bb",
+		.cake_rate_bps[DIRECTION_DOWNLOAD] = 260U * KILOBIT,
+		.cake_rate_bps[DIRECTION_UPLOAD] = 270U * KILOBIT,
 	};
 	const struct log_load_record load_record = {
-		.download_achieved_rate_bps = 10U * KILOBIT,
-		.upload_achieved_rate_bps = 20U * KILOBIT,
-		.cake_download_rate_bps = 30U * KILOBIT,
-		.cake_upload_rate_bps = 40U * KILOBIT,
+		.achieved_rate_bps[DIRECTION_DOWNLOAD] = 10U * KILOBIT,
+		.achieved_rate_bps[DIRECTION_UPLOAD] = 20U * KILOBIT,
+		.cake_rate_bps[DIRECTION_DOWNLOAD] = 30U * KILOBIT,
+		.cake_rate_bps[DIRECTION_UPLOAD] = 40U * KILOBIT,
 	};
-	const struct log_summary_record summary_record = {
-		.download_achieved_rate_bps = 11U * KILOBIT,
-		.upload_achieved_rate_bps = 21U * KILOBIT,
-		.download_sum_delays = 31U,
-		.upload_sum_delays = 41U,
-		.download_average_owd_delta_us = -51,
-		.upload_average_owd_delta_us = -61,
-		.download_load_condition = "dl_idle",
-		.upload_load_condition = "ul_low",
-		.cake_download_rate_bps = 71U * KILOBIT,
-		.cake_upload_rate_bps = 81U * KILOBIT,
+	const struct log_data_record summary_record = {
+		.achieved_rate_bps[DIRECTION_DOWNLOAD] = 11U * KILOBIT,
+		.achieved_rate_bps[DIRECTION_UPLOAD] = 21U * KILOBIT,
+		.sum_delays[DIRECTION_DOWNLOAD] = 31U,
+		.sum_delays[DIRECTION_UPLOAD] = 41U,
+		.average_owd_delta_us[DIRECTION_DOWNLOAD] = -51,
+		.average_owd_delta_us[DIRECTION_UPLOAD] = -61,
+		.load_condition[DIRECTION_DOWNLOAD] = "dl_idle",
+		.load_condition[DIRECTION_UPLOAD] = "ul_low",
+		.cake_rate_bps[DIRECTION_DOWNLOAD] = 71U * KILOBIT,
+		.cake_rate_bps[DIRECTION_UPLOAD] = 81U * KILOBIT,
 	};
 	const struct log_reflector_record reflector_record = {
 		.reflector = "1.0.0.1",
@@ -484,13 +484,13 @@ static void test_cake_autorate_headers_and_record_format(void)
 		.sum_owd_baselines_us = -110,
 		.sum_owd_baselines_delta_us = 10U,
 		.sum_owd_baselines_delta_threshold_us = 20000U,
-		.minimum_download_delta_ewma_us = -5,
-		.download_delta_ewma_us = 7,
-		.download_delta_ewma_delta_us = 12,
+		.minimum_delta_ewma_us[DIRECTION_DOWNLOAD] = -5,
+		.delta_ewma_us[DIRECTION_DOWNLOAD] = 7,
+		.delta_ewma_delta_us[DIRECTION_DOWNLOAD] = 12,
 		.delta_ewma_delta_threshold_us = 10000U,
-		.minimum_upload_delta_ewma_us = -6,
-		.upload_delta_ewma_us = 8,
-		.upload_delta_ewma_delta_us = 14,
+		.minimum_delta_ewma_us[DIRECTION_UPLOAD] = -6,
+		.delta_ewma_us[DIRECTION_UPLOAD] = 8,
+		.delta_ewma_delta_us[DIRECTION_UPLOAD] = 14,
 	};
 	const char *field_end;
 	const char *field_start;
@@ -612,10 +612,10 @@ static void test_tcp_queue_record(void)
 	char path[] = "/tmp/cake-adapt-log-test-XXXXXX";
 	char contents[4096];
 	const struct log_tcp_queue_record record = {
-		.download_valid = true,
-		.upload_valid = false,
-		.download_queue_us = 1500,
-		.upload_queue_us = -20,
+		.valid[DIRECTION_DOWNLOAD] = true,
+		.valid[DIRECTION_UPLOAD] = false,
+		.queue_us[DIRECTION_DOWNLOAD] = 1500,
+		.queue_us[DIRECTION_UPLOAD] = -20,
 	};
 	int descriptor = mkstemp(path);
 
@@ -986,7 +986,7 @@ static void test_mqtt_without_file(void)
 	assert(test_mqtt_count == 3U);
 	assert(strncmp(test_mqtt_line, "LOAD_HEADER;", 12U) == 0);
 	/* Records reach MQTT without a log file too, timed or not. */
-	log_load(&(struct log_load_record){ .download_achieved_rate_bps = 1000U });
+	log_load(&(struct log_load_record){ .achieved_rate_bps[DIRECTION_DOWNLOAD] = 1000U });
 	assert(test_mqtt_count == 4U);
 	assert(strncmp(test_mqtt_line, "LOAD;", 5U) == 0);
 	log_shaper("eth0", 2000000U);

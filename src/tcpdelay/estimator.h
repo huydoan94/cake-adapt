@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "common/direction.h"
 #include "tcpdelay/record.h"
 #include "constants/tcpdelay.h"
 
@@ -50,10 +51,8 @@ struct tcpdelay_flow {
 	 * period is known seconds later. A flow starting during congestion has an
 	 * unknown initial queue, so its zero cannot erase another flow's history.
 	 */
-	struct tcpdelay_floor download_floor[TCPDELAY_TICKS];
-	struct tcpdelay_floor upload_floor[TCPDELAY_TICKS];
-	struct tcpdelay_window download;
-	struct tcpdelay_window upload;
+	struct tcpdelay_floor floor[DIRECTION_COUNT][TCPDELAY_TICKS];
+	struct tcpdelay_window directions[DIRECTION_COUNT];
 };
 
 struct tcpdelay_estimator {
@@ -67,10 +66,8 @@ struct tcpdelay_estimator {
 };
 
 struct tcpdelay_estimate {
-	bool download_valid;
-	bool upload_valid;
-	int64_t download_queue_us;
-	int64_t upload_queue_us;
+	bool valid[DIRECTION_COUNT];
+	int64_t queue_us[DIRECTION_COUNT];
 };
 
 /*

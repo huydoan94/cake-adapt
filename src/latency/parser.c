@@ -1,6 +1,7 @@
 #include "latency/parser.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
+#include "common/text.h"
 #include "constants/latency.h"
 #include "constants/text.h"
 #include "constants/units.h"
@@ -148,10 +149,10 @@ static bool parse_icmp_timestamps(const char *cursor, struct latency_sample *sam
 	    !parse_icmp_timestamp(&cursor, FPING_LOCAL_RECEIVE, &local_receive_ms)) {
 		return false;
 	}
-	sample->download_owd_us = ((int64_t)local_receive_ms - (int64_t)transmit_ms) *
-				  (int64_t)MICROSECONDS_PER_MILLISECOND;
-	sample->upload_owd_us = ((int64_t)receive_ms - (int64_t)originate_ms) *
-				(int64_t)MICROSECONDS_PER_MILLISECOND;
+	sample->owd_us[DIRECTION_DOWNLOAD] = ((int64_t)local_receive_ms - (int64_t)transmit_ms) *
+					     (int64_t)MICROSECONDS_PER_MILLISECOND;
+	sample->owd_us[DIRECTION_UPLOAD] = ((int64_t)receive_ms - (int64_t)originate_ms) *
+					   (int64_t)MICROSECONDS_PER_MILLISECOND;
 	sample->timestamp_rollover_sensitive = true;
 	return true;
 }
@@ -192,8 +193,8 @@ static enum latency_fping_line_result parse_fping_reply(
 	end = strchr(cursor, ']');
 	if (end == NULL || !parse_unsigned(cursor, end, &sequence))
 		return LATENCY_FPING_LINE_INVALID;
-	sample->download_owd_us = 0U;
-	sample->upload_owd_us = 0U;
+	sample->owd_us[DIRECTION_DOWNLOAD] = 0U;
+	sample->owd_us[DIRECTION_UPLOAD] = 0U;
 	sample->timestamp_us = timestamp_us;
 	sample->timestamp_rollover_sensitive = false;
 	sample->sequence = sequence;
@@ -223,8 +224,8 @@ enum latency_fping_line_result parse_fping_line(const char *line, struct latency
 
 	if (result != LATENCY_FPING_LINE_SAMPLE)
 		return result;
-	sample->download_owd_us = half_round_trip(round_trip_ns);
-	sample->upload_owd_us = sample->download_owd_us;
+	sample->owd_us[DIRECTION_DOWNLOAD] = half_round_trip(round_trip_ns);
+	sample->owd_us[DIRECTION_UPLOAD] = sample->owd_us[DIRECTION_DOWNLOAD];
 	return LATENCY_FPING_LINE_SAMPLE;
 }
 
@@ -344,8 +345,8 @@ bool parse_irtt_line(const char *line, const char *target, struct latency_sample
 	    !parse_irtt_duration(upload_text, &upload_owd_us)) {
 		return false;
 	}
-	*sample = (struct latency_sample){ .download_owd_us = download_owd_us,
-					   .upload_owd_us = upload_owd_us,
+	*sample = (struct latency_sample){ .owd_us[DIRECTION_DOWNLOAD] = download_owd_us,
+					   .owd_us[DIRECTION_UPLOAD] = upload_owd_us,
 					   .timestamp_rollover_sensitive = false,
 					   .sequence = sequence };
 	return copy_token(sample->target, sizeof(sample->target), target, target + strlen(target));

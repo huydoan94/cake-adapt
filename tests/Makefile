@@ -17,28 +17,31 @@ WARNINGS := \
 	-Werror
 
 # Test sources mirror src/; objects and binaries stay below build/.
+# The shared operations every module may use (common/, latency/response.c and platform/path.c and thread.c).
+COMMON_OBJECTS := src/common/clock.o src/common/random.o src/common/rate.o src/common/text.o src/latency/response.o src/platform/path.o src/platform/thread.o
+COMMON_SOURCES := $(addprefix $(SOURCE_DIR)/,$(patsubst src/%.o,%.c,$(COMMON_OBJECTS)))
 OBJECT_DIR ?= ../build/tests
 BINARY_DIR := $(OBJECT_DIR)/bin
-TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_memory test_helpers test_defaults test_estimator test_accounting test_inject test_mqtt_none
+TARGETS := test_controller test_replay test_reflector test_latency test_parser test_tracker test_log test_traffic test_cpu test_memory test_common test_defaults test_estimator test_accounting test_inject test_mqtt_none
 BINARIES := $(addprefix $(BINARY_DIR)/,$(TARGETS))
 TARGETS += test_icmp test_native
 BINARIES += $(BINARY_DIR)/test_icmp $(BINARY_DIR)/test_native
 
-test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o src/common/helpers.o
-test_replay_OBJECTS := controller/test_replay.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o src/common/helpers.o
-test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/tracker.o src/common/helpers.o
-LATENCY_OBJECTS := src/latency/latency.o src/latency/children.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o src/latency/icmp.o src/latency/native.o
-test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o src/common/helpers.o
-test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o src/common/helpers.o
-test_icmp_OBJECTS := latency/test_icmp.o src/latency/icmp.o src/common/error.o src/common/helpers.o
-test_native_OBJECTS := latency/test_native.o src/latency/native.o src/latency/icmp.o src/common/error.o src/common/helpers.o
-test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o src/common/helpers.o
-test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/logging/file.o src/logging/records.o src/logging/writer.o src/common/helpers_log.o src/common/error.o
+test_controller_OBJECTS := controller/test_controller.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o $(COMMON_OBJECTS)
+test_replay_OBJECTS := controller/test_replay.o src/controller/controller.o src/controller/activity.o src/controller/congestion.o src/controller/coupling.o src/controller/rate.o $(COMMON_OBJECTS)
+test_reflector_OBJECTS := controller/test_reflector.o src/controller/reflector.o src/latency/tracker.o $(COMMON_OBJECTS)
+LATENCY_OBJECTS := src/latency/latency.o src/latency/pinger.o src/latency/children.o src/latency/fping.o src/latency/irtt.o src/latency/parser.o src/latency/icmp.o src/latency/native.o
+test_latency_OBJECTS := latency/test_latency.o $(LATENCY_OBJECTS) src/common/error.o $(COMMON_OBJECTS)
+test_parser_OBJECTS := latency/test_parser.o src/latency/parser.o $(COMMON_OBJECTS)
+test_icmp_OBJECTS := latency/test_icmp.o src/latency/icmp.o src/common/error.o $(COMMON_OBJECTS)
+test_native_OBJECTS := latency/test_native.o src/latency/native.o src/latency/icmp.o src/common/error.o $(COMMON_OBJECTS)
+test_tracker_OBJECTS := latency/test_tracker.o src/latency/tracker.o $(COMMON_OBJECTS)
+test_log_OBJECTS := logging/test_log.o logging/mqtt_stub.o src/logging/log.o src/logging/file.o src/logging/records.o src/logging/writer.o src/common/clock_log.o src/common/random.o src/common/rate.o src/common/text.o src/latency/response.o src/platform/path.o src/platform/thread.o src/common/error.o
 test_mqtt_none_OBJECTS := logging/test_mqtt_none.o src/logging/mqtt_none.o src/common/error.o
-test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o src/common/helpers.o
-test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o src/common/helpers.o
+test_traffic_OBJECTS := platform/test_traffic.o src/platform/traffic.o $(COMMON_OBJECTS)
+test_cpu_OBJECTS := platform/test_cpu.o src/platform/cpu.o src/common/error.o $(COMMON_OBJECTS)
 test_memory_OBJECTS := platform/test_memory.o src/platform/memory.o src/common/error.o
-test_helpers_OBJECTS := common/test_helpers.o src/common/helpers.o
+test_common_OBJECTS := common/test_common.o $(COMMON_OBJECTS)
 test_defaults_OBJECTS := config/test_defaults.o src/config/defaults.o
 test_estimator_OBJECTS := tcpdelay/test_estimator.o src/tcpdelay/estimator.o
 test_accounting_OBJECTS := cake/test_accounting.o
@@ -72,7 +75,7 @@ check-mqtt: $(BINARY_DIR)/test_mqtt $(BINARY_DIR)/test_mqtt_tls
 	$(BINARY_DIR)/test_mqtt
 	$(BINARY_DIR)/test_mqtt_tls
 
-MQTT_TEST_SOURCES := logging/test_mqtt.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
+MQTT_TEST_SOURCES := logging/test_mqtt.c $(COMMON_SOURCES) $(SOURCE_DIR)/common/error.c
 MQTT_TEST_DEPENDENCIES := $(MQTT_TEST_SOURCES) $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/mqtt.h
 
 $(BINARY_DIR)/test_mqtt: MQTT_TEST_FLAGS := -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=0
@@ -81,50 +84,50 @@ $(BINARY_DIR)/test_mqtt $(BINARY_DIR)/test_mqtt_tls: $(MQTT_TEST_DEPENDENCIES)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(MQTT_TEST_FLAGS) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $(MQTT_TEST_SOURCES) $(LDLIBS) $(MQTT_LIBS)
 
-$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/logging/file.c $(SOURCE_DIR)/logging/records.c $(SOURCE_DIR)/logging/writer.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
+$(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/logging/file.c $(SOURCE_DIR)/logging/records.c $(SOURCE_DIR)/logging/writer.c $(COMMON_SOURCES) $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/logging/file.c $(SOURCE_DIR)/logging/records.c $(SOURCE_DIR)/logging/writer.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c $(LDLIBS) $(MQTT_LIBS) -lz
+	$(CC) $(CPPFLAGS) -DMQTT_SUPPORTED=1 -DMQTT_TLS_SUPPORTED=$(MQTT_TLS_SUPPORTED) $(MQTT_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -pthread $(LDFLAGS) -o $@ $< $(SOURCE_DIR)/logging/log.c $(SOURCE_DIR)/logging/file.c $(SOURCE_DIR)/logging/records.c $(SOURCE_DIR)/logging/writer.c $(COMMON_SOURCES) $(SOURCE_DIR)/common/error.c $(LDLIBS) $(MQTT_LIBS) -lz
 
-# The monitor needs UCI/libubox and the filter seam needs libbpf headers.
+# The daemon needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
 .PHONY: check-tcpdelay
-check-tcpdelay: $(BINARY_DIR)/test_monitor_tcpdelay $(BINARY_DIR)/test_monitor_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_monitor_status $(BINARY_DIR)/test_monitor_publish $(BINARY_DIR)/test_monitor_pingers
-	$(BINARY_DIR)/test_monitor_tcpdelay
-	$(BINARY_DIR)/test_monitor_reflectors
+check-tcpdelay: $(BINARY_DIR)/test_daemon_tcp $(BINARY_DIR)/test_daemon_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_daemon_status $(BINARY_DIR)/test_daemon_publish $(BINARY_DIR)/test_daemon_pingers
+	$(BINARY_DIR)/test_daemon_tcp
+	$(BINARY_DIR)/test_daemon_reflectors
 	$(BINARY_DIR)/test_filter_accounting
-	$(BINARY_DIR)/test_monitor_status
-	$(BINARY_DIR)/test_monitor_publish
-	$(BINARY_DIR)/test_monitor_pingers
+	$(BINARY_DIR)/test_daemon_status
+	$(BINARY_DIR)/test_daemon_publish
+	$(BINARY_DIR)/test_daemon_pingers
 
-$(BINARY_DIR)/test_monitor_pingers: monitor/test_pingers.c $(SOURCE_DIR)/monitor/pingers.c $(SOURCE_DIR)/monitor/native_pinger.c $(SOURCE_DIR)/monitor/child_pingers.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o
+$(BINARY_DIR)/test_daemon_pingers: daemon/test_pingers.c $(SOURCE_DIR)/daemon/pingers.c $(SOURCE_DIR)/daemon/native_pinger.c $(SOURCE_DIR)/daemon/child_pingers.c $(wildcard $(SOURCE_DIR)/daemon/*.h) $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(addprefix $(OBJECT_DIR)/,$(COMMON_OBJECTS))
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(OBJECT_DIR)/src/common/helpers.o $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(addprefix $(OBJECT_DIR)/,$(COMMON_OBJECTS)) $(LDLIBS)
 
 # libbpf map-definition macros require GNU typeof, as in the BPF build.
 $(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE_DIR)/tcpdelay/tcpdelay.bpf.c $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/cake/accounting.h
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=gnu11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_reflectors: monitor/test_reflectors.c $(SOURCE_DIR)/monitor/reflectors.c $(wildcard $(SOURCE_DIR)/monitor/*.h)
+$(BINARY_DIR)/test_daemon_reflectors: daemon/test_reflectors.c $(SOURCE_DIR)/daemon/reflectors.c $(wildcard $(SOURCE_DIR)/daemon/*.h)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_tcpdelay: monitor/test_tcpdelay.c $(SOURCE_DIR)/monitor/tcpdelay.c $(SOURCE_DIR)/monitor/links.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/tcpdelay/injector.h $(SOURCE_DIR)/tcpdelay/inject.h $(SOURCE_DIR)/cake/accounting.h $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_daemon_tcp: daemon/test_tcp.c $(SOURCE_DIR)/daemon/tcp.c $(SOURCE_DIR)/daemon/links.c $(wildcard $(SOURCE_DIR)/daemon/*.h) $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/tcpdelay/capture.h $(SOURCE_DIR)/tcpdelay/injector.h $(SOURCE_DIR)/tcpdelay/inject.h $(SOURCE_DIR)/cake/accounting.h $(COMMON_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(COMMON_SOURCES) $(LDLIBS)
 
-$(BINARY_DIR)/test_monitor_status: monitor/test_status.c $(SOURCE_DIR)/monitor/status.c $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_daemon_status: daemon/test_status.c $(SOURCE_DIR)/daemon/status.c $(wildcard $(SOURCE_DIR)/daemon/*.h) $(COMMON_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(COMMON_SOURCES) $(LDLIBS)
 
 # libubus and blobmsg are replaced by the test's recorders.
-$(BINARY_DIR)/test_monitor_publish: monitor/test_publish.c $(SOURCE_DIR)/monitor/publish.c $(SOURCE_DIR)/platform/ubus.c $(SOURCE_DIR)/platform/ubus.h $(wildcard $(SOURCE_DIR)/monitor/*.h) $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_daemon_publish: daemon/test_publish.c $(SOURCE_DIR)/daemon/publish.c $(SOURCE_DIR)/platform/ubus.c $(SOURCE_DIR)/platform/ubus.h $(wildcard $(SOURCE_DIR)/daemon/*.h) $(COMMON_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 -pthread $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(SOURCE_DIR)/common/helpers.c $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 -pthread $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(COMMON_SOURCES) $(LDLIBS)
 
 # Pure configuration validation needs UCI headers, but no native libuci build.
 # It is built once per package variant: without MQTT, with MQTT, and with MQTT and TLS.
-CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/children.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c logging/file.c logging/records.c logging/writer.c common/error.c common/helpers.c) logging/mqtt_stub.c
+CONFIG_SOURCES := $(addprefix $(SOURCE_DIR)/,config/defaults.c latency/latency.c latency/pinger.c latency/children.c latency/fping.c latency/irtt.c latency/parser.c latency/icmp.c latency/native.c logging/log.c logging/file.c logging/records.c logging/writer.c common/error.c $(patsubst src/%.o,%.c,$(COMMON_OBJECTS))) logging/mqtt_stub.c
 CONFIG_TESTS := $(BINARY_DIR)/test_config $(BINARY_DIR)/test_config_mqtt $(BINARY_DIR)/test_config_mqtt_ssl
 
 .PHONY: check-config
@@ -150,13 +153,13 @@ check-netlink: $(BINARY_DIR)/test_cake $(BINARY_DIR)/test_netlink
 	$(BINARY_DIR)/test_cake
 	$(BINARY_DIR)/test_netlink
 
-$(BINARY_DIR)/test_cake: cake/test_cake.c $(SOURCE_DIR)/cake/cake.c $(SOURCE_DIR)/cake/cake.h $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_cake: cake/test_cake.c $(SOURCE_DIR)/cake/cake.c $(SOURCE_DIR)/cake/cake.h $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/error.c $(COMMON_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ cake/test_cake.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ cake/test_cake.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/common/error.c $(COMMON_SOURCES) $(LDLIBS) $(NETLINK_LIBS)
 
-$(BINARY_DIR)/test_netlink: platform/test_netlink.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h $(SOURCE_DIR)/common/helpers.h $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c
+$(BINARY_DIR)/test_netlink: platform/test_netlink.c $(SOURCE_DIR)/platform/netlink.c $(SOURCE_DIR)/platform/netlink.h  $(SOURCE_DIR)/common/error.c $(COMMON_SOURCES)
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ platform/test_netlink.c $(SOURCE_DIR)/common/error.c $(SOURCE_DIR)/common/helpers.c $(LDLIBS) $(NETLINK_LIBS)
+	$(CC) $(CPPFLAGS) $(NETLINK_CFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ platform/test_netlink.c $(SOURCE_DIR)/common/error.c $(COMMON_SOURCES) $(LDLIBS) $(NETLINK_LIBS)
 
 .PHONY: all check clean
 
@@ -187,7 +190,7 @@ $(BINARY_DIR)/test_controller: TEST_LDFLAGS := -Wl,--wrap=calloc
 $(BINARY_DIR)/test_latency: TEST_LDFLAGS := -Wl,--wrap=access
 $(BINARY_DIR)/test_native: TEST_LDFLAGS := -Wl,--wrap=icmp_open,--wrap=icmp_close,--wrap=icmp_send
 
-$(BINARY_DIR)/icmp_driver: latency/icmp_driver.c $(SOURCE_DIR)/latency/icmp.c $(SOURCE_DIR)/latency/native.c $(SOURCE_DIR)/common/helpers.c $(SOURCE_DIR)/common/error.c
+$(BINARY_DIR)/icmp_driver: latency/icmp_driver.c $(SOURCE_DIR)/latency/icmp.c $(SOURCE_DIR)/latency/native.c $(COMMON_SOURCES) $(SOURCE_DIR)/common/error.c
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 $(LDFLAGS) -o $@ $^ $(LDLIBS)
 $(BINARY_DIR)/test_log: TEST_LDFLAGS := -Wl,--wrap=syslog,--wrap=__syslog_chk,--wrap=open_memstream,--wrap=fclose,--wrap=localtime_r,--wrap=closelog,--wrap=pthread_cond_signal
@@ -202,7 +205,7 @@ $(OBJECT_DIR)/src/%.o: $(SOURCE_DIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -std=c11 -MMD -MP -c -o $@ $<
 
 # test_log controls time by replacing the helper module's clock source.
-$(OBJECT_DIR)/src/common/helpers_log.o: $(SOURCE_DIR)/common/helpers.c
+$(OBJECT_DIR)/src/common/clock_log.o src/common/random.o src/common/rate.o src/common/text.o src/latency/response.o src/platform/path.o src/platform/thread.o: $(COMMON_SOURCES)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(WARNINGS) -Dclock_gettime=test_log_clock_gettime -std=c11 -MMD -MP -c -o $@ $<
 

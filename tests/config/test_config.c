@@ -1,7 +1,6 @@
 #include "config/config.c"
 #include "config/validate.c"
 #include "config/options.c"
-#include "common/utils.h"
 #include "constants/options.h"
 #include "constants/program.h"
 #include "constants/units.h"
@@ -38,7 +37,7 @@ parse_decimal(const char *value, uint64_t scale, uint64_t *result, char *error, 
 {
 	const struct loader loader = { .error = error, .error_size = error_size };
 	const struct option_binding option = { .name = "test",
-					       .type = TYPE_SCALED,
+					       .type = OPTION_TYPE_SCALED,
 					       .scale = scale };
 
 	return parse_scaled_decimal(&loader, &option, value, result);
@@ -182,12 +181,12 @@ static struct config valid_config(void)
 				.stall_detection_threshold = 5U,
 				.global_ping_response_timeout_us = 10000000U,
 				.interface_up_check_interval_us = 10000000U,
-				.download.minimum_rate_bps = 5000000U,
-				.download.base_rate_bps = 20000000U,
-				.download.maximum_rate_bps = 80000000U,
-				.upload.minimum_rate_bps = 5000000U,
-				.upload.base_rate_bps = 20000000U,
-				.upload.maximum_rate_bps = 35000000U,
+				.directions[DIRECTION_DOWNLOAD].minimum_rate_bps = 5000000U,
+				.directions[DIRECTION_DOWNLOAD].base_rate_bps = 20000000U,
+				.directions[DIRECTION_DOWNLOAD].maximum_rate_bps = 80000000U,
+				.directions[DIRECTION_UPLOAD].minimum_rate_bps = 5000000U,
+				.directions[DIRECTION_UPLOAD].base_rate_bps = 20000000U,
+				.directions[DIRECTION_UPLOAD].maximum_rate_bps = 35000000U,
 				.connection_active_threshold_bps = 2000000U };
 }
 

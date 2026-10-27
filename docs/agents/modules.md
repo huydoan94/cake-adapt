@@ -6,21 +6,25 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
 
 - `main.c`: CLI, startup, logging initialization, configuration loading,
   top-level lifecycle, and orderly shutdown only.
-- `monitor/`: uloop orchestration and coordination between measurements,
-  controller decisions, qdisc lifecycle, timers, and signals. All state is one
-  `struct monitor` in the private `loop.h`, passed to every function; each
-  file owns one part of it, declared with its functions in the header of the
-  same name (`links.h`, `pingers.h`, ...), and prefixes its functions with
-  that part's name. `monitor.h` is the only public header.
-  - `monitor.c`: loop setup and teardown, the traffic tick
-    (`monitor_tick`) and the activity state machine.
+- `daemon/`: the running daemon: uloop orchestration and coordination between
+  measurements, controller decisions, qdisc lifecycle, timers, and signals. All
+  state is one `struct daemon` in the private `state.h`, passed to every
+  function; each file owns one part of it, declared with its functions in the
+  header of the same name (`links.h`, `pingers.h`, ...), and prefixes its
+  functions with that part's name. `daemon.h` is the only public header.
+  - `daemon.c`: loop setup and teardown, the traffic tick (`daemon_tick`)
+    and the activity state machine.
   - `upkeep.c` (`upkeep`): CPU and memory records, the log file's timer, and
     the export and reset signals.
   - `links.c` (`links`): both directions' CAKE discovery, achieved rates,
     compensated traffic cadence, and qdisc lifecycle events.
-  - `control.c` (`control`): controller configuration and input, CAKE
-    bandwidth changes with readback, minimum-rate enforcement, and controller
-    records.
+  - `shaper.c` (`shaper`): drives the CAKE shapers with the controller's
+    decisions: controller configuration and input, CAKE bandwidth changes
+    with readback, and minimum-rate enforcement.
+  - `report.c` (`report`): what the shaper and the activity state report: the
+    messages for a changed decision, the `DATA` and `SUMMARY` records, and the
+    names they print (`report.h` holds the activity names inline, for the
+    status object too).
   - `pingers.c` (`pingers`): the pinger session: start, retries, restart,
     suspension, setup grace, and per-reply latency processing.
   - `native_pinger.c` (`native_pinger`): the native ICMP sockets and probe
@@ -29,13 +33,14 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     their output, exits, SIGKILL escalation and irtt's staggered starts.
   - `reflectors.c` (`reflectors`): latency trackers, reflector ordering,
     scheduled comparison and replacement, and health checks.
-  - `tcpdelay.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
+  - `tcp.c` (`tcp`): the TCP capture, its queue estimate, the upload ACK
     rate, and the timestamp injector's attachment and `TCP_INJECT` records.
   - `status.c` (`status`): the instance's status snapshot from state the
-    monitor already holds.
+    daemon already holds.
   - `publish.c` (`publish`): the status object on ubus: its reply, its
     identity and the messages for what its server reports; the main thread
-    only replaces the snapshot each traffic tick and logs those events.
+    only replaces the snapshot each traffic tick and logs those events. It
+    stays apart from `status.c` so its tests can supply any snapshot.
 - `constants/`: every named value, one header per topic: `units.h` (units and
   conversions), `program.h` (identity, build features, runtime directory),
   `options.h` (UCI option names, booleans, configuration limits), `states.h`,
@@ -44,19 +49,24 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   `proc.h`, `controller.h` (fixed policy), `tcpdelay.h` (filter object, maps,
   packet layout, estimator) and `ubus.h`. Headers include only the topics
   they build on; each source file includes the topics it uses.
-- `common/`
-  - `utils.h`: trivial operations as `static inline` functions: saturating
-    arithmetic (`saturating_add`, `saturating_sub`, `saturating_mul`,
+- `common/`: generic operations named for what they do, used by every
+  subsystem. A module never keeps its own copy of one.
+  - `arith.h`: trivial integer arithmetic as `static inline` functions:
+    saturation (`saturating_add`, `saturating_sub`, `saturating_mul`,
     `signed_sum`), `min_u64`, `max_u64`, `mul_div`, rounding
     (`rounded_divide`, `signed_rounded_divide`), ratios per million
-    (`ratio_of`, `ratio_of_rounded_up`), unit conversions (`byte_to_bit`,
-    `bit_to_kbit`, `byte_to_kbyte`, `us_to_ms`, `ns_to_us`, `timespec_to_us`,
-    `us_to_sec_decimal`), and `ARRAY_SIZE`. A module never keeps its own copy
-    of one.
-  - `helpers.c`: generic operations too large to inline, such as numeric
-    parsing, random selection, clocks (`read_clock_us`), bounded thread joins
-    (`thread_join_within`, for the ubus and MQTT threads), rates from counters
-    (`bps`), and ratios (`fraction_to_ratio_e6`, `load_ratio_e6`).
+    (`ratio_of`, `ratio_of_rounded_up`) and `ARRAY_SIZE`.
+  - `convert.h`: unit conversions where a value enters or leaves the daemon
+    (`byte_to_bit`, `bit_to_kbit`, `byte_to_kbyte`, `us_to_ms`,
+    `us_to_timeout_ms`, `ns_to_us`, `timespec_to_us`, `us_to_sec_decimal`).
+  - `direction.h`: `enum direction` (`DIRECTION_DOWNLOAD`, `DIRECTION_UPLOAD`,
+    `DIRECTION_COUNT`) and its names. Everything kept per direction is an
+    array indexed by it, so code that treats both alike is one loop.
+  - `clock.c`: clock readings (`read_clock_us`) and `interval_elapsed`.
+  - `rate.c`: rates from counters (`bps`), serialization times
+    (`serialization_us`) and ratios (`fraction_to_ratio_e6`, `load_ratio_e6`).
+  - `text.c`: decimal parsing (`parse_unsigned`).
+  - `random.c`: uniform selection and shuffling from a supplied entropy source.
   - `error.c`: shared error-buffer formatting.
 - `config/`
   - `config.c`: typed UCI loading and conversion through `libuci`; never
@@ -73,8 +83,9 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     defaults.
 - `controller/`
   Platform-independent policy, directly unit-testable with synthetic inputs.
-  `controller.h` and `activity.h` are its interfaces; `direction.h` is
-  private to the directory.
+  `controller.h`, `activity.h` and `reflector.h` are its interfaces;
+  `direction.h` (one direction's share of an update) is private to the
+  directory.
   - `controller.c`: set-up, and one update of both directions in order.
   - `rate.c`: the rate arithmetic: cuts on bufferbloat, increases under
     high load, decay toward the base rate, clamping.
@@ -85,26 +96,29 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     serialization compensation.
   - `activity.c`: the load classes cake-autorate prints, and the
     running/idle/stall state.
-  - `reflector.c`: reflector health, comparison, and rotation policy over
-    latency trackers.
+  - `reflector.c`: reflector health (`reflector_health_*`), comparison, and
+    rotation policy over latency trackers.
 - `latency/`
   - `icmp.c`: the native probes' IPv4/IPv6 raw sockets, wire packets,
     identifier filters and fixed-width kernel receive timestamps.
   - `native.c`: native probe scheduling (the default pinger), outstanding
     requests, expiry and reply matching; its samples use the same
     logging/tracker contract as the fping and irtt fallbacks.
-    `monitor/native_pinger.c` registers its sockets and timer with uloop. Legacy
-    backends remain until the native live comparison passes.
-  - `latency.c`: the pinger methods, the session, line splitting, and
-    dispatch to the active backend.
+    `daemon/native_pinger.c` registers its sockets and timer with uloop.
+  - `pinger.c`: the pinger methods (`enum pinger_method`): what each runs and
+    how it measures (`pinger_is_native`, `pinger_shared_delay`, ...).
+  - `latency.c`: the latency session, line splitting, and dispatch to the
+    child pinger.
   - `children.c`: the pinger children: command words, spawning, stopping
-    and their exits. Children are reaped by the monitor through
+    and their exits. Children are reaped by the daemon through
     `uloop_process`. The only synchronous, bounded waits are shutdown
-    (`latency_stop_now`) and a child whose pipe setup failed (`start_child`).
-  - `fping.c` and `irtt.c`: backend-specific launch arguments and scheduling.
-  - `pinger.h`: private interface between the session and its backends;
-    each backend exports a `struct pinger_ops` (name, line parser, exit
+    (`latency_stop_now`) and a child whose pipe setup failed (`child_start`).
+    `children.h` is the private interface between the session and its child
+    pingers; each exports a `struct child_ops` (name, line parser, exit
     handler) that the session calls through.
+  - `fping.c` and `irtt.c`: each child pinger's launch arguments and scheduling.
+  - `response.c`: reply timestamps: their age (`response_stale`) and their
+    place on the monotonic clock (`response_monotonic_us`).
   - `parser.c`: pinger output parsing into latency samples.
   - `tracker.c`: per-reflector baseline and delta EWMA tracking.
 - `tcpdelay/`: passive per-direction queue measurement from TCP timestamps.
@@ -134,6 +148,10 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
   CAKE-specific operations; `cake/accounting.h` holds the upload CAKE's packet
   charge settings shared with the socket filter.
 - `platform/`
+  - `path.c`: absolute paths (`path_absolute`) and the pid lock file
+    (`path_lock_pid`).
+  - `thread.c`: bounded joins of the helper threads (`thread_join_within`,
+    for the log writer, MQTT and ubus threads).
   - `instance.c`: the per-instance lock (`/var/run/cake-adapt/<section>.lock`,
     so a second daemon with a running instance's name exits with an error).
   - `netlink.c`: low-level rtnetlink requests, replies, events, and timeouts.

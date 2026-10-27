@@ -1,6 +1,7 @@
 #include "tcpdelay/estimator.h"
 #include "config/defaults.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
 #include "constants/tcpdelay.h"
 #include "constants/units.h"
 
@@ -131,8 +132,7 @@ static void fit_tick(struct tcpdelay_flow *flow, uint64_t span_ns)
 
 /* One sample's queueing delay in each direction; upload_ns is negative without a departure. */
 struct flow_queues {
-	int64_t download_ns;
-	int64_t upload_ns;
+	int64_t ns[DIRECTION_COUNT];
 };
 
 /* Updates the floors for one candidate clock period and returns the sample's queues. */
@@ -145,12 +145,15 @@ static struct flow_queues flow_measure(
 {
 	int64_t elapsed_ns = (int64_t)(sample->arrival_ns - flow->first_arrival_ns);
 	int64_t remote_ns = (int64_t)(flow->ticks * standard_ticks_ns[tick_index]);
-	struct flow_queues queues = { .upload_ns = -1 };
+	struct flow_queues queues = { .ns[DIRECTION_UPLOAD] = -1 };
 
 	/* Arrival minus remote send time: only the downstream delay varies. */
-	queues.download_ns = elapsed_ns - remote_ns;
-	queues.download_ns -=
-		floor_update(estimator, &flow->download_floor[tick_index], queues.download_ns);
+	queues.ns[DIRECTION_DOWNLOAD] = elapsed_ns - remote_ns;
+	queues.ns[DIRECTION_DOWNLOAD] -= floor_update(
+		estimator,
+		&flow->floor[DIRECTION_DOWNLOAD][tick_index],
+		queues.ns[DIRECTION_DOWNLOAD]
+	);
 
 	/*
 	 * Remote send timestamp minus our departure of the echoed TSval includes both
@@ -161,9 +164,12 @@ static struct flow_queues flow_measure(
 		int64_t departed_ns =
 			(int64_t)sample->departure_ns - (int64_t)flow->first_arrival_ns;
 
-		queues.upload_ns = remote_ns - departed_ns;
-		queues.upload_ns -=
-			floor_update(estimator, &flow->upload_floor[tick_index], queues.upload_ns);
+		queues.ns[DIRECTION_UPLOAD] = remote_ns - departed_ns;
+		queues.ns[DIRECTION_UPLOAD] -= floor_update(
+			estimator,
+			&flow->floor[DIRECTION_UPLOAD][tick_index],
+			queues.ns[DIRECTION_UPLOAD]
+		);
 	}
 	return queues;
 }
@@ -200,14 +206,22 @@ void tcpdelay_estimator_add(
 		return;
 	}
 	queues = flow_measure(estimator, flow, flow->tick_index, sample);
-	if (queues.download_ns > TCPDELAY_IMPLAUSIBLE_QUEUE_NS ||
-	    queues.upload_ns > TCPDELAY_IMPLAUSIBLE_QUEUE_NS) {
+	if (queues.ns[DIRECTION_DOWNLOAD] > TCPDELAY_IMPLAUSIBLE_QUEUE_NS ||
+	    queues.ns[DIRECTION_UPLOAD] > TCPDELAY_IMPLAUSIBLE_QUEUE_NS) {
 		flow_start(flow, sample);
 		return;
 	}
-	window_add(&flow->download, queues.download_ns, sample->arrival_ns);
-	if (queues.upload_ns >= 0)
-		window_add(&flow->upload, queues.upload_ns, sample->arrival_ns);
+	window_add(
+		&flow->directions[DIRECTION_DOWNLOAD],
+		queues.ns[DIRECTION_DOWNLOAD],
+		sample->arrival_ns
+	);
+	if (queues.ns[DIRECTION_UPLOAD] >= 0)
+		window_add(
+			&flow->directions[DIRECTION_UPLOAD],
+			queues.ns[DIRECTION_UPLOAD],
+			sample->arrival_ns
+		);
 }
 
 void tcpdelay_estimator_result(
@@ -216,7 +230,7 @@ void tcpdelay_estimator_result(
 	struct tcpdelay_estimate *estimate
 )
 {
-	/* The filter timestamps with CLOCK_MONOTONIC, like the monitor. */
+	/* The filter timestamps with CLOCK_MONOTONIC, like the daemon. */
 	uint64_t now_ns = now_us * NANOSECONDS_PER_MICROSECOND;
 	const struct tcpdelay_flow *selected = NULL;
 	size_t index;
@@ -231,26 +245,28 @@ void tcpdelay_estimator_result(
 		/* Used flows fill the table from the start. */
 		if (!flow->used)
 			break;
-		if (!window_result(&flow->download, now_ns, &download_ns))
+		if (!window_result(&flow->directions[DIRECTION_DOWNLOAD], now_ns, &download_ns))
 			continue;
-		upload_valid = window_result(&flow->upload, now_ns, &upload_ns);
+		upload_valid =
+			window_result(&flow->directions[DIRECTION_UPLOAD], now_ns, &upload_ns);
 		/*
 		 * Never combine different flows' floors into one directional pair.
 		 * Prefer both directions, then the history least likely to have begun
 		 * inside a new queue. Age is not proof of an uncongested baseline.
 		 */
 		if (selected != NULL) {
-			if (estimate->upload_valid && !upload_valid)
+			if (estimate->valid[DIRECTION_UPLOAD] && !upload_valid)
 				continue;
-			if (estimate->upload_valid == upload_valid &&
+			if (estimate->valid[DIRECTION_UPLOAD] == upload_valid &&
 			    selected->first_arrival_ns <= flow->first_arrival_ns) {
 				continue;
 			}
 		}
 		selected = flow;
-		estimate->download_valid = true;
-		estimate->download_queue_us = signed_ns_to_us(download_ns);
-		estimate->upload_valid = upload_valid;
-		estimate->upload_queue_us = upload_valid ? signed_ns_to_us(upload_ns) : 0;
+		estimate->valid[DIRECTION_DOWNLOAD] = true;
+		estimate->queue_us[DIRECTION_DOWNLOAD] = signed_ns_to_us(download_ns);
+		estimate->valid[DIRECTION_UPLOAD] = upload_valid;
+		estimate->queue_us[DIRECTION_UPLOAD] = upload_valid ? signed_ns_to_us(upload_ns) :
+								      0;
 	}
 }

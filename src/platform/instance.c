@@ -2,7 +2,7 @@
 
 #include "platform/instance.h"
 #include "common/error.h"
-#include "common/helpers.h"
+#include "platform/path.h"
 #include "constants/program.h"
 
 #include <errno.h>
@@ -39,7 +39,7 @@ int instance_lock(const char *section_name, char *error, size_t error_size)
 			strerror(errno)
 		);
 	}
-	if (lock_pid_file(path, &holder_pid) >= 0)
+	if (path_lock_pid(path, &holder_pid) >= 0)
 		return 0;
 	if (errno != EWOULDBLOCK)
 		return error_set(

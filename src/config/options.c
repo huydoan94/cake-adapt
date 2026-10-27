@@ -1,6 +1,6 @@
 #include "config/options.h"
 #include "config/config.h"
-#include "common/utils.h"
+#include "common/arith.h"
 #include "constants/options.h"
 #include "constants/units.h"
 
@@ -10,18 +10,19 @@
 
 #define CONFIG_OFFSET(member) offsetof(struct config, member)
 #define CONFIG_SIZE(member) sizeof(((struct config *)0)->member)
-#define BOOLEAN_OPTION(name, member) { name, TYPE_BOOLEAN, CONFIG_OFFSET(member), 0U, 0U }
+#define BOOLEAN_OPTION(name, member) { name, OPTION_TYPE_BOOLEAN, CONFIG_OFFSET(member), 0U, 0U }
 #define STRING_OPTION(name, member) \
-	{ name, TYPE_STRING, CONFIG_OFFSET(member), CONFIG_SIZE(member), 0U }
-#define SCALED_OPTION(name, member, scale) { name, TYPE_SCALED, CONFIG_OFFSET(member), 0U, scale }
+	{ name, OPTION_TYPE_STRING, CONFIG_OFFSET(member), CONFIG_SIZE(member), 0U }
+#define SCALED_OPTION(name, member, scale) \
+	{ name, OPTION_TYPE_SCALED, CONFIG_OFFSET(member), 0U, scale }
 /* A ratio with up to six decimal places, stored per million. */
 #define RATIO_OPTION(name, member) SCALED_OPTION(name, member, RATIO_ONE_E6)
 
 /* Booleans, then strings, then decimals: the order -L lists and loading applies. */
 static const struct option_binding options[] = {
 	BOOLEAN_OPTION(OPTION_ENABLED, enabled),
-	BOOLEAN_OPTION(OPTION_ADJUST_DOWNLOAD, download.adjust),
-	BOOLEAN_OPTION(OPTION_ADJUST_UPLOAD, upload.adjust),
+	BOOLEAN_OPTION(OPTION_ADJUST_DOWNLOAD, directions[DIRECTION_DOWNLOAD].adjust),
+	BOOLEAN_OPTION(OPTION_ADJUST_UPLOAD, directions[DIRECTION_UPLOAD].adjust),
 	BOOLEAN_OPTION(OPTION_OUTPUT_PROCESSING_STATS, output_processing_stats),
 	BOOLEAN_OPTION(OPTION_OUTPUT_LOAD_STATS, output_load_stats),
 	BOOLEAN_OPTION(OPTION_OUTPUT_REFLECTOR_STATS, output_reflector_stats),
@@ -60,42 +61,54 @@ static const struct option_binding options[] = {
 	SCALED_OPTION(OPTION_LOG_FILE_MAX_SIZE, log_file_max_size_bytes, KILOBYTE),
 	SCALED_OPTION(OPTION_NO_PINGERS, no_pingers, 1U),
 	SCALED_OPTION(OPTION_REFLECTOR_PING_INTERVAL, reflector_ping_interval_us, SECOND),
-	SCALED_OPTION(OPTION_MIN_DOWNLOAD_RATE, download.minimum_rate_bps, KILOBIT),
-	SCALED_OPTION(OPTION_BASE_DOWNLOAD_RATE, download.base_rate_bps, KILOBIT),
-	SCALED_OPTION(OPTION_MAX_DOWNLOAD_RATE, download.maximum_rate_bps, KILOBIT),
-	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, upload.minimum_rate_bps, KILOBIT),
-	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, upload.base_rate_bps, KILOBIT),
-	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, upload.maximum_rate_bps, KILOBIT),
+	SCALED_OPTION(
+		OPTION_MIN_DOWNLOAD_RATE,
+		directions[DIRECTION_DOWNLOAD].minimum_rate_bps,
+		KILOBIT
+	),
+	SCALED_OPTION(
+		OPTION_BASE_DOWNLOAD_RATE,
+		directions[DIRECTION_DOWNLOAD].base_rate_bps,
+		KILOBIT
+	),
+	SCALED_OPTION(
+		OPTION_MAX_DOWNLOAD_RATE,
+		directions[DIRECTION_DOWNLOAD].maximum_rate_bps,
+		KILOBIT
+	),
+	SCALED_OPTION(OPTION_MIN_UPLOAD_RATE, directions[DIRECTION_UPLOAD].minimum_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_BASE_UPLOAD_RATE, directions[DIRECTION_UPLOAD].base_rate_bps, KILOBIT),
+	SCALED_OPTION(OPTION_MAX_UPLOAD_RATE, directions[DIRECTION_UPLOAD].maximum_rate_bps, KILOBIT),
 	SCALED_OPTION(OPTION_CONNECTION_ACTIVE_THRESHOLD, connection_active_threshold_bps, KILOBIT),
 	SCALED_OPTION(OPTION_CONNECTION_STALL_THRESHOLD, connection_stall_threshold_bps, KILOBIT),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_UP,
-		download.average_owd_delta_maximum_adjust_up_us,
+		directions[DIRECTION_DOWNLOAD].average_owd_delta_maximum_adjust_up_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_AVG_ADJUST_UP,
-		upload.average_owd_delta_maximum_adjust_up_us,
+		directions[DIRECTION_UPLOAD].average_owd_delta_maximum_adjust_up_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_DELAY_THRESHOLD,
-		download.owd_delta_delay_threshold_us,
+		directions[DIRECTION_DOWNLOAD].owd_delta_delay_threshold_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_DELAY_THRESHOLD,
-		upload.owd_delta_delay_threshold_us,
+		directions[DIRECTION_UPLOAD].owd_delta_delay_threshold_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_DOWNLOAD_AVG_ADJUST_DOWN,
-		download.average_owd_delta_maximum_adjust_down_us,
+		directions[DIRECTION_DOWNLOAD].average_owd_delta_maximum_adjust_down_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(
 		OPTION_UPLOAD_AVG_ADJUST_DOWN,
-		upload.average_owd_delta_maximum_adjust_down_us,
+		directions[DIRECTION_UPLOAD].average_owd_delta_maximum_adjust_down_us,
 		MILLISECOND
 	),
 	SCALED_OPTION(OPTION_SUSTAINED_IDLE_SLEEP, sustained_idle_sleep_threshold_us, SECOND),
@@ -206,7 +219,7 @@ int config_option_value(const struct config *config, size_t index, char *text, s
 	option = &options[index];
 	member = (const char *)config + option->offset;
 	switch (option->type) {
-	case TYPE_BOOLEAN:
+	case OPTION_TYPE_BOOLEAN:
 		(void)snprintf(
 			text,
 			text_size,
@@ -214,10 +227,10 @@ int config_option_value(const struct config *config, size_t index, char *text, s
 			*(const bool *)member ? BOOLEAN_TRUE_NUMERIC : BOOLEAN_FALSE_NUMERIC
 		);
 		break;
-	case TYPE_STRING:
+	case OPTION_TYPE_STRING:
 		(void)snprintf(text, text_size, "%s", member);
 		break;
-	case TYPE_SCALED:
+	case OPTION_TYPE_SCALED:
 		format_scaled(*(const uint64_t *)member, option->scale, text, text_size);
 		break;
 	}

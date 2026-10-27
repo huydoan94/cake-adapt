@@ -2,8 +2,8 @@
 
 #include "latency/native.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "latency/response.h"
 #include "config/defaults.h"
 #include "constants/icmp.h"
 #include "constants/latency.h"
@@ -299,14 +299,14 @@ bool native_accept(
 		uint32_t arrival_ms = midnight_ms(reply->realtime_us);
 
 		/* Preserve fping-ts's signed fields, including clock offset and midnight rollover. */
-		sample->upload_owd_us =
+		sample->owd_us[DIRECTION_UPLOAD] =
 			((int64_t)reply->receive_ms - request->originate_ms) * (int64_t)MILLISECOND;
-		sample->download_owd_us =
+		sample->owd_us[DIRECTION_DOWNLOAD] =
 			((int64_t)arrival_ms - reply->transmit_ms) * (int64_t)MILLISECOND;
 	} else {
-		sample->download_owd_us =
+		sample->owd_us[DIRECTION_DOWNLOAD] =
 			(int64_t)rounded_divide(received_us - request->sent_us, 2U);
-		sample->upload_owd_us = sample->download_owd_us;
+		sample->owd_us[DIRECTION_UPLOAD] = sample->owd_us[DIRECTION_DOWNLOAD];
 	}
 	request->pending = false;
 	*response_us = received_us;

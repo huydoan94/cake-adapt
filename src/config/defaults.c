@@ -12,8 +12,8 @@ void defaults_apply(struct config *config)
 
 	*config = (struct config){
 		/* Adjustment remains opt-in even though cake-autorate defaults it on. */
-		.download.adjust = false,
-		.upload.adjust = false,
+		.directions[DIRECTION_DOWNLOAD].adjust = false,
+		.directions[DIRECTION_UPLOAD].adjust = false,
 		.debug = true,
 		.log_to_file = true,
 		.mqtt.port = MQTT_DEFAULT_PORT,
@@ -31,18 +31,22 @@ void defaults_apply(struct config *config)
 		.log_file_max_size_bytes = 2000U * KILOBYTE,
 		.no_pingers = 6U,
 		.reflector_ping_interval_us = 300U * MILLISECOND,
-		.download.average_owd_delta_maximum_adjust_up_us = 10U * MILLISECOND,
-		.upload.average_owd_delta_maximum_adjust_up_us = 10U * MILLISECOND,
-		.download.owd_delta_delay_threshold_us = 30U * MILLISECOND,
-		.upload.owd_delta_delay_threshold_us = 30U * MILLISECOND,
-		.download.average_owd_delta_maximum_adjust_down_us = 60U * MILLISECOND,
-		.upload.average_owd_delta_maximum_adjust_down_us = 60U * MILLISECOND,
-		.download.minimum_rate_bps = 5U * MEGABIT,
-		.download.base_rate_bps = 20U * MEGABIT,
-		.download.maximum_rate_bps = 80U * MEGABIT,
-		.upload.minimum_rate_bps = 5U * MEGABIT,
-		.upload.base_rate_bps = 20U * MEGABIT,
-		.upload.maximum_rate_bps = 35U * MEGABIT,
+		.directions[DIRECTION_DOWNLOAD].average_owd_delta_maximum_adjust_up_us =
+			10U * MILLISECOND,
+		.directions[DIRECTION_UPLOAD].average_owd_delta_maximum_adjust_up_us =
+			10U * MILLISECOND,
+		.directions[DIRECTION_DOWNLOAD].owd_delta_delay_threshold_us = 30U * MILLISECOND,
+		.directions[DIRECTION_UPLOAD].owd_delta_delay_threshold_us = 30U * MILLISECOND,
+		.directions[DIRECTION_DOWNLOAD].average_owd_delta_maximum_adjust_down_us =
+			60U * MILLISECOND,
+		.directions[DIRECTION_UPLOAD].average_owd_delta_maximum_adjust_down_us =
+			60U * MILLISECOND,
+		.directions[DIRECTION_DOWNLOAD].minimum_rate_bps = 5U * MEGABIT,
+		.directions[DIRECTION_DOWNLOAD].base_rate_bps = 20U * MEGABIT,
+		.directions[DIRECTION_DOWNLOAD].maximum_rate_bps = 80U * MEGABIT,
+		.directions[DIRECTION_UPLOAD].minimum_rate_bps = 5U * MEGABIT,
+		.directions[DIRECTION_UPLOAD].base_rate_bps = 20U * MEGABIT,
+		.directions[DIRECTION_UPLOAD].maximum_rate_bps = 35U * MEGABIT,
 		.connection_active_threshold_bps = 2U * MEGABIT,
 		.sustained_idle_sleep_threshold_us = MINUTE,
 		.log_file_buffer_timeout_us = 500U * MILLISECOND,
@@ -81,7 +85,7 @@ void defaults_apply(struct config *config)
 	 * daemon's own ICMP probes need no child process or extra package. fping,
 	 * fping-ts and irtt remain as fallbacks.
 	 */
-	(void)strcpy(config->pinger_method, PINGER_METHOD_NATIVE);
+	(void)strcpy(config->pinger_method, PINGER_NAME_NATIVE);
 	(void)strcpy(mqtt->topic, MQTT_DEFAULT_TOPIC);
 	(void)strcpy(mqtt->ca_file, DEFAULT_MQTT_CA_FILE);
 }

@@ -1,6 +1,7 @@
-#ifndef CONFIG_H_INCLUDED
-#define CONFIG_H_INCLUDED
+#ifndef CONFIG_CONFIG_H_INCLUDED
+#define CONFIG_CONFIG_H_INCLUDED
 
+#include "common/direction.h"
 #include "logging/mqtt.h"
 #include "constants/options.h"
 #include "constants/units.h"
@@ -61,8 +62,7 @@ struct config {
 	uint64_t log_file_max_size_bytes;
 	uint64_t no_pingers;
 	uint64_t reflector_ping_interval_us;
-	struct config_direction download;
-	struct config_direction upload;
+	struct config_direction directions[DIRECTION_COUNT];
 	uint64_t connection_active_threshold_bps;
 	uint64_t sustained_idle_sleep_threshold_us;
 	uint64_t log_file_buffer_timeout_us;
@@ -103,8 +103,8 @@ struct config {
 /* Rate control is configured for either direction. */
 static inline bool config_adjusts(const struct config *config)
 {
-	const struct config_direction *download = &config->download;
-	const struct config_direction *upload = &config->upload;
+	const struct config_direction *download = &config->directions[DIRECTION_DOWNLOAD];
+	const struct config_direction *upload = &config->directions[DIRECTION_UPLOAD];
 
 	return download->adjust || upload->adjust;
 }

@@ -47,7 +47,10 @@ SOURCES := \
 	main.c \
 	cake/cake.c \
 	common/error.c \
-	common/helpers.c \
+	common/clock.c \
+	common/random.c \
+	common/rate.c \
+	common/text.c \
 	config/config.c \
 	config/defaults.c \
 	config/describe.c \
@@ -65,28 +68,33 @@ SOURCES := \
 	latency/native.c \
 	latency/children.c \
 	latency/latency.c \
+	latency/pinger.c \
 	latency/parser.c \
+	latency/response.c \
 	latency/tracker.c \
 	logging/file.c \
 	logging/log.c \
 	logging/records.c \
 	logging/writer.c \
 	$(MQTT_SOURCE) \
-	monitor/control.c \
-	monitor/monitor.c \
-	monitor/links.c \
-	monitor/child_pingers.c \
-	monitor/native_pinger.c \
-	monitor/pingers.c \
-	monitor/reflectors.c \
-	monitor/tcpdelay.c \
-	monitor/status.c \
-	monitor/publish.c \
-	monitor/upkeep.c \
+	daemon/report.c \
+	daemon/shaper.c \
+	daemon/daemon.c \
+	daemon/links.c \
+	daemon/child_pingers.c \
+	daemon/native_pinger.c \
+	daemon/pingers.c \
+	daemon/reflectors.c \
+	daemon/tcp.c \
+	daemon/status.c \
+	daemon/publish.c \
+	daemon/upkeep.c \
 	platform/cpu.c \
 	platform/instance.c \
 	platform/memory.c \
 	platform/netlink.c \
+	platform/path.c \
+	platform/thread.c \
 	platform/traffic.c \
 	platform/ubus.c \
 	tcpdelay/capture.c \

@@ -220,7 +220,8 @@ static void test_send_timestamp(void)
 		&sample,
 		&response_us
 	));
-	assert(sample.download_owd_us == 4000 && sample.upload_owd_us == 4000);
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 4000 &&
+	       sample.owd_us[DIRECTION_UPLOAD] == 4000);
 	send_delay_us = 0U;
 	native_close(&session);
 }
@@ -275,7 +276,8 @@ static void test_matching(void)
 		&response_us
 	));
 	assert(response_us == SECOND + 10U * MILLISECOND);
-	assert(sample.download_owd_us == 5000 && sample.upload_owd_us == 5000);
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 5000 &&
+	       sample.owd_us[DIRECTION_UPLOAD] == 5000);
 	assert(strcmp(sample.timestamp_text, "[2.010000]") == 0);
 	assert(sample.sequence == 0U && !sample.timestamp_rollover_sensitive);
 	assert(!native_accept(
@@ -368,8 +370,8 @@ static void test_timestamps(void)
 		&response_us
 	));
 	/* Like fping-ts, signed midnight offset is retained and tracker sees rollover. */
-	assert(sample.upload_owd_us == -((int64_t)midnight_us - (int64_t)MILLISECOND));
-	assert(sample.download_owd_us == 1000 && sample.timestamp_rollover_sensitive);
+	assert(sample.owd_us[DIRECTION_UPLOAD] == -((int64_t)midnight_us - (int64_t)MILLISECOND));
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 1000 && sample.timestamp_rollover_sensitive);
 	native_close(&session);
 }
 
@@ -397,8 +399,8 @@ static void test_epoch_timestamps(void)
 		&sample,
 		&response_us
 	));
-	assert(sample.upload_owd_us == 11 * (int64_t)MILLISECOND);
-	assert(sample.download_owd_us == 12 * (int64_t)MILLISECOND);
+	assert(sample.owd_us[DIRECTION_UPLOAD] == 11 * (int64_t)MILLISECOND);
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 12 * (int64_t)MILLISECOND);
 	assert(sample.timestamp_rollover_sensitive);
 	native_close(&session);
 }

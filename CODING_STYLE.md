@@ -11,6 +11,10 @@ cake-adapt's additions to the general principles:
 - C follows the Linux kernel style of OpenWrt's libubox and unetd, encoded in
   `.clang-format`; format every changed C file with the SDK's
   `staging_dir/host/llvm-bpf/bin/clang-format`.
+- Names follow one rule, so a name says where its code lives: a function or
+  type starts with its file's stem or its subsystem, enum constants start with
+  their enum's name, and everything kept per direction is an array indexed by
+  `enum direction` (the rule in full is in `docs/agents/c-style.md`).
 - Every quantity uses the base units (bits/bytes, bit/s, microseconds, ratios
   as integers per million) and a unit suffix; convert only where a value enters
   or leaves the daemon (details in `docs/agents/c-style.md`).
