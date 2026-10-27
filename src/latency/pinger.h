@@ -1,81 +1,44 @@
 #ifndef LATENCY_PINGER_H_INCLUDED
 #define LATENCY_PINGER_H_INCLUDED
 
-/* Private interface between latency session ownership and pinger backends. */
+/* pinger.c: the pinger methods, what each runs and how it measures. */
 
+#include "latency/icmp.h"
+
+#include <stdbool.h>
 #include <stddef.h>
-#include <wordexp.h>
 
-#include "latency/latency.h"
-
-struct pinger_ops {
-	/* Names the pinger in exit diagnostics. */
-	const char *name;
-	/* Implements latency_open() for this backend. */
-	int (*open)(
-		struct latency *latency,
-		const char *const *targets,
-		size_t target_count,
-		uint64_t timestamp_us,
-		char *error,
-		size_t error_size
-	);
-	enum latency_probe_result (*parse)(
-		const struct latency_child *child,
-		const char *line,
-		struct latency_sample *sample,
-		char *error,
-		size_t error_size
-	);
-	/* After an unexpected exit, which error already describes. */
-	enum latency_probe_result (*exited)(
-		struct latency_child *child,
-		char *error,
-		size_t error_size
-	);
-};
-
-extern const struct pinger_ops fping_ops;
-extern const struct pinger_ops fping_ts_ops;
-extern const struct pinger_ops irtt_ops;
-
-/* A pinger's argument vector: the prefix words, then what the backend adds. */
-struct pinger_command {
-	wordexp_t prefix;
-	wordexp_t extra;
-	char **argv;
-	size_t count;
-};
+struct child_ops;
 
 /*
- * Expands the session's prefix and extra-argument options and allocates room
- * for their words plus fixed more arguments; argv already starts with the prefix.
+ * The pinger_method values, looked up once from the option and passed around;
+ * the functions below take a known method, never PINGER_METHOD_UNKNOWN.
  */
-int pinger_command_init(
-	struct pinger_command *command,
-	const struct latency *latency,
-	size_t fixed,
-	char *error,
-	size_t error_size
-);
+enum pinger_method {
+	PINGER_METHOD_NATIVE,
+	PINGER_METHOD_NATIVE_TS,
+	PINGER_METHOD_FPING,
+	PINGER_METHOD_FPING_TS,
+	PINGER_METHOD_IRTT,
+	PINGER_METHOD_UNKNOWN,
+};
 
-static inline void pinger_command_add(struct pinger_command *command, const char *argument)
-{
-	command->argv[command->count++] = (char *)argument;
-}
+enum pinger_method pinger_method_parse(const char *name);
+const char *pinger_method_name(enum pinger_method method);
+/* The daemon's own ICMP probes, with no executable. */
+bool pinger_is_native(enum pinger_method method);
+/* The executable a method runs, or NULL for the native probes. */
+const char *pinger_executable(enum pinger_method method);
+/* Echo methods report half the round trip as the delay of both directions. */
+bool pinger_shared_delay(enum pinger_method method);
+/* ICMP timestamp methods, IPv4 only. */
+bool pinger_uses_timestamps(enum pinger_method method);
 
-void pinger_command_free(struct pinger_command *command);
+/* Like cake-autorate, refuse to start when the selected pinger cannot run. */
+int pinger_check(enum pinger_method method, char *error, size_t error_size);
 
-/*
- * Starts arguments[0] in its own process group with stdout on a nonblocking
- * pipe owned by the session's child_index and stderr on /dev/null.
- */
-int start_child(
-	struct latency *latency,
-	size_t child_index,
-	char *const arguments[],
-	char *error,
-	size_t error_size
-);
+/* For the session: a child pinger's operations (NULL for native) and the native probes' packets. */
+const struct child_ops *pinger_child_ops(enum pinger_method method);
+enum icmp_mode pinger_icmp_mode(enum pinger_method method);
 
 #endif

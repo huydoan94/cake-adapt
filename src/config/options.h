@@ -10,10 +10,10 @@
 #include <stdint.h>
 
 enum option_type {
-	TYPE_BOOLEAN,
-	TYPE_STRING,
+	OPTION_TYPE_BOOLEAN,
+	OPTION_TYPE_STRING,
 	/* A non-negative decimal stored multiplied by scale, such as seconds in microseconds. */
-	TYPE_SCALED,
+	OPTION_TYPE_SCALED,
 };
 
 struct option_binding {

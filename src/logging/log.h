@@ -1,5 +1,5 @@
-#ifndef LOG_H_INCLUDED
-#define LOG_H_INCLUDED
+#ifndef LOGGING_LOG_H_INCLUDED
+#define LOGGING_LOG_H_INCLUDED
 
 #include <stdbool.h>
 #include <stddef.h>

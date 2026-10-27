@@ -3,7 +3,8 @@
 #include "platform/memory.h"
 
 #include "common/error.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
 #include "constants/logging.h"
 #include "constants/proc.h"
 

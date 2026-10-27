@@ -3,8 +3,8 @@
 #include "platform/cpu.h"
 
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
 #include "constants/logging.h"
 #include "constants/proc.h"
 

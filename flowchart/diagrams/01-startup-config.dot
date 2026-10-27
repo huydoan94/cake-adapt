@@ -26,7 +26,7 @@ digraph G {
   running [label="syslog: instance already running\n(pid N); exit 1",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   logs [label="open log file\ncake-adapt[.<section>].log,\nprint record headers",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
   mode [label="syslog: Starting cake-adapt …\ncontrol or observation-only",shape=parallelogram,style="filled",fillcolor="#e9f7ff",color="#24749c"];
-  run [label="monitor_run()",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
+  run [label="daemon_run()",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   start -> load;
   load -> runtime;
   runtime -> each;

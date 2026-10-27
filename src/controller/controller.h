@@ -1,6 +1,7 @@
-#ifndef CONTROLLER_H_INCLUDED
-#define CONTROLLER_H_INCLUDED
+#ifndef CONTROLLER_CONTROLLER_H_INCLUDED
+#define CONTROLLER_CONTROLLER_H_INCLUDED
 
+#include "common/direction.h"
 #include "constants/units.h"
 
 #include <stdbool.h>
@@ -41,23 +42,22 @@ struct controller_direction_config {
 	uint64_t minimum_rate_bps;
 	uint64_t base_rate_bps;
 	uint64_t maximum_rate_bps;
-	uint64_t average_delay_maximum_adjust_up_us;
-	uint64_t delay_threshold_us;
-	uint64_t average_delay_maximum_adjust_down_us;
+	uint64_t average_owd_delta_maximum_adjust_up_us;
+	uint64_t owd_delta_delay_threshold_us;
+	uint64_t average_owd_delta_maximum_adjust_down_us;
 };
 
 struct controller_config {
-	struct controller_direction_config download;
-	struct controller_direction_config upload;
+	struct controller_direction_config directions[DIRECTION_COUNT];
 	unsigned int bufferbloat_detection_window;
 	unsigned int bufferbloat_detection_threshold;
 	/* Rate factors and the high-load threshold, as ratios: RATIO_ONE_E6 is 100%. */
 	uint64_t rate_minimum_adjust_down_bufferbloat_ratio_e6;
 	uint64_t rate_maximum_adjust_down_bufferbloat_ratio_e6;
-	uint64_t rate_minimum_adjust_up_high_load_ratio_e6;
-	uint64_t rate_maximum_adjust_up_high_load_ratio_e6;
-	uint64_t rate_adjust_down_low_load_ratio_e6;
-	uint64_t rate_adjust_up_low_load_ratio_e6;
+	uint64_t rate_minimum_adjust_up_load_high_ratio_e6;
+	uint64_t rate_maximum_adjust_up_load_high_ratio_e6;
+	uint64_t rate_adjust_down_load_low_ratio_e6;
+	uint64_t rate_adjust_up_load_low_ratio_e6;
 	uint64_t high_load_threshold_ratio_e6;
 	uint64_t bufferbloat_refractory_period_us;
 	uint64_t decay_refractory_period_us;
@@ -92,8 +92,7 @@ struct controller_latency_input {
 /* Queueing delay in each direction measured separately, from TCP timestamps. */
 struct controller_queue_input {
 	bool valid;
-	int64_t download_us;
-	int64_t upload_us;
+	int64_t delay_us[DIRECTION_COUNT];
 };
 
 /* Upload split into pure ACKs and all traffic, over the same window, after the shaper. */
@@ -104,10 +103,8 @@ struct controller_ack_input {
 };
 
 struct controller_input {
-	struct controller_direction_input download;
-	struct controller_direction_input upload;
-	struct controller_latency_input download_latency;
-	struct controller_latency_input upload_latency;
+	struct controller_direction_input directions[DIRECTION_COUNT];
+	struct controller_latency_input latency[DIRECTION_COUNT];
 	/*
 	 * Used only with shared_delay. When valid and large enough, it replaces
 	 * the delivery heuristic and splits the round-trip delta between the
@@ -142,8 +139,7 @@ struct controller_direction_output {
 };
 
 struct controller_output {
-	struct controller_direction_output download;
-	struct controller_direction_output upload;
+	struct controller_direction_output directions[DIRECTION_COUNT];
 };
 
 struct controller_direction {
@@ -171,8 +167,7 @@ struct controller_direction {
 
 struct controller {
 	struct controller_config config;
-	struct controller_direction download;
-	struct controller_direction upload;
+	struct controller_direction directions[DIRECTION_COUNT];
 };
 
 int controller_init(struct controller *controller, const struct controller_config *config);
@@ -188,8 +183,7 @@ void controller_update(
 /* Raises each direction's delay thresholds by a wire packet's time at its shaper rate. */
 void controller_set_serialization_compensation(
 	struct controller *controller,
-	uint64_t download_wire_packet_bits,
-	uint64_t upload_wire_packet_bits
+	const uint64_t wire_packet_bits[DIRECTION_COUNT]
 );
 
 void controller_set_minimum_rates(struct controller *controller, uint64_t timestamp_us);
@@ -211,8 +205,7 @@ enum controller_load controller_load(
  */
 bool controller_low_load(
 	const struct controller *controller,
-	const struct controller_direction_input *download,
-	const struct controller_direction_input *upload
+	const struct controller_direction_input inputs[DIRECTION_COUNT]
 );
 
 #endif

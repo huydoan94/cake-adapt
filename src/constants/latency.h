@@ -7,11 +7,11 @@
 #include <stdint.h>
 
 /* Pinger methods, as pinger_method names them. */
-#define PINGER_METHOD_FPING "fping"
-#define PINGER_METHOD_FPING_TS "fping-ts"
-#define PINGER_METHOD_IRTT "irtt"
-#define PINGER_METHOD_NATIVE "native"
-#define PINGER_METHOD_NATIVE_TS "native-ts"
+#define PINGER_NAME_FPING "fping"
+#define PINGER_NAME_FPING_TS "fping-ts"
+#define PINGER_NAME_IRTT "irtt"
+#define PINGER_NAME_NATIVE "native"
+#define PINGER_NAME_NATIVE_TS "native-ts"
 
 /* Timing. */
 /* Each reply is awaited this long, as cake-autorate runs fping. */

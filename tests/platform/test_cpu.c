@@ -1,7 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "platform/cpu.h"
-#include "common/helpers.h"
+#include "common/rate.h"
 #include "constants/proc.h"
 
 #include <assert.h>

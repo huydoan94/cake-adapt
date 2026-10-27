@@ -1,5 +1,5 @@
-#ifndef CPU_H
-#define CPU_H
+#ifndef PLATFORM_CPU_H_INCLUDED
+#define PLATFORM_CPU_H_INCLUDED
 
 #include "constants/proc.h"
 

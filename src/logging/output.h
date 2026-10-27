@@ -21,7 +21,7 @@
 bool log_stdout_enabled(void);
 
 /* No record goes anywhere: no terminal, log file or MQTT, so formatting one is wasted. */
-bool all_logs_disabled(void);
+bool log_all_disabled(void);
 
 uint64_t log_clock_us(clockid_t clock_identifier);
 
@@ -79,11 +79,11 @@ void records_clear(void);
  * the file and stdout, a syslog entry to syslog; export and reset are the
  * SIGUSR1 and SIGUSR2 requests.
  */
-enum entry_kind {
-	ENTRY_LINE,
-	ENTRY_SYSLOG,
-	ENTRY_EXPORT,
-	ENTRY_RESET,
+enum writer_entry_kind {
+	WRITER_ENTRY_LINE,
+	WRITER_ENTRY_SYSLOG,
+	WRITER_ENTRY_EXPORT,
+	WRITER_ENTRY_RESET,
 };
 
 bool writer_running(void);
@@ -92,7 +92,7 @@ bool writer_running(void);
  * Copies one entry into the writer's queue, the main thread never waiting for
  * the writer: when the queue is full, the oldest entries make room.
  */
-void writer_queue(enum entry_kind kind, int priority, const char *text);
+void writer_queue(enum writer_entry_kind kind, int priority, const char *text);
 
 /*
  * Lets the writer drain the queue, within a bound. A writer still stuck (in a

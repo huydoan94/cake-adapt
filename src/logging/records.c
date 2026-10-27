@@ -2,8 +2,9 @@
 
 #include "logging/records.h"
 #include "logging/output.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
+#include "common/rate.h"
 #include "constants/logging.h"
 #include "constants/units.h"
 
@@ -194,7 +195,7 @@ static void write_formatted_record(const char *type, const char *format, ...)
 {
 	va_list arguments;
 
-	if (all_logs_disabled())
+	if (log_all_disabled())
 		return;
 	va_start(arguments, format);
 	write_record_fields(type, NULL, format, arguments);
@@ -210,7 +211,7 @@ static void write_timed_record(const char *type, const char *format, ...)
 	char stamp[LOG_TIMESTAMP_SIZE];
 	va_list arguments;
 
-	if (all_logs_disabled())
+	if (log_all_disabled())
 		return;
 	va_start(arguments, format);
 	write_record_fields(type, log_timestamp_text(stamp, log_realtime_us()), format, arguments);
@@ -222,10 +223,10 @@ void log_tcp_queue(const struct log_tcp_queue_record *record)
 	write_timed_record(
 		RECORD_TCP_QUEUE,
 		"%d; %" PRId64 "; %d; %" PRId64,
-		record->download_valid ? 1 : 0,
-		record->download_queue_us,
-		record->upload_valid ? 1 : 0,
-		record->upload_queue_us
+		record->valid[DIRECTION_DOWNLOAD] ? 1 : 0,
+		record->queue_us[DIRECTION_DOWNLOAD],
+		record->valid[DIRECTION_UPLOAD] ? 1 : 0,
+		record->queue_us[DIRECTION_UPLOAD]
 	);
 }
 
@@ -258,10 +259,10 @@ void log_load(const struct log_load_record *record)
 	write_timed_record(
 		RECORD_LOAD,
 		"%" PRIu64 "; %" PRIu64 "; %" PRIu64 "; %" PRIu64,
-		bit_to_kbit(record->download_achieved_rate_bps),
-		bit_to_kbit(record->upload_achieved_rate_bps),
-		bit_to_kbit(record->cake_download_rate_bps),
-		bit_to_kbit(record->cake_upload_rate_bps)
+		bit_to_kbit(record->achieved_rate_bps[DIRECTION_DOWNLOAD]),
+		bit_to_kbit(record->achieved_rate_bps[DIRECTION_UPLOAD]),
+		bit_to_kbit(record->cake_rate_bps[DIRECTION_DOWNLOAD]),
+		bit_to_kbit(record->cake_rate_bps[DIRECTION_UPLOAD])
 	);
 }
 
@@ -281,54 +282,54 @@ void log_data(const struct log_data_record *record)
 		"; %" PRId64 "; %" PRId64 ";"
 		" %" PRId64 "; %" PRIu64 "; %u; %" PRId64 "; %" PRIu64 "; %" PRIu64 "; %u; %" PRId64
 		"; %" PRIu64 "; %" PRIu64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		bit_to_kbit(record->download_achieved_rate_bps),
-		bit_to_kbit(record->upload_achieved_rate_bps),
-		whole_percent(record->download_load_ratio_e6),
-		whole_percent(record->upload_load_ratio_e6),
+		bit_to_kbit(record->achieved_rate_bps[DIRECTION_DOWNLOAD]),
+		bit_to_kbit(record->achieved_rate_bps[DIRECTION_UPLOAD]),
+		whole_percent(record->load_ratio_e6[DIRECTION_DOWNLOAD]),
+		whole_percent(record->load_ratio_e6[DIRECTION_UPLOAD]),
 		record->icmp_timestamp,
 		record->reflector,
 		record->sequence,
-		record->download_owd_baseline_us,
-		record->download_owd_us,
-		record->download_owd_delta_ewma_us,
-		record->download_owd_delta_us,
-		record->download_adjust_delay_threshold_us,
-		record->upload_owd_baseline_us,
-		record->upload_owd_us,
-		record->upload_owd_delta_ewma_us,
-		record->upload_owd_delta_us,
-		record->upload_adjust_delay_threshold_us,
-		record->download_sum_delays,
-		record->download_average_owd_delta_us,
-		record->download_maximum_adjust_up_threshold_us,
-		record->download_maximum_adjust_down_threshold_us,
-		record->upload_sum_delays,
-		record->upload_average_owd_delta_us,
-		record->upload_maximum_adjust_up_threshold_us,
-		record->upload_maximum_adjust_down_threshold_us,
-		record->download_load_condition,
-		record->upload_load_condition,
-		bit_to_kbit(record->cake_download_rate_bps),
-		bit_to_kbit(record->cake_upload_rate_bps)
+		record->owd_baseline_us[DIRECTION_DOWNLOAD],
+		record->owd_us[DIRECTION_DOWNLOAD],
+		record->owd_delta_ewma_us[DIRECTION_DOWNLOAD],
+		record->owd_delta_us[DIRECTION_DOWNLOAD],
+		record->adjust_delay_threshold_us[DIRECTION_DOWNLOAD],
+		record->owd_baseline_us[DIRECTION_UPLOAD],
+		record->owd_us[DIRECTION_UPLOAD],
+		record->owd_delta_ewma_us[DIRECTION_UPLOAD],
+		record->owd_delta_us[DIRECTION_UPLOAD],
+		record->adjust_delay_threshold_us[DIRECTION_UPLOAD],
+		record->sum_delays[DIRECTION_DOWNLOAD],
+		record->average_owd_delta_us[DIRECTION_DOWNLOAD],
+		record->maximum_adjust_up_threshold_us[DIRECTION_DOWNLOAD],
+		record->maximum_adjust_down_threshold_us[DIRECTION_DOWNLOAD],
+		record->sum_delays[DIRECTION_UPLOAD],
+		record->average_owd_delta_us[DIRECTION_UPLOAD],
+		record->maximum_adjust_up_threshold_us[DIRECTION_UPLOAD],
+		record->maximum_adjust_down_threshold_us[DIRECTION_UPLOAD],
+		record->load_condition[DIRECTION_DOWNLOAD],
+		record->load_condition[DIRECTION_UPLOAD],
+		bit_to_kbit(record->cake_rate_bps[DIRECTION_DOWNLOAD]),
+		bit_to_kbit(record->cake_rate_bps[DIRECTION_UPLOAD])
 	);
 }
 
-void log_summary(const struct log_summary_record *record)
+void log_summary(const struct log_data_record *record)
 {
 	write_formatted_record(
 		RECORD_SUMMARY,
 		"%" PRIu64 "; %" PRIu64 "; %u; %u; %" PRId64 ";"
 		" %" PRId64 "; %s; %s; %" PRIu64 "; %" PRIu64,
-		bit_to_kbit(record->download_achieved_rate_bps),
-		bit_to_kbit(record->upload_achieved_rate_bps),
-		record->download_sum_delays,
-		record->upload_sum_delays,
-		record->download_average_owd_delta_us,
-		record->upload_average_owd_delta_us,
-		record->download_load_condition,
-		record->upload_load_condition,
-		bit_to_kbit(record->cake_download_rate_bps),
-		bit_to_kbit(record->cake_upload_rate_bps)
+		bit_to_kbit(record->achieved_rate_bps[DIRECTION_DOWNLOAD]),
+		bit_to_kbit(record->achieved_rate_bps[DIRECTION_UPLOAD]),
+		record->sum_delays[DIRECTION_DOWNLOAD],
+		record->sum_delays[DIRECTION_UPLOAD],
+		record->average_owd_delta_us[DIRECTION_DOWNLOAD],
+		record->average_owd_delta_us[DIRECTION_UPLOAD],
+		record->load_condition[DIRECTION_DOWNLOAD],
+		record->load_condition[DIRECTION_UPLOAD],
+		bit_to_kbit(record->cake_rate_bps[DIRECTION_DOWNLOAD]),
+		bit_to_kbit(record->cake_rate_bps[DIRECTION_UPLOAD])
 	);
 }
 
@@ -343,13 +344,13 @@ void log_reflector(const struct log_reflector_record *record)
 		record->sum_owd_baselines_us,
 		record->sum_owd_baselines_delta_us,
 		record->sum_owd_baselines_delta_threshold_us,
-		record->minimum_download_delta_ewma_us,
-		record->download_delta_ewma_us,
-		record->download_delta_ewma_delta_us,
+		record->minimum_delta_ewma_us[DIRECTION_DOWNLOAD],
+		record->delta_ewma_us[DIRECTION_DOWNLOAD],
+		record->delta_ewma_delta_us[DIRECTION_DOWNLOAD],
 		record->delta_ewma_delta_threshold_us,
-		record->minimum_upload_delta_ewma_us,
-		record->upload_delta_ewma_us,
-		record->upload_delta_ewma_delta_us,
+		record->minimum_delta_ewma_us[DIRECTION_UPLOAD],
+		record->delta_ewma_us[DIRECTION_UPLOAD],
+		record->delta_ewma_delta_us[DIRECTION_UPLOAD],
 		record->delta_ewma_delta_threshold_us
 	);
 }

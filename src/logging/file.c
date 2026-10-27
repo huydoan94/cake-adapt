@@ -1,7 +1,8 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "logging/output.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
 #include "constants/logging.h"
 #include "constants/text.h"
 #include "constants/units.h"
@@ -165,8 +166,8 @@ int log_reset_file(void)
 }
 
 enum rotation_reason {
-	ROTATE_MAXIMUM_AGE,
-	ROTATE_MAXIMUM_SIZE,
+	ROTATION_MAXIMUM_AGE,
+	ROTATION_MAXIMUM_SIZE,
 };
 
 static void rotate_log_file(enum rotation_reason reason)
@@ -175,7 +176,7 @@ static void rotate_log_file(enum rotation_reason reason)
 		return;
 	/* Set first: the message below is written through the log being rotated. */
 	log_maintenance_active = true;
-	if (reason == ROTATE_MAXIMUM_AGE) {
+	if (reason == ROTATION_MAXIMUM_AGE) {
 		log_note(
 			LOG_LEVEL_DEBUG,
 			"log file maximum time: %" PRIu64
@@ -210,7 +211,7 @@ void file_tick(void)
 		log_last_flush_us = timestamp_us;
 	}
 	if (log_maximum_age_us > 0U && timestamp_us - log_opened_us > log_maximum_age_us)
-		rotate_log_file(ROTATE_MAXIMUM_AGE);
+		rotate_log_file(ROTATION_MAXIMUM_AGE);
 }
 
 void file_sink_line(const char *line)
@@ -224,7 +225,7 @@ void file_sink_line(const char *line)
 		if (log_buffer_timeout_us == 0U)
 			(void)fflush(log_file);
 		if (log_maximum_size_bytes > 0U && log_size_bytes > log_maximum_size_bytes)
-			rotate_log_file(ROTATE_MAXIMUM_SIZE);
+			rotate_log_file(ROTATION_MAXIMUM_SIZE);
 	}
 }
 

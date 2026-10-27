@@ -5,8 +5,8 @@
  * an error without them). -target bpfeb or bpfel already matches the router,
  * so take the byte order from the compiler instead.
  */
-#ifndef TCPDELAY_ASM_BYTEORDER_H
-#define TCPDELAY_ASM_BYTEORDER_H
+#ifndef TCPDELAY_INCLUDE_ASM_BYTEORDER_H_INCLUDED
+#define TCPDELAY_INCLUDE_ASM_BYTEORDER_H_INCLUDED
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 #include <linux/byteorder/big_endian.h>

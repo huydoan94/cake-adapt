@@ -222,8 +222,9 @@ scripts (`queues.py`, `analyze.py`, `shapers.py`); its README explains them.
 Permissions the user has granted:
 
 - deviate from cake-autorate to reduce bufferbloat, as described above;
-- restructure `monitor/` and move responsibilities between its files and the
-  controller (done on 2026-10-03: one `struct monitor`, a part per file, load
+- restructure `daemon/` (named `monitor/` until 2026-10-27) and move
+  responsibilities between its files and the controller (done on 2026-10-03:
+  one `struct monitor`, now `struct daemon`, a part per file, load
   classification in the controller);
 - change packages, configuration and files on the test VMs without restoring
   them, recording what changed;

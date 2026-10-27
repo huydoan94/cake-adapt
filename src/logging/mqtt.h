@@ -1,5 +1,5 @@
-#ifndef MQTT_H_INCLUDED
-#define MQTT_H_INCLUDED
+#ifndef LOGGING_MQTT_H_INCLUDED
+#define LOGGING_MQTT_H_INCLUDED
 
 #include "constants/options.h"
 

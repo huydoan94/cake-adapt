@@ -1,0 +1,81 @@
+#ifndef LATENCY_CHILDREN_H_INCLUDED
+#define LATENCY_CHILDREN_H_INCLUDED
+
+/* children.c: the private interface between the latency session and its child pingers. */
+
+#include <stddef.h>
+#include <wordexp.h>
+
+#include "latency/latency.h"
+
+struct child_ops {
+	/* Names the pinger in exit diagnostics. */
+	const char *name;
+	/* Implements latency_open() for this pinger. */
+	int (*open)(
+		struct latency *latency,
+		const char *const *targets,
+		size_t target_count,
+		uint64_t timestamp_us,
+		char *error,
+		size_t error_size
+	);
+	enum latency_probe_result (*parse)(
+		const struct latency_child *child,
+		const char *line,
+		struct latency_sample *sample,
+		char *error,
+		size_t error_size
+	);
+	/* After an unexpected exit, which error already describes. */
+	enum latency_probe_result (*exited)(
+		struct latency_child *child,
+		char *error,
+		size_t error_size
+	);
+};
+
+extern const struct child_ops fping_ops;
+extern const struct child_ops fping_ts_ops;
+extern const struct child_ops irtt_ops;
+
+/* A pinger's argument vector: the prefix words, then what the pinger adds. */
+struct child_command {
+	wordexp_t prefix;
+	wordexp_t extra;
+	char **argv;
+	size_t count;
+};
+
+/*
+ * Expands the session's prefix and extra-argument options and allocates room
+ * for their words plus fixed more arguments; argv already starts with the prefix.
+ */
+int child_command_init(
+	struct child_command *command,
+	const struct latency *latency,
+	size_t fixed,
+	char *error,
+	size_t error_size
+);
+
+static inline void child_command_add(struct child_command *command, const char *argument)
+{
+	command->argv[command->count++] = (char *)argument;
+}
+
+void child_command_free(struct child_command *command);
+
+/*
+ * Starts arguments[0] in its own process group with stdout on a nonblocking
+ * pipe owned by the session's child_index and stderr on /dev/null.
+ */
+int child_start(
+	struct latency *latency,
+	size_t child_index,
+	char *const arguments[],
+	char *error,
+	size_t error_size
+);
+
+#endif

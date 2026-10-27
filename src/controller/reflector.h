@@ -1,9 +1,10 @@
-#ifndef REFLECTOR_H_INCLUDED
-#define REFLECTOR_H_INCLUDED
+#ifndef CONTROLLER_REFLECTOR_H_INCLUDED
+#define CONTROLLER_REFLECTOR_H_INCLUDED
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include "common/direction.h"
 #include "latency/tracker.h"
 
 struct reflector_health_config {
@@ -22,37 +23,35 @@ struct reflector_health {
 };
 
 enum reflector_health_result {
-	REFLECTOR_HEALTHY,
-	REFLECTOR_OFFENCE,
-	REFLECTOR_MISBEHAVING
+	REFLECTOR_HEALTH_OK,
+	REFLECTOR_HEALTH_OFFENCE,
+	REFLECTOR_HEALTH_MISBEHAVING
 };
 
 struct reflector_comparison {
 	int64_t minimum_sum_owd_baselines_us;
 	int64_t sum_owd_baselines_us;
 	uint64_t sum_owd_baselines_delta_us;
-	int64_t minimum_download_delta_ewma_us;
-	int64_t download_delta_ewma_us;
-	int64_t download_delta_ewma_delta_us;
-	int64_t minimum_upload_delta_ewma_us;
-	int64_t upload_delta_ewma_us;
-	int64_t upload_delta_ewma_delta_us;
+	int64_t minimum_delta_ewma_us[DIRECTION_COUNT];
+	int64_t delta_ewma_us[DIRECTION_COUNT];
+	int64_t delta_ewma_delta_us[DIRECTION_COUNT];
 };
 
 /* config is borrowed for the health record's lifetime. */
-int health_init(
+int reflector_health_init(
 	struct reflector_health *health,
 	const struct reflector_health_config *config,
 	uint64_t start_us
 );
 
-void health_cleanup(struct reflector_health *health);
+void reflector_health_cleanup(struct reflector_health *health);
 
-void health_reset(struct reflector_health *health, uint64_t start_us);
+void reflector_health_reset(struct reflector_health *health, uint64_t start_us);
 
-void health_record_response(struct reflector_health *health, uint64_t timestamp_us);
+void reflector_health_record_response(struct reflector_health *health, uint64_t timestamp_us);
 
-enum reflector_health_result health_check(struct reflector_health *health, uint64_t timestamp_us);
+enum reflector_health_result
+reflector_health_check(struct reflector_health *health, uint64_t timestamp_us);
 
 /* Validated, nonempty active order; indices refer to initialized trackers. */
 void reflector_compare(

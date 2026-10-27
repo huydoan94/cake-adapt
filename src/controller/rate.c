@@ -1,6 +1,7 @@
 #include "controller/direction.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
+#include "common/rate.h"
 #include "constants/cake.h"
 #include "constants/units.h"
 
@@ -32,12 +33,12 @@ rate_toward_base(uint64_t rate_bps, uint64_t base_rate_bps, const struct control
 {
 	if (rate_bps > base_rate_bps)
 		return max_u64(
-			scale_rate(rate_bps, config->rate_adjust_down_low_load_ratio_e6),
+			scale_rate(rate_bps, config->rate_adjust_down_load_low_ratio_e6),
 			base_rate_bps
 		);
 	if (rate_bps < base_rate_bps)
 		return min_u64(
-			scale_rate(rate_bps, config->rate_adjust_up_low_load_ratio_e6),
+			scale_rate(rate_bps, config->rate_adjust_up_load_low_ratio_e6),
 			base_rate_bps
 		);
 	return rate_bps;
@@ -74,8 +75,8 @@ static uint64_t downward_factor_e6(
 		config->rate_maximum_adjust_down_bufferbloat_ratio_e6,
 		delay_adjustment_e6(
 			direction->average_delay_us,
-			thresholds->delay_threshold_us,
-			thresholds->average_delay_maximum_adjust_down_us
+			thresholds->owd_delta_delay_threshold_us,
+			thresholds->average_owd_delta_maximum_adjust_down_us
 		)
 	);
 }
@@ -87,8 +88,8 @@ static uint64_t upward_factor_e6(
 )
 {
 	const struct controller_direction_config *thresholds = &direction->config;
-	uint64_t threshold_us = thresholds->delay_threshold_us;
-	uint64_t full_us = thresholds->average_delay_maximum_adjust_up_us;
+	uint64_t threshold_us = thresholds->owd_delta_delay_threshold_us;
+	uint64_t full_us = thresholds->average_owd_delta_maximum_adjust_up_us;
 	int64_t delay_us = direction->average_delay_us;
 	uint64_t adjustment_e6;
 
@@ -102,8 +103,8 @@ static uint64_t upward_factor_e6(
 	else
 		adjustment_e6 = 0U;
 	return interpolate_factor_e6(
-		config->rate_minimum_adjust_up_high_load_ratio_e6,
-		config->rate_maximum_adjust_up_high_load_ratio_e6,
+		config->rate_minimum_adjust_up_load_high_ratio_e6,
+		config->rate_maximum_adjust_up_load_high_ratio_e6,
 		adjustment_e6
 	);
 }

@@ -4,8 +4,8 @@
 #include "config/options.h"
 #include "config/defaults.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/text.h"
+#include "platform/path.h"
 #include "constants/cake.h"
 #include "constants/options.h"
 #include "constants/text.h"
@@ -210,7 +210,7 @@ load_option(const struct loader *loader, const struct option_binding *option, co
 	char *destination = (char *)loader->config + option->offset;
 
 	switch (option->type) {
-	case TYPE_BOOLEAN:
+	case OPTION_TYPE_BOOLEAN:
 		if (parse_boolean(value, (bool *)destination) != 0)
 			return error_set(
 				loader->error,
@@ -219,9 +219,9 @@ load_option(const struct loader *loader, const struct option_binding *option, co
 				option->name
 			);
 		return 0;
-	case TYPE_STRING:
+	case OPTION_TYPE_STRING:
 		return copy_option(loader, option->name, destination, option->size, value);
-	case TYPE_SCALED:
+	case OPTION_TYPE_SCALED:
 		return parse_scaled_decimal(loader, option, value, (uint64_t *)destination);
 	}
 	return 0;
@@ -338,7 +338,7 @@ static int absolute_log_directory(struct config *config, char *error, size_t err
 
 	if (config->log_file_path_override[0] == '\0')
 		return 0;
-	if (absolute_path(config->log_file_path_override, directory, sizeof(directory)) != 0) {
+	if (path_absolute(config->log_file_path_override, directory, sizeof(directory)) != 0) {
 		return error_set(
 			error,
 			error_size,

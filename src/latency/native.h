@@ -24,11 +24,11 @@ struct native_target {
 enum native_channel {
 	NATIVE_CHANNEL_IPV4,
 	NATIVE_CHANNEL_IPV6,
-	NATIVE_CHANNELS
+	NATIVE_CHANNEL_COUNT
 };
 
 struct native_session {
-	struct icmp_socket channels[NATIVE_CHANNELS];
+	struct icmp_socket channels[NATIVE_CHANNEL_COUNT];
 	struct native_target targets[CONFIG_MAX_REFLECTORS];
 	struct native_request *requests;
 	size_t capacity;

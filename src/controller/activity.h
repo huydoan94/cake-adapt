@@ -6,15 +6,16 @@
  * stalled with no reflector answering.
  */
 
+#include "common/direction.h"
 #include "controller/controller.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 
 enum controller_activity_state {
-	CONTROLLER_RUNNING,
-	CONTROLLER_IDLE,
-	CONTROLLER_STALL
+	CONTROLLER_ACTIVITY_RUNNING,
+	CONTROLLER_ACTIVITY_IDLE,
+	CONTROLLER_ACTIVITY_STALL
 };
 
 struct controller_activity_config {
@@ -27,8 +28,7 @@ struct controller_activity_config {
 };
 
 struct controller_activity_input {
-	struct controller_direction_input download;
-	struct controller_direction_input upload;
+	struct controller_direction_input directions[DIRECTION_COUNT];
 	uint64_t timestamp_us;
 	uint64_t last_response_us;
 	uint64_t last_pinger_start_us;
@@ -50,12 +50,12 @@ struct controller_activity_output {
 };
 
 /* Starts RUNNING under config. */
-void activity_init(
+void controller_activity_init(
 	struct controller_activity *activity,
 	const struct controller_activity_config *config
 );
 
-void activity_update(
+void controller_activity_update(
 	struct controller_activity *activity,
 	const struct controller_activity_input *input,
 	struct controller_activity_output *output

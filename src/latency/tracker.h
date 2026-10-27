@@ -4,18 +4,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "common/direction.h"
 #include "latency/parser.h"
 #include "constants/units.h"
 
 struct latency_observation {
-	int64_t download_owd_us;
-	int64_t download_owd_baseline_us;
-	int64_t download_owd_delta_us;
-	int64_t download_owd_delta_ewma_us;
-	int64_t upload_owd_us;
-	int64_t upload_owd_baseline_us;
-	int64_t upload_owd_delta_us;
-	int64_t upload_owd_delta_ewma_us;
+	int64_t owd_us[DIRECTION_COUNT];
+	int64_t owd_baseline_us[DIRECTION_COUNT];
+	int64_t owd_delta_us[DIRECTION_COUNT];
+	int64_t owd_delta_ewma_us[DIRECTION_COUNT];
 };
 
 /* EWMA weights of a new sample, as ratios: validated at most RATIO_ONE_E6. */
@@ -32,8 +29,7 @@ struct latency_direction_tracker {
 
 struct latency_tracker {
 	struct latency_tracker_config config;
-	struct latency_direction_tracker download;
-	struct latency_direction_tracker upload;
+	struct latency_direction_tracker directions[DIRECTION_COUNT];
 };
 
 void tracker_init(struct latency_tracker *tracker, const struct latency_tracker_config *config);

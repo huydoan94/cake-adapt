@@ -32,10 +32,10 @@
 #define STATUS_DISABLED "disabled"
 #define STATUS_ENABLED "enabled"
 
-#define DIRECTION_DOWNLOAD "download"
-#define DIRECTION_DOWNLOAD_SHORT "dl"
-#define DIRECTION_UPLOAD "upload"
-#define DIRECTION_UPLOAD_SHORT "ul"
+#define DIRECTION_NAME_DOWNLOAD "download"
+#define DIRECTION_SHORT_NAME_DOWNLOAD "dl"
+#define DIRECTION_NAME_UPLOAD "upload"
+#define DIRECTION_SHORT_NAME_UPLOAD "ul"
 #define BUFFERBLOAT_SUFFIX "_bb"
 
 /* Timer names, as messages name them. */

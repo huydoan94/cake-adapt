@@ -1,9 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "latency/latency.h"
-#include "latency/pinger.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "latency/children.h"
+#include "common/arith.h"
+#include "common/clock.h"
 #include "constants/latency.h"
 #include "constants/options.h"
 #include "constants/units.h"
@@ -22,7 +22,7 @@
 #include <time.h>
 #include <unistd.h>
 
-/* access() is wrapped at link time so the backend check does not depend on the host. */
+/* access() is wrapped at link time so the pinger check does not depend on the host. */
 static bool fake_access;
 static int access_result;
 static int access_errno;
@@ -41,9 +41,9 @@ int __wrap_access(const char *path, int mode)
 	return access_result;
 }
 
-/* A session as the monitor configures one, before a test changes its options. */
+/* A session as the daemon configures one, before a test changes its options. */
 static const struct latency_settings fping_settings = {
-	.method = PINGER_FPING,
+	.method = PINGER_METHOD_FPING,
 	.interface = "lo",
 	.extra_arguments = "",
 	.prefix = "",
@@ -117,8 +117,8 @@ static void test_fping_lines_are_handled(void)
 		       sizeof(error)
 	       ) == LATENCY_PROBE_SUCCESS);
 	assert(sample.sequence == 1U);
-	assert(sample.download_owd_us == 1250U);
-	assert(sample.upload_owd_us == 1250U);
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 1250U);
+	assert(sample.owd_us[DIRECTION_UPLOAD] == 1250U);
 	assert(latency_handle_line(
 		       &latency,
 		       0U,
@@ -143,8 +143,8 @@ static void test_fping_lines_are_handled(void)
 		       error,
 		       sizeof(error)
 	       ) == LATENCY_PROBE_SUCCESS);
-	assert(sample.download_owd_us == 2000);
-	assert(sample.upload_owd_us == 4000);
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 2000);
+	assert(sample.owd_us[DIRECTION_UPLOAD] == 4000);
 	assert(sample.timestamp_rollover_sensitive);
 	assert(latency_handle_line(
 		       &latency,
@@ -220,7 +220,7 @@ static void test_irtt_lines_ignore_non_samples(void)
 	char error[256] = "";
 	struct latency_settings settings = fping_settings;
 
-	settings.method = PINGER_IRTT;
+	settings.method = PINGER_METHOD_IRTT;
 	latency_init(&latency, &settings);
 	latency.active = true;
 	latency.child_count = 1U;
@@ -237,8 +237,8 @@ static void test_irtt_lines_ignore_non_samples(void)
 	       ) == LATENCY_PROBE_SUCCESS);
 	assert(strcmp(sample.target, "9.9.9.9") == 0);
 	assert(sample.sequence == 7U);
-	assert(sample.download_owd_us == 1000);
-	assert(sample.upload_owd_us == 2000);
+	assert(sample.owd_us[DIRECTION_DOWNLOAD] == 1000);
+	assert(sample.owd_us[DIRECTION_UPLOAD] == 2000);
 	assert(sample.timestamp_us > 0U);
 	/* Like cake-autorate's gawk wrapper: receive time in whole microseconds. */
 	assert(strtoull(sample.timestamp_text, NULL, 10) == sample.timestamp_us);
@@ -493,19 +493,19 @@ static void check_fping_arguments(enum pinger_method method, const char *expecte
 static void test_prefix_and_extra_args_reach_owned_process(void)
 {
 	check_fping_arguments(
-		PINGER_FPING,
+		PINGER_METHOD_FPING,
 		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
 		"--period\n300\n--interval\n150\n--timeout\n10000\n1.1.1.1\n::1\n"
 	);
 	/* Like cake-autorate's fping-ts, --icmp-timestamp follows --timeout. */
 	check_fping_arguments(
-		PINGER_FPING_TS,
+		PINGER_METHOD_FPING_TS,
 		"/usr/bin/fping\n-I\nlo2\n-k\n768\n--timestamp\n--loop\n"
 		"--period\n300\n--interval\n150\n--timeout\n10000\n--icmp-timestamp\n"
 		"1.1.1.1\n::1\n"
 	);
-	assert(target_is_valid("::1"));
-	assert(target_is_valid("2001:4860:4860::8888"));
+	assert(latency_target_valid("::1"));
+	assert(latency_target_valid("2001:4860:4860::8888"));
 }
 
 static void test_irtt_children_start_in_separate_slots(void)
@@ -522,7 +522,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 	struct pollfd descriptor;
 
 	/* Opened at the slot origin, the first session starts one interval later. */
-	settings.method = PINGER_IRTT;
+	settings.method = PINGER_METHOD_IRTT;
 	settings.reflector_ping_interval_us = 300U * MILLISECOND;
 	settings.extra_arguments = "--fill=rand";
 	settings.prefix = "/usr/bin/printf '%s\\n'";
@@ -533,10 +533,10 @@ static void test_irtt_children_start_in_separate_slots(void)
 	assert(latency_child_descriptor(&latency, 0U) == -1);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
 	assert(latency_irtt_start_pending(&latency));
-	assert(latency_start_irtt_children(&latency, 299999U, error, sizeof(error)) == 0);
+	assert(latency_irtt_start_children(&latency, 299999U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 0U) == -1);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
-	assert(latency_start_irtt_children(&latency, 300000U, error, sizeof(error)) == 0);
+	assert(latency_irtt_start_children(&latency, 300000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 0U) >= 0);
 	assert(latency_child_descriptor(&latency, 1U) == -1);
 	assert(latency_irtt_next_start_us(&latency) == 450000U);
@@ -558,7 +558,7 @@ static void test_irtt_children_start_in_separate_slots(void)
 		      "/usr/bin/irtt\nclient\n--fill=rand\n-i\n0.300000s\n"
 		      "-d\n600.000000s\n1.1.1.1\n") == 0);
 
-	assert(latency_start_irtt_children(&latency, 450000U, error, sizeof(error)) == 0);
+	assert(latency_irtt_start_children(&latency, 450000U, error, sizeof(error)) == 0);
 	assert(latency_child_descriptor(&latency, 1U) >= 0);
 	assert(!latency_irtt_start_pending(&latency));
 	/* A finished session is reaped and restarted without stopping the others. */
@@ -584,40 +584,44 @@ static void test_method_lookup(void)
 	const char *names[] = { "native", "native-ts", "fping", "fping-ts", "irtt" };
 
 	for (size_t index = 0U; index < ARRAY_SIZE(names); index++) {
-		enum pinger_method method = latency_method(names[index]);
+		enum pinger_method method = pinger_method_parse(names[index]);
 
-		assert(method != PINGER_UNKNOWN);
-		assert(strcmp(latency_method_name(method), names[index]) == 0);
+		assert(method != PINGER_METHOD_UNKNOWN);
+		assert(strcmp(pinger_method_name(method), names[index]) == 0);
 	}
-	assert(latency_method("ping") == PINGER_UNKNOWN);
-	assert(latency_method("") == PINGER_UNKNOWN);
-	assert(latency_native(PINGER_NATIVE) && latency_native(PINGER_NATIVE_TS));
-	assert(!latency_native(PINGER_FPING) && !latency_native(PINGER_IRTT));
-	assert(latency_shared_delay(PINGER_NATIVE) && latency_shared_delay(PINGER_FPING));
-	assert(!latency_shared_delay(PINGER_NATIVE_TS) && !latency_shared_delay(PINGER_IRTT));
-	assert(latency_timestamps(PINGER_NATIVE_TS) && latency_timestamps(PINGER_FPING_TS));
-	assert(!latency_timestamps(PINGER_NATIVE) && !latency_timestamps(PINGER_FPING));
+	assert(pinger_method_parse("ping") == PINGER_METHOD_UNKNOWN);
+	assert(pinger_method_parse("") == PINGER_METHOD_UNKNOWN);
+	assert(pinger_is_native(PINGER_METHOD_NATIVE) && pinger_is_native(PINGER_METHOD_NATIVE_TS));
+	assert(!pinger_is_native(PINGER_METHOD_FPING) && !pinger_is_native(PINGER_METHOD_IRTT));
+	assert(pinger_shared_delay(PINGER_METHOD_NATIVE) &&
+	       pinger_shared_delay(PINGER_METHOD_FPING));
+	assert(!pinger_shared_delay(PINGER_METHOD_NATIVE_TS) &&
+	       !pinger_shared_delay(PINGER_METHOD_IRTT));
+	assert(pinger_uses_timestamps(PINGER_METHOD_NATIVE_TS) &&
+	       pinger_uses_timestamps(PINGER_METHOD_FPING_TS));
+	assert(!pinger_uses_timestamps(PINGER_METHOD_NATIVE) &&
+	       !pinger_uses_timestamps(PINGER_METHOD_FPING));
 }
 
-static void test_backend_executable_must_be_available(void)
+static void test_pinger_executable_must_be_available(void)
 {
 	char error[256] = "";
 
-	assert(strcmp(latency_backend_executable(PINGER_FPING), "/usr/bin/fping") == 0);
-	assert(strcmp(latency_backend_executable(PINGER_FPING_TS), "/usr/bin/fping") == 0);
-	assert(strcmp(latency_backend_executable(PINGER_IRTT), "/usr/bin/irtt") == 0);
-	assert(latency_backend_executable(PINGER_NATIVE) == NULL);
+	assert(strcmp(pinger_executable(PINGER_METHOD_FPING), "/usr/bin/fping") == 0);
+	assert(strcmp(pinger_executable(PINGER_METHOD_FPING_TS), "/usr/bin/fping") == 0);
+	assert(strcmp(pinger_executable(PINGER_METHOD_IRTT), "/usr/bin/irtt") == 0);
+	assert(pinger_executable(PINGER_METHOD_NATIVE) == NULL);
 
 	fake_access = true;
 	access_result = 0;
 	access_errno = 0;
 	accessed_path[0] = '\0';
-	assert(latency_check_backend(PINGER_FPING, error, sizeof(error)) == 0);
+	assert(pinger_check(PINGER_METHOD_FPING, error, sizeof(error)) == 0);
 	assert(strcmp(accessed_path, "/usr/bin/fping") == 0);
 
 	access_result = -1;
 	access_errno = ENOENT;
-	assert(latency_check_backend(PINGER_IRTT, error, sizeof(error)) == -1);
+	assert(pinger_check(PINGER_METHOD_IRTT, error, sizeof(error)) == -1);
 	assert(strcmp(accessed_path, "/usr/bin/irtt") == 0);
 	assert(strcmp(
 		       error,
@@ -626,7 +630,7 @@ static void test_backend_executable_must_be_available(void)
 
 	/* The native probes need no executable. */
 	accessed_path[0] = '\0';
-	assert(latency_check_backend(PINGER_NATIVE, error, sizeof(error)) == 0);
+	assert(pinger_check(PINGER_METHOD_NATIVE, error, sizeof(error)) == 0);
 	assert(accessed_path[0] == '\0');
 	fake_access = false;
 }
@@ -649,7 +653,7 @@ int main(void)
 	test_prefix_and_extra_args_reach_owned_process();
 	test_irtt_children_start_in_separate_slots();
 	test_method_lookup();
-	test_backend_executable_must_be_available();
+	test_pinger_executable_must_be_available();
 
 	(void)puts("latency tests passed");
 	return 0;

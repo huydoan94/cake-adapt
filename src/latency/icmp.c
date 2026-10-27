@@ -2,8 +2,9 @@
 
 #include "latency/icmp.h"
 #include "common/error.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
+#include "common/convert.h"
 #include "constants/icmp.h"
 #include "constants/units.h"
 

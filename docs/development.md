@@ -190,20 +190,23 @@ src/
 ├── main.c              CLI, configuration loading, logging setup, lifecycle
 ├── constants/          every named value, one header per topic (units,
 │                       options, logging, latency, tcpdelay, ubus, ...)
-├── monitor/            uloop event loop; one struct monitor, a part per file,
-│   │                   each declared in the header of the same name:
-│   ├── monitor.c         loop setup and teardown, traffic tick, activity state
+├── daemon/             the running daemon: one struct daemon, a part per
+│   │                   file, each declared in the header of the same name:
+│   ├── daemon.c          loop setup and teardown, traffic tick, activity state
 │   ├── upkeep.c          CPU and memory records, log timer, export/reset signals
 │   ├── status.c          pure status snapshot of the current state (no I/O)
 │   ├── publish.c         the ubus status object: reply, identity, its messages
 │   ├── links.c           both directions' CAKE, achieved rates, qdisc events
-│   ├── control.c         controller input, CAKE updates and readback, records
+│   ├── shaper.c          controller input, CAKE updates and readback
+│   ├── report.c          decision messages, DATA and SUMMARY records, names
 │   ├── pingers.c         pinger session: start, retries, restart, grace, replies
 │   ├── native_pinger.c   native ICMP sockets and probe timer
 │   ├── child_pingers.c   fping and irtt children: output, exits, starts
 │   ├── reflectors.c      latency trackers, reflector order, health, replacement
-│   └── tcpdelay.c        TCP capture, queue estimate, upload ACK rate
-├── common/             generic helpers, error formatting
+│   └── tcp.c             TCP capture, queue estimate, upload ACK rate
+├── common/             generic operations: arithmetic, unit conversions, the
+│                       direction enum, clocks, rates, parsing, random choice,
+│                       error formatting
 ├── config/             typed UCI loading (config.c), the option table
 │                       (options.c), validation (validate.c), the -L/-D
 │                       listings and startup summary (describe.c), defaults
@@ -212,14 +215,15 @@ src/
 │                       (congestion.c), upload/download coupling (coupling.c),
 │                       load and activity (activity.c), reflector health and
 │                       selection (reflector.c)
-├── latency/            pinger methods and sessions (latency.c), child
-│                       processes (children.c), native ICMP, fping/IRTT
-│                       backends, parsing, tracking
+├── latency/            pinger methods (pinger.c), the session (latency.c),
+│                       child pingers (children.c, fping.c, irtt.c), native
+│                       ICMP, reply times (response.c), parsing, tracking
 ├── cake/               CAKE discovery, state decoding, and bandwidth updates
 ├── tcpdelay/           eBPF TCP filter and timestamp injector, their loaders,
 │                       and the per-flow queue estimator
 ├── platform/           rtnetlink transport, traffic rates, CPU and memory
-│                       sampling, the instance lock, and the ubus server thread
+│                       sampling, paths and the instance lock, bounded thread
+│                       joins, and the ubus server thread
 └── logging/            messages and syslog (log.c), the log file (file.c), the
                         writer thread (writer.c), records (records.c), and
                         optional MQTT

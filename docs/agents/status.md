@@ -129,6 +129,14 @@ verification against a real server.
 - 0.3.30: the style check tests the format only with clang-format 21, the
   SDK's version, so CI no longer flags files another version formats
   differently.
+- Restructure toward 1.0 (2026-10-27), no behaviour change: `monitor/` is
+  `daemon/` (`struct daemon`), `control.c` is `shaper.c` with its reports in
+  `report.c`; `common/` holds `arith.h`, `convert.h`, `direction.h`, `clock`,
+  `rate`, `text` and `random`; the pinger methods are `latency/pinger.c`;
+  everything kept per direction is an array indexed by `enum direction`; one
+  naming rule (`docs/agents/c-style.md`). Design and as-built notes:
+  `docs/superpowers/specs/2026-10-27-restructure-1.0-design.md`; evidence:
+  `profiling/2026-10-27-restructure-1.0`.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that

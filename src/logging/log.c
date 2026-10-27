@@ -3,8 +3,8 @@
 #include "logging/log.h"
 #include "logging/output.h"
 #include "logging/mqtt.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/clock.h"
 #include "constants/logging.h"
 #include "constants/units.h"
 
@@ -83,7 +83,7 @@ bool log_stdout_enabled(void)
 	return log_to_stdout;
 }
 
-bool all_logs_disabled(void)
+bool log_all_disabled(void)
 {
 	return !log_to_stdout && !file_is_open() && !mqtt_enabled();
 }
@@ -99,7 +99,7 @@ void log_write_line(const char *line)
 {
 	mqtt_submit(line);
 	if (writer_running())
-		writer_queue(ENTRY_LINE, 0, line);
+		writer_queue(WRITER_ENTRY_LINE, 0, line);
 	else
 		file_sink_line(line);
 }
@@ -226,7 +226,7 @@ write_syslog(int priority, const char *record, uint64_t timestamp_us, const char
 		message
 	);
 	if (writer_running())
-		writer_queue(ENTRY_SYSLOG, priority, text);
+		writer_queue(WRITER_ENTRY_SYSLOG, priority, text);
 	else
 		syslog(priority, "%s", text);
 }
@@ -275,7 +275,7 @@ void log_reset_now(void)
 void log_request_export(void)
 {
 	if (writer_running())
-		writer_queue(ENTRY_EXPORT, 0, "");
+		writer_queue(WRITER_ENTRY_EXPORT, 0, "");
 	else
 		log_export_now();
 }
@@ -283,7 +283,7 @@ void log_request_export(void)
 void log_request_reset(void)
 {
 	if (writer_running())
-		writer_queue(ENTRY_RESET, 0, "");
+		writer_queue(WRITER_ENTRY_RESET, 0, "");
 	else
 		log_reset_now();
 }
@@ -319,7 +319,7 @@ void log_message(enum log_level level, const char *format, ...)
 		      (level <= LOG_LEVEL_WARNING || (level == LOG_LEVEL_DEBUG && debug_to_syslog));
 	/* In the foreground the message already reaches the terminal on stdout. */
 	send_stderr = problems_to_stderr && !log_to_stdout && level <= LOG_LEVEL_WARNING;
-	if (!send_syslog && !send_stderr && all_logs_disabled())
+	if (!send_syslog && !send_stderr && log_all_disabled())
 		return;
 
 	va_start(arguments, format);
@@ -331,6 +331,6 @@ void log_message(enum log_level level, const char *format, ...)
 		write_syslog(levels[level].priority, levels[level].record, timestamp_us, message);
 	if (send_stderr)
 		(void)fprintf(stderr, "%s: %s\n", levels[level].record, message);
-	if (!all_logs_disabled())
+	if (!log_all_disabled())
 		write_record_at(levels[level].record, message, timestamp_us);
 }

@@ -460,7 +460,7 @@ static __always_inline void inject_skip_server(
 	struct tcpdelay_inject_server value = { .rejected_ns = bpf_ktime_get_boot_ns() };
 
 	bpf_map_update_elem(&inject_servers, &key, &value, BPF_ANY);
-	handshake->state = TCPDELAY_INJECT_CLOSED;
+	handshake->state = TCPDELAY_INJECT_HANDSHAKE_CLOSED;
 	totals->skipped++;
 }
 
@@ -475,7 +475,8 @@ static __always_inline void inject_learn(const struct tcpdelay_record_flow *flow
 	struct tcpdelay_inject_client_key key = inject_client_key(flow);
 	struct tcpdelay_inject_client client = { .tsval = tsval };
 
-	if (handshake == NULL || handshake->learned || handshake->state != TCPDELAY_INJECT_ECHOED)
+	if (handshake == NULL || handshake->learned ||
+	    handshake->state != TCPDELAY_INJECT_HANDSHAKE_ECHOED)
 		return;
 	handshake->learned = 1;
 	client.seen_ns = bpf_ktime_get_boot_ns();
@@ -526,7 +527,7 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 	}
 	switch (tcpdelay_inject_classify_answer(handshake, echo == handshake->tsval)) {
 	case TCPDELAY_INJECT_ANSWER_ECHOED:
-		handshake->state = TCPDELAY_INJECT_ECHOED;
+		handshake->state = TCPDELAY_INJECT_HANDSHAKE_ECHOED;
 		/* Counted as accepted once the server acknowledges the client's data. */
 		state = bpf_map_lookup_elem(&flows, flow);
 		if (state != NULL) {
@@ -540,7 +541,7 @@ inject_observe(const struct tcpdelay_record_flow *flow, const struct tcphdr *tcp
 		inject_skip_server(flow, handshake, totals);
 		break;
 	case TCPDELAY_INJECT_ANSWER_STALLED:
-		handshake->state = TCPDELAY_INJECT_CLOSED;
+		handshake->state = TCPDELAY_INJECT_HANDSHAKE_CLOSED;
 		inject_stall(flow);
 		totals->stalled++;
 		break;
@@ -792,7 +793,7 @@ static __always_inline void inject_new_syn(
 	switch (tcpdelay_inject_classify_syn(handshake, sequence)) {
 	case TCPDELAY_INJECT_SYN_RETRY:
 		if (handshake != NULL)
-			handshake->state = TCPDELAY_INJECT_RETRIED;
+			handshake->state = TCPDELAY_INJECT_HANDSHAKE_RETRIED;
 		return;
 	case TCPDELAY_INJECT_SYN_REJECTED:
 		/* The answer never reached the client's stack: skip the server. */
@@ -815,7 +816,7 @@ static __always_inline void inject_new_syn(
 		return;
 	fresh.sequence = sequence;
 	fresh.tsval = tsval;
-	fresh.state = TCPDELAY_INJECT_SENT;
+	fresh.state = TCPDELAY_INJECT_HANDSHAKE_SENT;
 	bpf_map_update_elem(&inject_handshakes, &segment->flow, &fresh, BPF_ANY);
 	totals->injected++;
 }

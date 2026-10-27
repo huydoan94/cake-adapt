@@ -101,9 +101,9 @@ static void test_response(enum kernel_reply reply)
 	netlink_close(&netlink);
 }
 
-static struct qdisc_event received;
+static struct netlink_qdisc_event received;
 
-static void record_event(struct netlink *netlink, const struct qdisc_event *event)
+static void record_event(struct netlink *netlink, const struct netlink_qdisc_event *event)
 {
 	(void)netlink;
 	received = *event;
@@ -141,7 +141,7 @@ static void test_request(const char *request, enum send_outcome outcome)
 
 static void test_qdisc_events(void)
 {
-	struct netlink netlink = { .qdisc_event = record_event };
+	struct netlink netlink = { .netlink_qdisc_event = record_event };
 	struct tcmsg tc = { .tcm_ifindex = 7, .tcm_handle = 0x10000, .tcm_parent = TC_H_ROOT };
 	struct nl_msg *message = nlmsg_alloc_simple(RTM_NEWQDISC, 0);
 
@@ -155,14 +155,14 @@ static void test_qdisc_events(void)
 	assert(nlmsg_append(message, &tc, sizeof(tc), NLMSG_ALIGNTO) == 0);
 	assert(handle_qdisc_event(message, &netlink) == NL_OK);
 	assert(!netlink.event_parse_failed);
-	assert(received.type == QDISC_CREATED);
+	assert(received.type == NETLINK_QDISC_EVENT_CREATED);
 	assert(received.qdisc.interface_index == 7U);
 	assert(received.qdisc.handle == tc.tcm_handle);
 	assert(received.qdisc.parent == TC_H_ROOT);
 
 	nlmsg_hdr(message)->nlmsg_type = RTM_DELQDISC;
 	assert(handle_qdisc_event(message, &netlink) == NL_OK);
-	assert(received.type == QDISC_REMOVED);
+	assert(received.type == NETLINK_QDISC_EVENT_REMOVED);
 
 	nlmsg_hdr(message)->nlmsg_type = RTM_NEWLINK;
 	received.qdisc.interface_index = 0U;

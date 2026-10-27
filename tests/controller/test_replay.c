@@ -11,8 +11,9 @@
  * thresholds, which follow the rate, within THRESHOLD_TOLERANCE_US.
  */
 #include "controller/controller.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
+#include "common/rate.h"
 #include "constants/units.h"
 
 #include <assert.h>
@@ -28,6 +29,9 @@
 #define RATE_TOLERANCE_E6 (RATIO_PERCENT_E6 / 2U)
 #define THRESHOLD_TOLERANCE_US 3U
 #define AVERAGE_TOLERANCE_US 1U
+
+/* Both directions carry full-size packets. */
+static const uint64_t wire_packet_bits[DIRECTION_COUNT] = { WIRE_PACKET_BITS, WIRE_PACKET_BITS };
 
 static uint64_t worst_rate_difference_e6;
 static uint64_t worst_threshold_us;
@@ -67,7 +71,7 @@ struct trace_sample {
 	uint64_t processed_us;
 	uint64_t achieved_kbps[2];
 	int64_t delta_us[2];
-	uint64_t delay_threshold_us[2];
+	uint64_t owd_delta_delay_threshold_us[2];
 	uint64_t adjust_up_threshold_us[2];
 	uint64_t adjust_down_threshold_us[2];
 	unsigned int sum_delays[2];
@@ -88,22 +92,22 @@ static struct controller_config upstream_config(void)
 		.minimum_rate_bps = 10U * MEGABIT,
 		.base_rate_bps = 20U * MEGABIT,
 		.maximum_rate_bps = 50U * MEGABIT,
-		.average_delay_maximum_adjust_up_us = 10U * MILLISECOND,
-		.delay_threshold_us = 30U * MILLISECOND,
-		.average_delay_maximum_adjust_down_us = 60U * MILLISECOND,
+		.average_owd_delta_maximum_adjust_up_us = 10U * MILLISECOND,
+		.owd_delta_delay_threshold_us = 30U * MILLISECOND,
+		.average_owd_delta_maximum_adjust_down_us = 60U * MILLISECOND,
 	};
 
 	return (struct controller_config){
-		.download = direction,
-		.upload = direction,
+		.directions[DIRECTION_DOWNLOAD] = direction,
+		.directions[DIRECTION_UPLOAD] = direction,
 		.bufferbloat_detection_window = 6U,
 		.bufferbloat_detection_threshold = 3U,
 		.rate_minimum_adjust_down_bufferbloat_ratio_e6 = 99U * RATIO_PERCENT_E6,
 		.rate_maximum_adjust_down_bufferbloat_ratio_e6 = 75U * RATIO_PERCENT_E6,
-		.rate_minimum_adjust_up_high_load_ratio_e6 = RATIO_ONE_E6,
-		.rate_maximum_adjust_up_high_load_ratio_e6 = 104U * RATIO_PERCENT_E6,
-		.rate_adjust_down_low_load_ratio_e6 = 99U * RATIO_PERCENT_E6,
-		.rate_adjust_up_low_load_ratio_e6 = 101U * RATIO_PERCENT_E6,
+		.rate_minimum_adjust_up_load_high_ratio_e6 = RATIO_ONE_E6,
+		.rate_maximum_adjust_up_load_high_ratio_e6 = 104U * RATIO_PERCENT_E6,
+		.rate_adjust_down_load_low_ratio_e6 = 99U * RATIO_PERCENT_E6,
+		.rate_adjust_up_load_low_ratio_e6 = 101U * RATIO_PERCENT_E6,
 		.high_load_threshold_ratio_e6 = 75U * RATIO_PERCENT_E6,
 		.bufferbloat_refractory_period_us = 300U * MILLISECOND,
 		.decay_refractory_period_us = SECOND,
@@ -122,10 +126,10 @@ static bool parse_sample(const char *line, struct trace_sample *sample)
 		      &sample->achieved_kbps[1],
 		      &sample->delta_us[0],
 		      &sample->delta_us[1],
-		      &sample->delay_threshold_us[0],
+		      &sample->owd_delta_delay_threshold_us[0],
 		      &sample->adjust_up_threshold_us[0],
 		      &sample->adjust_down_threshold_us[0],
-		      &sample->delay_threshold_us[1],
+		      &sample->owd_delta_delay_threshold_us[1],
 		      &sample->adjust_up_threshold_us[1],
 		      &sample->adjust_down_threshold_us[1],
 		      &sample->sum_delays[0],
@@ -153,8 +157,8 @@ static unsigned int replay(const char *path)
 
 	assert(trace != NULL);
 	assert(controller_init(&controller, &config) == 0);
-	/* The monitor compensates before the first sample, once CAKE is discovered. */
-	controller_set_serialization_compensation(&controller, WIRE_PACKET_BITS, WIRE_PACKET_BITS);
+	/* The daemon compensates before the first sample, once CAKE is discovered. */
+	controller_set_serialization_compensation(&controller, wire_packet_bits);
 	while (fgets(line, sizeof(line), trace) != NULL) {
 		struct trace_sample sample;
 		struct controller_input input;
@@ -172,34 +176,30 @@ static unsigned int replay(const char *path)
 		assert(parse_sample(line, &sample));
 		samples++;
 		input = (struct controller_input){
-			.download = { .valid = true,
+			.directions[DIRECTION_DOWNLOAD] = { .valid = true,
 				      .traffic_sample_id = sample_id,
 				      .traffic_rate_bps =
 					      kbit_to_bit(sample.achieved_kbps[0]),
 				      .cake_rate_bps = cake_rate_bps[0], },
-			.upload = { .valid = true,
+			.directions[DIRECTION_UPLOAD] = { .valid = true,
 				    .traffic_sample_id = sample_id,
 				    .traffic_rate_bps =
 					    kbit_to_bit(sample.achieved_kbps[1]),
 				    .cake_rate_bps = cake_rate_bps[1], },
-			.download_latency = { .valid = true,
+			.latency[DIRECTION_DOWNLOAD] = { .valid = true,
 					      .owd_delta_us =
 						      sample.delta_us[0], },
-			.upload_latency = { .valid = true,
+			.latency[DIRECTION_UPLOAD] = { .valid = true,
 					    .owd_delta_us =
 						    sample.delta_us[1], },
 			.timestamp_us = sample.processed_us
 		};
 		controller_update(&controller, &input, &output);
-		controller_set_serialization_compensation(
-			&controller,
-			WIRE_PACKET_BITS,
-			WIRE_PACKET_BITS
-		);
-		outputs[0] = &output.download;
-		outputs[1] = &output.upload;
-		directions[0] = &controller.download;
-		directions[1] = &controller.upload;
+		controller_set_serialization_compensation(&controller, wire_packet_bits);
+		outputs[0] = &output.directions[DIRECTION_DOWNLOAD];
+		outputs[1] = &output.directions[DIRECTION_UPLOAD];
+		directions[0] = &controller.directions[DIRECTION_DOWNLOAD];
+		directions[1] = &controller.directions[DIRECTION_UPLOAD];
 		for (index = 0U; index < 2U; index++) {
 			const struct controller_direction_output *decision = outputs[index];
 			const struct controller_direction_config *compensated =
@@ -213,15 +213,15 @@ static unsigned int replay(const char *path)
 			);
 			bool thresholds_match =
 				threshold_close(
-					compensated->delay_threshold_us,
-					sample.delay_threshold_us[index]
+					compensated->owd_delta_delay_threshold_us,
+					sample.owd_delta_delay_threshold_us[index]
 				) &
 				threshold_close(
-					compensated->average_delay_maximum_adjust_up_us,
+					compensated->average_owd_delta_maximum_adjust_up_us,
 					sample.adjust_up_threshold_us[index]
 				) &
 				threshold_close(
-					compensated->average_delay_maximum_adjust_down_us,
+					compensated->average_owd_delta_maximum_adjust_down_us,
 					sample.adjust_down_threshold_us[index]
 				);
 
@@ -249,11 +249,11 @@ static unsigned int replay(const char *path)
 					       sample.average_delta_us[index],
 					       bufferbloat,
 					       sample.bufferbloat[index],
-					       compensated->delay_threshold_us,
-					       sample.delay_threshold_us[index],
-					       compensated->average_delay_maximum_adjust_up_us,
+					       compensated->owd_delta_delay_threshold_us,
+					       sample.owd_delta_delay_threshold_us[index],
+					       compensated->average_owd_delta_maximum_adjust_up_us,
 					       sample.adjust_up_threshold_us[index],
-					       compensated->average_delay_maximum_adjust_down_us,
+					       compensated->average_owd_delta_maximum_adjust_down_us,
 					       sample.adjust_down_threshold_us[index]);
 				}
 				mismatches++;

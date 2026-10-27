@@ -1,5 +1,5 @@
-#ifndef MEMORY_H
-#define MEMORY_H
+#ifndef PLATFORM_MEMORY_H_INCLUDED
+#define PLATFORM_MEMORY_H_INCLUDED
 
 #include <stddef.h>
 #include <stdint.h>

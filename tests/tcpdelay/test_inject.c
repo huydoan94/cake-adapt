@@ -23,18 +23,18 @@ static void test_syn(void)
 {
 	struct tcpdelay_inject_handshake handshake = {
 		.sequence = 1000U,
-		.state = TCPDELAY_INJECT_SENT,
+		.state = TCPDELAY_INJECT_HANDSHAKE_SENT,
 	};
 
 	assert(tcpdelay_inject_classify_syn(NULL, 1000U) == TCPDELAY_INJECT_SYN_NEW);
 	/* The same 4-tuple with another sequence is a new connection. */
 	assert(tcpdelay_inject_classify_syn(&handshake, 2000U) == TCPDELAY_INJECT_SYN_NEW);
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_RETRY);
-	handshake.state = TCPDELAY_INJECT_ECHOED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_ECHOED;
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_REJECTED);
-	handshake.state = TCPDELAY_INJECT_RETRIED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_RETRIED;
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_PASS);
-	handshake.state = TCPDELAY_INJECT_CLOSED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_CLOSED;
 	assert(tcpdelay_inject_classify_syn(&handshake, 1000U) == TCPDELAY_INJECT_SYN_PASS);
 }
 
@@ -46,7 +46,7 @@ static void test_resets(void)
 {
 	struct tcpdelay_inject_handshake handshake = {
 		.sequence = 0xffffffffU,
-		.state = TCPDELAY_INJECT_ECHOED,
+		.state = TCPDELAY_INJECT_HANDSHAKE_ECHOED,
 	};
 
 	assert(!tcpdelay_inject_client_reset_rejects(NULL, 0U));
@@ -54,15 +54,15 @@ static void test_resets(void)
 	assert(tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	/* After data: an ordinary close. */
 	assert(!tcpdelay_inject_client_reset_rejects(&handshake, 1738U));
-	handshake.state = TCPDELAY_INJECT_ECHOED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_ECHOED;
 	assert(tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	assert(!tcpdelay_inject_server_reset_rejects(&handshake));
-	handshake.state = TCPDELAY_INJECT_SENT;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_SENT;
 	assert(!tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	assert(tcpdelay_inject_server_reset_rejects(&handshake));
-	handshake.state = TCPDELAY_INJECT_RETRIED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_RETRIED;
 	assert(tcpdelay_inject_server_reset_rejects(&handshake));
-	handshake.state = TCPDELAY_INJECT_CLOSED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_CLOSED;
 	assert(!tcpdelay_inject_client_reset_rejects(&handshake, 0U));
 	assert(!tcpdelay_inject_server_reset_rejects(&handshake));
 	assert(!tcpdelay_inject_server_reset_rejects(NULL));
@@ -82,19 +82,19 @@ static void test_data_acknowledged(void)
 
 static void test_answer(void)
 {
-	struct tcpdelay_inject_handshake handshake = { .state = TCPDELAY_INJECT_SENT };
+	struct tcpdelay_inject_handshake handshake = { .state = TCPDELAY_INJECT_HANDSHAKE_SENT };
 
 	assert(tcpdelay_inject_classify_answer(NULL, 1) == TCPDELAY_INJECT_ANSWER_NONE);
 	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_ECHOED);
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_DECLINED);
-	handshake.state = TCPDELAY_INJECT_RETRIED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_RETRIED;
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_REJECTED);
 	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_ECHOED);
 	/* A SYN-ACK again after echoing ours: the server never took the client's ACK. */
-	handshake.state = TCPDELAY_INJECT_ECHOED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_ECHOED;
 	assert(tcpdelay_inject_classify_answer(&handshake, 1) == TCPDELAY_INJECT_ANSWER_STALLED);
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_STALLED);
-	handshake.state = TCPDELAY_INJECT_CLOSED;
+	handshake.state = TCPDELAY_INJECT_HANDSHAKE_CLOSED;
 	assert(tcpdelay_inject_classify_answer(&handshake, 0) == TCPDELAY_INJECT_ANSWER_NONE);
 }
 

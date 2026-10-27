@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 
 #include "latency/latency.h"
-#include "latency/pinger.h"
+#include "latency/children.h"
 #include "common/error.h"
 #include "constants/latency.h"
 #include "constants/options.h"
@@ -149,8 +149,8 @@ expand_words(const char *value, const char *option, wordexp_t *words, char *erro
 	return error_set(error, error_size, "could not parse %s", option);
 }
 
-int pinger_command_init(
-	struct pinger_command *command,
+int child_command_init(
+	struct child_command *command,
 	const struct latency *latency,
 	size_t fixed,
 	char *error,
@@ -164,7 +164,7 @@ int pinger_command_init(
 	size_t count;
 	size_t index;
 
-	*command = (struct pinger_command){ 0 };
+	*command = (struct child_command){ 0 };
 	if (expand_words(
 		    settings->extra_arguments,
 		    OPTION_PING_EXTRA_ARGS,
@@ -195,23 +195,23 @@ int pinger_command_init(
 		goto fail;
 	}
 	for (index = 0U; index < prefix_words->we_wordc; index++)
-		pinger_command_add(command, prefix_words->we_wordv[index]);
+		child_command_add(command, prefix_words->we_wordv[index]);
 	return 0;
 
 fail:
-	pinger_command_free(command);
+	child_command_free(command);
 	return -1;
 }
 
-void pinger_command_free(struct pinger_command *command)
+void child_command_free(struct child_command *command)
 {
 	free(command->argv);
 	wordfree(&command->prefix);
 	wordfree(&command->extra);
-	*command = (struct pinger_command){ 0 };
+	*command = (struct child_command){ 0 };
 }
 
-int start_child(
+int child_start(
 	struct latency *latency,
 	size_t child_index,
 	char *const arguments[],

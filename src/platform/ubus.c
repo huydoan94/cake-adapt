@@ -1,8 +1,9 @@
 #define _GNU_SOURCE
 
 #include "platform/ubus.h"
-#include "common/helpers.h"
-#include "common/utils.h"
+#include "common/arith.h"
+#include "common/convert.h"
+#include "platform/thread.h"
 #include "constants/ubus.h"
 
 #include <libubus.h>
@@ -21,16 +22,16 @@
 
 /* Whether the thread should keep running; the zeroed state is running. */
 enum server_run {
-	SERVER_RUN,
-	SERVER_STOP
+	SERVER_RUN_ON,
+	SERVER_RUN_STOP
 };
 
 /* The thread's connection to ubusd. */
 enum server_connection {
-	SERVER_OFFLINE,
-	SERVER_ONLINE,
+	SERVER_CONNECTION_OFFLINE,
+	SERVER_CONNECTION_ONLINE,
 	/* The object was refused; no further attempt is made. */
-	SERVER_ABANDONED
+	SERVER_CONNECTION_ABANDONED
 };
 
 /*
@@ -57,7 +58,7 @@ struct ubus_server {
 	atomic_uint events;
 	atomic_int reconnect_status;
 	atomic_int add_status;
-	/* Wakes the thread's poll when run becomes SERVER_STOP. */
+	/* Wakes the thread's poll when run becomes SERVER_RUN_STOP. */
 	int wake_fd;
 	char object_name[UBUS_OBJECT_NAME_SIZE];
 	/* Embedded, so the lost-connection callback finds the rest. */
@@ -97,7 +98,7 @@ static int server_request(
 
 static bool server_stopping(struct ubus_server *server)
 {
-	return atomic_load(&server->run) == SERVER_STOP;
+	return atomic_load(&server->run) == SERVER_RUN_STOP;
 }
 
 static void server_raise(struct ubus_server *server, enum ubus_server_event event)
@@ -141,7 +142,7 @@ static bool server_add(struct ubus_server *server, enum ubus_server_event refusa
 		return true;
 	atomic_store(&server->add_status, status);
 	server_raise(server, refusal);
-	server_close(server, SERVER_ABANDONED);
+	server_close(server, SERVER_CONNECTION_ABANDONED);
 	return false;
 }
 
@@ -157,18 +158,21 @@ static void server_connect(struct ubus_server *server)
 	server->attempted = true;
 	if (ubus_connect_ctx(context, NULL) != 0) {
 		if (!server->unconnected_reported)
-			server_raise(server, UBUS_SERVER_NO_CONNECTION);
+			server_raise(server, UBUS_SERVER_EVENT_NO_CONNECTION);
 		server->unconnected_reported = true;
 		return;
 	}
-	server->connection = SERVER_ONLINE;
+	server->connection = SERVER_CONNECTION_ONLINE;
 	server->lost = false;
 	context->connection_lost = server_connection_lost;
-	if (!server_add(server, at_start ? UBUS_SERVER_ADD_FAILED_AT_START : UBUS_SERVER_ADD_FAILED))
+	if (!server_add(
+		    server,
+		    at_start ? UBUS_SERVER_EVENT_ADD_FAILED_AT_START : UBUS_SERVER_EVENT_ADD_FAILED
+	    ))
 		return;
 	/* As dnsmasq, only the connection made by the very first attempt is not logged. */
 	if (!at_start)
-		server_raise(server, UBUS_SERVER_CONNECTED);
+		server_raise(server, UBUS_SERVER_EVENT_CONNECTED);
 	server->unconnected_reported = false;
 }
 
@@ -186,13 +190,13 @@ static void server_reconnect(struct ubus_server *server)
 		status = UBUS_STATUS_CONNECTION_FAILED;
 	if (status != 0) {
 		atomic_store(&server->reconnect_status, status);
-		server_raise(server, UBUS_SERVER_RECONNECT_FAILED);
-		server_close(server, SERVER_OFFLINE);
+		server_raise(server, UBUS_SERVER_EVENT_RECONNECT_FAILED);
+		server_close(server, SERVER_CONNECTION_OFFLINE);
 		return;
 	}
 	/* libubus ignores a refused object here; adding it once more gives the reason. */
 	if (object->id == 0U)
-		(void)server_add(server, UBUS_SERVER_ADD_FAILED);
+		(void)server_add(server, UBUS_SERVER_EVENT_ADD_FAILED);
 }
 
 /*
@@ -202,7 +206,7 @@ static void server_reconnect(struct ubus_server *server)
  */
 static void server_wait(struct ubus_server *server)
 {
-	const bool online = server->connection == SERVER_ONLINE;
+	const bool online = server->connection == SERVER_CONNECTION_ONLINE;
 	struct ubus_context *context = &server->context;
 	const struct uloop_fd *sock = &context->sock;
 	/* poll() ignores a negative descriptor, and never reports it. */
@@ -218,8 +222,8 @@ static void server_wait(struct ubus_server *server)
 		ubus_handle_event(context);
 	if (server->lost || !(descriptors[1].revents & (POLLHUP | POLLERR)))
 		return;
-	server_raise(server, UBUS_SERVER_DISCONNECTED);
-	server_close(server, SERVER_OFFLINE);
+	server_raise(server, UBUS_SERVER_EVENT_DISCONNECTED);
+	server_close(server, SERVER_CONNECTION_OFFLINE);
 }
 
 /*
@@ -232,14 +236,14 @@ static void *server_thread(void *argument)
 	struct ubus_server *server = argument;
 
 	while (!server_stopping(server)) {
-		if (server->connection == SERVER_OFFLINE)
+		if (server->connection == SERVER_CONNECTION_OFFLINE)
 			server_connect(server);
 		server_wait(server);
 		if (server->lost && !server_stopping(server))
 			server_reconnect(server);
 	}
-	if (server->connection == SERVER_ONLINE)
-		server_close(server, SERVER_OFFLINE);
+	if (server->connection == SERVER_CONNECTION_ONLINE)
+		server_close(server, SERVER_CONNECTION_OFFLINE);
 	blob_buf_free(&server->reply);
 	return NULL;
 }
@@ -309,7 +313,7 @@ struct ubus_server *ubus_server_start(const struct ubus_server_settings *setting
 		.methods = server->methods,
 		.n_methods = ARRAY_SIZE(server->methods),
 	};
-	atomic_init(&server->run, SERVER_RUN);
+	atomic_init(&server->run, SERVER_RUN_ON);
 	atomic_init(&server->events, 0U);
 	atomic_init(&server->reconnect_status, 0);
 	atomic_init(&server->add_status, 0);
@@ -355,7 +359,7 @@ const char *ubus_server_object_name(const struct ubus_server *server)
 
 bool ubus_server_stop(struct ubus_server *server, uint64_t within_us)
 {
-	atomic_store(&server->run, SERVER_STOP);
+	atomic_store(&server->run, SERVER_RUN_STOP);
 	/* Without the wake, the thread still sees the stop within UBUS_SERVER_WAIT_US. */
 	(void)eventfd_write(server->wake_fd, 1U);
 	if (thread_join_within(server->thread, within_us)) {

@@ -10,7 +10,7 @@ digraph G {
   compare [label="comparison interval elapsed?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   cmp [label="reflector_compare:\nminimum baseline sum and delta EWMAs\nREFLECTOR records",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   outlier [label="first reflector over a threshold?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  check [label="health_check each pinger:\noffence if no response in deadline",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  check [label="reflector_health_check each pinger:\noffence if no response in deadline",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   bad [label="offences ≥ threshold in window?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   once [label="first replacement this cycle?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   skiprep [label="debug: skipping replacement",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
