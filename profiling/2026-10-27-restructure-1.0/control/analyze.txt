@@ -1,0 +1,31 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+r1-v0330               upload-steady    22.6  107.3  136.3   54.9   45.9     0      89.1       nan
+r1-v0330               upload-step      14.2  155.3  223.3   49.3   42.5     0      84.6       nan
+r1-v0330               download-steady   18.1   83.3  115.3   53.6   28.4     0       nan      72.0
+r1-v0330               bidirectional    38.6   94.3  140.3   68.1   57.0     0      85.8      37.3
+                       (idle base RTT 22.6 ms; delays are added RTT in ms)
+r1-vnew                upload-steady    35.6  109.2  154.2   61.0   53.2     0      89.0       nan
+r1-vnew                upload-step       7.5  145.2  172.2   44.2   38.9     0      86.1       nan
+r1-vnew                download-steady   13.6   86.2  124.2   47.9   27.7     0       nan      70.0
+r1-vnew                bidirectional    32.6  109.2  130.2   66.8   51.3     0      84.0      37.2
+                       (idle base RTT 21.9 ms; delays are added RTT in ms)
+r2-v0330               upload-steady    20.6  109.3  118.3   53.0   43.9     0      90.1       nan
+r2-v0330               upload-step      15.2  139.3  197.3   50.3   42.7     0      86.1       nan
+r2-v0330               download-steady   19.5   88.3  124.3   55.8   34.4     0       nan      72.9
+r2-v0330               bidirectional    19.1  104.3  127.3   52.9   43.6     0      84.3      31.7
+                       (idle base RTT 21.6 ms; delays are added RTT in ms)
+r2-vnew                upload-steady    33.9  104.8  126.8   59.0   51.0     0      91.5       nan
+r2-vnew                upload-step       6.4  151.8  235.8   37.7   32.9     0      84.9       nan
+r2-vnew                download-steady   16.6   92.8  110.8   53.5   29.2     0       nan      69.3
+r2-vnew                bidirectional    24.6  109.8  141.8   57.0   45.6     0      83.8      32.9
+                       (idle base RTT 22.1 ms; delays are added RTT in ms)
+r3-v0330               upload-steady    36.8  101.4  121.4   61.4   54.5     0      92.7       nan
+r3-v0330               upload-step      10.5  152.4  201.4   48.5   42.5     0      86.7       nan
+r3-v0330               download-steady   16.0   86.4  118.4   51.5   29.2     0       nan      70.5
+r3-v0330               bidirectional    22.9  106.4  140.4   54.4   45.1     0      83.5      33.2
+                       (idle base RTT 22.6 ms; delays are added RTT in ms)
+r3-vnew                upload-steady    24.0  104.1  132.1   55.7   46.1     0      91.1       nan
+r3-vnew                upload-step       7.4  145.1  186.1   45.2   39.6     0      84.3       nan
+r3-vnew                download-steady   15.8   90.1  113.1   50.7   29.3     0       nan      72.2
+r3-vnew                bidirectional    24.5  110.1  130.1   56.3   47.5     0      84.4      31.3
+                       (idle base RTT 22.9 ms; delays are added RTT in ms)

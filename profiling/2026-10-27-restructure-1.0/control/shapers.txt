@@ -1,0 +1,25 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+r1-v0330       upload-steady        8282    7513     54.9    11634     160      31      63
+r1-v0330       upload-step          6251    5778     34.8    10174     134      24      62
+r1-v0330       download-steady      3884     437      0.0    45754   31377      40      30
+r1-v0330       bidirectional        8872    7726     69.2    24651   14830      76      66
+r1-vnew        upload-steady        8140    7516     55.1    11376     169      35      65
+r1-vnew        upload-step          6079    5894     28.9    10141     141      25      61
+r1-vnew        download-steady      3743     453      0.0    43901   30638      39      11
+r1-vnew        bidirectional        8207    7623     54.3    22847   14208      66      58
+r2-v0330       upload-steady        7970    7634     46.0    11145     164      35      65
+r2-v0330       upload-step          6329    5890     33.2    10176     134      20      59
+r2-v0330       download-steady      4447     482      8.0    45991   31902      44      34
+r2-v0330       bidirectional        8010    7629     50.0    20150   12513      64      64
+r2-vnew        upload-steady        7965    7698     47.5    11675     173      39      74
+r2-vnew        upload-step          5899    5799     22.1    10136     138      25      57
+r2-vnew        download-steady      3634     441      0.0    43493   30391      38      30
+r2-vnew        bidirectional        8076    7547     51.1    22058   13104      69      63
+r3-v0330       upload-steady        8160    7819     52.7    11749     176      39      76
+r3-v0330       upload-step          6198    5952     30.4    10180     142      26      60
+r3-v0330       download-steady      3595     438      0.0    45220   30933      42      34
+r3-v0330       bidirectional        8236    7588     54.5    20712   13559      60      58
+r3-vnew        upload-steady        7939    7660     47.6    10948     166      31      69
+r3-vnew        upload-step          6152    5809     30.7    10206     140      24      56
+r3-vnew        download-steady      4977     434      0.4    44706   31500      40      40
+r3-vnew        bidirectional        8071    7605     53.1    21818   12572      67      60

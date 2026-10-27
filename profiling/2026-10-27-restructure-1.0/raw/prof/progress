@@ -1,0 +1,18 @@
+17:05:58 start 01-vnew-native-cpu
+17:10:53 done 01-vnew-native-cpu
+17:10:53 start 02-v0330-native-cpu
+17:15:48 done 02-v0330-native-cpu
+17:15:48 start 03-v0330-native-cpu
+17:20:44 done 03-v0330-native-cpu
+17:20:44 start 04-vnew-native-cpu
+17:25:39 done 04-vnew-native-cpu
+17:25:39 start 05-vnew-native-cpu
+17:30:34 done 05-vnew-native-cpu
+17:30:34 start 06-v0330-native-cpu
+17:35:29 done 06-v0330-native-cpu
+17:35:29 start 07-vnew-native-perf
+17:45:42 start 07-vnew-native-perf
+17:50:48 done 07-vnew-native-perf
+17:50:48 start 08-vnew-native-strace
+17:51:39 done 08-vnew-native-strace
+17:51:39 finished
