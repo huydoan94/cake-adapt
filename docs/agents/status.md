@@ -82,7 +82,7 @@ verification against a real server.
 
 ### Current status (2026-10-22)
 
-- The packages are at 0.3.30-r1 (`main` has 0.3.27). The user builds them and runs them on their
+- The packages are at 1.0.0-r1 (`main` has 0.3.30). The user builds them and runs them on their
   Filogic routers; the arm64 VM is no longer needed before a deployment.
 - 0.3.16 added the per-instance runtime file (`<section>.uci`, UCI wins over
   `config_file`) and `cake_mq` control (`2026-10-10-cake-mq`). 0.3.17 added the
@@ -137,6 +137,9 @@ verification against a real server.
   naming rule (`docs/agents/c-style.md`). Design and as-built notes:
   `docs/superpowers/specs/2026-10-27-restructure-1.0-design.md`; evidence:
   `profiling/2026-10-27-restructure-1.0`.
+- 1.0.0: the first stable version, the restructured tree. From now on the UCI
+  options, the structured records, the ubus status object and the MQTT topics
+  are stable interfaces: changing one is a deliberate, documented decision.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
