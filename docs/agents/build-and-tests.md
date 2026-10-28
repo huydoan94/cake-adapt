@@ -45,7 +45,7 @@ the SDK's `package/luci-app-cake-adapt` links to this repository's. Both
 scripts keep the make and test output in their `build/` logs and print only
 their own messages, plus the errors and last 30 lines of a failed log;
 `VERBOSE=1` shows the full output. Do not guess other SDK locations, and keep
-absolute or personal paths out of `.vscode/`. The OpenWrt snapshot, x86_64 on the test VMs, is the target from 2026-10-27, so cake-adapt follows the next release. Never touch
+absolute or personal paths out of `.vscode/`. OpenWrt 25.12 stays the release target: CI and the README keep it. Development and the test VMs use the OpenWrt snapshot (x86_64) from 2026-10-27, so cake-adapt is ready for the next release (user). Never touch
 `openwrt-image-builder`.
 
 Never run a full OpenWrt build to get a package: compile it alone with
