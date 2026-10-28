@@ -68,13 +68,17 @@ def analyze(run):
         upload, download, step = 8.0, 40.0, 4.0
     # The drop lasts the middle 20 s of the 60 s upload-step phase.
     step_capacity = (20 * upload + 20 * step + 20 * upload) / 60
-    phases["upload-steady"]["used"] = 100 * throughput(f"{run}/upload-steady.json") / upload
-    phases["upload-step"]["used"] = 100 * throughput(f"{run}/upload-step.json") / step_capacity
+    # A run may stop early (a focused run of one phase); score what it has.
+    if "upload-steady" in phases:
+        phases["upload-steady"]["used"] = 100 * throughput(f"{run}/upload-steady.json") / upload
+    if "upload-step" in phases:
+        phases["upload-step"]["used"] = 100 * throughput(f"{run}/upload-step.json") / step_capacity
     if "download-steady" in phases:
         phases["download-steady"]["used"] = float("nan")
         phases["download-steady"]["used_dl"] = 100 * throughput(f"{run}/download-steady.json") / download
-    phases["bidirectional"]["used"] = 100 * throughput(f"{run}/bidir-upload.json") / upload
-    phases["bidirectional"]["used_dl"] = 100 * throughput(f"{run}/bidir-download.json") / download
+    if "bidirectional" in phases:
+        phases["bidirectional"]["used"] = 100 * throughput(f"{run}/bidir-upload.json") / upload
+        phases["bidirectional"]["used_dl"] = 100 * throughput(f"{run}/bidir-download.json") / download
     return base, phases
 
 

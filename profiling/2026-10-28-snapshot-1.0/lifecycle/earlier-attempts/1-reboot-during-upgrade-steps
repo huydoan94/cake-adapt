@@ -1,0 +1,16 @@
+== 181.33 before
+976d5cdf-87ff-4bcf-8837-7347b1da097f
+bash-5.3-r5
+cake-adapt-mqtt-1.0.0-r1
+fping-5.3-r1
+luci-app-cake-adapt-1.0.0-r1
+4599
+== 181.36 test log, created once, inode kept
+    160 /tmp/sqm-mon-test.log
+== 181.43 upgrade
+(1/2) Replacing cake-adapt-mqtt (1.0.0-r1 -> 1.0.0-r1)
+  Installing file to etc/cake-adapt/exec.apk-new
+  Installing file to etc/config/cake-adapt.apk-new
+  Executing cake-adapt-mqtt-1.0.0-r1.post-upgrade
+(2/2) Replacing luci-app-cake-adapt (1.0.0-r1 -> 1.0.0-r1)
+  Executing luci-app-cake-adapt-1.0.0-r1.post-upgrade

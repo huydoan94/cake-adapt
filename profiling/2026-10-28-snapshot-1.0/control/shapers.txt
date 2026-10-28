@@ -1,0 +1,25 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+r1-v0330       upload-steady       10159    6712     94.1    14795     150      21      43
+r1-v0330       upload-step          6872    5515     40.0    10260     139      22      66
+r1-v0330       download-steady      5799     327      0.0    46086   20033      38      18
+r1-v0330       bidirectional        8910    7417     68.8    21495   10535      74      69
+r1-v100        upload-steady        9554    6772     85.0    11659     150      30      50
+r1-v100        upload-step          7292    5543     46.7    10257     131      24      57
+r1-v100        download-steady      5487     376      0.0    48763   24580      41       4
+r1-v100        bidirectional        9006    7044     70.8    17776    8564      43      52
+r2-v0330       upload-steady        9759    6736     87.2    15414     154      25      51
+r2-v0330       upload-step          7305    5696     49.3    10403     140      21      54
+r2-v0330       download-steady      6188     333     30.5    35929   20024      25      44
+r2-v0330       bidirectional        8679    7325     76.6    19649    9478      76      61
+r2-v100        upload-steady        9388    7363     77.3    13952     169      37      68
+r2-v100        upload-step          8023    5533     58.7    10618     132      15      46
+r2-v100        download-steady      5558     345     26.6    36903   20516      27      32
+r2-v100        bidirectional        9061    6746     77.1    21253    9760      55      53
+r3-v0330       upload-steady       10024    6354     87.5    20488     137      20      42
+r3-v0330       upload-step          7760    5244     53.3    10786     123      21      54
+r3-v0330       download-steady      3811     433      0.0    43822   26909      39      24
+r3-v0330       bidirectional        8888    7016     68.7    22318   11865      58      51
+r3-v100        upload-steady       10097    7217     91.5    13604     157      35      56
+r3-v100        upload-step          7819    5300     53.6    10367     125      18      49
+r3-v100        download-steady      5047     314      0.0    41272   19018      34      17
+r3-v100        bidirectional        9066    7274     73.9    19727   10271      70      70
