@@ -1,0 +1,17 @@
+16:41:33 start 01-v100-native-cpu
+16:46:30 done 01-v100-native-cpu
+16:46:30 start 02-v0330-native-cpu
+16:51:25 done 02-v0330-native-cpu
+16:51:25 start 03-v0330-native-cpu
+16:56:21 done 03-v0330-native-cpu
+16:56:21 start 04-v100-native-cpu
+17:01:16 done 04-v100-native-cpu
+17:01:16 start 05-v100-native-cpu
+17:06:11 done 05-v100-native-cpu
+17:06:11 start 06-v0330-native-cpu
+17:11:07 done 06-v0330-native-cpu
+17:11:07 start 07-v100-native-perf
+17:16:07 done 07-v100-native-perf
+17:16:07 start 08-v100-native-strace
+17:16:58 done 08-v100-native-strace
+17:16:59 finished

@@ -1,0 +1,13 @@
+variant        phase             ul cake  ul ach  ul>cap%  dl cake  dl ach dl cuts ul cuts
+r1-v0330       upload-steady        8417    7793     60.9    13226     173      41      70
+r1-v100        upload-steady        8015    7709     51.3    10737     177      36      75
+r2-v0330       upload-steady        7982    7618     51.1    11456     172      31      74
+r2-v100        upload-steady        8052    7746     50.9    11790     179      38      75
+r3-v0330       upload-steady        8279    7680     53.7    11519     174      33      69
+r3-v100        upload-steady        7893    7724     47.8    10520     175      34      73
+r4-v0330       upload-steady        7961    7605     48.4    11487     169      36      69
+r4-v100        upload-steady        7876    7561     48.2    11491     168      37      66
+r5-v0330       upload-steady        7851    7554     47.3    11508     169      33      65
+r5-v100        upload-steady        7976    7631     49.8    11580     171      35      70
+r6-v0330       upload-steady        8166    7790     53.6    11505     178      37      76
+r6-v100        upload-steady        8147    7629     53.8    11678     170      35      65

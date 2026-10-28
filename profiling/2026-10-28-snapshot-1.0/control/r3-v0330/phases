@@ -1,0 +1,11 @@
+1985.60 start
+2000.61 upload-steady
+2060.89 idle
+2070.90 upload-step
+2090.92 capacity-low
+2110.93 capacity-back
+2131.12 idle
+2141.13 download-steady
+2201.51 idle
+2211.51 bidirectional
+2271.76 end

@@ -1,0 +1,25 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+r1-v0330               upload-steady    38.1   99.0  108.0   63.0   55.2     0      91.4       nan
+                       (idle base RTT 24.0 ms; delays are added RTT in ms)
+r1-v100                upload-steady    33.3  103.0  130.0   58.7   51.6     0      91.5       nan
+                       (idle base RTT 22.0 ms; delays are added RTT in ms)
+r2-v0330               upload-steady    36.7  104.9  145.9   58.9   53.2     0      90.8       nan
+                       (idle base RTT 22.1 ms; delays are added RTT in ms)
+r2-v100                upload-steady    33.5  102.9  120.9   61.5   51.7     0      92.1       nan
+                       (idle base RTT 23.1 ms; delays are added RTT in ms)
+r3-v0330               upload-steady    33.5  102.9  154.9   61.0   51.6     0      90.3       nan
+                       (idle base RTT 23.1 ms; delays are added RTT in ms)
+r3-v100                upload-steady    23.1  103.9  115.9   53.6   46.4     0      91.6       nan
+                       (idle base RTT 24.1 ms; delays are added RTT in ms)
+r4-v0330               upload-steady    25.6  101.7  137.7   55.3   47.8     0      90.3       nan
+                       (idle base RTT 22.3 ms; delays are added RTT in ms)
+r4-v100                upload-steady    19.7  114.9  138.9   51.8   45.5     0      90.0       nan
+                       (idle base RTT 23.1 ms; delays are added RTT in ms)
+r5-v0330               upload-steady    28.4  114.2  139.2   56.6   49.0     0      89.9       nan
+                       (idle base RTT 22.8 ms; delays are added RTT in ms)
+r5-v100                upload-steady    26.9  102.2  140.2   56.6   48.7     0      90.7       nan
+                       (idle base RTT 22.8 ms; delays are added RTT in ms)
+r6-v0330               upload-steady    34.1   99.6  114.6   60.6   52.5     0      92.1       nan
+                       (idle base RTT 24.4 ms; delays are added RTT in ms)
+r6-v100                upload-steady    39.6  109.1  132.1   61.8   54.0     0      90.5       nan
+                       (idle base RTT 22.9 ms; delays are added RTT in ms)

@@ -1,0 +1,31 @@
+variant                phase             p50    p95    p99   >15%   >30%  lost  ul used%  dl used%
+r1-v0330               upload-steady    26.0   85.1  200.1   63.5   46.9     0      75.9       nan
+r1-v0330               upload-step      36.8  106.1  276.1   62.0   54.2     0      79.1       nan
+r1-v0330               download-steady    2.4   66.3  170.1   17.8    9.8     0       nan      44.3
+r1-v0330               bidirectional    44.8   92.1  147.1   68.6   59.5     0      84.7      27.7
+                       (idle base RTT 22.9 ms; delays are added RTT in ms)
+r1-v100                upload-steady    36.4   99.8  233.8   67.0   55.1     0      80.1       nan
+r1-v100                upload-step      29.5  140.8  167.8   60.1   49.8     0      80.7       nan
+r1-v100                download-steady    5.1   78.8  180.8   26.7   13.6     0       nan      54.5
+r1-v100                bidirectional    30.3  116.8  177.8   66.1   50.2     0      77.1      22.9
+                       (idle base RTT 22.2 ms; delays are added RTT in ms)
+r2-v0330               upload-steady    23.5   85.2  215.2   57.1   44.2     0      78.0       nan
+r2-v0330               upload-step      28.4  131.2  162.2   59.5   48.8     0      81.4       nan
+r2-v0330               download-steady    3.1   74.3  130.2   24.6   13.1     0       nan      45.3
+r2-v0330               bidirectional    42.2   93.2  277.2   65.7   58.0     0      80.5      23.2
+                       (idle base RTT 24.8 ms; delays are added RTT in ms)
+r2-v100                upload-steady    42.3   91.4  156.4   71.9   61.3     0      85.4       nan
+r2-v100                upload-step      15.3  131.4  169.4   50.1   36.8     0      77.3       nan
+r2-v100                download-steady    6.6  136.4  437.4   27.7   15.1     0       nan      46.1
+r2-v100                bidirectional    29.8   89.4  132.4   61.4   49.8     0      73.7      24.2
+                       (idle base RTT 21.6 ms; delays are added RTT in ms)
+r3-v0330               upload-steady    23.7   98.5  263.5   58.8   42.4     0      74.0       nan
+r3-v0330               upload-step      19.4  102.5  164.5   52.9   41.5     0      74.9       nan
+r3-v0330               download-steady    9.7   89.5  243.5   36.8   17.2     0       nan      59.0
+r3-v0330               bidirectional    32.6  100.5  181.5   62.5   52.3     0      76.4      30.3
+                       (idle base RTT 21.5 ms; delays are added RTT in ms)
+r3-v100                upload-steady    35.1   80.5  156.5   69.5   54.9     0      81.5       nan
+r3-v100                upload-step      27.9  110.5  213.5   58.5   47.2     0      76.2       nan
+r3-v100                download-steady    0.6   67.5  245.5   19.2   10.9     0       nan      41.3
+r3-v100                bidirectional    37.7   92.5  143.5   68.8   57.9     0      83.1      26.5
+                       (idle base RTT 24.5 ms; delays are added RTT in ms)
