@@ -203,13 +203,15 @@ their hostnames in any file, commit or report.
   decision 2026-10-27). Its image comes from `~/openwrt/custom/vm/build.sh`,
   with perf, strace, gdb, bpftool, the testbed's kernel modules and tools, and
   an SFTP server.
-- **x86 VM clone, `192.168.56.5`:** a second VM for parallel work, such as
-  soak tests and profiles. Until the user rebuilds it from the snapshot image
-  it runs OpenWrt 25.12 x86, a 32-bit kernel that panics about once per 25-60
-  minutes of load in the i386 exception-entry path, with or without
-  cake-adapt loaded; a reboot mid-test there is not evidence against
-  cake-adapt. Check the serial console log, copy it before the VM is powered
-  off (VirtualBox truncates it on start), and rerun the lost run.
+- **x86_64 VM, `192.168.56.5`:** a second VM from the same image, for
+  parallel work such as soak tests, load comparisons and profiles.
+
+Both VMs have 4 virtual CPUs under VirtualBox on Hyper-V (WSL2). They have
+rebooted without a trace and, once, hung procd in `synchronize_rcu`; a reboot
+mid-test is not evidence against cake-adapt: rerun the lost run. The
+snapshot's procd does not start `ubusd` again after it is killed, so reboot a
+VM after a test that kills it. (The 25.12 i386 VMs panicked about once per
+25-60 minutes of load in the i386 exception-entry path.)
 - **arm64 VM, `192.168.50.5`:** OpenWrt 25.12 `armsr/armv8`, which ran the
   Filogic build before the user deployed it on real routers. It is no longer
   needed before a deployment. Its CPU is emulated, so it gives functional
