@@ -230,7 +230,7 @@ support the instance logs a warning and carries on without them.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `tcp_delay_attribution` | boolean | `0` | With an echo pinger (`native` or `fping`): split its round-trip delay between upload and download by queue delays measured from TCP timestamps, instead of half each way. Only the direction holding the queue is then slowed. |
+| `tcp_delay_attribution` | boolean | `0` | With an echo pinger (`native` or `fping`): split its round-trip delay between upload and download by queue delays measured from TCP timestamps, instead of half each way. Only the direction holding the queue is then slowed. Without it, each direction still gets half the round trip, and a detected bufferbloat is blamed by download's delivery instead: download is slowed unless it delivers at least 98% of its shaper rate, and upload unless download delivers between `high_load_thr` and 98% (loaded but held back, so the queue is download's). This blame can change with every traffic sample and is not logged. With `tcp_delay_attribution` on, the debug log says which direction is blamed while bufferbloat is detected (`attributed=` on the detection message, and `bufferbloat attribution changed`). |
 | `ul_congest_ack_share` | decimal | `0` | From `0` to `1`; `0` disables it. While upload is busy, download is held back so that its ACKs leave room for other upload traffic, but never below this share of the upload rate, for example `0.45`. It is not a reservation: when ACKs need less, other traffic uses the rest. |
 
 For a slow upload, CAKE's plain `ack-filter` on the upload qdisc also helps.

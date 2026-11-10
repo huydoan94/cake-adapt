@@ -140,6 +140,11 @@ verification against a real server.
 - 1.0.0: the first stable version, the restructured tree. From now on the UCI
   options, the structured records, the ubus status object and the MQTT topics
   are stable interfaces: changing one is a deliberate, documented decision.
+- After 1.0.0 (issue #12): bufferbloat attribution is logged only with
+  `tcp_delay_attribution` on, and then only while that direction has
+  bufferbloat detected (`attributed=` on the detection message, and a debug
+  line when it changes). The delivery heuristic is documented with
+  `tcp_delay_attribution`.
 - Tuple-lifetime handling was tried twice and reverted both times: first an
   atomics-based design that the 32-bit x86 JIT cannot compile
   (`2026-10-05-tcp-lifetime-deferred`), then an ordered capture stream that
