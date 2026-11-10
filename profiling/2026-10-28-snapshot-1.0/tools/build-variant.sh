@@ -4,15 +4,17 @@
 # the 2026-10-27 script), with the snapshot tree's own compile command
 # (compile-line.txt, from make package/cake-adapt/compile V=s in ~/openwrt, the
 # cake-adapt-mqtt variant) plus -g3 -gdwarf-4 -fno-omit-frame-pointer, from a
-# git archive export. OPENWRT_SOURCE overrides ../openwrt. Output: bin/NAME and
-# obj/NAME.o (the TCP filter of the same compile).
+# git archive export. OPENWRT_SOURCE overrides ../openwrt. Its work files and
+# output stay in the ignored build/variants/ of the repository, never here:
+# bin/NAME and obj/NAME.o (the TCP filter of the same compile).
 set -eu
 commit=$1 name=$2
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
 sdk=${OPENWRT_SOURCE:-$repo/../openwrt}
-export_dir=$here/src-$name
-rm -rf "$export_dir" && mkdir -p "$export_dir" "$here/bin" "$here/obj"
+out=$repo/build/variants
+export_dir=$out/src-$name
+rm -rf "$export_dir" && mkdir -p "$export_dir" "$out/bin" "$out/obj"
 if [ "$commit" = WORKTREE ]; then
 	tar -C "$repo" --exclude=src/build -cf - src | tar -x -C "$export_dir"
 	version=$(sed -n 's/^PKG_VERSION:=//p' "$repo/Makefile")-r1
@@ -29,7 +31,7 @@ line=$(printf '%s\n' "$line" | sed -e "s|$build_dir|$export_dir/src|g" \
 toolchain=$(ls -d "$sdk"/staging_dir/toolchain-x86_64*)
 export STAGING_DIR=$(ls -d "$sdk"/staging_dir/target-x86_64*)
 export PATH="$toolchain/bin:$sdk/staging_dir/host/bin:$PATH"
-eval "$line" > "$here/build-$name.log" 2>&1 || { tail -n 30 "$here/build-$name.log"; exit 1; }
-cp "$export_dir/src/build/cake-adapt" "$here/bin/$name" 2>/dev/null || cp "$export_dir/src/cake-adapt" "$here/bin/$name"
-cp "$export_dir/src/build/tcpdelay.bpf.o" "$here/obj/$name.o"
-echo "$name $commit $version $(sha256sum "$here/bin/$name" | cut -c1-16)"
+eval "$line" > "$out/build-$name.log" 2>&1 || { tail -n 30 "$out/build-$name.log"; exit 1; }
+cp "$export_dir/src/build/cake-adapt" "$out/bin/$name" 2>/dev/null || cp "$export_dir/src/cake-adapt" "$out/bin/$name"
+cp "$export_dir/src/build/tcpdelay.bpf.o" "$out/obj/$name.o"
+echo "$name $commit $version $(sha256sum "$out/bin/$name" | cut -c1-16)"
