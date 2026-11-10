@@ -91,11 +91,12 @@ $(BINARY_DIR)/mqtt_driver: logging/mqtt_driver.c $(SOURCE_DIR)/logging/mqtt.c $(
 # The daemon needs UCI/libubox and the filter seam needs libbpf headers.
 # UCI_CFLAGS may expose all three from the SDK staged include directory.
 .PHONY: check-tcpdelay
-check-tcpdelay: $(BINARY_DIR)/test_daemon_tcp $(BINARY_DIR)/test_daemon_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_daemon_status $(BINARY_DIR)/test_daemon_publish $(BINARY_DIR)/test_daemon_pingers
+check-tcpdelay: $(BINARY_DIR)/test_daemon_tcp $(BINARY_DIR)/test_daemon_reflectors $(BINARY_DIR)/test_filter_accounting $(BINARY_DIR)/test_daemon_status $(BINARY_DIR)/test_daemon_report $(BINARY_DIR)/test_daemon_publish $(BINARY_DIR)/test_daemon_pingers
 	$(BINARY_DIR)/test_daemon_tcp
 	$(BINARY_DIR)/test_daemon_reflectors
 	$(BINARY_DIR)/test_filter_accounting
 	$(BINARY_DIR)/test_daemon_status
+	$(BINARY_DIR)/test_daemon_report
 	$(BINARY_DIR)/test_daemon_publish
 	$(BINARY_DIR)/test_daemon_pingers
 
@@ -117,6 +118,10 @@ $(BINARY_DIR)/test_daemon_tcp: daemon/test_tcp.c $(SOURCE_DIR)/daemon/tcp.c $(SO
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(COMMON_SOURCES) $(LDLIBS)
 
 $(BINARY_DIR)/test_daemon_status: daemon/test_status.c $(SOURCE_DIR)/daemon/status.c $(wildcard $(SOURCE_DIR)/daemon/*.h) $(COMMON_SOURCES)
+	@mkdir -p $(@D)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(COMMON_SOURCES) $(LDLIBS)
+
+$(BINARY_DIR)/test_daemon_report: daemon/test_report.c $(SOURCE_DIR)/daemon/report.c $(wildcard $(SOURCE_DIR)/daemon/*.h) $(COMMON_SOURCES)
 	@mkdir -p $(@D)
 	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections -o $@ $< $(COMMON_SOURCES) $(LDLIBS)
 
