@@ -65,9 +65,15 @@ static void report_line_state(
 	);
 }
 
+/*
+ * attribution is the direction's blame, or NULL while tcp_delay_attribution is
+ * off: a detected bufferbloat then cuts a direction by the delivery heuristic,
+ * which the log leaves out, as it measures nothing (issue #12).
+ */
 static void report_congestion_state(
 	const char *direction,
 	enum controller_congestion_state state,
+	const bool *attribution,
 	const struct latency_observation *latency
 )
 {
@@ -88,6 +94,21 @@ static void report_congestion_state(
 	baseline_us = latency->owd_baseline_us[DIRECTION_DOWNLOAD] +
 		      latency->owd_baseline_us[DIRECTION_UPLOAD];
 	delay_us = max_i64(signed_difference(round_trip_us, baseline_us), 0);
+	if (state == CONTROLLER_CONGESTION_DETECTED && attribution != NULL) {
+		log_message(
+			LOG_LEVEL_NOTICE,
+			"congestion changed: direction=%s state=%s"
+			" rtt=%" PRId64 " us baseline=%" PRId64 " us"
+			" delta=%" PRId64 " us attributed=%s",
+			direction,
+			congestion_state_names[state],
+			round_trip_us,
+			baseline_us,
+			delay_us,
+			*attribution ? BOOLEAN_YES : BOOLEAN_NO
+		);
+		return;
+	}
 	log_message(
 		state == CONTROLLER_CONGESTION_DETECTED ? LOG_LEVEL_NOTICE : LOG_LEVEL_INFO,
 		"congestion changed: direction=%s state=%s"
@@ -157,6 +178,7 @@ void report_decision(
 	enum direction direction
 )
 {
+	const struct config *config = daemon->config;
 	const struct daemon_shaper *shaper = &daemon->shaper;
 	const struct controller *controller = &shaper->controller;
 	const struct controller_input *input = &step->input;
@@ -164,12 +186,21 @@ void report_decision(
 	const struct controller_queue_input *queue = &input->queue;
 	const struct controller_direction_output *decision = &output->directions[direction];
 	const char *name = direction_name(direction);
+	/* Only TCP queue measurements make the blame worth logging. */
+	const bool *attribution =
+		config->tcp_delay_attribution ? &decision->bufferbloat_attributed : NULL;
 
 	if (decision->state_changed)
 		report_line_state(name, decision->state, &input->directions[direction]);
 	if (decision->congestion_changed)
-		report_congestion_state(name, decision->congestion, step->latency);
-	if (decision->bufferbloat_attribution_changed) {
+		report_congestion_state(name, decision->congestion, attribution, step->latency);
+	/*
+	 * A change decides nothing until bufferbloat is detected, and the detection
+	 * message already carries it.
+	 */
+	if (attribution != NULL && decision->bufferbloat_attribution_changed &&
+	    !decision->congestion_changed &&
+	    decision->congestion == CONTROLLER_CONGESTION_DETECTED) {
 		log_message(
 			LOG_LEVEL_DEBUG,
 			"bufferbloat attribution changed: direction=%s attributed=%s"
