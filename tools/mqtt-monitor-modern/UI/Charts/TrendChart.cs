@@ -16,6 +16,8 @@ public sealed class TrendChart : Control
     public double? Ceiling { get; set; }
     // Optional tick rows (bufferbloat), drawn over the plot bottom.
     public PlotMarks[] Marks { get; set; } = [];
+    // History: label the time axis with TimeTicks for the range; live keeps four equal intervals.
+    public bool RangeTicks { get; set; }
     public double EndTime { get; set; } = Telemetry.Now;
     public string EmptyMessage { get; set; } = UiText.Waiting;
     public string EmptyHint { get; set; } = UiText.ConnectionHelp;
@@ -76,11 +78,25 @@ public sealed class TrendChart : Control
             var y = plot.Bottom - fraction * plot.Height;
             context.DrawLine(new Pen(UiTheme.GridLine, ChartLayout.GridStroke), new Point(plot.Left, y), new Point(plot.Right, y));
             Text(context, Telemetry.Format(scale.ValueAt(fraction)), ChartLayout.AxisLabelLeft, y - ChartLayout.AxisLabelOffset, UiTheme.AxisText);
+            if (RangeTicks)
+                continue;
             var stamp = scale.TimeAt(fraction);
             var label = DateTimeOffset.FromUnixTimeSeconds((long)Math.Clamp(stamp, 0, TelemetryDefaults.MaximumUnixSeconds))
                 .ToLocalTime().ToString(TelemetryDefaults.ClockFormat);
             var x = plot.Left + plot.Width * fraction - (i == ChartLayout.AxisIntervals ? ChartLayout.ClockRightOffset : 0);
             Text(context, label, x, plot.Bottom + ChartLayout.ClockBottomOffset, UiTheme.AxisText);
+        }
+        if (RangeTicks)
+        {
+            var start = EndTime - Seconds;
+            var showDate = TimeTicks.CrossesMidnight(start, EndTime);
+            var step = TimeTicks.Step(Seconds);
+            foreach (var tick in TimeTicks.Times(start, EndTime))
+            {
+                var x = plot.Left + (tick - start) / Seconds * plot.Width;
+                context.DrawLine(new Pen(UiTheme.GridLine, ChartLayout.GridStroke), new Point(x, plot.Top), new Point(x, plot.Bottom));
+                Text(context, TimeTicks.Label(tick, step, showDate), x - ChartLayout.ClockRightOffset / 2, plot.Bottom + ChartLayout.ClockBottomOffset, UiTheme.AxisText);
+            }
         }
         var clipped = Lines.Any(line => line.Points.Any(scale.AboveTop));
         Text(context, clipped ? Unit + UiText.ClippedSuffix : Unit, ChartLayout.AxisLabelLeft, 0, UiTheme.AxisText);

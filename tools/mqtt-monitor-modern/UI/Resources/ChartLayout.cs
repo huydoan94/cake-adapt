@@ -3,6 +3,9 @@ namespace CakeAdaptMonitor;
 public static class ChartLayout
 {
     public const double MinimumHeight = 180;
+    // History ticks: the smallest step giving at most MaximumTicks labels.
+    public static readonly double[] TickSteps = [1, 5, 10, 30, 60, 300, 600, 1800, 3600, 10800, 21600, 43200, 86400];
+    public const int MaximumTicks = 8;
     public const double PlotLeft = 64, PlotTop = 15, HorizontalInset = 82, VerticalInset = 48;
     public const int AxisIntervals = 4;
     public const double AxisLabelLeft = 5, AxisLabelOffset = 6, ClockRightOffset = 43, ClockBottomOffset = 12;
