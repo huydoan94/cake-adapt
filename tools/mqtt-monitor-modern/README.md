@@ -51,6 +51,11 @@ keep one-minute detail. Range statistics are read from 10 s, 1 min and 10 min
 summaries (exact at the edges), and chart points are read only for the traces
 drawn, so moving the range stays quick on a full day.
 
+Measured on real captures (2026-10-31, one router per file, about 3.2-3.7
+million records and 950-1,300 series a day): loading takes 47-55 s and holds
+about 170 MB of history (275 MB for the whole program on the Windows 10 test
+VM); a redraw for a 5-minute, 6-hour or 24-hour range takes under 10 ms.
+
 ## Dashboard
 
 - Existing chart selectors: throughput, latency, CPU, memory, TCP queues,
