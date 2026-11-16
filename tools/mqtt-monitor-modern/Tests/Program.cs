@@ -16,6 +16,7 @@ static partial class Tests
         DecoderChecks();
         BrokerSettingsChecks();
         HistoryChecks();
+        BloatChecks();
         await Integration();
         await CancelPendingConnection();
         await TlsIntegration("valid");

@@ -32,6 +32,7 @@ internal sealed class PlotScale
             high = low + 1;
     }
 
+    public double? X(double time) => time < start || time > start + seconds ? null : Bounds.Left + (time - start) / seconds * Bounds.Width;
     public bool AboveTop(Sample sample) => sample.Value is { } value && value / magnitude > high;
     public double ValueAt(double fraction) => (low + (high - low) * fraction) * magnitude;
     public double TimeAt(double fraction) => start + seconds * fraction;
