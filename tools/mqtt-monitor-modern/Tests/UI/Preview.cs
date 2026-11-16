@@ -36,6 +36,7 @@ static partial class Tests
         ChartReadabilityChecks();
         TimeTickChecks();
         TimelineChecks();
+        ModeChecks();
         window.Close();
     }
 

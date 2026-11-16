@@ -28,6 +28,11 @@ public sealed partial class MainWindow : Window
     private readonly TextBlock subtitle = Label(UiText.InitialSubtitle, UiTypography.Caption, UiTheme.Muted);
     private readonly TextBlock notice = Label("", UiTypography.Caption, UiTheme.Warning);
     private readonly Button connect = ActionButton(UiText.ConnectBroker);
+    private readonly Button startOver = ActionButton(UiText.StartOver);
+    private readonly ToggleButton pause = new() { Content = UiText.Pause, Padding = UiLayout.NavigationMargin };
+    private readonly TimelineStrip strip = new() { IsVisible = false };
+    // The program sets this; tests and previews build the window without the start choice.
+    public bool AskModeOnOpen { get; init; }
     private readonly DashboardPage dashboard = new();
     // The dashboard scrolls when the window is too short for its cards and charts.
     private readonly ScrollViewer dashboardScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -69,7 +74,14 @@ public sealed partial class MainWindow : Window
         };
         timer.Start();
         Closed += (_, _) => timer.Stop();
-        Opened += (_, _) => FitToScreen();
+        Opened += async (_, _) =>
+        {
+            FitToScreen();
+            if (AskModeOnOpen)
+                await ChooseModeAsync();
+        };
+        strip.RangeChanged += OnRangeChanged;
+        startOver.Click += async (_, _) => await StartOverAsync();
         DarkTitleBar.Apply(this);
         AttachConnectionLifecycle();
     }
