@@ -17,6 +17,7 @@ static partial class Tests
         BrokerSettingsChecks();
         HistoryChecks();
         BloatChecks();
+        BucketSeriesChecks();
         await Integration();
         await CancelPendingConnection();
         await TlsIntegration("valid");
