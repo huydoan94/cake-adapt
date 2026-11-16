@@ -59,6 +59,8 @@ public static class UiLayout
     public const int ChartColumns = 2, TopicLength = 30, TopicTailLength = 29;
     // Rate cards list at most this many sources, one line each.
     public const int RateCardSources = 3;
+    // History timeline strip: height, side padding, handle size and hit width, label and bufferbloat rows.
+    public const double StripHeight = 70, StripPadding = 12, HandleWidth = 8, HandleHitWidth = 12, StripLabelHeight = 14, StripBloatHeight = 6, StripStroke = 1, StripTraceGap = 2;
     public const char PasswordCharacter = '●';
     public static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(1);
 }
