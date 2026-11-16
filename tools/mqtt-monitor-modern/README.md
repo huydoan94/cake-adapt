@@ -21,14 +21,21 @@ The optional CA certificate is read from the path you provide.
 
 - Existing chart selectors: throughput, latency, CPU, memory, TCP queues,
   TCP counters, and a metric selected from All metrics.
+- The window opens maximized when its default size does not fit the screen, and
+  the dashboard scrolls when the window is too short for its cards and charts.
+- Each card lists up to three sources (the most recently updated), one line
+  each in topic order, so a line never jumps between routers.
 - Download/Upload cards show the highest valid reading received between one-second
   screen updates. Their labels stay unchanged. Source/search/settings changes do
   not reset this interval. With no new valid reading, the previous peak remains
   and its age increases. CAKE rate cards still show latest configured values.
-- Dark panels with colored line traces, hover values and expandable snapshots.
+- Dark panels with colored line traces, hover values and expandable snapshots
+  that keep the chart's legend.
   Each panel has **Settings** to choose which source/metric traces to draw
   within its selected report, up to 24 traces. **Use defaults** restores the
-  automatic six most recently updated traces within each topic/field priority.
+  automatic six most recently updated traces within each topic/field priority;
+  with several sources the six are shared between them, and every label names
+  its source.
   Automatic choices follow reflector rotation as new telemetry arrives, without
   pressing Use defaults again. Manually chosen traces stay pinned. Settings lists only the selected topic. Choices stay in memory separately
   per panel, report and topic, including a separate All sources view. Global
@@ -46,7 +53,8 @@ The optional CA certificate is read from the path you provide.
   Source/search/settings refreshes do not reset batches. Historical min/mean/max and point counts keep
   their existing meaning. Live updates preserve scroll position and selection.
   Double-click a row to visualize that metric in the fourth panel.
-- Events shows the latest raw messages in memory for the selected source.
+- Events shows the latest raw messages in memory for the selected source,
+  newest first.
 
 Supported records are DATA, LOAD, SUMMARY, REFLECTOR, TCP_QUEUE, TCP_INJECT,
 MEMORY, CPU and CPU_RAW. Built-in schemas come from the daemon's
@@ -102,8 +110,9 @@ does not save telemetry or settings. Preview data is explicitly labeled SAMPLE
 DATA and is accessible only from the test program.
 
 The Windows executable is cross-published from WSL. Native headless UI and
-protocol checks run on Linux; Windows execution and the user's broker have
-not been tested here.
+protocol checks run on Linux; Windows execution has been checked on a Windows 10
+test VM against a local replay of saved captures; the user's broker has not
+been tested here.
 
 ## GitHub Actions
 
