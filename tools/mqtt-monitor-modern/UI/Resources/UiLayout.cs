@@ -5,8 +5,10 @@ public static class UiLayout
 {
     public const string ShellColumns = "172,*";
     public const string RailRows = "88,*,Auto";
-    public const string MainRows = "78,52,Auto,*,30";
+    public const string MainRows = "78,52,Auto,*,Auto,30";
+    public const int StripRow = 4, CountsRow = 5;
     public const string HeaderColumns = "*,Auto,Auto";
+    public const string WindowHeaderColumns = "*,Auto,Auto,Auto";
     public const string ToolbarColumns = "Auto,Auto,*,Auto";
     public const string RateColumns = "*,*,*,*";
     public const string DashboardRows = "Auto,*,*";
@@ -61,6 +63,9 @@ public static class UiLayout
     public const int RateCardSources = 3;
     // History timeline strip: height, side padding, handle size and hit width, label and bufferbloat rows.
     public const double StripHeight = 70, StripPadding = 12, HandleWidth = 8, HandleHitWidth = 12, StripLabelHeight = 14, StripBloatHeight = 6, StripStroke = 1, StripTraceGap = 2;
+    public const double StartWidth = 420, StartHeight = 300, LoadWidth = 460, LoadHeight = 170;
+    public const int OverviewColumns = 1000;
+    public static readonly Thickness StartOverMargin = new(8, 0, 0, 0);
     public const char PasswordCharacter = '●';
     public static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(1);
 }
