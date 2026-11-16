@@ -49,6 +49,10 @@ static partial class Tests
             File.WriteAllText(cut, day3[..(day3.Length - 25)]);
             var truncated = await CaptureLoader.LoadAsync([cut], null, CancellationToken.None);
             Check(truncated.Records == 9 && truncated.BadLines == 1, "a cut-off last line is counted as bad and the rest is kept");
+            var odd = Path.Combine(folder.FullName, "odd.jsonl");
+            File.WriteAllText(odd, "42\nnull\n[]\n{\"tst\":1,\"topic\":\"t\",\"payload\":\"p\"}\n{\"tst\":\"x\",\"topic\":[],\"payload\":1}\n" + CaptureDay(day1, 3));
+            var survived = await CaptureLoader.LoadAsync([odd], null, CancellationToken.None);
+            Check(survived.Records == 3 && survived.BadLines == 5, "lines that are JSON but not capture records are counted bad, not fatal");
 
 
             var cancelled = false;

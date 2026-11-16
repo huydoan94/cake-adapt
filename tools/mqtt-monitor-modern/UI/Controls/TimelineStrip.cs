@@ -30,6 +30,8 @@ public sealed class TimelineStrip : Control
         ClipToBounds = true;
         PointerPressed += (_, e) =>
         {
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                return;
             var x = e.GetPosition(this).X;
             dragging = Hit(x);
             if (dragging == TimelineHit.None)
@@ -41,11 +43,18 @@ public sealed class TimelineStrip : Control
         {
             if (dragging == TimelineHit.None)
                 return;
+            // Only while the left button is held: a lost release must not leave hovering dragging.
+            if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                dragging = TimelineHit.None;
+                return;
+            }
             var delta = (e.GetPosition(this).X - dragX) / PlotWidth * Span;
             (RangeStart, RangeEnd) = TimelineDrag.Apply(dragging, dragStart, dragEnd, delta, DataStart, DataEnd, HistoryModeDefaults.MinimumRangeSeconds);
             InvalidateVisual();
             RangeChanged?.Invoke(RangeStart, RangeEnd);
         };
+        PointerCaptureLost += (_, _) => dragging = TimelineHit.None;
         PointerReleased += (_, e) =>
         {
             dragging = TimelineHit.None;
