@@ -45,6 +45,24 @@ static partial class Tests
         window.OwnedWindows.OfType<StartWindow>().Single().Close();
         WaitFor(startingOver);
 
+        var opened = Directory.CreateTempSubdirectory("cake-open-");
+        try
+        {
+            var day = Path.Combine(opened.FullName, "oversea.jsonl");
+            File.WriteAllText(day, CaptureDay(new DateTimeOffset(2026, 11, 14, 0, 0, 0, TimeSpan.Zero), 600));
+            var direct = new MainWindow { Width = 1440, Height = 920, AskModeOnOpen = true, StartFile = day };
+            direct.Show();
+            for (var i = 0; i < 2000 && !direct.InHistory; i++)
+            {
+                Pump();
+                Thread.Sleep(5);
+            }
+            Check(direct.InHistory && !direct.OwnedWindows.OfType<StartWindow>().Any(),
+                "a capture file given at start opens straight in history mode");
+            direct.Close();
+        }
+        finally { opened.Delete(true); }
+
         var folder = Directory.CreateTempSubdirectory("cake-cancel-");
         try
         {

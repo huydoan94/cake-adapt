@@ -33,6 +33,8 @@ public sealed partial class MainWindow : Window
     private readonly TimelineStrip strip = new() { IsVisible = false };
     // The program sets this; tests and previews build the window without the start choice.
     public bool AskModeOnOpen { get; init; }
+    // A capture file given on the command line ("Open with", drag onto the exe): open it in history mode.
+    public string? StartFile { get; init; }
     private readonly DashboardPage dashboard = new();
     // The dashboard scrolls when the window is too short for its cards and charts.
     private readonly ScrollViewer dashboardScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -79,6 +81,8 @@ public sealed partial class MainWindow : Window
         Opened += async (_, _) =>
         {
             FitToScreen();
+            if (AskModeOnOpen && StartFile != null && await OpenHistoryAsync([StartFile]))
+                return;
             if (AskModeOnOpen)
                 await ChooseModeAsync();
         };

@@ -74,8 +74,11 @@ public sealed class HistoryStore
                 RatePeak = traffic ? new Sample(stats.MaxTime, stats.MaxTime, stats.Max) : null
             });
         }
+        // A field can be a number in some readings and text in others ("Unavailable"):
+        // show its numbers when the range has any, otherwise its latest text.
+        var numeric = views.Select(view => view.Key).ToHashSet();
         foreach (var (key, text) in texts)
-            if (text.Time <= end)
+            if (text.Time <= end && !numeric.Contains(key))
                 views.Add(new MetricView(key, text.Text, text.Time, []));
         return views.ToArray();
     }

@@ -23,7 +23,9 @@ At start the program asks: **Watch live** (connect to a broker, as described
 above) or **Open history**. A session is one or the other; **Start over** in
 the header returns to this choice.
 
-Open history loads one recorder capture file (the recorder writes one per
+Starting the program with a capture file as its argument (Windows "Open
+with", or dropping the file on the executable) opens it in history mode
+directly. Open history loads one recorder capture file (the recorder writes one per
 router per day, `<YYYY-MM-DD>/<router>.jsonl` or `.jsonl.gz`; each line is a
 JSON object with `tst`, `topic` and `payload`), with progress and Cancel. Lines that are not valid recorder
 JSON (for example a cut-off last line) are counted and skipped. Readings are
