@@ -85,13 +85,19 @@ public sealed class ChartPanel : Grid
             EmptyHint = chart.EmptyHint,
             Margin = UiLayout.SnapshotMargin
         };
+        var snapshotLegend = new WrapPanel { Margin = UiLayout.SnapshotLegendMargin };
+        AddLegendItems(snapshotLegend, chart.Lines);
+        var content = new Grid { RowDefinitions = new RowDefinitions(UiLayout.SnapshotRows) };
+        content.Children.Add(snapshotLegend);
+        Grid.SetRow(enlarged, 1);
+        content.Children.Add(enlarged);
         new Window
         {
             Title = Report + UiText.SnapshotSuffix,
             Width = UiLayout.SnapshotWidth,
             Height = UiLayout.SnapshotHeight,
             Background = UiTheme.Panel,
-            Content = enlarged
+            Content = content
         }.Show(owner);
     }
 
@@ -109,7 +115,7 @@ public sealed class ChartPanel : Grid
         chart.Unit = PlotSeries.Unit(Report, chosen);
         chart.Seconds = seconds;
         chart.EndTime = Telemetry.Now;
-        chart.Lines = PlotSeries.Create(Report, chosen);
+        chart.Lines = PlotSeries.Create(Report, chosen, candidates.Select(metric => metric.Topic).Distinct().Count() > 1);
         UpdateLegend(custom);
         chart.InvalidateVisual();
     }
@@ -117,20 +123,25 @@ public sealed class ChartPanel : Grid
     private void UpdateLegend(bool custom)
     {
         legend.Children.Clear();
-        foreach (var line in chart.Lines)
-            legend.Children.Add(new TextBlock
-            {
-                Text = line.Label,
-                Foreground = new SolidColorBrush(line.Color),
-                FontSize = UiTypography.Small,
-                Margin = UiLayout.LegendItemMargin
-            });
+        AddLegendItems(legend, chart.Lines);
         if (chart.Lines.Length == 0 || (!custom && candidates.Length > ChartDefaults.AutomaticTraces))
             legend.Children.Add(new TextBlock
             {
                 Text = chart.Lines.Length == 0 ? UiText.SettingsHint : UiText.AutomaticHint,
                 FontSize = UiTypography.Small,
                 Foreground = UiTheme.LegendHint
+            });
+    }
+
+    private static void AddLegendItems(WrapPanel target, PlotLine[] lines)
+    {
+        foreach (var line in lines)
+            target.Children.Add(new TextBlock
+            {
+                Text = line.Label,
+                Foreground = new SolidColorBrush(line.Color),
+                FontSize = UiTypography.Small,
+                Margin = UiLayout.LegendItemMargin
             });
     }
 }

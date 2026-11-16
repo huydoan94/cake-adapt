@@ -14,6 +14,7 @@ public static class UiLayout
     public const string MetricsRows = "Auto,*";
     public const string ChartRows = "42,Auto,*";
     public const string SettingsRows = "Auto,Auto,Auto,*,Auto,Auto";
+    public const string SnapshotRows = "Auto,*";
     public static readonly Thickness ActionPadding = new(14, 9);
     public static readonly Thickness BrandMargin = new(20, 24, 0, 0);
     public static readonly Thickness NavigationMargin = new(12, 8);
@@ -26,12 +27,15 @@ public static class UiLayout
     public static readonly Thickness ToolbarMargin = new(0, 5, 0, 6);
     public static readonly Thickness TimeRangeMargin = new(10, 0);
     public static readonly Thickness PagesMargin = new(0, 8, 0, 0);
+    // Room on the right for the dashboard's vertical scroll bar.
+    public static readonly Thickness DashboardScrollMargin = new(0, 0, 14, 0);
     public static readonly Thickness RatesMargin = new(0, 0, 0, 14);
     public static readonly Thickness RatePadding = new(16, 12);
     public static readonly Thickness SectionBottomMargin = new(0, 0, 0, 12);
     public static readonly Thickness LegendMargin = new(16, 0, 10, 2);
     public static readonly Thickness ChartHeaderMargin = new(12, 4);
     public static readonly Thickness SnapshotMargin = new(15);
+    public static readonly Thickness SnapshotLegendMargin = new(16, 12, 10, 0);
     public static readonly Thickness ChartMargin = new(8, 0, 8, 5);
     public static readonly Thickness LegendItemMargin = new(0, 0, 12, 3);
     public static readonly Thickness SettingsPadding = new(24);
@@ -41,7 +45,9 @@ public static class UiLayout
     public static readonly Thickness DialogButtonMargin = new(0, 0, 8, 6);
     public static readonly Thickness ApplyButtonMargin = new(0, 0, 0, 6);
     public static readonly Thickness ConnectionPadding = new(26);
-    public const double WindowWidth = 1440, WindowHeight = 920, MinimumWindowWidth = 1100, MinimumWindowHeight = 740;
+    public const double WindowWidth = 1440, WindowHeight = 920, MinimumWindowWidth = 1100, MinimumWindowHeight = 600;
+    // Title bar and borders around the client area when deciding whether the default size fits.
+    public const double WindowFrameAllowance = 40;
     public const double SourceWidth = 210, TimeRangeWidth = 130, SearchWidth = 320, ReportWidth = 160;
     public const double TableRowHeight = 33, MinimumRateHeight = 96;
     public const double RateGap = 8, ChartColumnGap = 7, ChartRowGap = 14;
@@ -51,6 +57,8 @@ public static class UiLayout
     public const double SettingsWidth = 640, SettingsHeight = 650, MinimumSettingsWidth = 460, MinimumSettingsHeight = 350;
     public const double ConnectionWidth = 470, ConnectionHeight = 700, SnapshotWidth = 1100, SnapshotHeight = 600;
     public const int ChartColumns = 2, TopicLength = 30, TopicTailLength = 29;
+    // Rate cards list at most this many sources, one line each.
+    public const int RateCardSources = 3;
     public const char PasswordCharacter = '●';
     public static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(1);
 }

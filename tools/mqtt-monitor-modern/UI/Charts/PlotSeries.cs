@@ -16,7 +16,9 @@ internal static class PlotSeries
         _ => metrics.FirstOrDefault()?.Unit ?? ReportUnits.Count
     };
 
-    public static PlotLine[] Create(string report, MetricView[] metrics)
+    // showSource: name the router in every label whenever more than one is publishing
+    // to this chart, even if the drawn traces happen to come from one of them.
+    public static PlotLine[] Create(string report, MetricView[] metrics, bool showSource)
     {
         var divisor = report switch
         {
@@ -25,18 +27,17 @@ internal static class PlotSeries
             ReportNames.Memory => ReportUnits.MemoryDivisor,
             _ => 1
         };
-        var multipleSources = metrics.Select(metric => metric.Topic).Distinct().Count() > 1;
-        return metrics.Select((metric, i) => new PlotLine(Label(metric, multipleSources),
+        return metrics.Select((metric, i) => new PlotLine(Label(metric, showSource),
             metric.Samples.Select(sample => sample with { Value = sample.Value / divisor }).ToArray(),
             UiTheme.Palette[i % UiTheme.Palette.Length])).ToArray();
     }
 
-    private static string Label(MetricView metric, bool multipleSources)
+    private static string Label(MetricView metric, bool showSource)
     {
         var label = metric.Name.Replace(UiText.TrafficFieldSuffix, UiText.TrafficLabel)
             .Replace(UiText.RateFieldSuffix, UiText.RateLabel)
             .Replace(UiText.DelayFieldSuffix, UiText.DelayLabel).Replace(UiText.MemoryFieldSuffix, "");
-        if (multipleSources)
+        if (showSource)
             label += UiText.SourceSeparator + DisplayText.ShortTopic(metric.Topic);
         if (metric.Dimension.Length > 0)
             label += UiText.SourceSeparator + metric.Dimension;

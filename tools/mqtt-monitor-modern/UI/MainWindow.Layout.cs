@@ -91,7 +91,9 @@ public sealed partial class MainWindow
         var pages = new Grid { Margin = UiLayout.PagesMargin };
         Grid.SetRow(pages, 3);
         main.Children.Add(pages);
-        pages.Children.Add(dashboard);
+        dashboard.Margin = UiLayout.DashboardScrollMargin;
+        dashboardScroll.Content = dashboard;
+        pages.Children.Add(dashboardScroll);
         pages.Children.Add(metricsPage);
         pages.Children.Add(eventsPage);
         Grid.SetRow(counts, 4);
