@@ -45,7 +45,7 @@ static partial class Tests
         window2.Refresh();
         Pump();
         var two = CardLines(window2, "DOWNLOAD");
-        Check(two.Length == 2 && two[0].Caption.EndsWith("cake-adapt/router-a") && two[1].Caption.EndsWith("cake-adapt/router-b") &&
+        Check(two.Length == 2 && two[0].Caption.StartsWith("cake-adapt/router-a") && two[1].Caption.StartsWith("cake-adapt/router-b") &&
             two[0].Value == "10 Mbit/s" && two[1].Value == "20 Mbit/s",
             "rate cards show one line per router in a stable topic order");
         Load("cake-adapt/router-a", 11000, received + 0.2);
@@ -53,7 +53,7 @@ static partial class Tests
         window2.Refresh();
         Pump();
         var again = CardLines(window2, "DOWNLOAD");
-        Check(again[0].Caption.EndsWith("cake-adapt/router-a") && again[1].Caption.EndsWith("cake-adapt/router-b"),
+        Check(again[0].Caption.StartsWith("cake-adapt/router-a") && again[1].Caption.StartsWith("cake-adapt/router-b"),
             "a newer reading from one router does not reorder the card lines");
         Load("cake-adapt/router-c", 30000, received + 0.3);
         Load("cake-adapt/router-d", 40000, received + 0.4);
@@ -61,13 +61,16 @@ static partial class Tests
         window2.Refresh();
         Pump();
         var many = CardLines(window2, "DOWNLOAD");
-        Check(many.Length == 3 && !many.Any(line => line.Caption.EndsWith("cake-adapt/router-b")),
+        Check(many.Length == 3 && !many.Any(line => line.Caption.StartsWith("cake-adapt/router-b")),
             "rate cards show at most three routers, the most recently updated ones");
         window2.Close();
 
         Check(MainWindow.ShouldMaximize(new Size(1280, 760)) && MainWindow.ShouldMaximize(new Size(1366, 728)) &&
             !MainWindow.ShouldMaximize(new Size(1920, 1040)),
             "the window opens maximized when its default size does not fit the screen");
+        // 1366x768 at 125% leaves about 1093x614 DIPs; minus taskbar (~32) and title bar (~31).
+        Check(UiLayout.MinimumWindowWidth <= 1093 && UiLayout.MinimumWindowHeight <= 614 - 32 - 31,
+            "the minimum window size fits a 1366x768 screen at 125% scaling");
     }
 
     // At 1280x800 the charts must not run under each other or the status line.
