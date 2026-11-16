@@ -37,6 +37,7 @@ static partial class Tests
         TimeTickChecks();
         TimelineChecks();
         ModeChecks();
+        HistoryPageChecks();
         window.Close();
     }
 

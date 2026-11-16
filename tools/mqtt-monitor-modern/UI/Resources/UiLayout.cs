@@ -64,7 +64,7 @@ public static class UiLayout
     // History timeline strip: height, side padding, handle size and hit width, label and bufferbloat rows.
     public const double StripHeight = 70, StripPadding = 12, HandleWidth = 8, HandleHitWidth = 12, StripLabelHeight = 14, StripBloatHeight = 6, StripStroke = 1, StripTraceGap = 2;
     public const double StartWidth = 420, StartHeight = 300, LoadWidth = 460, LoadHeight = 170;
-    public const int OverviewColumns = 1000;
+    public const int OverviewColumns = 1000, HistoryColumns = 1200;
     public static readonly Thickness StartOverMargin = new(8, 0, 0, 0);
     public const char PasswordCharacter = '●';
     public static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(1);

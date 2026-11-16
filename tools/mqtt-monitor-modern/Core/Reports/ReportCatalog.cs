@@ -41,17 +41,18 @@ public static class ReportCatalog
     // sources each one gets a share of the automatic traces instead of the first
     // topic filling them all. Restore candidate order to avoid reshuffling the
     // legend as individual probes arrive.
-    public static MetricView[] Defaults(MetricView[] candidates)
+    // rank: history passes readings in the range; live uses the most recent arrival.
+    public static MetricView[] Defaults(MetricView[] candidates, Func<MetricView, double>? rank = null)
     {
         var topics = candidates.GroupBy(metric => metric.Topic)
             .Select(topic => topic.GroupBy(metric => metric.Name)
-                .SelectMany(field => field.OrderByDescending(metric => metric.ReceivedTime))
+                .SelectMany(field => field.OrderByDescending(rank ?? (metric => metric.ReceivedTime)))
                 .Select(metric => metric.Key).ToArray())
             .ToArray();
         var active = new HashSet<MetricKey>();
-        for (var rank = 0; active.Count < ChartDefaults.AutomaticTraces && topics.Any(keys => rank < keys.Length); rank++)
-            foreach (var keys in topics.Where(keys => rank < keys.Length).TakeWhile(_ => active.Count < ChartDefaults.AutomaticTraces))
-                active.Add(keys[rank]);
+        for (var position = 0; active.Count < ChartDefaults.AutomaticTraces && topics.Any(keys => position < keys.Length); position++)
+            foreach (var keys in topics.Where(keys => position < keys.Length).TakeWhile(_ => active.Count < ChartDefaults.AutomaticTraces))
+                active.Add(keys[position]);
         return candidates.Where(metric => active.Contains(metric.Key)).ToArray();
     }
 

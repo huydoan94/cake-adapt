@@ -17,6 +17,36 @@ the current run. Closing the app discards its metric history, event view and
 connection details. Reconnect and resubscribe are automatic while it is open.
 The optional CA certificate is read from the path you provide.
 
+## History mode
+
+At start the program asks: **Watch live** (connect to a broker, as described
+above) or **Open history**. A session is one or the other; **Start over** in
+the header returns to this choice.
+
+Open history loads up to seven recorder capture files (`mqtt-YYYY-MM-DD.jsonl`
+or `.jsonl.gz`, one JSON object per line with `tst`, `topic` and `payload`),
+in file-name order, with progress and Cancel. Lines that are not valid recorder
+JSON (for example a cut-off last line) are counted and skipped. Readings are
+placed by the router's `LOG_TIMESTAMP`; a router time more than a day away
+from the recorder's `tst` falls back to `tst`.
+
+A strip along the bottom shows the whole loaded history (download traffic per
+source and a bufferbloat row). Drag its start and end handles to choose the
+range (at least one minute), or drag the shaded range to move it. It opens on
+the last hour of the data. Every page shows that range:
+
+- Charts end at the range end and label the time axis to fit it (per-minute
+  ticks for 5 minutes, hourly for 6 hours, with dates across midnight).
+  Automatic traces are the series with the most readings in the range.
+- Cards show each source's peak in the range and when it happened; CAKE rate
+  cards show the last value in the range.
+- All metrics shows exact min/mean/max/points over the range; Age is hidden.
+- Events shows the text records (INFO, SHAPER, warnings) in the range.
+
+Loaded data stays in memory only. Dashboard report fields (rates, delays,
+CPU, memory, TCP queues and counters) keep one-second detail; other fields
+keep one-minute detail.
+
 ## Dashboard
 
 - Existing chart selectors: throughput, latency, CPU, memory, TCP queues,
@@ -92,7 +122,7 @@ The newest ten minutes use two-second buckets; older history uses ten-second
 buckets. Each bucket keeps actual first, last, minimum and maximum readings
 and an invalid marker when present, preserving spikes without retaining every
 message. Window boundaries and statistics use these representative points.
-History begins when this app receives data; there is no historical backfill. Incoming messages are bounded to 2,048 queued payloads of at
+In live mode history begins when this app receives data; saved captures are viewed in history mode. Incoming messages are bounded to 2,048 queued payloads of at
 most 64 KiB each; received/dropped counts are visible. Dynamic headers are
 bounded to 256 definitions and 1 MiB of text. Events retains 150 messages with
 up to 2,000 characters each. All these buffers are in memory only.
