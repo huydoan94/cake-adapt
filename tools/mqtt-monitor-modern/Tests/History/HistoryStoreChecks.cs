@@ -30,7 +30,7 @@ static partial class Tests
     {
         const double start = 1_800_000_000;
         var store = HistoryFixture(start);
-        var views = store.Snapshot(store.Start, store.End, 600);
+        var views = store.Snapshot(store.Start, store.End);
         MetricView View(string topic, string name, string dimension = "") =>
             views.First(v => v.Topic == topic && v.Name == name && (dimension.Length == 0 || v.Dimension == dimension));
         Check(View("a", MetricNames.DownloadTraffic).Stats!.Count == 120 && View("b", MetricNames.DownloadTraffic).Stats!.Count == 120,
@@ -49,9 +49,11 @@ static partial class Tests
         Check(store.Start >= start, "a router time far outside the capture day falls back to the receive time");
         Check(View("a", MetricNames.DownloadDelay, "9.9.9.9").Stats!.LastTime == start + 30,
             "a fallback reading is placed at its receive time");
-        Check(View("a", "DL_OWD_BASELINE", "1.1.1.1").Samples.Length <= 4 && View("a", MetricNames.DownloadDelay, "1.1.1.1").Samples.Length > 100,
+        Check(views.All(v => v.Samples.Length == 0), "a history snapshot carries statistics only; chart points are read on demand");
+        Check(store.Samples(View("a", "DL_OWD_BASELINE", "1.1.1.1").Key, store.Start, store.End, 600).Length <= 4 &&
+              store.Samples(View("a", MetricNames.DownloadDelay, "1.1.1.1").Key, store.Start, store.End, 600).Length > 100,
             "chart fields keep one-second detail and other fields one-minute detail");
-        var middle = store.Snapshot(start + 30, start + 89, 600);
+        var middle = store.Snapshot(start + 30, start + 89);
         Check(middle.First(v => v.Topic == "a" && v.Name == MetricNames.DownloadTraffic).Stats!.Count == 60,
             "a snapshot covers only the chosen range");
         Check(store.Topics.SequenceEqual(["a", "b"]) && store.Overview(100).Select(o => o.Topic).SequenceEqual(["a", "b"]) &&

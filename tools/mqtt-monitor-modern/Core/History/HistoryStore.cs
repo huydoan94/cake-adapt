@@ -58,7 +58,9 @@ public sealed class HistoryStore
             .Distinct().Order(StringComparer.Ordinal).ToArray();
     }
 
-    public MetricView[] Snapshot(double start, double end, int columns)
+    // Statistics for every series in the range, without chart points: charts read
+    // points with Samples only for the traces they draw.
+    public MetricView[] Snapshot(double start, double end)
     {
         var views = new List<MetricView>();
         foreach (var (key, data) in series)
@@ -66,7 +68,7 @@ public sealed class HistoryStore
             if (data.Stats(start, end) is not { } stats)
                 continue;
             var traffic = key.Name is MetricNames.DownloadTraffic or MetricNames.UploadTraffic;
-            views.Add(new MetricView(key, Telemetry.Format(stats.Last), stats.LastTime, data.Read(start, end, columns))
+            views.Add(new MetricView(key, Telemetry.Format(stats.Last), stats.LastTime, [])
             {
                 Stats = stats,
                 RatePeak = traffic ? new Sample(stats.MaxTime, stats.MaxTime, stats.Max) : null
@@ -77,6 +79,9 @@ public sealed class HistoryStore
                 views.Add(new MetricView(key, text.Text, text.Time, []));
         return views.ToArray();
     }
+
+    public Sample[] Samples(MetricKey key, double start, double end, int columns) =>
+        series.TryGetValue(key, out var data) ? data.Read(start, end, columns) : [];
 
     public BloatView[] Bufferbloat(double start, double end) => bloat.Read(end - start, end);
 

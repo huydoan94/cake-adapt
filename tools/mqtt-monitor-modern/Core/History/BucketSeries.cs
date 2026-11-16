@@ -14,7 +14,7 @@ public sealed class BucketSeries
         public int[] Keys = new int[HistoryModeDefaults.InitialCapacity];
         public float[] Min = new float[HistoryModeDefaults.InitialCapacity];
         public float[] Max = new float[HistoryModeDefaults.InitialCapacity];
-        public float[] Sum = new float[HistoryModeDefaults.InitialCapacity];
+        public double[] Sum = new double[HistoryModeDefaults.InitialCapacity];
         public int[] Readings = new int[HistoryModeDefaults.InitialCapacity];
         public float[] Last = new float[HistoryModeDefaults.InitialCapacity];
 
@@ -38,6 +38,21 @@ public sealed class BucketSeries
             Sum[index] = 0; Readings[index] = 0; Last[index] = 0;
             Count++;
             return index;
+        }
+
+        // First index whose key is at least key.
+        public int LowerBound(long key)
+        {
+            int low = 0, high = Count;
+            while (low < high)
+            {
+                var middle = (low + high) / 2;
+                if (Keys[middle] < key)
+                    low = middle + 1;
+                else
+                    high = middle;
+            }
+            return low;
         }
 
         public int Find(int key)
@@ -90,6 +105,7 @@ public sealed class BucketSeries
         var index = count > 0 && baseLevel.Keys[count - 1] == key ? count - 1
             : count == 0 || baseLevel.Keys[count - 1] < key ? baseLevel.Insert(count, key) : baseLevel.Find(key);
         var number = (float)value;
+        // Sums stay double: a 10-minute sum of microsecond delays exceeds float precision.
         baseLevel.Min[index] = Math.Min(baseLevel.Min[index], number);
         baseLevel.Max[index] = Math.Max(baseLevel.Max[index], number);
         baseLevel.Sum[index] += number;
@@ -176,26 +192,86 @@ public sealed class BucketSeries
         return points.ToArray();
     }
 
+    // Exact statistics over the base buckets overlapping [start, end], read from the
+    // coarsest level buckets that fit inside the range and finer levels at its edges.
     public RangeStats? Stats(double start, double end)
     {
-        double min = double.PositiveInfinity, max = double.NegativeInfinity, maxTime = 0, sum = 0, last = 0, lastTime = 0;
-        long count = 0;
-        for (var i = baseLevel.FirstEndingAfter(start, origin); i < baseLevel.Count; i++)
+        if (baseLevel.Count == 0 || end < start)
+            return null;
+        var step = baseLevel.Step;
+        var first = (long)Math.Floor((start - origin) / step);
+        if (origin + (first + 1) * (double)step <= start)
+            first++;
+        var last = (long)Math.Floor((end - origin) / step);
+        var total = new Totals();
+        Accumulate(levels.Count - 1, first, last, ref total);
+        if (total.Count == 0)
+            return null;
+        // Peak and last times come from the base bucket inside the level bucket that held them.
+        var maxKey = Refine(total.MaxLevel, total.MaxKey, first, last, i => baseLevel.Max[i] == total.Max, fromEnd: false);
+        var lastKey = Refine(total.LastLevel, total.LastKey, first, last, _ => true, fromEnd: true);
+        return new RangeStats(total.Min, total.Sum / total.Count, total.Max, origin + (double)maxKey * step,
+            total.Count, total.Last, origin + (double)lastKey * step);
+    }
+
+    private struct Totals
+    {
+        public double Min, Max, Sum, Last;
+        public long Count;
+        public int MaxLevel, LastLevel;
+        public long MaxKey, LastKey;
+    }
+
+    // Base keys [first, last] (inclusive), using level index `index` for whole buckets.
+    private void Accumulate(int index, long first, long last, ref Totals total)
+    {
+        if (first > last)
+            return;
+        var level = levels[index];
+        var ratio = level.Step / baseLevel.Step;
+        var whole = index == 0 ? (first, last) : ((long)Math.Ceiling((double)first / ratio), (long)Math.Floor((double)(last + 1) / ratio) - 1);
+        if (index > 0 && whole.Item1 > whole.Item2)
         {
-            var bucketStart = origin + (double)baseLevel.Keys[i] * baseLevel.Step;
-            if (bucketStart > end)
-                break;
-            min = Math.Min(min, baseLevel.Min[i]);
-            if (baseLevel.Max[i] > max)
-            {
-                max = baseLevel.Max[i];
-                maxTime = bucketStart;
-            }
-            sum += baseLevel.Sum[i];
-            count += baseLevel.Readings[i];
-            last = baseLevel.Last[i];
-            lastTime = bucketStart;
+            Accumulate(index - 1, first, last, ref total);
+            return;
         }
-        return count == 0 ? null : new RangeStats(min, sum / count, max, maxTime, count, last, lastTime);
+        if (index > 0)
+            Accumulate(index - 1, first, whole.Item1 * ratio - 1, ref total);
+        for (var i = level.LowerBound(whole.Item1); i < level.Count && level.Keys[i] <= whole.Item2; i++)
+        {
+            if (total.Count == 0 || level.Min[i] < total.Min)
+                total.Min = level.Min[i];
+            if (total.Count == 0 || level.Max[i] > total.Max)
+                (total.Max, total.MaxLevel, total.MaxKey) = (level.Max[i], index, level.Keys[i]);
+            total.Sum += level.Sum[i];
+            total.Count += level.Readings[i];
+            (total.Last, total.LastLevel, total.LastKey) = (level.Last[i], index, level.Keys[i]);
+        }
+        if (index > 0)
+            Accumulate(index - 1, (whole.Item2 + 1) * ratio, last, ref total);
+    }
+
+    // The base key, within level bucket `key` and inside [first, last], of the first
+    // (or last) base bucket matching.
+    private long Refine(int index, long key, long first, long last, Func<int, bool> match, bool fromEnd)
+    {
+        if (index == 0)
+            return key;
+        var ratio = levels[index].Step / baseLevel.Step;
+        var low = Math.Max(first, key * ratio);
+        var high = Math.Min(last, (key + 1) * ratio - 1);
+        var begin = baseLevel.LowerBound(low);
+        var stop = baseLevel.LowerBound(high + 1);
+        if (fromEnd)
+        {
+            for (var i = stop - 1; i >= begin; i--)
+                if (match(i))
+                    return baseLevel.Keys[i];
+        }
+        else
+            for (var i = begin; i < stop; i++)
+                if (match(i))
+                    return baseLevel.Keys[i];
+        return key * ratio;
     }
 }

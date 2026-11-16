@@ -18,6 +18,7 @@ static partial class Tests
         HistoryChecks();
         BloatChecks();
         BucketSeriesChecks();
+        RangeStatsChecks();
         HistoryStoreChecks();
         await CaptureLoaderChecks();
         await Integration();
