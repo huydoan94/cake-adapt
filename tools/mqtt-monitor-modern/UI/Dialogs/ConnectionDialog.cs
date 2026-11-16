@@ -14,6 +14,7 @@ public sealed class ConnectionDialog : Window
     public ConnectionDialog(BrokerSettings previous)
     {
         Title = UiText.ConnectionTitle;
+        DarkTitleBar.Apply(this);
         Width = UiLayout.ConnectionWidth;
         Height = UiLayout.ConnectionHeight;
         CanResize = false;

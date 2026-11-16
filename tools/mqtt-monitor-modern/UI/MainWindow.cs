@@ -70,6 +70,7 @@ public sealed partial class MainWindow : Window
         timer.Start();
         Closed += (_, _) => timer.Stop();
         Opened += (_, _) => FitToScreen();
+        DarkTitleBar.Apply(this);
         AttachConnectionLifecycle();
     }
 

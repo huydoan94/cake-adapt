@@ -29,6 +29,7 @@ The optional CA certificate is read from the path you provide.
   screen updates. Their labels stay unchanged. Source/search/settings changes do
   not reset this interval. With no new valid reading, the previous peak remains
   and its age increases. CAKE rate cards still show latest configured values.
+- On Windows every window asks for a dark title bar.
 - Dark panels with colored line traces, hover values and expandable snapshots
   that keep the chart's legend.
   Each panel has **Settings** to choose which source/metric traces to draw
@@ -45,7 +46,9 @@ The optional CA certificate is read from the path you provide.
   These lines are visual interpolation and do not invent additional readings.
 - Source and time-window filters apply across views. Pause charts freezes the
   plots while reception, decoding, status and the table continue updating.
-- All metrics keeps its existing columns. Latest shows the highest valid numeric
+- All metrics lists Metric, Topic and Reflector / CPU first, groups rows by
+  metric and source, and fits a maximized 1280-pixel window without scrolling
+  sideways. Numbers use one plain format without thousands separators. Latest shows the highest valid numeric
   reading received between screen updates, separately for each topic, record,
   reflector/CPU and field. It preserves original precision and the peak's age.
   Text fields show their last text; invalid-only batches show the invalid state.

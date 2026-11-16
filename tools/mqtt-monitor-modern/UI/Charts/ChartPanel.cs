@@ -91,14 +91,16 @@ public sealed class ChartPanel : Grid
         content.Children.Add(snapshotLegend);
         Grid.SetRow(enlarged, 1);
         content.Children.Add(enlarged);
-        new Window
+        var window = new Window
         {
             Title = Report + UiText.SnapshotSuffix,
             Width = UiLayout.SnapshotWidth,
             Height = UiLayout.SnapshotHeight,
             Background = UiTheme.Panel,
             Content = content
-        }.Show(owner);
+        };
+        DarkTitleBar.Apply(window);
+        window.Show(owner);
     }
 
     public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic)
