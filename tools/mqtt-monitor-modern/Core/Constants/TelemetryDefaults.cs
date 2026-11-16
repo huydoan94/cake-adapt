@@ -12,7 +12,8 @@ public static class TelemetryDefaults
     public const double ScientificLarge = 1e7;
     public const double ScientificSmall = .001;
     public const string ScientificFormat = "G4";
-    public const string NumericFormat = "N2";
+    // No thousands separators, so formatted statistics match the raw Latest values.
+    public const string NumericFormat = "F2";
     public const string AgeFormat = "F1";
     public const string ClockFormat = "HH:mm:ss";
     public const string SchemaResource = "CakeAdaptMonitor.schemas.json";

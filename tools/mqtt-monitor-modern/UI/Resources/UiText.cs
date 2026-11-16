@@ -35,7 +35,7 @@ public static class UiText
     public const string LatestHeading = "Latest";
     public const string UnitHeading = "Unit";
     public const string MinHeading = "Min";
-    public const string MeanHeading = "Mean (points)";
+    public const string MeanHeading = "Mean";
     public const string MaxHeading = "Max";
     public const string PointsHeading = "Points";
     public const string AgeHeading = "Age";
