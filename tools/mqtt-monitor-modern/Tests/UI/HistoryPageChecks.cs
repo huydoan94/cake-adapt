@@ -14,6 +14,8 @@ static partial class Tests
         Pump();
         var chart = window.GetVisualDescendants().OfType<TrendChart>().First();
         Check(chart.EndTime == start + 89 && chart.Seconds == 59 && chart.RangeTicks, "history charts show exactly the chosen range");
+        Check(chart.Lines.Length > 0 && chart.Lines.All(line => line.Points.Length > 0 && line.Points.All(p => p.SourceTime >= start + 30 && p.SourceTime <= start + 89)),
+            "history charts read points for their drawn traces inside the range");
         var download = CardLines(window, "DOWNLOAD");
         var peakClock = DateTimeOffset.FromUnixTimeSeconds((long)start + 89).ToLocalTime().ToString("HH:mm:ss");
         Check(download.Length == 2 && download[0].Value == "1.09 Mbit/s" && download[0].Caption.StartsWith("a") &&
