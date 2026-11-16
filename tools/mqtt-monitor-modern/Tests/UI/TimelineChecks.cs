@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
 using CakeAdaptMonitor;
 
 static partial class Tests
@@ -28,7 +29,7 @@ static partial class Tests
         var middle = strip.XAt(11 * hour);
         var y = strip.Bounds.Height / 2;
         window.MouseDown(new Point(middle, y), MouseButton.Left);
-        window.MouseMove(new Point(middle + 100, y));
+        window.MouseMove(new Point(middle + 100, y), RawInputModifiers.LeftMouseButton);
         window.MouseUp(new Point(middle + 100, y), MouseButton.Left);
         Pump();
         var shift = 100 / strip.PlotWidth * day;
@@ -36,9 +37,21 @@ static partial class Tests
             "dragging the shaded range pans it by the dragged time");
         var startX = strip.XAt(strip.RangeStart);
         window.MouseDown(new Point(startX, y), MouseButton.Left);
-        window.MouseMove(new Point(startX - 50, y));
+        window.MouseMove(new Point(startX - 50, y), RawInputModifiers.LeftMouseButton);
         window.MouseUp(new Point(startX - 50, y), MouseButton.Left);
         Pump();
+        var before = (strip.RangeStart, strip.RangeEnd);
+        var center = strip.XAt((strip.RangeStart + strip.RangeEnd) / 2);
+        window.MouseDown(new Point(center, y), MouseButton.Left);
+        window.MouseMove(new Point(center + 200, y));
+        Pump();
+        Check((strip.RangeStart, strip.RangeEnd) == before, "moving without the left button held never drags the range");
+        window.MouseUp(new Point(center + 200, y), MouseButton.Left);
+        window.MouseDown(new Point(center, y), MouseButton.Right);
+        window.MouseMove(new Point(center + 200, y), RawInputModifiers.RightMouseButton);
+        window.MouseUp(new Point(center + 200, y), MouseButton.Right);
+        Pump();
+        Check((strip.RangeStart, strip.RangeEnd) == before, "the right button does not drag the range");
         Check(changed is { } widened && widened.Start < 10 * hour + shift - 1 && Math.Abs(widened.End - (12 * hour + shift)) < 1,
             "dragging the start handle moves only the start");
         window.Close();

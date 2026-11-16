@@ -32,6 +32,7 @@ static partial class Tests
         Check(unordered.Stats(0, 20)!.Count == 2 && unordered.First == 5 && unordered.Last == 10 && unordered.Stats(0, 20)!.Last == 1,
             "out-of-order readings land in their own buckets");
         Check(unordered.Stats(100, 200) == null, "a range without readings has no stats");
+        Check(unordered.Stats(0, 7)!.Last == 2, "a reading that opens an earlier bucket is that bucket's latest value");
         var sealedRejects = false;
         try { unordered.Add(1, 1); } catch (InvalidOperationException) { sealedRejects = true; }
         Check(sealedRejects, "a sealed series rejects new readings");

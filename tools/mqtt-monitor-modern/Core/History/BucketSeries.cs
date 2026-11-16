@@ -98,7 +98,7 @@ public sealed class BucketSeries
         if (!double.IsFinite(time) || !double.IsFinite(value))
             return;
         if (double.IsNaN(origin))
-            origin = Math.Floor(time / baseLevel.Step) * baseLevel.Step - HistoryModeDefaults.ClockToleranceSeconds;
+            origin = Math.Floor(time / baseLevel.Step) * baseLevel.Step - HistoryModeDefaults.KeyMarginSeconds;
         var key = (int)Math.Floor((time - origin) / baseLevel.Step);
         // Readings arrive almost in order: check the last bucket before searching.
         var count = baseLevel.Count;
@@ -110,7 +110,8 @@ public sealed class BucketSeries
         baseLevel.Max[index] = Math.Max(baseLevel.Max[index], number);
         baseLevel.Sum[index] += number;
         baseLevel.Readings[index]++;
-        if (time >= lastReadingTime || index == baseLevel.Count - 1)
+        // The first reading of a bucket, or the newest overall, is the bucket's latest value.
+        if (baseLevel.Readings[index] == 1 || time >= lastReadingTime || index == baseLevel.Count - 1)
             baseLevel.Last[index] = number;
         lastReadingTime = Math.Max(lastReadingTime, time);
         First = Math.Min(First, time);

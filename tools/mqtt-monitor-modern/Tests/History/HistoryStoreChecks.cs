@@ -38,6 +38,11 @@ static partial class Tests
         mixed.Seal();
         var keys = mixed.Snapshot(mixed.Start, mixed.End).Select(v => v.Key).ToArray();
         Check(keys.Length == keys.Distinct().Count() && keys.Length == 1, "a field with number and text readings appears once in a history snapshot");
+        var skewed = new HistoryStore();
+        skewed.Accept("s", "X_HEADER; LOG_TIMESTAMP; VALUE", 1_800_000_000);
+        skewed.Accept("s", "X; 1799996400; 5", 1_800_000_000);
+        skewed.Seal();
+        Check(skewed.Start == 1_800_000_000, "a router clock an hour off falls back to the recorder time");
         const double start = 1_800_000_000;
         var store = HistoryFixture(start);
         var views = store.Snapshot(store.Start, store.End);

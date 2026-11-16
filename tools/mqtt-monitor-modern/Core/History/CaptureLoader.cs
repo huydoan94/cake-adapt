@@ -12,11 +12,6 @@ public sealed record LoadProgress(int File, int Files, long Records, long BadLin
 // because a source's *_HEADER definitions can carry over into the next day's file.
 public static class CaptureLoader
 {
-    private const string TimeFormat = "yyyy-MM-dd'T'HH:mm:ss.FFFFFFzzz", GzipExtension = ".gz";
-    private const string TimeField = "tst", TopicField = "topic", PayloadField = "payload";
-    private const int CancelCheckLines = 4096;
-    private static readonly TimeSpan ProgressInterval = TimeSpan.FromMilliseconds(100);
-
     public static Task<HistoryStore> LoadAsync(IReadOnlyList<string> paths, IProgress<LoadProgress>? progress, CancellationToken token)
     {
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
@@ -34,16 +29,16 @@ public static class CaptureLoader
         for (var index = 0; index < files.Length; index++)
         {
             using var file = File.OpenRead(files[index]);
-            using Stream content = files[index].EndsWith(GzipExtension, StringComparison.OrdinalIgnoreCase)
+            using Stream content = files[index].EndsWith(CaptureFormat.GzipExtension, StringComparison.OrdinalIgnoreCase)
                 ? new GZipStream(file, CompressionMode.Decompress) : file;
             using var reader = new StreamReader(content);
             var lines = 0L;
             while (reader.ReadLine() is { } line)
             {
-                if (++lines % CancelCheckLines == 0)
+                if (++lines % CaptureFormat.CancelCheckLines == 0)
                 {
                     token.ThrowIfCancellationRequested();
-                    if (progress != null && clock.Elapsed >= ProgressInterval)
+                    if (progress != null && clock.Elapsed >= CaptureFormat.ProgressInterval)
                     {
                         clock.Restart();
                         progress.Report(new LoadProgress(index + 1, files.Length, store.Records, store.BadLines,
@@ -73,9 +68,12 @@ public static class CaptureLoader
         {
             using var document = JsonDocument.Parse(line);
             var root = document.RootElement;
-            if (!root.TryGetProperty(TimeField, out var tst) || !root.TryGetProperty(TopicField, out var topicValue) ||
-                !root.TryGetProperty(PayloadField, out var payloadValue) ||
-                !DateTimeOffset.TryParseExact(tst.GetString(), TimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
+            // Valid JSON that is not a capture record (42, null, [], wrong field types) is a bad line.
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty(CaptureFormat.TimeField, out var tst) || tst.ValueKind != JsonValueKind.String ||
+                !root.TryGetProperty(CaptureFormat.TopicField, out var topicValue) || topicValue.ValueKind != JsonValueKind.String ||
+                !root.TryGetProperty(CaptureFormat.PayloadField, out var payloadValue) || payloadValue.ValueKind != JsonValueKind.String ||
+                !DateTimeOffset.TryParseExact(tst.GetString(), CaptureFormat.TimeFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at))
                 return false;
             time = at.ToUnixTimeMilliseconds() / TelemetryDefaults.MillisecondsPerSecond;
             topic = topicValue.GetString() ?? "";
