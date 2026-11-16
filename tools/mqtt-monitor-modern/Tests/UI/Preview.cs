@@ -34,6 +34,7 @@ static partial class Tests
         ChartPanelChecks();
         DefaultRotationChecks();
         ChartReadabilityChecks();
+        TimeTickChecks();
         window.Close();
     }
 
