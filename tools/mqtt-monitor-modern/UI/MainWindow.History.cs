@@ -46,6 +46,12 @@ public sealed partial class MainWindow
             notice.Text = load.Error.Length > 0 ? UiText.LoadFailed + load.Error : "";
             return false;
         }
+        // Only headers or only bad lines (a new day's file just after midnight): nothing to show.
+        if (!double.IsFinite(loaded.Start) || !double.IsFinite(loaded.End))
+        {
+            notice.Text = UiText.NoRecords;
+            return false;
+        }
         EnterHistory(loaded, paths.Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal).ToArray());
         return true;
     }

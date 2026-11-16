@@ -60,6 +60,16 @@ static partial class Tests
             Check(direct.InHistory && !direct.OwnedWindows.OfType<StartWindow>().Any(),
                 "a capture file given at start opens straight in history mode");
             direct.Close();
+            var empty = Path.Combine(opened.FullName, "headers.jsonl");
+            File.WriteAllText(empty, CaptureLine(DateTimeOffset.UtcNow, "cake-adapt/a", "X_HEADER; LOG_TIMESTAMP; VALUE") + "\n");
+            var blank = new MainWindow { Width = 1440, Height = 920 };
+            blank.Show();
+            var opening = blank.OpenHistoryAsync([empty]);
+            WaitFor(opening);
+            Check(opening.IsCompleted && !opening.Result && !blank.InHistory &&
+                  blank.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == UiText.NoRecords),
+                "a capture without readable records is refused with a message");
+            blank.Close();
         }
         finally { opened.Delete(true); }
 
