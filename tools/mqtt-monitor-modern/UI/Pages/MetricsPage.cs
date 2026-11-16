@@ -54,6 +54,13 @@ internal sealed class MetricsPage : Grid
         search.TextChanged += (_, _) => Filter();
     }
 
+    // History rows have no meaningful age.
+    public void SetHistoryMode(bool history)
+    {
+        foreach (var column in table.Columns.Where(column => (column.Header as TextBlock)?.Text == UiText.AgeHeading))
+            column.IsVisible = !history;
+    }
+
     public void Update(MetricView[] snapshot)
     {
         metrics = snapshot;

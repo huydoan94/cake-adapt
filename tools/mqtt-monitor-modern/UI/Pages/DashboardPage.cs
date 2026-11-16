@@ -41,12 +41,12 @@ internal sealed class DashboardPage : Grid
 
     public void SelectMetric() => panels[^1].Select(ReportNames.SelectedMetric);
 
-    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string topic, bool updateCharts, BloatView[]? bloat = null)
+    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string topic, bool updateCharts, BloatView[]? bloat = null, double? end = null)
     {
         foreach (var card in cards)
-            card.Update(metrics);
+            card.Update(metrics, end.HasValue);
         if (updateCharts)
             foreach (var panel in panels)
-                panel.Update(metrics, selected, seconds, topic, bloat);
+                panel.Update(metrics, selected, seconds, topic, bloat, end);
     }
 }

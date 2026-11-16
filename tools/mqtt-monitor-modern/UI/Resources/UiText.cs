@@ -47,6 +47,8 @@ public static class UiText
     public const string CaptureFilter = "Recorder captures";
     public static readonly string[] CapturePatterns = ["*.jsonl", "*.gz"];
     public const string HistorySubtitleFormat = "History · {0} · {1} – {2}", HistoryRangeFormat = "yyyy-MM-dd HH:mm";
+    public const string PeakAtFormat = "{0} · peak {1}", ValueAtFormat = "{0} · at {1}";
+    public const string HistoryCountsFormat = "{0:N0} records   {1:N0} bad lines   {2} metrics   Schema errors {3}";
     public const string LoadFailed = "Could not load history: ";
     public const string ClippedSuffix = " · spikes clipped (hover for values)";
     public const string MinHeading = "Min";

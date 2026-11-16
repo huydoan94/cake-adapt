@@ -28,7 +28,8 @@ internal sealed class RateCard : Border
         ShowEmpty();
     }
 
-    public void Update(MetricView[] metrics)
+    // history: captions give the time of the range peak (or reading) instead of its age.
+    public void Update(MetricView[] metrics, bool history = false)
     {
         // Most recently updated sources, then a stable order by topic.
         var sources = metrics.Where(item => item.Name == field)
@@ -52,13 +53,19 @@ internal sealed class RateCard : Border
             var line = new StackPanel();
             line.Children.Add(Label(number.HasValue
                 ? Telemetry.Format(number.Value / ReportUnits.RateDivisor) + UiText.RateSuffix : UiText.EmptyValue, size));
-            var caption = Label(DisplayText.ShortTopic(metric.Topic) + UiText.SourceAgeSeparator +
-                (peak == null ? metric.Age : Telemetry.Age(peak.ReceivedTime)) + UiText.AgeSuffix, UiTypography.Small, UiTheme.Muted);
+            var source = DisplayText.ShortTopic(metric.Topic);
+            var caption = Label(history
+                ? string.Format(peak == null ? UiText.ValueAtFormat : UiText.PeakAtFormat, source, Clock(peak?.ReceivedTime ?? metric.ReceivedTime))
+                : source + UiText.SourceAgeSeparator + (peak == null ? metric.Age : Telemetry.Age(peak.ReceivedTime)) + UiText.AgeSuffix,
+                UiTypography.Small, UiTheme.Muted);
             caption.TextTrimming = TextTrimming.CharacterEllipsis;
             line.Children.Add(caption);
             lines.Children.Add(line);
         }
     }
+
+    private static string Clock(double time) => DateTimeOffset.FromUnixTimeMilliseconds((long)(time * TelemetryDefaults.MillisecondsPerSecond))
+        .ToLocalTime().ToString(TelemetryDefaults.ClockFormat);
 
     private void ShowEmpty()
     {

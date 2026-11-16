@@ -69,6 +69,8 @@ public sealed partial class MainWindow : Window
         BuildLayout();
         timer.Tick += (_, _) =>
         {
+            if (history != null)
+                return;
             store.PublishBatch();
             Refresh();
         };
@@ -120,6 +122,11 @@ public sealed partial class MainWindow : Window
 
     public void Refresh(bool forceCharts = false)
     {
+        if (history != null)
+        {
+            RefreshHistory(history);
+            return;
+        }
         var snapshot = store.Snapshot(WindowSeconds);
         UpdateSources(snapshot);
         var topic = source.SelectedItem as string ?? ChartDefaults.AllSources;
