@@ -113,7 +113,8 @@ public sealed partial class MainWindow : Window
         var topic = source.SelectedItem as string ?? ChartDefaults.AllSources;
         var visible = snapshot.Where(metric => topic == ChartDefaults.AllSources || metric.Topic == topic).ToArray();
         metricsPage.Update(visible);
-        dashboard.Update(visible, selectedMetric, WindowSeconds, topic, !chartsPaused || forceCharts);
+        var bloat = store.Bufferbloat(WindowSeconds).Where(view => topic == ChartDefaults.AllSources || view.Topic == topic).ToArray();
+        dashboard.Update(visible, selectedMetric, WindowSeconds, topic, !chartsPaused || forceCharts, bloat);
         eventsPage.Update(store.Events(), topic);
         UpdateConnectionStatus(snapshot.Length);
     }

@@ -34,6 +34,8 @@ public static class UiText
     public const string MetricHeading = "Metric";
     public const string LatestHeading = "Latest";
     public const string UnitHeading = "Unit";
+    public const string BloatHeading = "Bufferbloat samples:";
+    public const string BloatFormat = "{0}  DL {1} · UL {2}";
     public const string ClippedSuffix = " · spikes clipped (hover for values)";
     public const string MinHeading = "Min";
     public const string MeanHeading = "Mean";

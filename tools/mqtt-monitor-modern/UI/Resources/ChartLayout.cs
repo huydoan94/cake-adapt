@@ -14,6 +14,8 @@ public static class ChartLayout
     // Latency: clip the scale when the peak exceeds ClipRatio x p99; the top is p99 x ClipHeadroom.
     public const double ClipPercentile = .99, ClipRatio = 3, ClipHeadroom = 1.25, ClipMarkerSize = 4;
     public const double CrosshairStroke = 1, TooltipBorderStroke = 1;
+    // Bufferbloat ticks: one row per source, stacked upward from the plot bottom.
+    public const double MarkHeight = 6, MarkRowSpacing = 8, MarkStroke = 1.5;
     public const double EmptyMinimumLeft = 20, EmptyTitleOffset = 95, EmptyHintOffset = 101, EmptyTitleTop = 14, EmptyHintTop = 10;
     public const double HoverToleranceSeconds = 5, HoverWindowDivisor = 50;
     public const double TooltipRightInset = 240, TooltipWidth = 235, TooltipLineHeight = 18, TooltipPadding = 14;

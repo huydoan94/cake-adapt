@@ -11,6 +11,9 @@ public static class ProtocolNames
     public const string KilobitsSuffix = "KBPS", MicrosecondsSuffix = "_US", BaselineSuffix = "BASELINE", DelayThresholdSuffix = "DELAY_THR";
     public const string KibibytesSuffix = "_KB", PercentSuffix = "PERCENT", UsageSuffix = "USAGE";
     public const string KilobitsUnit = "kbit/s", MicrosecondsUnit = "µs", KibibytesUnit = "KiB", PercentUnit = "%";
+    // Load conditions ending in BloatSuffix mean delay above the router's threshold.
+    public const string DataRecord = "DATA", DownloadCondition = "DL_LOAD_CONDITION", UploadCondition = "UL_LOAD_CONDITION";
+    public const string BloatSuffix = "_bb", Download = "DL", Upload = "UL";
     public const string SingleWildcard = "+", MultiWildcard = "#", UriSchemeMarker = "://";
     public const int HeaderMinimumCells = 3, CpuFixedCells = 4;
     public const int SummaryPreference = 3, LoadPreference = 2, OtherPreference = 1;

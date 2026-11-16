@@ -81,6 +81,7 @@ public sealed class ChartPanel : Grid
             Seconds = chart.Seconds,
             Unit = chart.Unit,
             Ceiling = chart.Ceiling,
+            Marks = chart.Marks,
             EndTime = chart.EndTime,
             EmptyMessage = chart.EmptyMessage,
             EmptyHint = chart.EmptyHint,
@@ -104,7 +105,7 @@ public sealed class ChartPanel : Grid
         window.Show(owner);
     }
 
-    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic)
+    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic, BloatView[]? bloat = null)
     {
         topic = selectedTopic;
         candidates = ReportCatalog.Candidates(Report, metrics, selected).ToArray();
@@ -120,20 +121,48 @@ public sealed class ChartPanel : Grid
         chart.EndTime = Telemetry.Now;
         chart.Lines = PlotSeries.Create(Report, chosen, candidates.Select(metric => metric.Topic).Distinct().Count() > 1);
         chart.Ceiling = PlotSeries.Ceiling(Report, chart.Lines);
-        UpdateLegend(custom);
+        chart.Marks = Report == ReportNames.Latency ? BloatMarks(bloat ?? []) : [];
+        UpdateLegend(custom, Report == ReportNames.Latency ? bloat ?? [] : []);
         chart.InvalidateVisual();
     }
 
-    private void UpdateLegend(bool custom)
+    // One tick row per source at the start of each 2-second bucket holding a bufferbloat sample.
+    private static PlotMarks[] BloatMarks(BloatView[] bloat) => bloat.GroupBy(view => view.Topic)
+        .Select((topic, i) => new PlotMarks(DisplayText.ShortTopic(topic.Key),
+            topic.SelectMany(view => view.Buckets).Where(bucket => bucket.Count > 0).Select(bucket => bucket.Time).Distinct().Order().ToArray(),
+            UiTheme.BloatPalette[i % UiTheme.BloatPalette.Length]))
+        .ToArray();
+
+    private void UpdateLegend(bool custom, BloatView[] bloat)
     {
         legend.Children.Clear();
         AddLegendItems(legend, chart.Lines);
+        AddBloatItems(legend, bloat);
         if (chart.Lines.Length == 0 || (!custom && candidates.Length > ChartDefaults.AutomaticTraces))
             legend.Children.Add(new TextBlock
             {
                 Text = chart.Lines.Length == 0 ? UiText.SettingsHint : UiText.AutomaticHint,
                 FontSize = UiTypography.Small,
                 Foreground = UiTheme.LegendHint
+            });
+    }
+
+    // "Bufferbloat samples:  router-a  DL 0 · UL 0" in each source's tick color.
+    private static void AddBloatItems(WrapPanel target, BloatView[] bloat)
+    {
+        if (bloat.Length == 0)
+            return;
+        target.Children.Add(new TextBlock { Text = UiText.BloatHeading, FontSize = UiTypography.Small, Foreground = UiTheme.LegendHint, Margin = UiLayout.LegendItemMargin });
+        var i = 0;
+        foreach (var topic in bloat.GroupBy(view => view.Topic))
+            target.Children.Add(new TextBlock
+            {
+                Text = string.Format(UiText.BloatFormat, DisplayText.ShortTopic(topic.Key),
+                    topic.Where(view => view.Direction == ProtocolNames.Download).Sum(view => view.Count),
+                    topic.Where(view => view.Direction == ProtocolNames.Upload).Sum(view => view.Count)),
+                Foreground = new SolidColorBrush(UiTheme.BloatPalette[i++ % UiTheme.BloatPalette.Length]),
+                FontSize = UiTypography.Small,
+                Margin = UiLayout.LegendItemMargin
             });
     }
 

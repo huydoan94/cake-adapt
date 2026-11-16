@@ -14,6 +14,8 @@ public sealed class TrendChart : Control
     public string Unit { get; set; } = "";
     // Optional top of the value scale chosen by PlotSeries.Ceiling; null shows the full range.
     public double? Ceiling { get; set; }
+    // Optional tick rows (bufferbloat), drawn over the plot bottom.
+    public PlotMarks[] Marks { get; set; } = [];
     public double EndTime { get; set; } = Telemetry.Now;
     public string EmptyMessage { get; set; } = UiText.Waiting;
     public string EmptyHint { get; set; } = UiText.ConnectionHelp;
@@ -52,6 +54,7 @@ public sealed class TrendChart : Control
             foreach (var line in Lines)
                 DrawTrace(context, scale, line);
         DrawClipped(context, scale);
+        DrawMarks(context, scale);
         if (hover is { } mouse && bounds.Contains(mouse))
             DrawHover(context, scale, mouse);
     }
@@ -123,6 +126,18 @@ public sealed class TrendChart : Control
             path.LineTo(point);
         path.EndFigure(false);
         return geometry;
+    }
+
+    private void DrawMarks(DrawingContext context, PlotScale scale)
+    {
+        for (var row = 0; row < Marks.Length; row++)
+        {
+            var pen = new Pen(new SolidColorBrush(Marks[row].Color), ChartLayout.MarkStroke);
+            var bottom = scale.Bounds.Bottom - row * ChartLayout.MarkRowSpacing;
+            foreach (var time in Marks[row].Times)
+                if (scale.X(time) is { } x)
+                    context.DrawLine(pen, new Point(x, bottom), new Point(x, bottom - ChartLayout.MarkHeight));
+        }
     }
 
     // A small marker at the top edge for each column holding a reading above a clipped scale.
