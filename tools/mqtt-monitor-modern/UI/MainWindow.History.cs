@@ -31,15 +31,23 @@ public sealed partial class MainWindow
             FileTypeFilter = [new FilePickerFileType(UiText.CaptureFilter) { Patterns = UiText.CapturePatterns }]
         });
         var paths = files.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
+        if (paths.Length == 0 || !await OpenHistoryAsync(paths))
+            await ChooseModeAsync();
+    }
+
+    // Load capture files and enter history mode; false (with the reason shown) when
+    // cancelled or failed.
+    public async Task<bool> OpenHistoryAsync(IReadOnlyList<string> paths)
+    {
         var load = new LoadWindow();
-        var loaded = paths.Length == 0 ? null : await load.RunAsync(this, paths);
+        var loaded = await load.RunAsync(this, paths);
         if (loaded == null)
         {
             notice.Text = load.Error.Length > 0 ? UiText.LoadFailed + load.Error : "";
-            await ChooseModeAsync();
-            return;
+            return false;
         }
         EnterHistory(loaded, paths.Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal).ToArray());
+        return true;
     }
 
     public void EnterHistory(HistoryStore store, IReadOnlyList<string> names)

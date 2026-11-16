@@ -28,6 +28,16 @@ static partial class Tests
 
     private static void HistoryStoreChecks()
     {
+        // A field that is a number in some readings and text in others (an invalid
+        // queue reading becomes "Unavailable") must appear once in a snapshot.
+        var mixed = new HistoryStore();
+        mixed.Accept("q", "X_HEADER; LOG_TIMESTAMP; VALUE", 1_800_000_000);
+        mixed.Accept("q", "X; 1800000000; 100", 1_800_000_000);
+        mixed.Accept("q", "X; 1800000001; Unavailable", 1_800_000_001);
+        mixed.Accept("q", "X; 1800000002; 120", 1_800_000_002);
+        mixed.Seal();
+        var keys = mixed.Snapshot(mixed.Start, mixed.End).Select(v => v.Key).ToArray();
+        Check(keys.Length == keys.Distinct().Count() && keys.Length == 1, "a field with number and text readings appears once in a history snapshot");
         const double start = 1_800_000_000;
         var store = HistoryFixture(start);
         var views = store.Snapshot(store.Start, store.End);
