@@ -45,7 +45,7 @@ public static class UiLayout
     public static readonly Thickness DialogButtonMargin = new(0, 0, 8, 6);
     public static readonly Thickness ApplyButtonMargin = new(0, 0, 0, 6);
     public static readonly Thickness ConnectionPadding = new(26);
-    public const double WindowWidth = 1440, WindowHeight = 920, MinimumWindowWidth = 1100, MinimumWindowHeight = 600;
+    public const double WindowWidth = 1440, WindowHeight = 920, MinimumWindowWidth = 1000, MinimumWindowHeight = 520;
     // Title bar and borders around the client area when deciding whether the default size fits.
     public const double WindowFrameAllowance = 40;
     public const double SourceWidth = 210, TimeRangeWidth = 130, SearchWidth = 320, ReportWidth = 160;

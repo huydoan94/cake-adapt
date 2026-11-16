@@ -23,8 +23,10 @@ The optional CA certificate is read from the path you provide.
   TCP counters, and a metric selected from All metrics.
 - The window opens maximized when its default size does not fit the screen, and
   the dashboard scrolls when the window is too short for its cards and charts.
+  The minimum window size (1000 x 520) fits a 1366 x 768 screen at 125% scaling.
 - Each card lists up to three sources (the most recently updated), one line
-  each in topic order, so a line never jumps between routers.
+  each in topic order, so a line never jumps between routers. Captions name the
+  source first, so a narrow card trims the age rather than the router.
 - Download/Upload cards show the highest valid reading received between one-second
   screen updates. Their labels stay unchanged. Source/search/settings changes do
   not reset this interval. With no new valid reading, the previous peak remains

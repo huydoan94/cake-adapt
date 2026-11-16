@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using static CakeAdaptMonitor.UiControls;
 
 namespace CakeAdaptMonitor;
@@ -51,8 +52,10 @@ internal sealed class RateCard : Border
             var line = new StackPanel();
             line.Children.Add(Label(number.HasValue
                 ? Telemetry.Format(number.Value / ReportUnits.RateDivisor) + UiText.RateSuffix : UiText.EmptyValue, size));
-            line.Children.Add(Label((peak == null ? metric.Age : Telemetry.Age(peak.ReceivedTime)) +
-                UiText.AgeSourceSeparator + DisplayText.ShortTopic(metric.Topic), UiTypography.Small, UiTheme.Muted));
+            var caption = Label(DisplayText.ShortTopic(metric.Topic) + UiText.SourceAgeSeparator +
+                (peak == null ? metric.Age : Telemetry.Age(peak.ReceivedTime)) + UiText.AgeSuffix, UiTypography.Small, UiTheme.Muted);
+            caption.TextTrimming = TextTrimming.CharacterEllipsis;
+            line.Children.Add(caption);
             lines.Children.Add(line);
         }
     }

@@ -77,7 +77,9 @@ public static class UiText
     public const string EmptyValue = "—";
     public const string Ellipsis = "…";
     public const string RateSuffix = " Mbit/s";
-    public const string AgeSourceSeparator = " ago · ";
+    // Card captions put the source first, so a narrow card trims the age, not the router.
+    public const string SourceAgeSeparator = " · ";
+    public const string AgeSuffix = " ago";
     public const string SourceSeparator = " · ";
     public const string HoverSeparator = "  ";
     public const string TrafficLabel = " traffic";
