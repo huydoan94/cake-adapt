@@ -26,14 +26,22 @@ public static class ReportCatalog
             .SelectMany(g => g.Any(m => m.Dimension.Length == 0)
                 ? g.Where(m => m.Dimension.Length == 0) : g);
     }
-    // Keep report/topic/field priority, but replace rotated reflectors with the
-    // most recently received series. Restore candidate order to avoid reshuffling
-    // the legend as individual probes arrive.
+    // Keep field priority within each topic, but replace rotated reflectors with
+    // the most recently received series. Topics take turns, so with several
+    // sources each one gets a share of the automatic traces instead of the first
+    // topic filling them all. Restore candidate order to avoid reshuffling the
+    // legend as individual probes arrive.
     public static MetricView[] Defaults(MetricView[] candidates)
     {
-        var active = candidates.GroupBy(metric => (metric.Topic, metric.Name))
-            .SelectMany(group => group.OrderByDescending(metric => metric.ReceivedTime))
-            .Take(ChartDefaults.AutomaticTraces).Select(metric => metric.Key).ToHashSet();
+        var topics = candidates.GroupBy(metric => metric.Topic)
+            .Select(topic => topic.GroupBy(metric => metric.Name)
+                .SelectMany(field => field.OrderByDescending(metric => metric.ReceivedTime))
+                .Select(metric => metric.Key).ToArray())
+            .ToArray();
+        var active = new HashSet<MetricKey>();
+        for (var rank = 0; active.Count < ChartDefaults.AutomaticTraces && topics.Any(keys => rank < keys.Length); rank++)
+            foreach (var keys in topics.Where(keys => rank < keys.Length).TakeWhile(_ => active.Count < ChartDefaults.AutomaticTraces))
+                active.Add(keys[rank]);
         return candidates.Where(metric => active.Contains(metric.Key)).ToArray();
     }
 

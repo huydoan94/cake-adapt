@@ -26,6 +26,7 @@ static partial class Tests
         Check(Application.Current!.RequestedThemeVariant == ThemeVariant.Dark, "dark theme enforced");
         Check(!window.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "Export CSV")), "viewer has no CSV export control");
         DashboardChecks(window, store);
+        SmallScreenChecks(window);
         ChartSettingsFlow(window, store, path);
         MetricTableChecks(window, store, path);
         DialogAndEventChecks(window, path);

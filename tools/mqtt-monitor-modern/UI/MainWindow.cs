@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
 using static CakeAdaptMonitor.UiControls;
@@ -27,6 +29,8 @@ public sealed partial class MainWindow : Window
     private readonly TextBlock notice = Label("", UiTypography.Caption, UiTheme.Warning);
     private readonly Button connect = ActionButton(UiText.ConnectBroker);
     private readonly DashboardPage dashboard = new();
+    // The dashboard scrolls when the window is too short for its cards and charts.
+    private readonly ScrollViewer dashboardScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly MetricsPage metricsPage = new() { IsVisible = false };
     private readonly EventsPage eventsPage = new() { IsVisible = false };
     private readonly DispatcherTimer timer = new() { Interval = UiLayout.RefreshInterval };
@@ -65,12 +69,26 @@ public sealed partial class MainWindow : Window
         };
         timer.Start();
         Closed += (_, _) => timer.Stop();
+        Opened += (_, _) => FitToScreen();
         AttachConnectionLifecycle();
     }
 
+    // Open maximized when the default size would not fit the screen's working area,
+    // so no header control (such as Connect broker) starts off-screen.
+    private void FitToScreen()
+    {
+        if (Screens.ScreenFromWindow(this) is not { } screen)
+            return;
+        if (ShouldMaximize(screen.WorkingArea.ToRect(screen.Scaling).Size))
+            WindowState = WindowState.Maximized;
+    }
+
+    public static bool ShouldMaximize(Size workingArea) => workingArea.Width < UiLayout.WindowWidth ||
+        workingArea.Height < UiLayout.WindowHeight + UiLayout.WindowFrameAllowance;
+
     private void Navigate(int index)
     {
-        dashboard.IsVisible = index == 0;
+        dashboardScroll.IsVisible = index == 0;
         metricsPage.IsVisible = index == 1;
         eventsPage.IsVisible = index == 2;
         title.Text = index switch

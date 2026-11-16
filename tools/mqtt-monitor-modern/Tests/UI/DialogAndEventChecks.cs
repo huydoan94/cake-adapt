@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -12,7 +13,13 @@ static partial class Tests
         var eventsNav = window.GetVisualDescendants().OfType<Button>().Single(b => Equals(b.Content, "Events"));
         eventsNav.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Dispatcher.UIThread.RunJobs();
-        Check(window.GetVisualDescendants().OfType<TextBox>().Any(t => t.IsReadOnly && (t.Text?.Contains("cake-adapt/sample/main") ?? false)), "event view contains raw telemetry");
+        AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+        var events = window.GetVisualDescendants().OfType<TextBox>().Single(t => t.IsReadOnly);
+        Check(events.Text?.Contains("cake-adapt/sample/main") ?? false, "event view contains raw telemetry");
+        Check(events.GetVisualDescendants().OfType<TextPresenter>().Any(p => p.IsVisible && p.Bounds.Height > 0),
+            "event view has a visible text presenter, so its text is drawn");
+        var lines = events.Text!.Split(UiText.EventSeparator);
+        Check(lines.Length < 2 || string.CompareOrdinal(lines[0][..8], lines[^1][..8]) >= 0, "newest events are listed first");
         var dialog = new ConnectionDialog(new BrokerSettings());
         dialog.Show(window);
         Dispatcher.UIThread.RunJobs();
