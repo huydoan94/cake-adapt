@@ -31,6 +31,8 @@ public static class UiTheme
     public static readonly IBrush TooltipBorder = Brush.Parse("#394761");
     public static readonly IBrush TooltipForeground = Brushes.White;
     public static readonly Color[] Palette = [Color.Parse("#5A9BFF"), Color.Parse("#42D6BD"), Color.Parse("#E8B866"), Color.Parse("#AD8CFF"), Color.Parse("#ED7C98"), Color.Parse("#5AC9E8")];
+    // Bufferbloat tick rows and counts, one color per source.
+    public static readonly Color[] BloatPalette = [Color.Parse("#FFB547"), Color.Parse("#FF6B6B"), Color.Parse("#E77FF2")];
     public const string Font = "Inter, Segoe UI";
     public const string MonospaceFont = "Cascadia Mono, Consolas, monospace";
     public const string ApplicationUri = "avares://CakeAdaptMonitor/";

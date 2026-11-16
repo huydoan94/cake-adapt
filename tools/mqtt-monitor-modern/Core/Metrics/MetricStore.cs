@@ -6,6 +6,7 @@ public sealed class MetricStore
     private readonly object gate = new();
     private readonly RecordDecoder decoder = new();
     private readonly RatePeaks ratePeaks = new();
+    private readonly BloatEvents bloat = new();
     private readonly Dictionary<MetricKey, MetricSeries> series = new();
     private readonly Queue<RecentEvent> events = new();
     private long order;
@@ -59,6 +60,7 @@ public sealed class MetricStore
             RememberEvent(topic, payload, received);
             foreach (var metric in decoder.Decode(topic, payload, received))
             {
+                bloat.Record(topic, metric.Key.Record, metric.Key.Name, metric.Text, metric.SourceTime);
                 var data = GetSeries(metric.Key);
                 var sample = data.Add(metric, received, ++order);
                 if (sample != null)
@@ -107,6 +109,13 @@ public sealed class MetricStore
                 data.PublishBatch();
             ratePeaks.Publish();
         }
+    }
+
+    // Bufferbloat sample counts per topic and direction in the window, by router time.
+    public BloatView[] Bufferbloat(double seconds, double? at = null)
+    {
+        lock (gate)
+            return bloat.Read(seconds, at ?? Telemetry.Now);
     }
 
     public RecentEvent[] Events()

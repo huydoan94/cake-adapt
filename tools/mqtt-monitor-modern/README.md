@@ -51,6 +51,12 @@ The optional CA certificate is read from the path you provide.
   percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
   get a marker at the top edge, the unit label says so, and hover shows the
   real values.
+- Latency also shows bufferbloat: samples whose load condition ends in `_bb`
+  (the router measured delay above its threshold) are counted per source and
+  direction for the shown window and listed in the legend, and drawn as one row
+  of ticks per source along the plot bottom (2-second buckets, router time).
+  A source publishing DATA is counted from DATA only; otherwise from SUMMARY.
+  Counts are kept for one hour in memory, like the rest of the history.
 - Charts draw continuous lines between available valid readings across gaps.
   These lines are visual interpolation and do not invent additional readings.
 - Source and time-window filters apply across views. Pause charts freezes the

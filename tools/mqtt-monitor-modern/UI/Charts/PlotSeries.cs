@@ -3,6 +3,8 @@ using Avalonia.Media;
 namespace CakeAdaptMonitor;
 
 public sealed record PlotLine(string Label, Sample[] Points, Color Color);
+// One row of tick marks along the bottom of the plot, at router times.
+public sealed record PlotMarks(string Label, double[] Times, Color Color);
 
 // Convert raw measurements to display units and labels. No selection or drawing state.
 internal static class PlotSeries

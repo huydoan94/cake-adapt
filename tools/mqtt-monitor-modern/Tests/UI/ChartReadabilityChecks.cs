@@ -40,5 +40,36 @@ static partial class Tests
         throughput.Update([], null, 300, "clip");
         Check(throughput.GetVisualDescendants().OfType<TrendChart>().All(c => c.Ceiling == null) &&
             new TrendChart().Ceiling == null, "only latency charts clip their scale");
+
+        // Bufferbloat: one tick row and one count per source on the Latency chart only.
+        var bloat = new[]
+        {
+            new BloatView("cake-adapt/router-a", "DL", 2, [new BloatBucket(now - 20, 2)]),
+            new BloatView("cake-adapt/router-a", "UL", 0, []),
+            new BloatView("cake-adapt/router-b", "DL", 5, [new BloatBucket(now - 10, 3), new BloatBucket(now - 4, 2)]),
+            new BloatView("cake-adapt/router-b", "UL", 1, [new BloatBucket(now - 4, 1)])
+        };
+        var latencyStore = new MetricStore();
+        latencyStore.Accept("cake-adapt/router-a", $"R_HEADER; LOG_TIMESTAMP; REFLECTOR; DL_AVG_OWD_DELTA_US\nR; {now:R}; 1.1.1.1; 2000", now);
+        var latencyPanel = new ChartPanel("Latency");
+        var latencyOwner = new Window { Width = 900, Height = 500, Content = latencyPanel };
+        latencyOwner.Show();
+        latencyPanel.Update(latencyStore.Snapshot(300, now), null, 300, ChartDefaults.AllSources, bloat);
+        Pump();
+        var marks = latencyPanel.GetVisualDescendants().OfType<TrendChart>().Single().Marks;
+        Check(marks.Length == 2 && marks[0].Times.Length == 1 && marks[1].Times.SequenceEqual([now - 10, now - 4]),
+            "latency chart draws one bufferbloat tick row per source");
+        var texts = latencyPanel.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).ToArray();
+        Check(texts.Contains("cake-adapt/router-a  DL 2 · UL 0") && texts.Contains("cake-adapt/router-b  DL 5 · UL 1"),
+            "latency legend shows each source's download and upload bufferbloat counts");
+        latencyOwner.Close();
+        var throughputPanel = new ChartPanel("Throughput");
+        var throughputOwner = new Window { Width = 900, Height = 500, Content = throughputPanel };
+        throughputOwner.Show();
+        throughputPanel.Update([], null, 300, ChartDefaults.AllSources, bloat);
+        Pump();
+        Check(throughputPanel.GetVisualDescendants().OfType<TrendChart>().Single().Marks.Length == 0,
+            "bufferbloat marks appear only on the latency chart");
+        throughputOwner.Close();
     }
 }
