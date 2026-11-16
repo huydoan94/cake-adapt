@@ -18,6 +18,20 @@ internal static class PlotSeries
 
     // showSource: name the router in every label whenever more than one is publishing
     // to this chart, even if the drawn traces happen to come from one of them.
+    // Latency only: when a few spikes are far above the rest, top the scale just above
+    // the 99th percentile so normal delay stays readable. Null keeps the full range.
+    public static double? Ceiling(string report, PlotLine[] lines)
+    {
+        if (report != ReportNames.Latency)
+            return null;
+        var values = lines.SelectMany(line => line.Points).Where(point => point.Value.HasValue)
+            .Select(point => point.Value!.Value).Order().ToArray();
+        if (values.Length < 2)
+            return null;
+        var p99 = values[(int)Math.Floor((values.Length - 1) * ChartLayout.ClipPercentile)];
+        return p99 > 0 && values[^1] > p99 * ChartLayout.ClipRatio ? p99 * ChartLayout.ClipHeadroom : null;
+    }
+
     public static PlotLine[] Create(string report, MetricView[] metrics, bool showSource)
     {
         var divisor = report switch

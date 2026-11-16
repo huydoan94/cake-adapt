@@ -42,6 +42,13 @@ The optional CA certificate is read from the path you provide.
   per panel, report and topic, including a separate All sources view. Global
   fields use their LOAD/SUMMARY series when available instead of repeating
   the same field for each reflector. Closing the settings window cancels changes.
+- Dense traces (more readings than pixels) are drawn as a faint band from each
+  3-pixel column's lowest to highest reading with a line through the column means,
+  so spikes stay visible but the shape stays readable. Sparse traces keep exact lines.
+- Latency: when the highest reading is more than three times the 99th
+  percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
+  get a marker at the top edge, the unit label says so, and hover shows the
+  real values.
 - Charts draw continuous lines between available valid readings across gaps.
   These lines are visual interpolation and do not invent additional readings.
 - Source and time-window filters apply across views. Pause charts freezes the

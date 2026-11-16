@@ -34,6 +34,7 @@ public static class UiText
     public const string MetricHeading = "Metric";
     public const string LatestHeading = "Latest";
     public const string UnitHeading = "Unit";
+    public const string ClippedSuffix = " · spikes clipped (hover for values)";
     public const string MinHeading = "Min";
     public const string MeanHeading = "Mean";
     public const string MaxHeading = "Max";
