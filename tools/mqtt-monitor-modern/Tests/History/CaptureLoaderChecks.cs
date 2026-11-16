@@ -34,10 +34,15 @@ static partial class Tests
                 zip.Write(Encoding.UTF8.GetBytes(CaptureDay(day2, 300)));
 
             var reports = new List<LoadProgress>();
-            var both = await CaptureLoader.LoadAsync([gzip, plain, plain], new Progress<LoadProgress>(reports.Add), CancellationToken.None);
-            Check(both.Records == 600 && both.BadLines == 0, "the loader reads plain and gzip captures, each file once");
-            Check(both.Start == day1.ToUnixTimeSeconds() && both.End == day2.ToUnixTimeSeconds() + 299,
+            var packed = await CaptureLoader.LoadAsync([gzip], new Progress<LoadProgress>(reports.Add), CancellationToken.None);
+            var twice = await CaptureLoader.LoadAsync([plain, plain], null, CancellationToken.None);
+            Check(packed.Records == 300 && packed.BadLines == 0 && twice.Records == 300, "the loader reads a plain or gzip capture, once");
+            Check(twice.Start == day1.ToUnixTimeSeconds() && twice.End == day1.ToUnixTimeSeconds() + 299,
                 "the loaded history spans from the first to the last record");
+            var two = false;
+            try { await CaptureLoader.LoadAsync([plain, gzip], null, CancellationToken.None); }
+            catch (ArgumentException e) { two = e.Message == HistoryModeDefaults.TooManyFiles; }
+            Check(two, "history opens one capture file at a time");
 
             var cut = Path.Combine(folder.FullName, "mqtt-2026-11-16.jsonl");
             var day3 = CaptureDay(day2.AddDays(1), 10);
@@ -45,11 +50,6 @@ static partial class Tests
             var truncated = await CaptureLoader.LoadAsync([cut], null, CancellationToken.None);
             Check(truncated.Records == 9 && truncated.BadLines == 1, "a cut-off last line is counted as bad and the rest is kept");
 
-            var tooMany = Enumerable.Range(1, 8).Select(i => Path.Combine(folder.FullName, $"day{i}.jsonl")).ToArray();
-            var refused = false;
-            try { await CaptureLoader.LoadAsync(tooMany, null, CancellationToken.None); }
-            catch (ArgumentException e) { refused = e.Message == HistoryModeDefaults.TooManyFiles; }
-            Check(refused, "more than seven capture files are refused");
 
             var cancelled = false;
             try { await CaptureLoader.LoadAsync([plain], null, new CancellationToken(true)); }

@@ -23,9 +23,9 @@ At start the program asks: **Watch live** (connect to a broker, as described
 above) or **Open history**. A session is one or the other; **Start over** in
 the header returns to this choice.
 
-Open history loads up to seven recorder capture files (`mqtt-YYYY-MM-DD.jsonl`
-or `.jsonl.gz`, one JSON object per line with `tst`, `topic` and `payload`),
-in file-name order, with progress and Cancel. Lines that are not valid recorder
+Open history loads one recorder capture file (the recorder writes one per
+router per day, `<YYYY-MM-DD>/<router>.jsonl` or `.jsonl.gz`; each line is a
+JSON object with `tst`, `topic` and `payload`), with progress and Cancel. Lines that are not valid recorder
 JSON (for example a cut-off last line) are counted and skipped. Readings are
 placed by the router's `LOG_TIMESTAMP`; a router time more than a day away
 from the recorder's `tst` falls back to `tst`.
@@ -45,7 +45,9 @@ the last hour of the data. Every page shows that range:
 
 Loaded data stays in memory only. Dashboard report fields (rates, delays,
 CPU, memory, TCP queues and counters) keep one-second detail; other fields
-keep one-minute detail.
+keep one-minute detail. Range statistics are read from 10 s, 1 min and 10 min
+summaries (exact at the edges), and chart points are read only for the traces
+drawn, so moving the range stays quick on a full day.
 
 ## Dashboard
 

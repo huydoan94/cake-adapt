@@ -106,7 +106,8 @@ public sealed class ChartPanel : Grid
     }
 
     // end: the history range end (charts then show [end - seconds, end] with range ticks); null for live.
-    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic, BloatView[]? bloat = null, double? end = null)
+    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic, BloatView[]? bloat = null, double? end = null,
+        Func<MetricKey, Sample[]>? samples = null)
     {
         topic = selectedTopic;
         candidates = ReportCatalog.Candidates(Report, metrics, selected).ToArray();
@@ -114,6 +115,9 @@ public sealed class ChartPanel : Grid
         var custom = selection != null;
         var chosen = custom ? candidates.Where(metric => selection!.Contains(TraceKey.From(metric))).ToArray()
             : ReportCatalog.Defaults(candidates, end.HasValue ? metric => metric.Stats?.Count ?? 0 : null);
+        // History snapshots carry no points; read them only for the traces drawn.
+        if (samples != null)
+            chosen = chosen.Select(metric => metric with { Samples = samples(metric.Key) }).ToArray();
         drawnKeys = chosen.Select(TraceKey.From).ToHashSet();
         chart.EmptyMessage = custom ? UiText.NothingSelected : UiText.Waiting;
         chart.EmptyHint = custom ? UiText.SelectionHelp : UiText.ConnectionHelp;
