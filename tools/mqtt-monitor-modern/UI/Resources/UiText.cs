@@ -37,6 +37,17 @@ public static class UiText
     public const string BloatHeading = "Bufferbloat samples:";
     public const string BloatFormat = "{0}  DL {1} · UL {2}";
     public const string MinuteTickFormat = "HH:mm", SecondTickFormat = "HH:mm:ss", DateTickFormat = "MM-dd HH:mm";
+    // Start choice, history loading and history header.
+    public const string StartTitle = "cake-adapt monitor", StartHeading = "What do you want to watch?";
+    public const string WatchLive = "Watch live", WatchLiveHelp = "Connect to a broker";
+    public const string OpenHistory = "Open history", OpenHistoryHelp = "Saved captures (.jsonl / .gz)";
+    public const string StartOver = "Start over", Cancel = "Cancel", HistoryStatus = "History";
+    public const string LoadingTitle = "Loading history", LoadingStart = "Opening files…";
+    public const string LoadingFormat = "File {0} of {1} · {2:N0} records · {3:N0} bad lines · {4:P0}";
+    public const string CaptureFilter = "Recorder captures";
+    public static readonly string[] CapturePatterns = ["*.jsonl", "*.gz"];
+    public const string HistorySubtitleFormat = "History · {0} · {1} – {2}", HistoryRangeFormat = "yyyy-MM-dd HH:mm";
+    public const string LoadFailed = "Could not load history: ";
     public const string ClippedSuffix = " · spikes clipped (hover for values)";
     public const string MinHeading = "Min";
     public const string MeanHeading = "Mean";
