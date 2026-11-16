@@ -80,6 +80,7 @@ public sealed class ChartPanel : Grid
             Lines = chart.Lines,
             Seconds = chart.Seconds,
             Unit = chart.Unit,
+            Ceiling = chart.Ceiling,
             EndTime = chart.EndTime,
             EmptyMessage = chart.EmptyMessage,
             EmptyHint = chart.EmptyHint,
@@ -118,6 +119,7 @@ public sealed class ChartPanel : Grid
         chart.Seconds = seconds;
         chart.EndTime = Telemetry.Now;
         chart.Lines = PlotSeries.Create(Report, chosen, candidates.Select(metric => metric.Topic).Distinct().Count() > 1);
+        chart.Ceiling = PlotSeries.Ceiling(Report, chart.Lines);
         UpdateLegend(custom);
         chart.InvalidateVisual();
     }

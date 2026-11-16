@@ -33,6 +33,7 @@ static partial class Tests
         ChartRenderingChecks(window, path);
         ChartPanelChecks();
         DefaultRotationChecks();
+        ChartReadabilityChecks();
         window.Close();
     }
 
