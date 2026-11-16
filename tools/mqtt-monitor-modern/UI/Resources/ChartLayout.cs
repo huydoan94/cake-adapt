@@ -7,6 +7,12 @@ public static class ChartLayout
     public const int AxisIntervals = 4;
     public const double AxisLabelLeft = 5, AxisLabelOffset = 6, ClockRightOffset = 43, ClockBottomOffset = 12;
     public const double GridStroke = .7, TraceStroke = 1.4, PointRadius = 2.5;
+    // Dense traces: one min/max column per EnvelopeColumnWidth pixels, used when columns
+    // average at least EnvelopeDensity points; the band is drawn with EnvelopeAlpha.
+    public const double EnvelopeColumnWidth = 3, EnvelopeDensity = 2;
+    public const byte EnvelopeAlpha = 70;
+    // Latency: clip the scale when the peak exceeds ClipRatio x p99; the top is p99 x ClipHeadroom.
+    public const double ClipPercentile = .99, ClipRatio = 3, ClipHeadroom = 1.25, ClipMarkerSize = 4;
     public const double CrosshairStroke = 1, TooltipBorderStroke = 1;
     public const double EmptyMinimumLeft = 20, EmptyTitleOffset = 95, EmptyHintOffset = 101, EmptyTitleTop = 14, EmptyHintTop = 10;
     public const double HoverToleranceSeconds = 5, HoverWindowDivisor = 50;

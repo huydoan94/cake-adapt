@@ -12,6 +12,8 @@ public sealed class TrendChart : Control
     public PlotLine[] Lines { get; set; } = [];
     public double Seconds { get; set; } = ChartDefaults.DefaultWindowSeconds;
     public string Unit { get; set; } = "";
+    // Optional top of the value scale chosen by PlotSeries.Ceiling; null shows the full range.
+    public double? Ceiling { get; set; }
     public double EndTime { get; set; } = Telemetry.Now;
     public string EmptyMessage { get; set; } = UiText.Waiting;
     public string EmptyHint { get; set; } = UiText.ConnectionHelp;
@@ -44,11 +46,12 @@ public sealed class TrendChart : Control
         }
         var bounds = new Rect(ChartLayout.PlotLeft, ChartLayout.PlotTop,
             Math.Max(1, Bounds.Width - ChartLayout.HorizontalInset), Math.Max(1, Bounds.Height - ChartLayout.VerticalInset));
-        var scale = new PlotScale(bounds, EndTime, Seconds, points);
+        var scale = new PlotScale(bounds, EndTime, Seconds, points, Ceiling);
         DrawAxes(context, scale);
         using (context.PushClip(bounds))
             foreach (var line in Lines)
                 DrawTrace(context, scale, line);
+        DrawClipped(context, scale);
         if (hover is { } mouse && bounds.Contains(mouse))
             DrawHover(context, scale, mouse);
     }
@@ -76,7 +79,8 @@ public sealed class TrendChart : Control
             var x = plot.Left + plot.Width * fraction - (i == ChartLayout.AxisIntervals ? ChartLayout.ClockRightOffset : 0);
             Text(context, label, x, plot.Bottom + ChartLayout.ClockBottomOffset, UiTheme.AxisText);
         }
-        Text(context, Unit, ChartLayout.AxisLabelLeft, 0, UiTheme.AxisText);
+        var clipped = Lines.Any(line => line.Points.Any(scale.AboveTop));
+        Text(context, clipped ? Unit + UiText.ClippedSuffix : Unit, ChartLayout.AxisLabelLeft, 0, UiTheme.AxisText);
     }
 
     private static void DrawTrace(DrawingContext context, PlotScale scale, PlotLine line)
@@ -85,18 +89,63 @@ public sealed class TrendChart : Control
         var points = line.Points.Select(scale.Project).OfType<Point>().ToArray();
         var brush = new SolidColorBrush(line.Color);
         if (points.Length == 1)
-            context.DrawEllipse(brush, null, points[0], ChartLayout.PointRadius, ChartLayout.PointRadius);
-        else if (points.Length > 1)
         {
-            var geometry = new StreamGeometry();
-            using (var path = geometry.Open())
+            context.DrawEllipse(brush, null, points[0], ChartLayout.PointRadius, ChartLayout.PointRadius);
+            return;
+        }
+        var columns = PlotEnvelope.Reduce(points, ChartLayout.EnvelopeColumnWidth);
+        if (PlotEnvelope.Dense(points.Length, columns.Length))
+        {
+            // Band from each column's lowest to highest reading keeps every spike visible.
+            var band = new StreamGeometry();
+            using (var path = band.Open())
             {
-                path.BeginFigure(points[0], false);
-                foreach (var point in points.Skip(1))
-                    path.LineTo(point);
-                path.EndFigure(false);
+                path.BeginFigure(new Point(columns[0].X, columns[0].Top), true);
+                foreach (var column in columns.Skip(1))
+                    path.LineTo(new Point(column.X, column.Top));
+                foreach (var column in columns.Reverse())
+                    path.LineTo(new Point(column.X, column.Bottom));
+                path.EndFigure(true);
             }
-            context.DrawGeometry(null, new Pen(brush, ChartLayout.TraceStroke), geometry);
+            context.DrawGeometry(new SolidColorBrush(Color.FromArgb(ChartLayout.EnvelopeAlpha, line.Color.R, line.Color.G, line.Color.B)), null, band);
+            points = columns.Select(column => new Point(column.X, column.Mean)).ToArray();
+        }
+        if (points.Length > 1)
+            context.DrawGeometry(null, new Pen(brush, ChartLayout.TraceStroke), Polyline(points));
+    }
+
+    private static StreamGeometry Polyline(Point[] points)
+    {
+        var geometry = new StreamGeometry();
+        using var path = geometry.Open();
+        path.BeginFigure(points[0], false);
+        foreach (var point in points.Skip(1))
+            path.LineTo(point);
+        path.EndFigure(false);
+        return geometry;
+    }
+
+    // A small marker at the top edge for each column holding a reading above a clipped scale.
+    private void DrawClipped(DrawingContext context, PlotScale scale)
+    {
+        var top = scale.Bounds.Top;
+        foreach (var line in Lines)
+        {
+            var brush = new SolidColorBrush(line.Color);
+            var spikes = line.Points.Where(scale.AboveTop).Select(scale.Project).OfType<Point>()
+                .GroupBy(point => Math.Floor(point.X / ChartLayout.EnvelopeColumnWidth)).Select(column => column.First().X);
+            foreach (var x in spikes)
+            {
+                var marker = new StreamGeometry();
+                using (var path = marker.Open())
+                {
+                    path.BeginFigure(new Point(x - ChartLayout.ClipMarkerSize, top + ChartLayout.ClipMarkerSize), true);
+                    path.LineTo(new Point(x, top));
+                    path.LineTo(new Point(x + ChartLayout.ClipMarkerSize, top + ChartLayout.ClipMarkerSize));
+                    path.EndFigure(true);
+                }
+                context.DrawGeometry(brush, null, marker);
+            }
         }
     }
 
