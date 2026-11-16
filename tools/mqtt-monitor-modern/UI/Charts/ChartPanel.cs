@@ -105,20 +105,22 @@ public sealed class ChartPanel : Grid
         window.Show(owner);
     }
 
-    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic, BloatView[]? bloat = null)
+    // end: the history range end (charts then show [end - seconds, end] with range ticks); null for live.
+    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic, BloatView[]? bloat = null, double? end = null)
     {
         topic = selectedTopic;
         candidates = ReportCatalog.Candidates(Report, metrics, selected).ToArray();
         var selection = selections.Get((Report, topic));
         var custom = selection != null;
         var chosen = custom ? candidates.Where(metric => selection!.Contains(TraceKey.From(metric))).ToArray()
-            : ReportCatalog.Defaults(candidates);
+            : ReportCatalog.Defaults(candidates, end.HasValue ? metric => metric.Stats?.Count ?? 0 : null);
         drawnKeys = chosen.Select(TraceKey.From).ToHashSet();
         chart.EmptyMessage = custom ? UiText.NothingSelected : UiText.Waiting;
         chart.EmptyHint = custom ? UiText.SelectionHelp : UiText.ConnectionHelp;
         chart.Unit = PlotSeries.Unit(Report, chosen);
         chart.Seconds = seconds;
-        chart.EndTime = Telemetry.Now;
+        chart.EndTime = end ?? Telemetry.Now;
+        chart.RangeTicks = end.HasValue;
         chart.Lines = PlotSeries.Create(Report, chosen, candidates.Select(metric => metric.Topic).Distinct().Count() > 1);
         chart.Ceiling = PlotSeries.Ceiling(Report, chart.Lines);
         chart.Marks = Report == ReportNames.Latency ? BloatMarks(bloat ?? []) : [];
