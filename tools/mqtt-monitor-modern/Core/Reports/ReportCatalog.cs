@@ -2,6 +2,16 @@ namespace CakeAdaptMonitor;
 
 public static class ReportCatalog
 {
+    // Fields drawn by the dashboard reports; history keeps these at one-second detail.
+    private static readonly HashSet<string> DetailedNames =
+    [
+        .. MetricNames.Rates, MetricNames.DownloadDelay, MetricNames.UploadDelay,
+        MetricNames.Rss, MetricNames.PeakRss, MetricNames.AnonymousRss, MetricNames.DataMemory,
+        MetricNames.DownloadQueue, MetricNames.UploadQueue,
+        MetricNames.Injected, MetricNames.Skipped, MetricNames.Accepted, MetricNames.Stalled
+    ];
+    public static bool IsDetailed(string name) => DetailedNames.Contains(name) || name.EndsWith(ProtocolNames.UsageSuffix);
+
     public static IEnumerable<MetricView> Candidates(string name, MetricView[] all, MetricKey? selected)
     {
         var fields = name switch

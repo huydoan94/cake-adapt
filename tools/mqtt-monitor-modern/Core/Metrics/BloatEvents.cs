@@ -16,6 +16,15 @@ public sealed class BloatEvents
         public double Latest = double.NegativeInfinity;
     }
     private readonly Dictionary<(string Topic, string Record, string Direction), Track> tracks = new();
+    private readonly double retention;
+    private readonly int step;
+
+    // Live keeps one hour in 2-second buckets; history keeps everything in 1-second buckets.
+    public BloatEvents(double retentionSeconds = HistoryDefaults.RetentionSeconds, int stepSeconds = HistoryDefaults.BloatStepSeconds)
+    {
+        retention = retentionSeconds;
+        step = stepSeconds;
+    }
 
     public void Record(string topic, string record, string name, string text, double sourceTime)
     {
@@ -37,17 +46,17 @@ public sealed class BloatEvents
         track.Latest = Math.Max(track.Latest, sourceTime);
         if (text.EndsWith(ProtocolNames.BloatSuffix, StringComparison.Ordinal))
         {
-            var bucket = (long)Math.Floor(sourceTime / HistoryDefaults.BloatStepSeconds);
+            var bucket = (long)Math.Floor(sourceTime / step);
             track.Buckets[bucket] = track.Buckets.GetValueOrDefault(bucket) + 1;
         }
         while (track.Buckets.Count > 0 &&
-               (track.Buckets.Keys[0] + 1) * HistoryDefaults.BloatStepSeconds < track.Latest - HistoryDefaults.RetentionSeconds)
+               (track.Buckets.Keys[0] + 1) * step < track.Latest - retention)
             track.Buckets.RemoveAt(0);
     }
 
     public BloatView[] Read(double seconds, double now)
     {
-        var start = now - Math.Min(seconds, HistoryDefaults.RetentionSeconds);
+        var start = now - Math.Min(seconds, retention);
         return tracks.GroupBy(pair => pair.Key.Topic)
             .SelectMany(topic =>
             {
@@ -56,9 +65,9 @@ public sealed class BloatEvents
                 return topic.Where(pair => pair.Key.Record == record).Select(pair =>
                 {
                     var buckets = pair.Value.Buckets
-                        .Where(bucket => (bucket.Key + 1) * HistoryDefaults.BloatStepSeconds > start &&
-                                         bucket.Key * HistoryDefaults.BloatStepSeconds <= now)
-                        .Select(bucket => new BloatBucket(bucket.Key * HistoryDefaults.BloatStepSeconds, bucket.Value))
+                        .Where(bucket => (bucket.Key + 1) * step > start &&
+                                         bucket.Key * step <= now)
+                        .Select(bucket => new BloatBucket(bucket.Key * step, bucket.Value))
                         .ToArray();
                     return new BloatView(pair.Key.Topic, pair.Key.Direction, buckets.Sum(bucket => bucket.Count), buckets);
                 });

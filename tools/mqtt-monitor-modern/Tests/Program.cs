@@ -18,6 +18,7 @@ static partial class Tests
         HistoryChecks();
         BloatChecks();
         BucketSeriesChecks();
+        HistoryStoreChecks();
         await Integration();
         await CancelPendingConnection();
         await TlsIntegration("valid");
