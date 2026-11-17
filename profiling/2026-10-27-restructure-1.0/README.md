@@ -1,6 +1,6 @@
 # The restructure toward 1.0 against 0.3.30 (2026-10-27)
 
-[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/main/profiling/2026-10-27-restructure-1.0/index.html): the tables and every flame graph on one page.
+[Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/winapp/profiling/2026-10-27-restructure-1.0/index.html): the tables and every flame graph on one page.
 
 ## Result
 
