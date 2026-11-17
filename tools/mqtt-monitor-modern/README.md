@@ -17,28 +17,96 @@ the current run. Closing the app discards its metric history, event view and
 connection details. Reconnect and resubscribe are automatic while it is open.
 The optional CA certificate is read from the path you provide.
 
+## History mode
+
+At start the program asks: **Watch live** (connect to a broker, as described
+above) or **Open history**. A session is one or the other; **Start over** in
+the header returns to this choice.
+
+Starting the program with a capture file as its argument (Windows "Open
+with", or dropping the file on the executable) opens it in history mode
+directly. Open history loads one recorder capture file (the recorder writes one per
+router per day, `<YYYY-MM-DD>/<router>.jsonl` or `.jsonl.gz`; each line is a
+JSON object with `tst`, `topic` and `payload`), with progress and Cancel. Lines that are not valid recorder
+JSON (for example a cut-off last line) are counted and skipped. Readings are
+placed by the router's `LOG_TIMESTAMP`; a router time more than a day away
+from the recorder's `tst` falls back to `tst`.
+
+A strip along the bottom shows the whole loaded history (download traffic per
+source and a bufferbloat row). Drag its start and end handles to choose the
+range (at least one minute), or drag the shaded range to move it. It opens on
+the last hour of the data. Every page shows that range:
+
+- Charts end at the range end and label the time axis to fit it (per-minute
+  ticks for 5 minutes, hourly for 6 hours, with dates across midnight).
+  Automatic traces are the series with the most readings in the range.
+- Cards show each source's peak in the range and when it happened; CAKE rate
+  cards show the last value in the range.
+- All metrics shows exact min/mean/max/points over the range; Age is hidden.
+- Events shows the text records (INFO, SHAPER, warnings) in the range.
+
+Loaded data stays in memory only. Dashboard report fields (rates, delays,
+CPU, memory, TCP queues and counters) keep one-second detail; other fields
+keep one-minute detail. Range statistics are read from 10 s, 1 min and 10 min
+summaries (exact at the edges), and chart points are read only for the traces
+drawn, so moving the range stays quick on a full day.
+
+Text fields (such as load conditions) are kept to the minute: the table shows
+the last text of the minute the range ends in.
+
+Measured on real captures (2026-10-31, one router per file, about 3.2-3.7
+million records and 950-1,300 series a day): loading takes 30-35 s and holds
+about 110-120 MB of history; a redraw for a 5-minute, 6-hour or 24-hour range
+takes about 10 ms or less. While dragging, the strip follows the pointer and the
+pages redraw once per UI cycle.
+
 ## Dashboard
 
 - Existing chart selectors: throughput, latency, CPU, memory, TCP queues,
   TCP counters, and a metric selected from All metrics.
+- The window opens maximized when its default size does not fit the screen, and
+  the dashboard scrolls when the window is too short for its cards and charts.
+  The minimum window size (1000 x 520) fits a 1366 x 768 screen at 125% scaling.
+- Each card lists up to three sources (the most recently updated), one line
+  each in topic order, so a line never jumps between routers. Captions name the
+  source first, so a narrow card trims the age rather than the router.
 - Download/Upload cards show the highest valid reading received between one-second
   screen updates. Their labels stay unchanged. Source/search/settings changes do
   not reset this interval. With no new valid reading, the previous peak remains
   and its age increases. CAKE rate cards still show latest configured values.
-- Dark panels with colored line traces, hover values and expandable snapshots.
+- On Windows every window asks for a dark title bar.
+- Dark panels with colored line traces, hover values and expandable snapshots
+  that keep the chart's legend.
   Each panel has **Settings** to choose which source/metric traces to draw
   within its selected report, up to 24 traces. **Use defaults** restores the
-  automatic six most recently updated traces within each topic/field priority.
+  automatic six most recently updated traces within each topic/field priority;
+  with several sources the six are shared between them, and every label names
+  its source.
   Automatic choices follow reflector rotation as new telemetry arrives, without
   pressing Use defaults again. Manually chosen traces stay pinned. Settings lists only the selected topic. Choices stay in memory separately
   per panel, report and topic, including a separate All sources view. Global
   fields use their LOAD/SUMMARY series when available instead of repeating
   the same field for each reflector. Closing the settings window cancels changes.
+- Dense traces (more readings than pixels) are drawn as a faint band from each
+  3-pixel column's lowest to highest reading with a line through the column means,
+  so spikes stay visible but the shape stays readable. Sparse traces keep exact lines.
+- Latency: when the highest reading is more than three times the 99th
+  percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
+  get a marker at the top edge, the unit label says so, and hover shows the
+  real values.
+- Latency also shows bufferbloat: samples whose load condition ends in `_bb`
+  (the router measured delay above its threshold) are counted per source and
+  direction for the shown window and listed in the legend, and drawn as one row
+  of ticks per source along the plot bottom (2-second buckets, router time).
+  A source publishing DATA is counted from DATA only; otherwise from SUMMARY.
+  Counts are kept for one hour in memory, like the rest of the history.
 - Charts draw continuous lines between available valid readings across gaps.
   These lines are visual interpolation and do not invent additional readings.
 - Source and time-window filters apply across views. Pause charts freezes the
   plots while reception, decoding, status and the table continue updating.
-- All metrics keeps its existing columns. Latest shows the highest valid numeric
+- All metrics lists Metric, Topic and Reflector / CPU first, groups rows by
+  metric and source, and fits a maximized 1280-pixel window without scrolling
+  sideways. Numbers use one plain format without thousands separators. Latest shows the highest valid numeric
   reading received between screen updates, separately for each topic, record,
   reflector/CPU and field. It preserves original precision and the peak's age.
   Text fields show their last text; invalid-only batches show the invalid state.
@@ -46,7 +114,8 @@ The optional CA certificate is read from the path you provide.
   Source/search/settings refreshes do not reset batches. Historical min/mean/max and point counts keep
   their existing meaning. Live updates preserve scroll position and selection.
   Double-click a row to visualize that metric in the fourth panel.
-- Events shows the latest raw messages in memory for the selected source.
+- Events shows the latest raw messages in memory for the selected source,
+  newest first.
 
 Supported records are DATA, LOAD, SUMMARY, REFLECTOR, TCP_QUEUE, TCP_INJECT,
 MEMORY, CPU and CPU_RAW. Built-in schemas come from the daemon's
@@ -66,7 +135,7 @@ The newest ten minutes use two-second buckets; older history uses ten-second
 buckets. Each bucket keeps actual first, last, minimum and maximum readings
 and an invalid marker when present, preserving spikes without retaining every
 message. Window boundaries and statistics use these representative points.
-History begins when this app receives data; there is no historical backfill. Incoming messages are bounded to 2,048 queued payloads of at
+In live mode history begins when this app receives data; saved captures are viewed in history mode. Incoming messages are bounded to 2,048 queued payloads of at
 most 64 KiB each; received/dropped counts are visible. Dynamic headers are
 bounded to 256 definitions and 1 MiB of text. Events retains 150 messages with
 up to 2,000 characters each. All these buffers are in memory only.
@@ -102,8 +171,9 @@ does not save telemetry or settings. Preview data is explicitly labeled SAMPLE
 DATA and is accessible only from the test program.
 
 The Windows executable is cross-published from WSL. Native headless UI and
-protocol checks run on Linux; Windows execution and the user's broker have
-not been tested here.
+protocol checks run on Linux; Windows execution has been checked on a Windows 10
+test VM against a local replay of saved captures; the user's broker has not
+been tested here.
 
 ## GitHub Actions
 

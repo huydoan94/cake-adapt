@@ -34,8 +34,26 @@ public static class UiText
     public const string MetricHeading = "Metric";
     public const string LatestHeading = "Latest";
     public const string UnitHeading = "Unit";
+    public const string BloatHeading = "Bufferbloat samples:";
+    public const string BloatFormat = "{0}  DL {1} · UL {2}";
+    public const string MinuteTickFormat = "HH:mm", SecondTickFormat = "HH:mm:ss", DateTickFormat = "MM-dd HH:mm";
+    // Start choice, history loading and history header.
+    public const string StartTitle = "cake-adapt monitor", StartHeading = "What do you want to watch?";
+    public const string WatchLive = "Watch live", WatchLiveHelp = "Connect to a broker";
+    public const string OpenHistory = "Open history", OpenHistoryHelp = "Saved captures (.jsonl / .gz)";
+    public const string StartOver = "Start over", Cancel = "Cancel", HistoryStatus = "History";
+    public const string LoadingTitle = "Loading history", LoadingStart = "Opening files…";
+    public const string LoadingFormat = "File {0} of {1} · {2:N0} records · {3:N0} bad lines · {4:P0}";
+    public const string CaptureFilter = "Recorder captures";
+    public static readonly string[] CapturePatterns = ["*.jsonl", "*.gz"];
+    public const string HistorySubtitleFormat = "History · {0} · {1} – {2}", HistoryRangeFormat = "yyyy-MM-dd HH:mm";
+    public const string PeakAtFormat = "{0} · peak {1}", ValueAtFormat = "{0} · at {1}";
+    public const string HistoryCountsFormat = "{0:N0} records   {1:N0} bad lines   {2} metrics   Schema errors {3}";
+    public const string LoadFailed = "Could not load history: ";
+    public const string NoRecords = "The capture has no readable records.";
+    public const string ClippedSuffix = " · spikes clipped (hover for values)";
     public const string MinHeading = "Min";
-    public const string MeanHeading = "Mean (points)";
+    public const string MeanHeading = "Mean";
     public const string MaxHeading = "Max";
     public const string PointsHeading = "Points";
     public const string AgeHeading = "Age";
@@ -76,7 +94,9 @@ public static class UiText
     public const string EmptyValue = "—";
     public const string Ellipsis = "…";
     public const string RateSuffix = " Mbit/s";
-    public const string AgeSourceSeparator = " ago · ";
+    // Card captions put the source first, so a narrow card trims the age, not the router.
+    public const string SourceAgeSeparator = " · ";
+    public const string AgeSuffix = " ago";
     public const string SourceSeparator = " · ";
     public const string HoverSeparator = "  ";
     public const string TrafficLabel = " traffic";

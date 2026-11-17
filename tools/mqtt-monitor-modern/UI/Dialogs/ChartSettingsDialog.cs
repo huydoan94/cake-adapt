@@ -14,6 +14,7 @@ public sealed class ChartSettingsDialog : Window
     public ChartSettingsDialog(string report, string topic, MetricView[] candidates, HashSet<TraceKey> selected)
     {
         Title = report + UiText.SettingsSuffix;
+        DarkTitleBar.Apply(this);
         Width = UiLayout.SettingsWidth;
         Height = UiLayout.SettingsHeight;
         MinWidth = UiLayout.MinimumSettingsWidth;

@@ -80,57 +80,107 @@ public sealed class ChartPanel : Grid
             Lines = chart.Lines,
             Seconds = chart.Seconds,
             Unit = chart.Unit,
+            Ceiling = chart.Ceiling,
+            Marks = chart.Marks,
             EndTime = chart.EndTime,
             EmptyMessage = chart.EmptyMessage,
             EmptyHint = chart.EmptyHint,
             Margin = UiLayout.SnapshotMargin
         };
-        new Window
+        var snapshotLegend = new WrapPanel { Margin = UiLayout.SnapshotLegendMargin };
+        AddLegendItems(snapshotLegend, chart.Lines);
+        var content = new Grid { RowDefinitions = new RowDefinitions(UiLayout.SnapshotRows) };
+        content.Children.Add(snapshotLegend);
+        Grid.SetRow(enlarged, 1);
+        content.Children.Add(enlarged);
+        var window = new Window
         {
             Title = Report + UiText.SnapshotSuffix,
             Width = UiLayout.SnapshotWidth,
             Height = UiLayout.SnapshotHeight,
             Background = UiTheme.Panel,
-            Content = enlarged
-        }.Show(owner);
+            Content = content
+        };
+        DarkTitleBar.Apply(window);
+        window.Show(owner);
     }
 
-    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic)
+    // end: the history range end (charts then show [end - seconds, end] with range ticks); null for live.
+    public void Update(MetricView[] metrics, MetricKey? selected, double seconds, string selectedTopic, BloatView[]? bloat = null, double? end = null,
+        Func<MetricKey, Sample[]>? samples = null)
     {
         topic = selectedTopic;
         candidates = ReportCatalog.Candidates(Report, metrics, selected).ToArray();
         var selection = selections.Get((Report, topic));
         var custom = selection != null;
         var chosen = custom ? candidates.Where(metric => selection!.Contains(TraceKey.From(metric))).ToArray()
-            : ReportCatalog.Defaults(candidates);
+            : ReportCatalog.Defaults(candidates, end.HasValue ? metric => metric.Stats?.Count ?? 0 : null);
+        // History snapshots carry no points; read them only for the traces drawn.
+        if (samples != null)
+            chosen = chosen.Select(metric => metric with { Samples = samples(metric.Key) }).ToArray();
         drawnKeys = chosen.Select(TraceKey.From).ToHashSet();
         chart.EmptyMessage = custom ? UiText.NothingSelected : UiText.Waiting;
         chart.EmptyHint = custom ? UiText.SelectionHelp : UiText.ConnectionHelp;
         chart.Unit = PlotSeries.Unit(Report, chosen);
         chart.Seconds = seconds;
-        chart.EndTime = Telemetry.Now;
-        chart.Lines = PlotSeries.Create(Report, chosen);
-        UpdateLegend(custom);
+        chart.EndTime = end ?? Telemetry.Now;
+        chart.RangeTicks = end.HasValue;
+        chart.Lines = PlotSeries.Create(Report, chosen, candidates.Select(metric => metric.Topic).Distinct().Count() > 1);
+        chart.Ceiling = PlotSeries.Ceiling(Report, chart.Lines);
+        chart.Marks = Report == ReportNames.Latency ? BloatMarks(bloat ?? []) : [];
+        UpdateLegend(custom, Report == ReportNames.Latency ? bloat ?? [] : []);
         chart.InvalidateVisual();
     }
 
-    private void UpdateLegend(bool custom)
+    // One tick row per source at the start of each 2-second bucket holding a bufferbloat sample.
+    private static PlotMarks[] BloatMarks(BloatView[] bloat) => bloat.GroupBy(view => view.Topic)
+        .Select((topic, i) => new PlotMarks(DisplayText.ShortTopic(topic.Key),
+            topic.SelectMany(view => view.Buckets).Where(bucket => bucket.Count > 0).Select(bucket => bucket.Time).Distinct().Order().ToArray(),
+            UiTheme.BloatPalette[i % UiTheme.BloatPalette.Length]))
+        .ToArray();
+
+    private void UpdateLegend(bool custom, BloatView[] bloat)
     {
         legend.Children.Clear();
-        foreach (var line in chart.Lines)
-            legend.Children.Add(new TextBlock
-            {
-                Text = line.Label,
-                Foreground = new SolidColorBrush(line.Color),
-                FontSize = UiTypography.Small,
-                Margin = UiLayout.LegendItemMargin
-            });
+        AddLegendItems(legend, chart.Lines);
+        AddBloatItems(legend, bloat);
         if (chart.Lines.Length == 0 || (!custom && candidates.Length > ChartDefaults.AutomaticTraces))
             legend.Children.Add(new TextBlock
             {
                 Text = chart.Lines.Length == 0 ? UiText.SettingsHint : UiText.AutomaticHint,
                 FontSize = UiTypography.Small,
                 Foreground = UiTheme.LegendHint
+            });
+    }
+
+    // "Bufferbloat samples:  router-a  DL 0 · UL 0" in each source's tick color.
+    private static void AddBloatItems(WrapPanel target, BloatView[] bloat)
+    {
+        if (bloat.Length == 0)
+            return;
+        target.Children.Add(new TextBlock { Text = UiText.BloatHeading, FontSize = UiTypography.Small, Foreground = UiTheme.LegendHint, Margin = UiLayout.LegendItemMargin });
+        var i = 0;
+        foreach (var topic in bloat.GroupBy(view => view.Topic))
+            target.Children.Add(new TextBlock
+            {
+                Text = string.Format(UiText.BloatFormat, DisplayText.ShortTopic(topic.Key),
+                    topic.Where(view => view.Direction == ProtocolNames.Download).Sum(view => view.Count),
+                    topic.Where(view => view.Direction == ProtocolNames.Upload).Sum(view => view.Count)),
+                Foreground = new SolidColorBrush(UiTheme.BloatPalette[i++ % UiTheme.BloatPalette.Length]),
+                FontSize = UiTypography.Small,
+                Margin = UiLayout.LegendItemMargin
+            });
+    }
+
+    private static void AddLegendItems(WrapPanel target, PlotLine[] lines)
+    {
+        foreach (var line in lines)
+            target.Children.Add(new TextBlock
+            {
+                Text = line.Label,
+                Foreground = new SolidColorBrush(line.Color),
+                FontSize = UiTypography.Small,
+                Margin = UiLayout.LegendItemMargin
             });
     }
 }

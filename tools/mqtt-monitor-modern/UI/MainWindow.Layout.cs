@@ -48,7 +48,7 @@ public sealed partial class MainWindow
         var main = new Grid { RowDefinitions = new RowDefinitions(UiLayout.MainRows), Margin = UiLayout.MainMargin };
         Grid.SetColumn(main, 1);
         shell.Children.Add(main);
-        var header = new Grid { ColumnDefinitions = new ColumnDefinitions(UiLayout.HeaderColumns), Margin = UiLayout.HeaderMargin };
+        var header = new Grid { ColumnDefinitions = new ColumnDefinitions(UiLayout.WindowHeaderColumns), Margin = UiLayout.HeaderMargin };
         var heading = new StackPanel { Spacing = UiLayout.ItemSpacing, VerticalAlignment = VerticalAlignment.Center };
         heading.Children.Add(title);
         heading.Children.Add(subtitle);
@@ -67,13 +67,16 @@ public sealed partial class MainWindow
         Grid.SetColumn(connect, 2);
         connect.VerticalAlignment = VerticalAlignment.Center;
         header.Children.Add(connect);
+        Grid.SetColumn(startOver, 3);
+        startOver.VerticalAlignment = VerticalAlignment.Center;
+        startOver.Margin = UiLayout.StartOverMargin;
+        header.Children.Add(startOver);
         main.Children.Add(header);
         var toolbar = new Grid { ColumnDefinitions = new ColumnDefinitions(UiLayout.ToolbarColumns), Margin = UiLayout.ToolbarMargin };
         toolbar.Children.Add(source);
         Grid.SetColumn(timeRange, 1);
         timeRange.Margin = UiLayout.TimeRangeMargin;
         toolbar.Children.Add(timeRange);
-        var pause = new ToggleButton { Content = UiText.Pause, Padding = UiLayout.NavigationMargin };
         pause.IsCheckedChanged += (_, _) =>
         {
             chartsPaused = pause.IsChecked == true;
@@ -91,10 +94,14 @@ public sealed partial class MainWindow
         var pages = new Grid { Margin = UiLayout.PagesMargin };
         Grid.SetRow(pages, 3);
         main.Children.Add(pages);
-        pages.Children.Add(dashboard);
+        dashboard.Margin = UiLayout.DashboardScrollMargin;
+        dashboardScroll.Content = dashboard;
+        pages.Children.Add(dashboardScroll);
         pages.Children.Add(metricsPage);
         pages.Children.Add(eventsPage);
-        Grid.SetRow(counts, 4);
+        Grid.SetRow(strip, UiLayout.StripRow);
+        main.Children.Add(strip);
+        Grid.SetRow(counts, UiLayout.CountsRow);
         main.Children.Add(counts);
         source.SelectionChanged += (_, _) => Refresh(true);
         timeRange.SelectionChanged += (_, _) => Refresh();

@@ -2,6 +2,16 @@ namespace CakeAdaptMonitor;
 
 public static class ReportCatalog
 {
+    // Fields drawn by the dashboard reports; history keeps these at one-second detail.
+    private static readonly HashSet<string> DetailedNames =
+    [
+        .. MetricNames.Rates, MetricNames.DownloadDelay, MetricNames.UploadDelay,
+        MetricNames.Rss, MetricNames.PeakRss, MetricNames.AnonymousRss, MetricNames.DataMemory,
+        MetricNames.DownloadQueue, MetricNames.UploadQueue,
+        MetricNames.Injected, MetricNames.Skipped, MetricNames.Accepted, MetricNames.Stalled
+    ];
+    public static bool IsDetailed(string name) => DetailedNames.Contains(name) || name.EndsWith(ProtocolNames.UsageSuffix);
+
     public static IEnumerable<MetricView> Candidates(string name, MetricView[] all, MetricKey? selected)
     {
         var fields = name switch
@@ -26,14 +36,23 @@ public static class ReportCatalog
             .SelectMany(g => g.Any(m => m.Dimension.Length == 0)
                 ? g.Where(m => m.Dimension.Length == 0) : g);
     }
-    // Keep report/topic/field priority, but replace rotated reflectors with the
-    // most recently received series. Restore candidate order to avoid reshuffling
-    // the legend as individual probes arrive.
-    public static MetricView[] Defaults(MetricView[] candidates)
+    // Keep field priority within each topic, but replace rotated reflectors with
+    // the most recently received series. Topics take turns, so with several
+    // sources each one gets a share of the automatic traces instead of the first
+    // topic filling them all. Restore candidate order to avoid reshuffling the
+    // legend as individual probes arrive.
+    // rank: history passes readings in the range; live uses the most recent arrival.
+    public static MetricView[] Defaults(MetricView[] candidates, Func<MetricView, double>? rank = null)
     {
-        var active = candidates.GroupBy(metric => (metric.Topic, metric.Name))
-            .SelectMany(group => group.OrderByDescending(metric => metric.ReceivedTime))
-            .Take(ChartDefaults.AutomaticTraces).Select(metric => metric.Key).ToHashSet();
+        var topics = candidates.GroupBy(metric => metric.Topic)
+            .Select(topic => topic.GroupBy(metric => metric.Name)
+                .SelectMany(field => field.OrderByDescending(rank ?? (metric => metric.ReceivedTime)))
+                .Select(metric => metric.Key).ToArray())
+            .ToArray();
+        var active = new HashSet<MetricKey>();
+        for (var position = 0; active.Count < ChartDefaults.AutomaticTraces && topics.Any(keys => position < keys.Length); position++)
+            foreach (var keys in topics.Where(keys => position < keys.Length).TakeWhile(_ => active.Count < ChartDefaults.AutomaticTraces))
+                active.Add(keys[position]);
         return candidates.Where(metric => active.Contains(metric.Key)).ToArray();
     }
 

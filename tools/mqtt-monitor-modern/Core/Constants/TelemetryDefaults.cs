@@ -6,13 +6,16 @@ public static class TelemetryDefaults
     public const int MaximumHeaders = 256;
     public const int MaximumHeaderBytes = 1024 * 1024;
     public const int MaximumEvents = 150;
+    // Bufferbloat counters: one per topic, record and direction.
+    public const int MaximumBloatTracks = 64;
     public const int EventCharacters = 2000;
     public const long MaximumUnixSeconds = 32503680000;
     public const double MillisecondsPerSecond = 1000;
     public const double ScientificLarge = 1e7;
     public const double ScientificSmall = .001;
     public const string ScientificFormat = "G4";
-    public const string NumericFormat = "N2";
+    // No thousands separators, so formatted statistics match the raw Latest values.
+    public const string NumericFormat = "F2";
     public const string AgeFormat = "F1";
     public const string ClockFormat = "HH:mm:ss";
     public const string SchemaResource = "CakeAdaptMonitor.schemas.json";
@@ -27,4 +30,5 @@ public static class HistoryDefaults
     public const int RecentStepSeconds = 2;
     public const int OlderStepSeconds = 10;
     public const double ClockResetSeconds = 5;
+    public const int BloatStepSeconds = 2;
 }

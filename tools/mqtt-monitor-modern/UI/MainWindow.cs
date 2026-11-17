@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Threading;
 using static CakeAdaptMonitor.UiControls;
@@ -26,7 +28,16 @@ public sealed partial class MainWindow : Window
     private readonly TextBlock subtitle = Label(UiText.InitialSubtitle, UiTypography.Caption, UiTheme.Muted);
     private readonly TextBlock notice = Label("", UiTypography.Caption, UiTheme.Warning);
     private readonly Button connect = ActionButton(UiText.ConnectBroker);
+    private readonly Button startOver = ActionButton(UiText.StartOver);
+    private readonly ToggleButton pause = new() { Content = UiText.Pause, Padding = UiLayout.NavigationMargin };
+    private readonly TimelineStrip strip = new() { IsVisible = false };
+    // The program sets this; tests and previews build the window without the start choice.
+    public bool AskModeOnOpen { get; init; }
+    // A capture file given on the command line ("Open with", drag onto the exe): open it in history mode.
+    public string? StartFile { get; init; }
     private readonly DashboardPage dashboard = new();
+    // The dashboard scrolls when the window is too short for its cards and charts.
+    private readonly ScrollViewer dashboardScroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
     private readonly MetricsPage metricsPage = new() { IsVisible = false };
     private readonly EventsPage eventsPage = new() { IsVisible = false };
     private readonly DispatcherTimer timer = new() { Interval = UiLayout.RefreshInterval };
@@ -60,17 +71,43 @@ public sealed partial class MainWindow : Window
         BuildLayout();
         timer.Tick += (_, _) =>
         {
+            if (history != null)
+                return;
             store.PublishBatch();
             Refresh();
         };
         timer.Start();
         Closed += (_, _) => timer.Stop();
+        Opened += async (_, _) =>
+        {
+            FitToScreen();
+            if (AskModeOnOpen && StartFile != null && await OpenHistoryAsync([StartFile]))
+                return;
+            if (AskModeOnOpen)
+                await ChooseModeAsync();
+        };
+        strip.RangeChanged += OnRangeChanged;
+        startOver.Click += async (_, _) => await StartOverAsync();
+        DarkTitleBar.Apply(this);
         AttachConnectionLifecycle();
     }
 
+    // Open maximized when the default size would not fit the screen's working area,
+    // so no header control (such as Connect broker) starts off-screen.
+    private void FitToScreen()
+    {
+        if (Screens.ScreenFromWindow(this) is not { } screen)
+            return;
+        if (ShouldMaximize(screen.WorkingArea.ToRect(screen.Scaling).Size))
+            WindowState = WindowState.Maximized;
+    }
+
+    public static bool ShouldMaximize(Size workingArea) => workingArea.Width < UiLayout.WindowWidth ||
+        workingArea.Height < UiLayout.WindowHeight + UiLayout.WindowFrameAllowance;
+
     private void Navigate(int index)
     {
-        dashboard.IsVisible = index == 0;
+        dashboardScroll.IsVisible = index == 0;
         metricsPage.IsVisible = index == 1;
         eventsPage.IsVisible = index == 2;
         title.Text = index switch
@@ -89,12 +126,18 @@ public sealed partial class MainWindow : Window
 
     public void Refresh(bool forceCharts = false)
     {
+        if (history != null)
+        {
+            RefreshHistory(history);
+            return;
+        }
         var snapshot = store.Snapshot(WindowSeconds);
         UpdateSources(snapshot);
         var topic = source.SelectedItem as string ?? ChartDefaults.AllSources;
         var visible = snapshot.Where(metric => topic == ChartDefaults.AllSources || metric.Topic == topic).ToArray();
         metricsPage.Update(visible);
-        dashboard.Update(visible, selectedMetric, WindowSeconds, topic, !chartsPaused || forceCharts);
+        var bloat = store.Bufferbloat(WindowSeconds).Where(view => topic == ChartDefaults.AllSources || view.Topic == topic).ToArray();
+        dashboard.Update(visible, selectedMetric, WindowSeconds, topic, !chartsPaused || forceCharts, bloat);
         eventsPage.Update(store.Events(), topic);
         UpdateConnectionStatus(snapshot.Length);
     }
