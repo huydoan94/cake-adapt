@@ -51,10 +51,14 @@ keep one-minute detail. Range statistics are read from 10 s, 1 min and 10 min
 summaries (exact at the edges), and chart points are read only for the traces
 drawn, so moving the range stays quick on a full day.
 
+Text fields (such as load conditions) are kept to the minute: the table shows
+the last text of the minute the range ends in.
+
 Measured on real captures (2026-10-31, one router per file, about 3.2-3.7
-million records and 950-1,300 series a day): loading takes 47-55 s and holds
-about 170 MB of history (275 MB for the whole program on the Windows 10 test
-VM); a redraw for a 5-minute, 6-hour or 24-hour range takes under 10 ms.
+million records and 950-1,300 series a day): loading takes 30-35 s and holds
+about 110-120 MB of history; a redraw for a 5-minute, 6-hour or 24-hour range
+takes about 10 ms or less. While dragging, the strip follows the pointer and the
+pages redraw once per UI cycle.
 
 ## Dashboard
 

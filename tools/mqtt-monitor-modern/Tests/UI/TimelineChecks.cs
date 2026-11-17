@@ -55,5 +55,25 @@ static partial class Tests
         Check(changed is { } widened && widened.Start < 10 * hour + shift - 1 && Math.Abs(widened.End - (12 * hour + shift)) < 1,
             "dragging the start handle moves only the start");
         window.Close();
+
+        // At the one-minute minimum over a day both handles sit on one pixel: the drag
+        // direction decides which edge moves.
+        var tight = new TimelineStrip { DataStart = 0, DataEnd = day, RangeStart = 12 * hour, RangeEnd = 12 * hour + 60 };
+        var tightWindow = new Window { Width = 1000, Height = 120, Content = tight };
+        tightWindow.Show();
+        Pump();
+        var edge = tight.XAt(12 * hour);
+        tightWindow.MouseDown(new Point(edge, y), MouseButton.Left);
+        tightWindow.MouseMove(new Point(edge + 40, y), RawInputModifiers.LeftMouseButton);
+        tightWindow.MouseUp(new Point(edge + 40, y), MouseButton.Left);
+        Pump();
+        Check(tight.RangeStart == 12 * hour && tight.RangeEnd > 12 * hour + hour, "dragging right from overlapping handles moves the end");
+        var startEdge = tight.XAt(tight.RangeStart);
+        tightWindow.MouseDown(new Point(startEdge, y), MouseButton.Left);
+        tightWindow.MouseMove(new Point(startEdge - 40, y), RawInputModifiers.LeftMouseButton);
+        tightWindow.MouseUp(new Point(startEdge - 40, y), MouseButton.Left);
+        Pump();
+        Check(tight.RangeStart < 12 * hour, "dragging left from the start handle moves the start");
+        tightWindow.Close();
     }
 }

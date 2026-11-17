@@ -1,5 +1,6 @@
 using System.Globalization;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 
 namespace CakeAdaptMonitor;
 
@@ -59,9 +60,11 @@ public sealed partial class MainWindow
     public void EnterHistory(HistoryStore store, IReadOnlyList<string> names)
     {
         history = store;
+        // A capture shorter than the minimum range (a single moment) still gets one minute.
+        var dataStart = Math.Min(store.Start, store.End - HistoryModeDefaults.MinimumRangeSeconds);
         rangeEnd = store.End;
-        rangeStart = Math.Max(store.Start, store.End - HistoryModeDefaults.InitialRangeSeconds);
-        strip.DataStart = store.Start;
+        rangeStart = Math.Max(dataStart, store.End - HistoryModeDefaults.InitialRangeSeconds);
+        strip.DataStart = dataStart;
         strip.DataEnd = store.End;
         strip.RangeStart = rangeStart;
         strip.RangeEnd = rangeEnd;
@@ -98,7 +101,24 @@ public sealed partial class MainWindow
         connect.IsVisible = !historyMode;
     }
 
-    private void OnRangeChanged(double start, double end) => SetHistoryRange(start, end);
+    // Dragging raises many range changes per frame: move the strip at once, but redraw
+    // the pages at most once per UI cycle.
+    private bool redrawPending;
+
+    private void OnRangeChanged(double start, double end)
+    {
+        rangeStart = start;
+        rangeEnd = end;
+        if (redrawPending)
+            return;
+        redrawPending = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            redrawPending = false;
+            if (history != null)
+                Refresh(true);
+        }, DispatcherPriority.Background);
+    }
 
     public void SetHistoryRange(double start, double end)
     {

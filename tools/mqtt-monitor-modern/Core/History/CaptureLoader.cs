@@ -28,7 +28,8 @@ public static class CaptureLoader
         var clock = Stopwatch.StartNew();
         for (var index = 0; index < files.Length; index++)
         {
-            using var file = File.OpenRead(files[index]);
+            // Share with writers and deleters: the recorder may still be appending to today's file.
+            using var file = new FileStream(files[index], FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
             using Stream content = files[index].EndsWith(CaptureFormat.GzipExtension, StringComparison.OrdinalIgnoreCase)
                 ? new GZipStream(file, CompressionMode.Decompress) : file;
             using var reader = new StreamReader(content);
@@ -57,6 +58,8 @@ public static class CaptureLoader
         }
         store.Seal();
         progress?.Report(new LoadProgress(files.Length, files.Length, store.Records, store.BadLines, 1));
+        // A Cancel that arrived while sealing or with the final report still cancels.
+        token.ThrowIfCancellationRequested();
         return store;
     }
 
