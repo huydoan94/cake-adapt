@@ -34,6 +34,17 @@ static partial class Tests
         Check(events.Text?.Contains("line load changed") != true, "Events leaves out events outside the range");
         window.Close();
 
+        var single = new HistoryStore();
+        single.Accept("one", $"LOAD; date; {start:R}; 100; 1000; 500; 100000; 20000", start);
+        single.Seal();
+        var lone = new MainWindow { Width = 1440, Height = 920 };
+        lone.Show();
+        lone.EnterHistory(single, ["one.jsonl"]);
+        Pump();
+        Check(lone.GetVisualDescendants().OfType<TrendChart>().First().Seconds == HistoryModeDefaults.MinimumRangeSeconds,
+            "a capture with a single moment still shows a one-minute range");
+        lone.Close();
+
         MetricView Reflector(string name, long readings) => new(new MetricKey("a", "DATA", name, MetricNames.DownloadDelay), "1", 100,
             [new Sample(1, 1, 1)]) { Stats = new RangeStats(1, 1, 1, 1, readings, 1, readings == 5 ? 900 : 100) };
         var candidates = Enumerable.Range(0, 8).Select(i => Reflector("r" + i, i == 7 ? 5 : 100 + i)).ToArray();

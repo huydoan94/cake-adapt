@@ -38,6 +38,14 @@ static partial class Tests
         mixed.Seal();
         var keys = mixed.Snapshot(mixed.Start, mixed.End).Select(v => v.Key).ToArray();
         Check(keys.Length == keys.Distinct().Count() && keys.Length == 1, "a field with number and text readings appears once in a history snapshot");
+        var texts = new HistoryStore();
+        texts.Accept("t", "X_HEADER; LOG_TIMESTAMP; STATE", 1_800_000_000);
+        texts.Accept("t", "X; 1800000000; idle", 1_800_000_000);
+        texts.Accept("t", "X; 1800000130; busy", 1_800_000_130);
+        texts.Seal();
+        Check(texts.Snapshot(1_800_000_000, 1_800_000_065).Single().Latest == "idle" &&
+              texts.Snapshot(1_800_000_000, 1_800_000_140).Single().Latest == "busy",
+            "text fields show their value as of the range end, to the minute");
         var skewed = new HistoryStore();
         skewed.Accept("s", "X_HEADER; LOG_TIMESTAMP; VALUE", 1_800_000_000);
         skewed.Accept("s", "X; 1799996400; 5", 1_800_000_000);
