@@ -6,7 +6,10 @@ public sealed class HistoryStore
 {
     private readonly RecordDecoder decoder = new();
     private readonly Dictionary<MetricKey, BucketSeries> series = new();
-    private readonly Dictionary<MetricKey, (string Text, double Time)> texts = new();
+    // Text fields keep at most one entry per minute (the last text in that minute), like
+    // the other non-chart fields, sorted by time after Seal. Some text fields are unique
+    // per record (DATA's bracketed ICMP_TIMESTAMP), so nothing finer is kept.
+    private readonly Dictionary<MetricKey, List<(double Time, string Text)>> texts = new();
     private readonly BloatEvents bloat = new(double.PositiveInfinity, HistoryModeDefaults.DetailedStepSeconds);
     private readonly List<HistoryEvent> events = [];
     public double Start { get; private set; } = double.PositiveInfinity;
@@ -35,13 +38,24 @@ public sealed class HistoryStore
                         ? HistoryModeDefaults.DetailedStepSeconds : HistoryModeDefaults.CoarseStepSeconds);
                 data.Add(time, number);
             }
-            else if (!texts.TryGetValue(metric.Key, out var text) || time >= text.Time)
-                texts[metric.Key] = (metric.Text, time);
+            else
+            {
+                if (!texts.TryGetValue(metric.Key, out var changes))
+                    texts[metric.Key] = changes = [];
+                var shared = metric.Text;
+                var minute = Math.Floor(time / HistoryModeDefaults.CoarseStepSeconds);
+                if (changes.Count > 0 && Math.Floor(changes[^1].Time / HistoryModeDefaults.CoarseStepSeconds) == minute)
+                {
+                    if (time >= changes[^1].Time)
+                        changes[^1] = (time, shared);
+                }
+                else if (changes.Count == 0 || changes[^1].Text != shared)
+                    changes.Add((time, shared));
+            }
             Start = Math.Min(Start, time);
             End = Math.Max(End, time);
         }
-        var kind = payload.Split(ProtocolNames.CellSeparator, 2)[0].Trim();
-        if (decoded == 0 && !kind.EndsWith(ProtocolNames.HeaderSuffix) && double.IsFinite(tst))
+        if (decoded == 0 && double.IsFinite(tst) && !RecordKind(payload).EndsWith(ProtocolNames.HeaderSuffix))
         {
             events.Add(new HistoryEvent(tst, topic, payload));
             Start = Math.Min(Start, tst);
@@ -49,11 +63,19 @@ public sealed class HistoryStore
         }
     }
 
+    private static string RecordKind(string payload)
+    {
+        var separator = payload.IndexOf(ProtocolNames.CellSeparator);
+        return (separator < 0 ? payload : payload[..separator]).Trim();
+    }
+
     public void Seal()
     {
         foreach (var data in series.Values)
             data.Seal();
         events.Sort((a, b) => a.Time.CompareTo(b.Time));
+        foreach (var changes in texts.Values)
+            changes.Sort((a, b) => a.Time.CompareTo(b.Time));
         Topics = series.Keys.Select(key => key.Topic).Concat(texts.Keys.Select(key => key.Topic))
             .Distinct().Order(StringComparer.Ordinal).ToArray();
     }
@@ -77,9 +99,15 @@ public sealed class HistoryStore
         // A field can be a number in some readings and text in others ("Unavailable"):
         // show its numbers when the range has any, otherwise its latest text.
         var numeric = views.Select(view => view.Key).ToHashSet();
-        foreach (var (key, text) in texts)
-            if (text.Time <= end && !numeric.Contains(key))
-                views.Add(new MetricView(key, text.Text, text.Time, []));
+        foreach (var (key, changes) in texts)
+        {
+            if (numeric.Contains(key))
+                continue;
+            // The text as of the range end: the last change at or before it.
+            var index = changes.FindLastIndex(change => change.Time <= end);
+            if (index >= 0)
+                views.Add(new MetricView(key, changes[index].Text, changes[index].Time, []));
+        }
         return views.ToArray();
     }
 

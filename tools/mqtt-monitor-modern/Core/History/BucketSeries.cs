@@ -3,7 +3,7 @@ namespace CakeAdaptMonitor;
 public sealed record RangeStats(double Min, double Mean, double Max, double MaxTime, long Count, double Last, double LastTime);
 
 // One series of readings in fixed time buckets, stored as parallel arrays rather
-// than objects: about 24 bytes per occupied bucket. After Seal, coarser levels
+// than objects: 28 bytes per occupied bucket. After Seal, coarser levels
 // (HistoryModeDefaults.LevelSteps) are built so wide ranges read few buckets.
 public sealed class BucketSeries
 {
@@ -53,6 +53,13 @@ public sealed class BucketSeries
                     high = middle;
             }
             return low;
+        }
+
+        // Drop spare capacity once no more buckets will be added.
+        public void Trim()
+        {
+            Array.Resize(ref Keys, Count); Array.Resize(ref Min, Count); Array.Resize(ref Max, Count);
+            Array.Resize(ref Sum, Count); Array.Resize(ref Readings, Count); Array.Resize(ref Last, Count);
         }
 
         public int Find(int key)
@@ -140,6 +147,8 @@ public sealed class BucketSeries
             }
             levels.Add(level);
         }
+        foreach (var level in levels)
+            level.Trim();
     }
 
     // Coarsest level that still gives at least one bucket per column; its buckets

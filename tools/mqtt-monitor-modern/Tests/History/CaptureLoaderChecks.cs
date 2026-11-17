@@ -2,6 +2,16 @@ using System.IO.Compression;
 using System.Text;
 using CakeAdaptMonitor;
 
+// Cancels the load from the final progress report, as a Cancel click landing at the very end would.
+sealed class CancelAtEnd(CancellationTokenSource source) : IProgress<LoadProgress>
+{
+    public void Report(LoadProgress value)
+    {
+        if (value.Fraction >= 1)
+            source.Cancel();
+    }
+}
+
 static partial class Tests
 {
     private static string CaptureLine(DateTimeOffset at, string topic, string payload) =>
@@ -55,6 +65,11 @@ static partial class Tests
             Check(survived.Records == 3 && survived.BadLines == 5, "lines that are JSON but not capture records are counted bad, not fatal");
 
 
+            using var late = new CancellationTokenSource();
+            var lateCancel = false;
+            try { await CaptureLoader.LoadAsync([plain], new CancelAtEnd(late), late.Token); }
+            catch (OperationCanceledException) { lateCancel = true; }
+            Check(lateCancel, "a cancel that arrives as the load finishes still cancels it");
             var cancelled = false;
             try { await CaptureLoader.LoadAsync([plain], null, new CancellationToken(true)); }
             catch (OperationCanceledException) { cancelled = true; }

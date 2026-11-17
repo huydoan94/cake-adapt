@@ -18,6 +18,8 @@ public sealed class TimelineStrip : Control
     public BloatView[] Bloat { get; set; } = [];
     public event Action<double, double>? RangeChanged;
     private TimelineHit dragging;
+    // Both handles under the pointer (a very short range): the first move picks the edge.
+    private bool ambiguous;
     private double dragX, dragStart, dragEnd;
 
     public double PlotWidth => Math.Max(1, Bounds.Width - 2 * UiLayout.StripPadding);
@@ -50,6 +52,11 @@ public sealed class TimelineStrip : Control
                 return;
             }
             var delta = (e.GetPosition(this).X - dragX) / PlotWidth * Span;
+            if (ambiguous && delta != 0)
+            {
+                dragging = delta > 0 ? TimelineHit.End : TimelineHit.Start;
+                ambiguous = false;
+            }
             (RangeStart, RangeEnd) = TimelineDrag.Apply(dragging, dragStart, dragEnd, delta, DataStart, DataEnd, HistoryModeDefaults.MinimumRangeSeconds);
             InvalidateVisual();
             RangeChanged?.Invoke(RangeStart, RangeEnd);
@@ -65,10 +72,10 @@ public sealed class TimelineStrip : Control
     private TimelineHit Hit(double x)
     {
         double start = XAt(RangeStart), end = XAt(RangeEnd), reach = UiLayout.HandleHitWidth / 2;
-        if (Math.Abs(x - start) <= reach)
-            return TimelineHit.Start;
-        if (Math.Abs(x - end) <= reach)
-            return TimelineHit.End;
+        double toStart = Math.Abs(x - start), toEnd = Math.Abs(x - end);
+        ambiguous = toStart <= reach && toEnd <= reach && Math.Abs(toStart - toEnd) < 1;
+        if (toStart <= reach || toEnd <= reach)
+            return toStart <= toEnd ? TimelineHit.Start : TimelineHit.End;
         return x > start && x < end ? TimelineHit.Range : TimelineHit.None;
     }
 

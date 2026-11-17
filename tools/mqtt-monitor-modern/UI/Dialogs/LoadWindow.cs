@@ -45,7 +45,9 @@ public sealed class LoadWindow : Window
         });
         try
         {
-            return await CaptureLoader.LoadAsync(paths, progress, cancel.Token);
+            var loaded = await CaptureLoader.LoadAsync(paths, progress, cancel.Token);
+            // Cancel pressed after the load finished but before this resumed: still no session.
+            return cancel.IsCancellationRequested ? null : loaded;
         }
         catch (OperationCanceledException)
         {
