@@ -20,6 +20,10 @@ static partial class Tests
         for (var i = 0; i <= 72000; i++)
             history.Add(new Sample(i / 20.0, i / 20.0, i % 50));
         Check(history.BucketCount <= 610 && history.Read(3600, 3600).Length <= 3050, "high-rate history has bounded buckets and render points");
+        var hour = history.Read(3600, 3600);
+        Check(new[] { 1.0, 2, 7.5, 10, 299, 300, 600, 601, 1234.5, 3599, 3600 }.All(window =>
+                history.Read(window, 3600).SequenceEqual(hour.Where(p => p.ReceivedTime >= 3600 - window))),
+            "windowed reads skip only buckets that end before the window");
         Check(history.Read(3600, 8000).Length == 0, "expired history is removed by time");
     }
 

@@ -1,5 +1,7 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Data;
+using Avalonia.Styling;
 
 namespace CakeAdaptMonitor;
 
@@ -28,9 +30,20 @@ internal sealed class MetricsPage : Grid
     {
         RowDefinitions = new RowDefinitions(UiLayout.MetricsRows);
         Children.Add(search);
+        // The DataGrid theme sets cell and header font sizes itself; use the body size
+        // for cells here and for headers through their TextBlock content below.
+        var cells = new Style(selector => selector.OfType<DataGridCell>());
+        cells.Setters.Add(new Setter(TemplatedControl.FontSizeProperty, UiTypography.Body));
+        table.Styles.Add(cells);
         table.ItemsSource = rows.Items;
         foreach (var (heading, property, width) in MetricColumns.All)
-            table.Columns.Add(new DataGridTextColumn { Header = heading, Binding = new Binding(property), Width = new DataGridLength(width) });
+            table.Columns.Add(new DataGridTextColumn
+            {
+                Header = new TextBlock { Text = heading, FontSize = UiTypography.Body },
+                Binding = new Binding(property),
+                Width = width,
+                MinWidth = width.IsStar ? MetricColumns.RemainderMinimumWidth : 0
+            });
         table.DoubleTapped += (_, _) =>
         {
             if (table.SelectedItem is MetricRow metric)
@@ -39,6 +52,13 @@ internal sealed class MetricsPage : Grid
         Grid.SetRow(table, 1);
         Children.Add(table);
         search.TextChanged += (_, _) => Filter();
+    }
+
+    // History rows have no meaningful age.
+    public void SetHistoryMode(bool history)
+    {
+        foreach (var column in table.Columns.Where(column => (column.Header as TextBlock)?.Text == UiText.AgeHeading))
+            column.IsVisible = !history;
     }
 
     public void Update(MetricView[] snapshot)
@@ -51,7 +71,9 @@ internal sealed class MetricsPage : Grid
     {
         var text = search.Text ?? "";
         var filtered = metrics.Where(metric => string.Join(' ', metric.Name, metric.Topic, metric.Record, metric.Dimension)
-            .Contains(text, StringComparison.OrdinalIgnoreCase)).OrderBy(metric => metric.Name).ToArray();
+            .Contains(text, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(metric => metric.Name, StringComparer.Ordinal).ThenBy(metric => metric.Topic, StringComparer.Ordinal)
+            .ThenBy(metric => metric.Dimension, StringComparer.Ordinal).ToArray();
         rows.Update(filtered);
     }
 }

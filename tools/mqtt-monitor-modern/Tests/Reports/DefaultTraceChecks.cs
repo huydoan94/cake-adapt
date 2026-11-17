@@ -29,5 +29,14 @@ static partial class Tests
         var other = fresh.Select(metric => metric with { Key = metric.Key with { Topic = "b" } }).ToArray();
         Check(ReportCatalog.Defaults(other).All(metric => metric.Topic == "b"),
             "automatic defaults respect the supplied topic scope");
+        var mixed = fresh.Concat(other).ToArray();
+        var shared = ReportCatalog.Defaults(mixed);
+        Check(shared.Length == 6 && shared.Count(metric => metric.Topic == "a") == 3 && shared.Count(metric => metric.Topic == "b") == 3,
+            "with several sources every source gets a share of the automatic traces");
+        Check(shared.Where(metric => metric.Topic == "b").Select(metric => metric.Dimension).SequenceEqual(["new-3", "new-4", "new-5"]),
+            "each source's share keeps its most recently updated traces");
+        var three = mixed.Concat(fresh.Take(1).Select(metric => metric with { Key = metric.Key with { Topic = "c" } })).ToArray();
+        Check(ReportCatalog.Defaults(three).Select(metric => metric.Topic).Distinct().Count() == 3,
+            "a source with a single trace still appears beside larger sources");
     }
 }

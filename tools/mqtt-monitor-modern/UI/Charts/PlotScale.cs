@@ -15,7 +15,8 @@ internal sealed class PlotScale
     private readonly double low;
     private readonly double high;
 
-    public PlotScale(Rect bounds, double end, double seconds, Sample[] points)
+    // ceiling: an optional top for the scale; values above it are drawn at the top edge.
+    public PlotScale(Rect bounds, double end, double seconds, Sample[] points, double? ceiling = null)
     {
         Bounds = bounds;
         start = end - seconds;
@@ -25,10 +26,14 @@ internal sealed class PlotScale
             magnitude = 1;
         low = Math.Min(0, points.Min(point => point.Value!.Value / magnitude));
         high = Math.Max(0, points.Max(point => point.Value!.Value / magnitude));
+        if (ceiling is { } top && top > 0 && top / magnitude < high)
+            high = Math.Max(low, top / magnitude);
         if (high == low)
             high = low + 1;
     }
 
+    public double? X(double time) => time < start || time > start + seconds ? null : Bounds.Left + (time - start) / seconds * Bounds.Width;
+    public bool AboveTop(Sample sample) => sample.Value is { } value && value / magnitude > high;
     public double ValueAt(double fraction) => (low + (high - low) * fraction) * magnitude;
     public double TimeAt(double fraction) => start + seconds * fraction;
     public double TimeAt(Point point) => TimeAt((point.X - Bounds.Left) / Bounds.Width);
@@ -38,7 +43,7 @@ internal sealed class PlotScale
         if (!sample.Value.HasValue || sample.SourceTime < start)
             return null;
         var x = Bounds.Left + (sample.SourceTime - start) / seconds * Bounds.Width;
-        var y = Bounds.Bottom - (sample.Value.Value / magnitude - low) / (high - low) * Bounds.Height;
+        var y = Math.Max(Bounds.Top, Bounds.Bottom - (sample.Value.Value / magnitude - low) / (high - low) * Bounds.Height);
         return double.IsFinite(x) && double.IsFinite(y) ? new Point(x, y) : null;
     }
 }
