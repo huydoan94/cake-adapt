@@ -51,11 +51,12 @@ public sealed class TrendChart : Control
         var bounds = new Rect(ChartLayout.PlotLeft, ChartLayout.PlotTop,
             Math.Max(1, Bounds.Width - ChartLayout.HorizontalInset), Math.Max(1, Bounds.Height - ChartLayout.VerticalInset));
         var scale = new PlotScale(bounds, EndTime, Seconds, points, Ceiling);
+        var step = PlotEnvelope.Step(Seconds, bounds.Width);
         DrawAxes(context, scale);
         using (context.PushClip(bounds))
             foreach (var line in Lines)
-                DrawTrace(context, scale, line);
-        DrawClipped(context, scale);
+                DrawTrace(context, scale, line, step);
+        DrawClipped(context, scale, step);
         DrawMarks(context, scale);
         if (hover is { } mouse && bounds.Contains(mouse))
             DrawHover(context, scale, mouse);
@@ -102,18 +103,24 @@ public sealed class TrendChart : Control
         Text(context, clipped ? Unit + UiText.ClippedSuffix : Unit, ChartLayout.AxisLabelLeft, 0, UiTheme.AxisText);
     }
 
-    private static void DrawTrace(DrawingContext context, PlotScale scale, PlotLine line)
+    // step: the clock window, in seconds, whose readings form one column.
+    private static void DrawTrace(DrawingContext context, PlotScale scale, PlotLine line, double step)
     {
         // Intentionally join valid readings across gaps, as requested by the user.
-        var points = line.Points.Select(scale.Project).OfType<Point>().ToArray();
+        var readings = new List<(double Time, Point Point)>(line.Points.Length);
+        foreach (var sample in line.Points)
+            if (scale.Project(sample) is { } projected)
+                readings.Add((sample.SourceTime, projected));
         var brush = new SolidColorBrush(line.Color);
-        if (points.Length == 1)
+        if (readings.Count == 1)
         {
-            context.DrawEllipse(brush, null, points[0], ChartLayout.PointRadius, ChartLayout.PointRadius);
+            context.DrawEllipse(brush, null, readings[0].Point, ChartLayout.PointRadius, ChartLayout.PointRadius);
             return;
         }
-        var columns = PlotEnvelope.Reduce(points, ChartLayout.EnvelopeColumnWidth);
-        if (PlotEnvelope.Dense(points.Length, columns.Length))
+        // Columns of one reading are that reading, so sparse traces keep their exact line.
+        var columns = PlotEnvelope.Reduce(readings, step);
+        var points = columns.Select(column => new Point(column.X, column.Mean)).ToArray();
+        if (columns.Any(column => column.Count > 1))
         {
             // Band from each column's lowest to highest reading keeps every spike visible.
             var band = new StreamGeometry();
@@ -127,7 +134,6 @@ public sealed class TrendChart : Control
                 path.EndFigure(true);
             }
             context.DrawGeometry(new SolidColorBrush(Color.FromArgb(ChartLayout.EnvelopeAlpha, line.Color.R, line.Color.G, line.Color.B)), null, band);
-            points = columns.Select(column => new Point(column.X, column.Mean)).ToArray();
         }
         if (points.Length > 1)
             context.DrawGeometry(null, new Pen(brush, ChartLayout.TraceStroke), Polyline(points));
@@ -156,15 +162,17 @@ public sealed class TrendChart : Control
         }
     }
 
-    // A small marker at the top edge for each column holding a reading above a clipped scale.
-    private void DrawClipped(DrawingContext context, PlotScale scale)
+    // A small marker at the top edge for each clock window holding a reading above a clipped scale.
+    private void DrawClipped(DrawingContext context, PlotScale scale, double step)
     {
         var top = scale.Bounds.Top;
         foreach (var line in Lines)
         {
             var brush = new SolidColorBrush(line.Color);
-            var spikes = line.Points.Where(scale.AboveTop).Select(scale.Project).OfType<Point>()
-                .GroupBy(point => Math.Floor(point.X / ChartLayout.EnvelopeColumnWidth)).Select(column => column.First().X);
+            var spikes = line.Points.Where(scale.AboveTop)
+                .Select(sample => (Window: Math.Floor(sample.SourceTime / step), Point: scale.Project(sample)))
+                .Where(spike => spike.Point.HasValue)
+                .GroupBy(spike => spike.Window).Select(window => window.First().Point!.Value.X);
             foreach (var x in spikes)
             {
                 var marker = new StreamGeometry();

@@ -87,9 +87,12 @@ pages redraw once per UI cycle.
   per panel, report and topic, including a separate All sources view. Global
   fields use their LOAD/SUMMARY series when available instead of repeating
   the same field for each reflector. Closing the settings window cancels changes.
-- Dense traces (more readings than pixels) are drawn as a faint band from each
-  3-pixel column's lowest to highest reading with a line through the column means,
-  so spikes stay visible but the shape stays readable. Sparse traces keep exact lines.
+- Traces are averaged over fixed one-second windows on the clock (10:01:03 to
+  10:01:04, and so on): a faint band runs from each second's lowest to highest
+  reading, with a line through the second's mean, so spikes stay visible, the
+  shape stays readable, and the line does not change while the chart scrolls.
+  When a second is narrower than a pixel (wide windows), the window grows to the
+  next of 2, 5, 10, 15, 30 or 60 seconds. Sparse traces keep exact lines.
 - Latency: when the highest reading is more than three times the 99th
   percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
   get a marker at the top edge, the unit label says so, and hover shows the

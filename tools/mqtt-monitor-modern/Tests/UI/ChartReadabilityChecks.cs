@@ -7,13 +7,26 @@ static partial class Tests
 {
     private static void ChartReadabilityChecks()
     {
-        // Ten points over 9 px: three 3-px columns keep each column's extremes and mean.
-        var points = Enumerable.Range(0, 10).Select(i => new Point(i, i % 2 == 0 ? 10 : 50)).ToArray();
-        var columns = PlotEnvelope.Reduce(points, 3);
-        Check(columns.Length == 4 && columns.Take(3).All(c => c.Top == 10 && c.Bottom == 50) && columns[3].Count == 1 && columns.Sum(c => c.Count) == 10,
-            "envelope columns keep every point's highest and lowest position");
-        Check(PlotEnvelope.Dense(10, 4) && !PlotEnvelope.Dense(5, 4) && PlotEnvelope.Reduce([], 3).Length == 0,
-            "envelopes are used only for dense traces");
+        // Four readings per second for 3.5 s (exact binary times): each whole clock second
+        // is one column with its extremes and mean; the last, partial second holds two.
+        (double, Point)[] Readings(double first, double shift) => Enumerable.Range(0, 14)
+            .Select(i => (first + i * .25, new Point(shift + i, i % 3 == 0 ? 10 : 50))).ToArray();
+        var columns = PlotEnvelope.Reduce(Readings(100, 0), 1);
+        Check(columns.Length == 4 && columns.Take(3).All(c => c.Top == 10 && c.Bottom == 50 && c.Count == 4) &&
+              columns[3].Count == 2 && columns.Sum(c => c.Count) == 14,
+            "envelope columns keep every reading's highest and lowest position per clock second");
+        Check(columns[0].Mean == 30 && columns[1].Mean == 40, "an envelope column's mean averages its second's readings");
+        // Scrolling moves every reading left by the same amount; columns must not regroup.
+        var scrolled = PlotEnvelope.Reduce(Readings(100, -0.7), 1);
+        Check(columns.Zip(scrolled).All(pair => pair.First.Count == pair.Second.Count && pair.First.Mean == pair.Second.Mean &&
+                                               Math.Abs(pair.First.X - pair.Second.X - 0.7) < 1e-9),
+            "a scrolling window keeps each reading in the same one-second column");
+        var late = PlotEnvelope.Reduce(Readings(100.5, 0), 1);
+        Check(late.Select(c => c.Count).SequenceEqual([2, 4, 4, 4]), "columns follow clock seconds, not the first visible reading");
+        Check(PlotEnvelope.Reduce([], 1).Length == 0, "an empty trace has no columns");
+        Check(PlotEnvelope.Step(300, 440) == 1 && PlotEnvelope.Step(60, 440) == 1 && PlotEnvelope.Step(900, 440) == 5 &&
+              PlotEnvelope.Step(3600, 440) == 10,
+            "charts average over one second unless a second is narrower than a pixel");
 
         var now = Telemetry.Now;
         TrendChart Latency(double spike)
