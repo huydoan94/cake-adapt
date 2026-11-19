@@ -18,6 +18,35 @@ static partial class Tests
         var narrow = hour.Read(100, 160, 600);
         Check(narrow.Length > 0 && narrow.All(s => s.SourceTime >= 100 && s.SourceTime <= 160) && narrow.Min(s => s.Value) == 0,
             "a narrow read uses one-second buckets inside the range");
+        // Panning by part of a group must not regroup the buckets the two ranges share.
+        static (double, double?)[] Inside(Sample[] read, double from, double to) =>
+            read.Where(s => s.SourceTime >= from && s.SourceTime < to).Select(s => (s.SourceTime, s.Value)).ToArray();
+        var before = hour.Read(1000, 1600, 100);
+        var panned = hour.Read(1003, 1603, 100);
+        Check(Inside(before, 1100, 1500).SequenceEqual(Inside(panned, 1100, 1500)),
+            "panning a history range keeps its groups on fixed times");
+
+        // End to end at the dashboard's sizes: a 5-hour range of noisy one-second
+        // traffic, read with the history column count and grouped as the chart draws it.
+        var traffic = new BucketSeries(1);
+        var noise = new Random(7);
+        for (var t = 0; t < 36000; t++)
+            traffic.Add(t, noise.Next(0, 95000));
+        traffic.Seal();
+        const double length = 18000, plotWidth = 550;
+        var step = PlotEnvelope.Step(length, plotWidth);
+        Dictionary<long, (double Mean, int Count)> Drawn(double start)
+        {
+            var read = traffic.Read(start, start + length, 1200);
+            var readings = read.Select(s => (s.SourceTime, new Avalonia.Point((s.SourceTime - start) / length * plotWidth, s.Value!.Value))).ToArray();
+            return PlotEnvelope.Reduce(readings, step).Zip(readings.GroupBy(r => (long)Math.Floor(r.SourceTime / step)).OrderBy(g => g.Key))
+                .ToDictionary(pair => pair.Second.Key, pair => (pair.First.Mean, pair.First.Count));
+        }
+        var first = Drawn(3600);
+        var moved = Drawn(3600 + 37.3);
+        var shared = first.Keys.Intersect(moved.Keys).Where(key => key * step >= 3600 + 37.3 + step && (key + 1) * step <= 3600 + length - step).ToArray();
+        Check(shared.Length > 250 && shared.All(key => first[key] == moved[key]),
+            "panning a 5-hour history range keeps every drawn column's mean");
 
         var coarse = new BucketSeries(60);
         for (var t = 0; t < 120; t++)
