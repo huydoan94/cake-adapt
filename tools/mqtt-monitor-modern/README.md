@@ -150,16 +150,24 @@ accurate clock. Expanded charts are labeled snapshots.
 
 ## Build and checks
 
-With a .NET 10 SDK:
+With a .NET 10 SDK, the build and checks run anywhere, Linux included:
 
 ```sh
 dotnet build CakeAdaptMonitor.csproj -c Release
 dotnet run --project Tests/Tests.csproj -c Release -- preview.png
-dotnet publish CakeAdaptMonitor.csproj -c Release -r win-x64 --self-contained true \
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/win-x64
 ```
 
-On Windows, `build-windows.cmd` publishes the executable. Restore obtains
+The Windows executable is built on Windows only, never cross-published from
+WSL or Linux: `build-windows.cmd` runs
+
+```bat
+dotnet publish CakeAdaptMonitor.csproj -c Release -r win-x64 --self-contained true ^
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist\win-x64
+```
+
+and pauses at the end, so a remote build runs that command directly. Agents
+build on the Windows 10 test VM, in a folder holding a copy of this folder's
+tracked files, each checked by hash against the repository. Restore obtains
 Avalonia, MQTTnet and runtime packages from NuGet. Framework references:
 [Avalonia themes](https://docs.avaloniaui.net/docs/styling/theme-variants),
 [MQTTnet client samples](https://github.com/dotnet/MQTTnet/tree/master/Samples/Client).
@@ -173,10 +181,10 @@ Tests create temporary test certificates and preview images; the normal viewer
 does not save telemetry or settings. Preview data is explicitly labeled SAMPLE
 DATA and is accessible only from the test program.
 
-The Windows executable is cross-published from WSL. Native headless UI and
-protocol checks run on Linux; Windows execution has been checked on a Windows 10
-test VM against a local replay of saved captures; the user's broker has not
-been tested here.
+The Windows executable is built on the Windows 10 test VM. Native headless UI
+and protocol checks run on Linux; Windows execution has been checked on that VM
+against a local replay of saved captures; the user's broker has not been tested
+here.
 
 ## GitHub Actions
 
@@ -184,8 +192,9 @@ The **Build OpenWrt packages and Windows dashboard** workflow tests and builds
 this viewer on dashboard changes pushed to main, version-tag pushes, and manual
 runs. Dashboard-only changes do not require a router package version bump.
 The job runs the unit, loopback MQTT/TLS and headless UI checks on Linux, then
-cross-publishes the same self-contained Windows x64 executable used locally.
+cross-publishes a self-contained Windows x64 executable on its Linux runner.
 This validates the build; it does not execute the application on Windows.
+Executables for use outside CI are built on the Windows VM, as described above.
 
 Download **dashboard-windows-x64** from the run's Artifacts section. It contains
 `CakeAdaptMonitor-Windows-x64.zip` and its `.sha256` checksum. Extract the inner
