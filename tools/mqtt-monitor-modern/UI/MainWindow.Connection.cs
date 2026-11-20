@@ -32,6 +32,7 @@ public sealed partial class MainWindow
             selectedMetric = null;
             subtitle.Text = string.Format(UiText.SubtitleFormat, settings.Topic);
             notice.Text = "";
+            sessionNotice = "";
             connect.Content = UiText.Disconnect;
         }
         catch (Exception e) when (e is IOException or ArgumentException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)

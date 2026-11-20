@@ -87,9 +87,12 @@ pages redraw once per UI cycle.
   per panel, report and topic, including a separate All sources view. Global
   fields use their LOAD/SUMMARY series when available instead of repeating
   the same field for each reflector. Closing the settings window cancels changes.
-- Dense traces (more readings than pixels) are drawn as a faint band from each
-  3-pixel column's lowest to highest reading with a line through the column means,
-  so spikes stay visible but the shape stays readable. Sparse traces keep exact lines.
+- Traces are averaged over fixed one-second windows on the clock (10:01:03 to
+  10:01:04, and so on): a faint band runs from each second's lowest to highest
+  reading, with a line through the second's mean, so spikes stay visible, the
+  shape stays readable, and the line does not change while the chart scrolls.
+  When a second is narrower than a pixel (wide windows), the window grows to the
+  next of 2, 5, 10, 15, 30 or 60 seconds. Sparse traces keep exact lines.
 - Latency: when the highest reading is more than three times the 99th
   percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
   get a marker at the top edge, the unit label says so, and hover shows the
@@ -147,16 +150,24 @@ accurate clock. Expanded charts are labeled snapshots.
 
 ## Build and checks
 
-With a .NET 10 SDK:
+With a .NET 10 SDK, the build and checks run anywhere, Linux included:
 
 ```sh
 dotnet build CakeAdaptMonitor.csproj -c Release
 dotnet run --project Tests/Tests.csproj -c Release -- preview.png
-dotnet publish CakeAdaptMonitor.csproj -c Release -r win-x64 --self-contained true \
-  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/win-x64
 ```
 
-On Windows, `build-windows.cmd` publishes the executable. Restore obtains
+The Windows executable is built on Windows only, never cross-published from
+WSL or Linux: `build-windows.cmd` runs
+
+```bat
+dotnet publish CakeAdaptMonitor.csproj -c Release -r win-x64 --self-contained true ^
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist\win-x64
+```
+
+and pauses at the end, so a remote build runs that command directly. Agents
+build on the Windows 10 test VM, in a folder holding a copy of this folder's
+tracked files, each checked by hash against the repository. Restore obtains
 Avalonia, MQTTnet and runtime packages from NuGet. Framework references:
 [Avalonia themes](https://docs.avaloniaui.net/docs/styling/theme-variants),
 [MQTTnet client samples](https://github.com/dotnet/MQTTnet/tree/master/Samples/Client).
@@ -170,10 +181,10 @@ Tests create temporary test certificates and preview images; the normal viewer
 does not save telemetry or settings. Preview data is explicitly labeled SAMPLE
 DATA and is accessible only from the test program.
 
-The Windows executable is cross-published from WSL. Native headless UI and
-protocol checks run on Linux; Windows execution has been checked on a Windows 10
-test VM against a local replay of saved captures; the user's broker has not
-been tested here.
+The Windows executable is built on the Windows 10 test VM. Native headless UI
+and protocol checks run on Linux; Windows execution has been checked on that VM
+against a local replay of saved captures; the user's broker has not been tested
+here.
 
 ## GitHub Actions
 
@@ -181,8 +192,9 @@ The **Build OpenWrt packages and Windows dashboard** workflow tests and builds
 this viewer on dashboard changes pushed to main, version-tag pushes, and manual
 runs. Dashboard-only changes do not require a router package version bump.
 The job runs the unit, loopback MQTT/TLS and headless UI checks on Linux, then
-cross-publishes the same self-contained Windows x64 executable used locally.
+cross-publishes a self-contained Windows x64 executable on its Linux runner.
 This validates the build; it does not execute the application on Windows.
+Executables for use outside CI are built on the Windows VM, as described above.
 
 Download **dashboard-windows-x64** from the run's Artifacts section. It contains
 `CakeAdaptMonitor-Windows-x64.zip` and its `.sha256` checksum. Extract the inner

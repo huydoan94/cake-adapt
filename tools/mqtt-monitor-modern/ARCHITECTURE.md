@@ -97,5 +97,6 @@ history, batch, selection and scrolling checks remain part of that runner.
 Tests use loopback brokers and temporary certificates; they do not connect to
 a user's broker. UI checks render in Avalonia's Linux headless backend.
 
-A successful Windows cross-publish verifies compilation and packaging, not
-Windows execution. Dependencies and the two-project build boundary are unchanged.
+The Windows executable is built on the Windows 10 test VM, never cross-published
+from WSL (the CI job's Linux cross-publish only validates packaging). A
+successful build verifies compilation and packaging, not Windows execution. Dependencies and the two-project build boundary are unchanged.
