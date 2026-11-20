@@ -47,6 +47,7 @@ public sealed partial class MainWindow : Window
     private MetricStore store = new();
     private MetricKey? selectedMetric;
     private bool busy, closingAllowed, closeAttempted;
+    private string sessionNotice = "";
     private bool chartsPaused;
     private string[] topics = [ChartDefaults.AllSources];
     public double WindowSeconds => ChartDefaults.Window(timeRange.SelectedIndex);
@@ -161,8 +162,16 @@ public sealed partial class MainWindow : Window
         status.Foreground = session.Status == ConnectionStatus.Subscribed ? UiTheme.Connected : UiTheme.Muted;
         counts.Text = string.Format(UiText.CountsFormat, session.Received, session.Dropped, metricCount,
             store.SchemaErrors, store.EvictedSeries, store.EvictedHeaders) + UiText.HistoryFooter;
-        if (session.Error.Length > 0)
-            notice.Text = session.Error;
+        (notice.Text, sessionNotice) = SessionNotice(notice.Text ?? "", sessionNotice, session.Error);
+    }
+
+    // A session error shows until the session clears it (it does once subscribed again);
+    // clearing removes only the text that error put there, not a later notice.
+    public static (string Notice, string Shown) SessionNotice(string notice, string shown, string error)
+    {
+        if (error.Length > 0)
+            return (error, error);
+        return (shown.Length > 0 && notice == shown ? "" : notice, "");
     }
 
     public void Preview(MetricStore sample)

@@ -16,6 +16,16 @@ static partial class Tests
 
     private static void ModeChecks()
     {
+        var failed = MainWindow.SessionNotice("", "", "Error while connecting host 'x'.");
+        Check(failed == ("Error while connecting host 'x'.", "Error while connecting host 'x'."),
+            "a connection error shows in the notice");
+        Check(MainWindow.SessionNotice(failed.Notice, failed.Shown, "") == ("", ""),
+            "the connection error clears once the session reconnects");
+        Check(MainWindow.SessionNotice(UiText.StillClosing, failed.Shown, "") == (UiText.StillClosing, ""),
+            "clearing a connection error keeps a newer notice");
+        Check(MainWindow.SessionNotice(UiText.SampleNotice, "", "") == (UiText.SampleNotice, ""),
+            "no session error leaves other notices alone");
+
         var window = new MainWindow { Width = 1440, Height = 920 };
         window.Show();
         Pump();
