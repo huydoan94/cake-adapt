@@ -51,3 +51,15 @@ Use exact executable paths or `pidof` for process checks because
 `pgrep -af cake-adapt` can match the audit command itself. Do not kill an
 unrelated legacy process merely because it owns an `fping` child.
 
+
+## Windows 10 VM
+
+Every Windows build is done on the Windows 10 VM, never cross-built in WSL
+(user decision 2026-11-20); its address, build folder and the step that copies
+a new monitor executable to the user's share are in `HANDOFF.md`. Reach it with
+PowerShell 7 remoting over SSH (`New-PSSession -HostName … -KeyFilePath …`),
+never plain `ssh` running commands. Before building, copy the tracked files of
+the project being built and compare every file's SHA-256 with the local tree;
+build only when all match, and report the built executable's hash. Run the
+`dotnet publish` command from `build-windows.cmd` directly, since the script
+pauses at the end.
