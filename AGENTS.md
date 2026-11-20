@@ -216,6 +216,11 @@ VM after a test that kills it. (The 25.12 i386 VMs panicked about once per
   needed before a deployment. Its CPU is emulated, so it gives functional
   results only, never timings. Use it only for an explicitly requested arm64
   check; x86 remains the default. The user resets it.
+- **Windows 10 VM** (address in `HANDOFF.md`): every Windows build, such as
+  the MQTT monitor's executable, is done here, never cross-built in WSL (user
+  decision 2026-11-20). Copy the tracked files over and check them by hash
+  first; reach it with PowerShell 7 remoting
+  ([`docs/agents/vm-testing.md`](docs/agents/vm-testing.md)).
 
 During long VM runs, move each run's results to disk (for example under
 `/root`) as soon as it ends, so a panic loses only the run in progress, and

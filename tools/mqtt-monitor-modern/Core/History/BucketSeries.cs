@@ -183,12 +183,14 @@ public sealed class BucketSeries
             var bucketStart = origin + (double)level.Keys[i] * level.Step;
             if (bucketStart > end)
                 break;
-            var key = (long)Math.Floor((bucketStart - start) / width);
+            // Groups sit on fixed multiples of width, not on the range start, so panning
+            // keeps every bucket in the same group.
+            var key = (long)Math.Floor(bucketStart / width);
             if (key != group)
             {
                 Flush();
                 group = key;
-                groupStart = start + key * width;
+                groupStart = key * width;
                 min = level.Min[i];
                 max = level.Max[i];
             }
