@@ -49,6 +49,16 @@ static partial class Tests
         var spiky = Latency(260000);
         Check(spiky.Ceiling is > 2 and < 4, "a lone latency spike tops the scale just above the 99th percentile (ms)");
         Check(Latency(2700).Ceiling == null, "latency without outlying spikes keeps its full range");
+        var red = Avalonia.Media.Colors.Red;
+        var blue = Avalonia.Media.Colors.Blue;
+        var labels = ClipLabels.Merge([new(130, 51, red), new(100, 260, blue), new(110, 90, red), new(160, 75, blue)], 40);
+        Check(labels.Length == 2 && labels[0] == new ClipLabel(100, 260, blue) && labels[1] == new ClipLabel(160, 75, blue),
+            "nearby clipped spikes share one label with their highest value");
+        var chained = ClipLabels.Merge([new(0, 10, red), new(30, 20, red), new(60, 30, red), new(75, 5, red)], 40);
+        Check(chained.Length == 1 && chained[0].Value == 30,
+            "a peak label follows the highest spike, so labels stay a gap apart");
+        Check(ClipLabels.Merge([new(0, 10, red), new(40, 20, red)], 40).Length == 2 && ClipLabels.Merge([], 40).Length == 0,
+            "spikes a full gap apart keep their own labels");
         var throughput = new ChartPanel("Throughput");
         throughput.Update([], null, 300, "clip");
         Check(throughput.GetVisualDescendants().OfType<TrendChart>().All(c => c.Ceiling == null) &&

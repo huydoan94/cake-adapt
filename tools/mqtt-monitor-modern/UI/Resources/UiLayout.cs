@@ -14,7 +14,7 @@ public static class UiLayout
     public const string DashboardRows = "Auto,*,*";
     public const string DashboardColumns = "*,*";
     public const string MetricsRows = "Auto,*";
-    public const string ChartRows = "42,Auto,*";
+    public const string ChartRows = "42,Auto,*,Auto";
     public const string SettingsRows = "Auto,Auto,Auto,*,Auto,Auto";
     public const string SnapshotRows = "Auto,*";
     public static readonly Thickness ActionPadding = new(14, 9);
@@ -39,6 +39,7 @@ public static class UiLayout
     public static readonly Thickness SnapshotMargin = new(15);
     public static readonly Thickness SnapshotLegendMargin = new(16, 12, 10, 0);
     public static readonly Thickness ChartMargin = new(8, 0, 8, 5);
+    public static readonly Thickness ChartHintMargin = new(16, 0, 10, 6);
     public static readonly Thickness LegendItemMargin = new(0, 0, 12, 3);
     public static readonly Thickness SettingsPadding = new(24);
     public static readonly Thickness SettingsHeadingMargin = new(0, 0, 0, 8);

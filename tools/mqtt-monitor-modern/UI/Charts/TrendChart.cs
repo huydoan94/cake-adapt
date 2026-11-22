@@ -162,18 +162,22 @@ public sealed class TrendChart : Control
         }
     }
 
-    // A small marker at the top edge for each clock window holding a reading above a clipped scale.
+    // A small marker at the top edge for each clock window holding a reading above a clipped
+    // scale, and below the markers the highest value of each group of nearby spikes.
     private void DrawClipped(DrawingContext context, PlotScale scale, double step)
     {
         var top = scale.Bounds.Top;
+        var peaks = new List<ClipLabel>();
         foreach (var line in Lines)
         {
             var brush = new SolidColorBrush(line.Color);
             var spikes = line.Points.Where(scale.AboveTop)
-                .Select(sample => (Window: Math.Floor(sample.SourceTime / step), Point: scale.Project(sample)))
+                .Select(sample => (Window: Math.Floor(sample.SourceTime / step), Value: sample.Value!.Value, Point: scale.Project(sample)))
                 .Where(spike => spike.Point.HasValue)
-                .GroupBy(spike => spike.Window).Select(window => window.First().Point!.Value.X);
-            foreach (var x in spikes)
+                .GroupBy(spike => spike.Window).Select(window => window.MaxBy(spike => spike.Value))
+                .Select(spike => new ClipLabel(spike.Point!.Value.X, spike.Value, line.Color)).ToArray();
+            peaks.AddRange(spikes);
+            foreach (var x in spikes.Select(spike => spike.X))
             {
                 var marker = new StreamGeometry();
                 using (var path = marker.Open())
@@ -185,6 +189,21 @@ public sealed class TrendChart : Control
                 }
                 context.DrawGeometry(brush, null, marker);
             }
+        }
+        if (peaks.Count == 0)
+            return;
+        static TextLayout Label(ClipLabel peak) =>
+            new(Telemetry.Format(peak.Value), new Typeface(UiTheme.Font), UiTypography.Small, new SolidColorBrush(peak.Color));
+        var gap = peaks.Max(peak => Label(peak).Width) + 2 * ChartLayout.ClipLabelPadding + ChartLayout.ClipLabelSpacing;
+        var plot = scale.Bounds;
+        foreach (var peak in ClipLabels.Merge(peaks, gap))
+        {
+            var layout = Label(peak);
+            var width = layout.Width + 2 * ChartLayout.ClipLabelPadding;
+            var box = new Rect(Math.Clamp(peak.X - width / 2, plot.Left, Math.Max(plot.Left, plot.Right - width)),
+                top + ChartLayout.ClipMarkerSize + ChartLayout.ClipLabelTop, width, layout.Height);
+            context.DrawRectangle(UiTheme.TooltipBackground, null, box, ChartLayout.ClipLabelRadius, ChartLayout.ClipLabelRadius);
+            layout.Draw(context, new Point(box.X + ChartLayout.ClipLabelPadding, box.Y));
         }
     }
 

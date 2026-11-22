@@ -57,8 +57,9 @@ Manual refreshes do not publish a new batch.
   It receives data through `Update` and raises `RefreshRequested` when needed.
   Its containing window is used only to display dialogs/snapshots; there is no
   dependency on `MainWindow`. **PlotSeries** prepares labels and display units.
-  **PlotScale** converts measurements to coordinates. **TrendChart** only draws
-  axes, continuous traces and hover text. Expanded charts are frozen snapshots.
+  **PlotScale** converts measurements to coordinates. **ClipLabels** merges
+  nearby clipped spikes into peak labels. **TrendChart** only draws axes,
+  continuous traces, clip markers with their peak labels, and hover text. Expanded charts are frozen snapshots.
 - **MetricsPage** owns search and the table. **MetricRows** reconciles changes
   without replacing retained row objects or the collection; this preserves
   selection and both scroll axes. **MetricRow** exposes batch display values
@@ -77,7 +78,7 @@ Manual refreshes do not publish a new batch.
 | Card traffic peaks | `Core/Metrics/RatePeaks.cs` | Metrics/RatePeakChecks and UI/DashboardChecks |
 | History retention/downsampling | `Core/Metrics/MetricHistory.cs` | Metrics/HistoryChecks |
 | Report fields or trace preferences | `Core/Reports/ReportCatalog.cs`, `ChartSelections.cs` | Reports/SelectionChecks and UI/ChartSettingsChecks |
-| Chart names, units or drawing | `UI/Charts/PlotSeries.cs`, `PlotScale.cs`, `TrendChart.cs` | UI/ChartPanelChecks and ChartRenderingChecks |
+| Chart names, units or drawing | `UI/Charts/PlotSeries.cs`, `PlotScale.cs`, `ClipLabels.cs`, `TrendChart.cs` | UI/ChartPanelChecks, ChartRenderingChecks and ChartReadabilityChecks |
 | Table columns or row updates | `UI/Resources/MetricColumns.cs`, `UI/Metrics/` | UI/MetricTableChecks |
 | Colors, labels or spacing | `UI/Resources/` | Headless previews and relevant UI checks |
 | Page layout | `UI/Pages/` | Relevant UI checks |

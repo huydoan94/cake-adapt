@@ -81,7 +81,8 @@ pages redraw once per UI cycle.
   within its selected report, up to 24 traces. **Use defaults** restores the
   automatic six most recently updated traces within each topic/field priority;
   with several sources the six are shared between them, and every label names
-  its source.
+  its source. While the automatic six leave traces out, a hint under the
+  chart says so.
   Automatic choices follow reflector rotation as new telemetry arrives, without
   pressing Use defaults again. Manually chosen traces stay pinned. Settings lists only the selected topic. Choices stay in memory separately
   per panel, report and topic, including a separate All sources view. Global
@@ -95,8 +96,9 @@ pages redraw once per UI cycle.
   next of 2, 5, 10, 15, 30 or 60 seconds. Sparse traces keep exact lines.
 - Latency: when the highest reading is more than three times the 99th
   percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
-  get a marker at the top edge, the unit label says so, and hover shows the
-  real values.
+  get a marker at the top edge with their highest value written under it
+  (nearby spikes share one label), the unit label says so, and hover shows
+  each trace's value.
 - Latency also shows bufferbloat: samples whose load condition ends in `_bb`
   (the router measured delay above its threshold) are counted per source and
   direction for the shown window and listed in the legend, and drawn as one row

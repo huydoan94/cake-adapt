@@ -10,6 +10,8 @@ public sealed class ChartPanel : Grid
     private readonly ComboBox group;
     private readonly TrendChart chart = new();
     private readonly WrapPanel legend = new() { Margin = UiLayout.LegendMargin };
+    // Trace-choice hint, under the chart.
+    private readonly TextBlock hint = new() { Margin = UiLayout.ChartHintMargin, FontSize = UiTypography.Small, Foreground = UiTheme.LegendHint, IsVisible = false };
     private readonly ChartSelections selections = new();
     private MetricView[] candidates = [];
     private string topic = ChartDefaults.AllSources;
@@ -45,6 +47,8 @@ public sealed class ChartPanel : Grid
         Grid.SetRow(chart, 2);
         chart.Margin = UiLayout.ChartMargin;
         Children.Add(chart);
+        Grid.SetRow(hint, 3);
+        Children.Add(hint);
     }
 
     public void Select(string name)
@@ -144,13 +148,8 @@ public sealed class ChartPanel : Grid
         legend.Children.Clear();
         AddLegendItems(legend, chart.Lines);
         AddBloatItems(legend, bloat);
-        if (chart.Lines.Length == 0 || (!custom && candidates.Length > ChartDefaults.AutomaticTraces))
-            legend.Children.Add(new TextBlock
-            {
-                Text = chart.Lines.Length == 0 ? UiText.SettingsHint : UiText.AutomaticHint,
-                FontSize = UiTypography.Small,
-                Foreground = UiTheme.LegendHint
-            });
+        hint.IsVisible = chart.Lines.Length == 0 || (!custom && candidates.Length > ChartDefaults.AutomaticTraces);
+        hint.Text = chart.Lines.Length == 0 ? UiText.SettingsHint : UiText.AutomaticHint;
     }
 
     // "Bufferbloat samples:  router-a  DL 0 · UL 0" in each source's tick color.
