@@ -152,7 +152,7 @@ TLS, logs and passwords are sent unencrypted.
   default.
 - [How it works](docs/technical.md), and how it differs from cake-autorate.
 - [Development](docs/development.md): building and testing.
-- [Flowcharts](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/flowchart/index.html)
+- [Flowcharts](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html)
   and [test evidence](profiling/README.md).
 
 ## License

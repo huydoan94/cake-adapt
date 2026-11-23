@@ -416,7 +416,7 @@ The flowchart viewer opens through raw.githack, because GitHub shows an
 
 - [Current-code flowcharts](../flowchart/README.md): architecture, event flow,
   controller decisions, CAKE updates and lifecycle behaviour.
-  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/flowchart/index.html).
+  [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/main/flowchart/index.html).
 - [Test and profiling history](../profiling/README.md): every run, newest
   first, with what it tested and its result, including the CPU and memory
   profiles from 2026-09-30 to the 1.0 runs.
