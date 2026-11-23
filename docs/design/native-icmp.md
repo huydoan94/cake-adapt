@@ -4,7 +4,7 @@ The native probes are the default `pinger_method`: `native` (IPv4/IPv6 echo)
 or `native-ts` (IPv4 timestamp). fping, fping-ts and irtt remain as fallbacks
 the user chooses; nothing switches between them automatically. The user
 accepted native on 2026-10-21 after the testbed comparisons in
-`profiling/2026-10-21-native-icmp-jitter/`: with jittered capacity drops
+[the history](../../profiling/README.md#2026-10-21-native-icmp-jitter): with jittered capacity drops
 native-ts matched fping-ts within the testbed's noise.
 
 `latency/icmp.c` owns nonblocking raw sockets, interface binding, protocol and
@@ -59,11 +59,11 @@ The original 100-µs median RTT gap was not met: the last paired network gap was
 694.5 µs and loopback echo gap 104 µs. The send timestamp now excludes packet
 preparation, and relative waits use a refreshed monotonic clock. Focused tests
 and Astra Medium review cover those fixes. Runtime evidence and limitations
-are in [the spike report](../../profiling/2026-10-13-native-icmp-spike/README.md).
+are in [the spike report](../../profiling/README.md#2026-10-13-native-icmp-spike).
 The revised timing gate subsequently passed quiet-host and VM-loopback checks,
 then one serialized network batch: 300 replies per cohort, native/fping median
 gap 65 µs within the two fping-only medians' 150-µs spread. All 300 native
-replies were kernel-timestamped; see [the gate report](../../profiling/2026-10-13-native-icmp-spike/interleaved-gate/README.md).
+replies were kernel-timestamped; see [the gate report](../../profiling/README.md#2026-10-13-native-icmp-spike).
 Reduced CPU, control equivalence and router performance remain unproven.
 Comparative runs and lifecycle checks
 are still required before deleting legacy code or changing the default; the

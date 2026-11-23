@@ -298,8 +298,8 @@ real libmosquitto headers and linkage, configured through `MQTT_CFLAGS` and
 `MQTT_LIBS` when needed. Broker validation uses
 `tests/logging/mqtt_integration.py` with an approved local library and broker
 build. Commands, source identities and validation limits are in the
-[initial MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) and
-[current optional TLS evidence](../profiling/2026-10-12-mqtt-ssl-build/README.md).
+[initial MQTT evidence](../profiling/README.md#2026-10-11-mqtt-logging) and
+[current optional TLS evidence](../profiling/README.md#2026-10-12-mqtt-ssl-build).
 Build `mqtt_driver` with `MQTT_TLS_SUPPORTED=1` for the TLS driver tests and `--tls-only` for the TLS broker
 cases; `--tls-stalled-only` checks the first socket deadline. Native broker
 checks and an SDK build do not establish full-daemon behavior on the x86 VM.
@@ -321,7 +321,7 @@ tools/capture-log.sh -l root@router cake-adapt.log         # print lines instead
 The router needs SSH key authentication; nothing is installed on it. Capture
 events (connect, disconnect, archive, stop) go to `cake-adapt.log.events`.
 The small follower the script runs on the router is final (it starts one
-process a second; its cost is in `profiling/2026-10-09-follower`); changes
+process a second; its cost is in [the history](../profiling/README.md#2026-10-09-follower)); changes
 belong on the PC side.
 
 By default the console shows a status screen that is redrawn in place every

@@ -2,12 +2,6 @@
 # this file's rules: everything here stays tracked. Read a skipped file by its
 # path, or search it with `rg --no-ignore`.
 
-# Raw evidence: keep each run's README (its findings) and the index searchable.
-profiling/**
-!profiling/**/
-!profiling/README.md
-!profiling/*/README.md
-
 # Generated flowchart output; flowchart-data.json, generate.mjs and the README
 # stay searchable.
 flowchart/diagrams/

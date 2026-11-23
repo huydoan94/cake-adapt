@@ -624,7 +624,7 @@ event "capturing $host:$remote_log into $local_file, archiving at $limit_mb MB"
 # The router's shell expands its $ references, so they stay quoted here.
 #
 # FROZEN: the follower below is final as of fcb9184 (measured in
-# profiling/2026-10-09-follower). Do not modify it; make changes on the PC
+# profiling/README.md#2026-10-09-follower). Do not modify it; make changes on the PC
 # side of this script instead.
 # shellcheck disable=SC2016
 follower='#!/bin/sh

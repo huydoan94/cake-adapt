@@ -67,7 +67,7 @@ queues that are busy: when traffic is uneven, for example one bulk upload
 beside a download's ACKs, the busy flow gets only its share. On the testbed
 with 4 queues, a bidirectional load passed 3.3 Mbit/s of upload through a
 6 Mbit/s shaper (plain CAKE: about 7 Mbit/s;
-`profiling/2026-10-10-cake-mq`). Use it where one core cannot shape the line
+[measured](../profiling/README.md#2026-10-10-cake-mq)). Use it where one core cannot shape the line
 rate.
 
 ## Shaper rates

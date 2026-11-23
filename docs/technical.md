@@ -45,7 +45,7 @@ not a runtime dependency.
 Controller decisions match cake-autorate `ac75f49`: recorded upstream traces
 replay through the cake-adapt controller with the same delay counts and
 bufferbloat decisions (see
-[the controller comparison](../profiling/controller-comparison/README.md)).
+[the controller comparison](../profiling/README.md#controller-comparison)).
 Since 2026-10-06 cake-adapt computes exactly instead of copying upstream's
 shell-integer truncations: rates are bit/s rather than whole kbit/s (CAKE
 holds whole bytes/s), loads and rate factors are exact ratios rather than
@@ -70,13 +70,13 @@ safety:
   the default since 0.3.21) and `native-ts` (ICMP timestamps for separate
   download and upload delays, IPv4 only), numeric addresses only. On the
   testbed native matched fping within its run-to-run noise with less combined
-  CPU ([gate](../profiling/2026-10-20-native-icmp-gate/README.md),
-  [jittered drops](../profiling/2026-10-21-native-icmp-jitter/README.md)).
+  CPU ([gate](../profiling/README.md#2026-10-20-native-icmp-gate),
+  [jittered drops](../profiling/README.md#2026-10-21-native-icmp-jitter)).
   `fping`, `fping-ts` and `irtt` remain as fallbacks, run as child processes;
   fping is no longer installed with cake-adapt. The timestamp methods
   (`fping-ts`, `native-ts`) are verified on the emulated testbed, where their
   one-way delays track the real queues
-  ([evidence](../profiling/2026-10-03-fping-ts-testbed/README.md)), but not on
+  ([evidence](../profiling/README.md#2026-10-03-fping-ts-testbed)), but not on
   internet reflectors, whose clocks and timestamp support vary. They accept
   only IPv4 reflectors, because ICMP timestamps are IPv4 only; cake-autorate
   leaves fping to fail on IPv6 targets at runtime.
@@ -111,9 +111,9 @@ safety:
     them, and stops remote clock drift from growing into a false queue. A new
     flow's initial queue remains unknown, and TCP timestamps cannot distinguish
     sustained receiver ACK wait from upload queueing.
-    See the [flow-pair regression evidence](../profiling/2026-10-04-flow-pair/README.md),
-    the [queue-bound check](../profiling/2026-10-06-tcp-bound-check/README.md)
-    and the [router run](../profiling/2026-10-06-router-libreqos/README.md).
+    See the [flow-pair regression evidence](../profiling/README.md#2026-10-04-flow-pair),
+    the [queue-bound check](../profiling/README.md#2026-10-06-tcp-bound-check)
+    and the [router run](../profiling/README.md#2026-10-06-router-libreqos).
   - `ul_congest_ack_share` (default `0`, off): download ACKs can fill a slow
     upload. The same eBPF filter splits upload, after the upload CAKE, into
     pure ACKs and everything else. While upload is above `high_load_thr`,
@@ -227,7 +227,7 @@ answers. At shutdown the thread is given 2 s to stop; one still stuck inside
 libubus is left behind with a warning, as the process is exiting anyway. On
 the x86 test VM, control went on through 60 s of a stopped `ubusd` and SIGTERM
 ended a daemon whose thread was stuck in 2.1 s
-([evidence](../profiling/2026-10-11-ubus-thread/README.md)).
+([evidence](../profiling/README.md#2026-10-11-ubus-thread)).
 
 The daemon itself never waits on ubus, but the service does: `/etc/init.d/cake-adapt
 stop`, `restart` and every other init action reach procd through ubus, so while
@@ -332,15 +332,15 @@ request, a line written out at once (`log_file_buffer_timeout_ms` 0, or a
 terminal) or a half-full queue; other lines wait for the writer's timer, at
 most the buffer timeout, as they waited in the file buffer before. Waking it
 for every record made 0.3.21's daemon use twice its own CPU
-([profile](../profiling/2026-10-21-profile/README.md),
-[fix](../profiling/2026-10-22-log-writer-wake/README.md)). The queue is a bounded FIFO: when it is full, the oldest waiting lines
+([profile](../profiling/README.md#2026-10-21-profile),
+[fix](../profiling/README.md#2026-10-22-log-writer-wake)). The queue is a bounded FIFO: when it is full, the oldest waiting lines
 make room and are counted, so the newest records are kept, and the writer
 logs "N older log lines and M syslog messages were overwritten" where they
 are missing; an overwritten export or reset request still runs. At stop the
 writer gets 2 s to drain; a writer stuck in syslog or on storage is left
 behind and the daemon ends with `_exit()`. On the VM, a 20-s logd pause froze
 the previous build's main loop after 4 s and left this one working
-([evidence](../profiling/2026-10-21-log-writer/README.md)). Configuration
+([evidence](../profiling/README.md#2026-10-21-log-writer)). Configuration
 checks (`-V`) log directly.
 
 ## Optional MQTT logging (current development work)
@@ -402,8 +402,8 @@ bounded waits and bounded main-thread shutdown. Existing output flags and record
 schemas remain in effect. Broker, topic and authentication settings are
 available in LuCI and the [configuration reference](configuration.md#output-and-logging).
 
-[MQTT evidence](../profiling/2026-10-11-mqtt-logging/README.md) records the
-initial non-SSL transition. The [optional TLS follow-up](../profiling/2026-10-12-mqtt-ssl-build/README.md)
+[MQTT evidence](../profiling/README.md#2026-10-11-mqtt-logging) records the
+initial non-SSL transition. The [optional TLS follow-up](../profiling/README.md#2026-10-12-mqtt-ssl-build)
 records current certificate checks and the two earlier x86 MQTT builds. These checks
 cover transport behavior and isolated observation, without a CAKE performance claim.
 Field resource usage and frequent-record overhead during control remain open.
@@ -411,36 +411,23 @@ Earlier passing x86 builds below predate this change.
 
 ## Evidence and design documents
 
-Rendered pages open through raw.githack, because GitHub shows an `.html` file
-as source and disables the JavaScript that drives the flame graphs' hover,
-search and click-to-zoom.
+The flowchart viewer opens through raw.githack, because GitHub shows an
+`.html` file as source.
 
 - [Current-code flowcharts](../flowchart/README.md): architecture, event flow,
   controller decisions, CAKE updates and lifecycle behaviour.
   [Open the rendered viewer](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/flowchart/index.html).
-- [All profiling and behaviour evidence](../profiling/README.md): every run,
-  newest first, with its result. [Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/index.html).
-- Profiles with flame graphs:
-  - [Log writer wake fix, 2026-10-22](../profiling/2026-10-22-log-writer-wake/README.md)
-    (0.3.22 against 0.3.21 and 0.3.15).
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-22-log-writer-wake/index.html).
-  - [0.3.21 against 0.3.15, 2026-10-21](../profiling/2026-10-21-profile/README.md),
-    native and fping. [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-21-profile/index.html).
-  - [0.3.15 against 0.3.12, 2026-10-09](../profiling/2026-10-09-profile/README.md).
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-09-profile/index.html).
-  - [End-to-end run and profiling, 2026-09-30](../profiling/2026-09-30/README.md),
-    before and after the optimization pass.
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-09-30/index.html).
-  - [First flame graphs, 2026-09-26](../profiling/2026-09-26/README.md), superseded.
-    [Open the dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-09-26/index.html).
-- [Controller comparison with cake-autorate](../profiling/controller-comparison/README.md):
+- [Test and profiling history](../profiling/README.md): every run, newest
+  first, with what it tested and its result, including the CPU and memory
+  profiles from 2026-09-30 to the 1.0 runs.
+- [Controller comparison with cake-autorate](../profiling/README.md#controller-comparison):
   side-by-side VM runs and the replayed upstream traces.
-- [Resource use compared with cake-autorate](../profiling/cake-autorate-resources/README.md):
+- [Resource use compared with cake-autorate](../profiling/README.md#cake-autorate-resources):
   CPU, memory, processes and reaction time under the same workload.
 - Design documents:
   - [Native ICMP probes](design/native-icmp.md): the default pinger's design.
   - [TCP-delay review](design/EBPF_REVIEW.md): the eBPF queue estimator's
-    findings and their state; [its visual map](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-04-review-map/index.html).
+    findings and their state.
   - [eBPF latency plan](design/EBPF_LATENCY_PLAN.md) (a sketch, not
     implemented), the [units plan](design/UNITS_PLAN.md) (implemented) and
     [L4S notes](design/L4S.md).
@@ -478,27 +465,27 @@ The cake-autorate parity and refactor sequence is complete:
   (2,402 and 2,301 samples): delay counts and bufferbloat decisions exactly,
   rates within 0.5% since exact math replaced upstream's truncations. Live
   side-by-side VM runs behave the same per phase
-  ([comparison](../profiling/controller-comparison/README.md)).
+  ([comparison](../profiling/README.md#controller-comparison)).
 - A final end-to-end run on the OpenWrt 25.12 x86 VM covered sustained
   download, upload and bidirectional load, congestion and recovery within
   bounds, qdisc removal and re-creation on both interfaces, idle sleep and
   wake, log export and in-place reset, and clean shutdown with no leftover
-  processes ([results](../profiling/2026-09-30/README.md)).
+  processes ([results](../profiling/README.md#2026-09-30)).
 - After the optimization pass, bidirectional CPU use roughly halved and
   syscalls fell from 20,586 to 4,593 per 45 s. The daemon's own code is 4–9%
   of its sampled CPU time.
 - Against cake-autorate under the same workload, cake-adapt uses about a fifth
   of the CPU including fping (1.10% against 5.38% of a core while awake), a
   tenth of the memory, and reacts to a reply 7× faster at the median
-  ([comparison](../profiling/cake-autorate-resources/README.md)).
+  ([comparison](../profiling/README.md#cake-autorate-resources)).
 - Host tests, sanitizer runs, and the x86 SDK build pass.
 - The 0.3.17 service, ubus and LuCI behavior was checked on the x86 VM:
   reload and restart keep a refused configuration's instance running, control
   goes on through a stopped `ubusd`, and a second daemon for a running
-  instance exits ([dnsmasq lifecycle](../profiling/2026-10-11-dnsmasq-lifecycle/README.md),
-  [restart and respawn](../profiling/2026-10-11-restart-respawn/README.md),
-  [ubus thread](../profiling/2026-10-11-ubus-thread/README.md),
-  [LuCI app](../profiling/2026-10-10-luci-app/README.md)). These checks do
+  instance exits ([dnsmasq lifecycle](../profiling/README.md#2026-10-11-dnsmasq-lifecycle),
+  [restart and respawn](../profiling/README.md#2026-10-11-restart-respawn),
+  [ubus thread](../profiling/README.md#2026-10-11-ubus-thread),
+  [LuCI app](../profiling/README.md#2026-10-10-luci-app)). These checks do
   not cover the LuCI pages' appearance in a browser.
 
 Deferred work:

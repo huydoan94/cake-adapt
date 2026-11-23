@@ -1,91 +1,265 @@
-# Profiling and behavior evidence
+# Test and profiling history
 
-Raw evidence, mostly from the OpenWrt 25.12 x86 test VMs, kept with the code
-it measured. Each directory has its own README with the method, the result,
-and the scripts that produced it.
+What was measured on the test VMs and the emulated testbed, newest first: each
+run's date and topic, what it tested, and the result. Runs before 2026-10-27
+used OpenWrt 25.12 x86 VMs; later runs use the OpenWrt snapshot on x86_64.
+Entries marked **Reverted** or **Withdrawn** describe work that is not in the
+product.
 
-For new evidence collection, Claude and Codex follow their respective workflows
-in [COLLABORATION.md](../COLLABORATION.md), the constraints in
-[AGENTS.md](../AGENTS.md), and the current `HANDOFF.md`. Development
-and VM validation default to x86. Historical reports preserve their original
-targets, authorship and results; they do not authorize repeating an experiment,
-changing SDKs, downloading dependencies or accessing production systems.
+Older entries use `upload_ack_share_min`, now named `ul_congest_ack_share`.
 
-[Open the evidence index](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/index.html): every directory below, with links to
-its report and, where it has one, its dashboard of tables and flame graphs.
+## 2026-10-28-snapshot-1.0
 
-| Directory | What it shows |
-| --- | --- |
-| [`2026-10-22-restructure`](2026-10-22-restructure/README.md) | **Latest profile.** The restructure (0.3.27 code) against 0.3.26: lifecycle 29 of 30 as before (the same init-script restart while ubusd was down), the same ubus status fields, control rounds overlapping in every phase, the same CPU within the spread, 7,355 system calls with 79 `futex`. A first run on VM .2 was discarded after 34 host stalls. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-22-restructure/index.html). |
-| [`2026-10-22-profile-0.3.26`](2026-10-22-profile-0.3.26/README.md) | The 0.3.26 refactor against 0.3.25 with flame graphs over seven workloads: the same CPU (21-32 against 22-34 ticks per 40 s, native pinger) and 10 kB less memory; system calls match the log writer fix (7,351, 79 `futex`). [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-22-profile-0.3.26/index.html). |
-| [`2026-10-22-e2e-0.3.26`](2026-10-22-e2e-0.3.26/README.md) | 0.3.26 on VM .2: 28 of 29 lifecycle checks pass (the daemon was restarted when ubusd died seconds after a reload; by hand it survived); three rounds each against 0.3.25 under load match in three phases; bidirectional's median delay was higher in all three rounds with no decision-making code changed, not separable from the testbed's spread. |
-| [`2026-10-22-log-writer-wake`](2026-10-22-log-writer-wake/README.md) | Waking the log writer only for syslog entries, requests, unbuffered lines or a half-full queue: daemon CPU down a fifth to a third (20 against 31 ticks per 40 s quiet, 22-34 against 35-48 under load), below 0.3.15 with fping under every load; `futex` calls 79 against 4,874 per 40 s. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-22-log-writer-wake/index.html). |
-| [`2026-10-21-profile`](2026-10-21-profile/README.md) | 0.3.21 (native and fping) against 0.3.15 with flame graphs over seven workloads: native's total CPU is close to 0.3.15 with fping (0.8% against 0.6% idle, 1.4-1.7% of a core under load) in 0.5 MB less memory, but the daemon alone doubled, mostly from waking the log writer thread on every record (~5,000 `futex` calls per 40 s). [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-21-profile/index.html). |
-| [`2026-10-21-log-writer`](2026-10-21-log-writer/README.md) | Logging on its own thread (0.3.21): with logd paused 20 s and syslog forced past its 10-message queue, the previous build's main loop froze after 4 s, the new one kept working; the overwrite-oldest queue then reported 88 lines and 1 syslog message overwritten; a stop with logd stuck ended in 3 s. |
-| [`2026-10-21-phase4-lifecycle`](2026-10-21-phase4-lifecycle/README.md) | Native default and the root-only options on VM .2: upgrading from 0.3.17 switches an instance to native; start, reload, exec-file changes, refused options, the fping fallback, an ubusd restart, stop and start behave as before; `/etc/cake-adapt/exec` read by real uci, `ping_extra_args` and `log_file_path_override` from it take effect and are refused in `/etc/config/cake-adapt`. |
-| [`2026-10-21-native-icmp-jitter`](2026-10-21-native-icmp-jitter/README.md) | With capacity drops at random points of the controller's sawtooth, native-ts wins upload-step p95 (131 vs 153 ms) and fails three other metrics narrowly: native matches fping within the testbed's noise across both batches. The user accepted native as the default (2026-10-21). |
-| [`2026-10-20-native-icmp-gate`](2026-10-20-native-icmp-gate/README.md) | Revised gate, 3 alternating rounds per pair: both native methods fail on few metrics, native-ts only upload-step p95; `drop-analysis.md` traces that to the single fixed capacity drop meeting each sawtooth at a different point. |
-| [`2026-10-13-native-icmp`](2026-10-13-native-icmp/README.md) | Four-case comparison exposed a native timestamp epoch bug, now fixed and target-tested. Corrected timestamp pair uses 37.56% less combined daemon/pinger CPU, with matched health; some latency/throughput metrics failed the single-pair gate, later replaced (see the 2026-10-20 and 2026-10-21 rows). |
-| [`2026-10-13-native-icmp-spike`](2026-10-13-native-icmp-spike/README.md) | Native IPv4/IPv6 echo and ICMP timestamps work on i386. Revised timing gates pass; the serialized network batch gives a 65-µs median gap within a 150-µs baseline spread. |
-| [`2026-10-12-mqtt-ssl-build`](2026-10-12-mqtt-ssl-build/README.md) | Optional `ssl=yes` packages, verified TLS broker settings, inactive LuCI setting retention, dependency staging and bounded TLS connection/shutdown checks. Default remains no-SSL. |
-| [`2026-10-12-mqtt-variants`](2026-10-12-mqtt-variants/README.md) | Three daemon packages (`cake-adapt` without MQTT, `cake-adapt-mqtt`, `cake-adapt-mqtt-ssl`): x86 package metadata and linkage, the features file LuCI reads, and an x86 VM switch from the base to the MQTT variant. |
-| [`2026-10-11-mqtt-logging`](2026-10-11-mqtt-logging/README.md) | Optional MQTT forwarding: silent offline/overflow drops, exact QoS 0 payloads, retries every 10 s, recovery, authentication and bounded shutdown. Current non-SSL validation is separated from superseded TLS-prototype evidence. No router deployment or CAKE performance claim. |
-| [`2026-10-11-restart-respawn`](2026-10-11-restart-respawn/README.md) | `restart` checks the new configuration first (`513eea7`): unchanged restarts with a new pid, a refused one keeps the pid and previous file with the reason in syslog, and without a previous file does not start; respawn registered as `3600 5 0` (never gives up); `connected to ubus` reaches `logread` at info and the log file. A named restart of a deleted or disabled section stops it and removes its file (`6a79733`). `disconnecting from ubus` host-tested only. |
-| [`2026-10-11-luci-checks`](2026-10-11-luci-checks/README.md) | LuCI app 0.3.16-r1 on the x86 VM: `service list` is granted and shows procd's running state and pid (stopped: no object), writes and `network` stay denied; the Configuration checks and the Status state text are covered by host tests. Not a browser. |
-| [`2026-10-11-dnsmasq-lifecycle`](2026-10-11-dnsmasq-lifecycle/README.md) | Service reload and ubus states copied from dnsmasq (`4fbaa0c`, `dabe4d0`): reload restarts only a changed instance, a refused configuration keeps the instance running with its previous file and pid, a removed or disabled section stops, per-instance start/stop/restart work; a killed `ubusd` gave dnsmasq's reconnect, no-connection and connected messages and republishing in 2 s, and control kept ticking through a stopped `ubusd`. |
-| [`2026-10-11-ubus-thread`](2026-10-11-ubus-thread/README.md) | The ubus status thread (`96bbd7b`): control went on through 60 s of a stopped `ubusd` under load, a daemon started without `ubusd` controlled and warned once, SIGTERM with its thread stuck in libubus ended it in 2.1 s, and a `ubusd` restart was followed by republishing. The instance lock (`33646d1`): a second daemon for `main` exited 1 in 10 ms naming the running pid. |
-| [`2026-10-10-luci-app`](2026-10-10-luci-app/README.md) | `luci-app-cake-adapt` 0.3.16-r1 on the x86 VM: ACL grants status, uci and rc list and refuses `network.interface`; views and menu are served; Save & Apply restarts the daemon, and a minimum above the base is refused with the reason in syslog. The visual check is still a person's. |
-| [`2026-10-10-cake-mq`](2026-10-10-cake-mq/README.md) | cake-adapt controls a root `cake_mq` like a single CAKE (901 changes, every per-queue child followed the root); control matched plain CAKE except under bidirectional load, where `cake_mq` passed 3.3 of 6 Mbit/s upload because it splits the rate equally among busy queues. |
-| [`2026-10-09-follower`](2026-10-09-follower/README.md) | Cost of `capture-log.sh`'s follower on the router: about 0.33% of a core plus 0.1% for its SSH session on the x86 VM, twice the daemon's own 0.16%, almost all from starting `ls`, `cat` and `sleep` every second; the POSIX rewrite of its watchdog costs the same, and the one-`cat` follower 68% less. |
-| [`2026-10-09-profile`](2026-10-09-profile/README.md) | 0.3.15 against 0.3.12 with flame graphs over seven workloads, two of them IPv6: same CPU (0.15–0.42% of a core) and memory (2.1 MB), injector half the cost per packet on IPv4 traffic and unchanged on IPv6. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-09-profile/index.html). |
-| [`2026-10-09-tcp-inject-ipv6`](2026-10-09-tcp-inject-ipv6/README.md) | `tcp_ts_request` on IPv6 only, keyed by client (0.3.15, `0dc6e37`): server behaviours end as designed, IPv4 is untouched, a client with a 34.7-day clock loses only its first burst, 43 of 43 lifecycle checks pass including the injector's tcx link; filter and injector cost unchanged on IPv6, injector 21–35% cheaper on IPv4 traffic. |
-| [`2026-10-08-ebpf-ab-146a751`](2026-10-08-ebpf-ab-146a751/README.md) | A/B check of the injection fix (`146a751`) against the routers' previous build: verifier on 32- and 64-bit kernels, filter and injector cost (no regression), control, TCP queue accuracy, ACK accounting, injection scenarios over IPv4 and IPv6 (correct checksums with offload off) and client clocks all match, except the intended stall detection and pause. |
-| [`2026-10-08-tcp-inject-clock`](2026-10-08-tcp-inject-clock/README.md) | Timestamp injection against a Windows-like client whose clock looks older than the injected TSval: the old marker hung about half the connections silently with success counters; the fix (`146a751`, inject 1, count stalls, pause) cut failures to the first minute and then paused injection. Windows' timestamp clock is its uptime in ms. |
-| [`2026-10-08-remote-congestion`](2026-10-08-remote-congestion/README.md) | A queue beyond the ISP that only some flows cross does not mislead the daemon; with a local queue too, `tcp_delay_attribution` blamed the right direction, while without it download was cut for an upload queue. |
-| [`2026-10-08-tcp-echo-delay`](2026-10-08-tcp-echo-delay/README.md) | Servers that idle or think before answering did not inflate the TCP upload estimate (p99 under 12 ms, false alarms at most 0.3%); no echo-wait cap was built. |
-| [`2026-10-08-tcp-filter-fastpath`](2026-10-08-tcp-filter-fastpath/README.md) | A TCP filter fast path (per-CPU timestamp cache, 12-byte option read, no buffer zeroing) was not faster anywhere: 3–7% slower on the 32-bit VM, 5% on the x86_64 VM, and on the Filogic router it moved with the unchanged injector (2% slower relative to it). Dropped. First router cost of 0.3.9: about 2.0 µs per packet for the filter and 0.37 µs for the injector, about 1.1% of a Cortex-A53 core. |
-| [`2026-10-07-tcp-timestamp-inject-testbed`](2026-10-07-tcp-timestamp-inject-testbed/README.md) | `tcp_timestamp_inject` (`3e23b04`) on the 25.12 testbed: four server behaviors end as designed with exact counters, nothing is rewritten after stop or SIGKILL, lifecycle 33 of 33; merging the injector into the filter's object removed the ingress program (injector egress 466 ns per packet on the 32-bit VM, against a 234 ns empty-program floor). |
-| [`2026-10-07-tcp-timestamp-injection`](2026-10-07-tcp-timestamp-injection/README.md) | Experiment, not in the product: a `tc` BPF program adds the timestamp option to Windows SYNs. On the user's real traffic, 775 of 775 SYNs rewritten and 715 servers enabled timestamps, with no failed connection or bad checksum. Windows then adopts timestamps itself (98.7% of its packets), so both directions gain estimates and the strip program is unnecessary. Not an accuracy or cost result. |
-| [`2026-10-07-openwrt-snapshot`](2026-10-07-openwrt-snapshot/README.md) | The current code on an OpenWrt snapshot (r36953, x86/64, kernel 6.18, LLVM 22): builds without warnings, the verifier accepts the TCP filter, 33 of 33 lifecycle checks pass, and a controlled run with TCP attribution matches 25.12 (queue correlation 0.77–0.92, false alarms ≤ 0.2%). One run; filter cost not measured. |
-| [`2026-10-06-tcp-bound-check`](2026-10-06-tcp-bound-check/README.md) | The fping queue bound (`cb348e4`) controls like the build before it over three alternating repetitions, with equal or lower added-delay p95, and cuts the largest download estimates under load from 45–90 ms to 33–46 ms. |
-| [`2026-10-06-bound-median`](2026-10-06-bound-median/README.md) | The TCP queue bound becomes the lower median of each pinger's largest added delay, so one slow reflector no longer opens it; on the user's routers, false 20–72 ms upload estimates had each matched the single slowest fping reply. |
-| [`2026-10-06-router-libreqos`](2026-10-06-router-libreqos/README.md) | 0.3.4 on the user's Filogic router during a LibreQoS test: held 145/73 Mbit/s with an fping delta p95 of at most 2.4 ms per direction and 9.4 ms bidirectional, grade A. LibreQoS's 54 Mbit/s upload figure is its own averaging; the wire carried 61 Mbit/s and cake-adapt never cut upload. |
-| [`2026-10-06-storage-defaults`](2026-10-06-storage-defaults/README.md) | With the shipped defaults the daemon writes nothing to persistent storage: zero block reads and writes over two 10.5-minute runs covering load, export, reset, CAKE re-creation, sleep and rotation. Every written file is in RAM. |
-| [`2026-10-06-storage-reads`](2026-10-06-storage-reads/README.md) | A bounded audit of block-device reads while monitoring: zero reads and writes on every device in the running and stopped windows; the only opens were of `/etc/TZ`, which resolves to tmpfs. |
-| [`2026-10-05-context-refactor`](2026-10-05-context-refactor/README.md) | Keeping settings in their objects (`74d9697`) measures the same as `d6564a6` over four alternating repetitions, and CAKE removal and re-creation still suspends and resumes measurement. |
-| [`2026-10-05-e2e`](2026-10-05-e2e/README.md) | End-to-end run after the refactors: 21 automated checks pass for the new build and `d6564a6`; one bug found and fixed (`05eb6b3`, a SIGKILLed daemon left fping running). About 0.25–0.4% of a core and 2.1 MB under load; a 30-minute soak shows no growth. |
-| [`2026-10-05-gpt-work-check`](2026-10-05-gpt-work-check/README.md) | Traces the regression in `2026-10-05-ack-control` to the directional agreement guard of `0321661`; reverting only the guard restores the earlier results (reverted in `d6564a6`). ACK accounting, the floor hold and the lifetime stream measured neutral apart from filter cost. |
-| [`2026-10-05-ack-control`](2026-10-05-ack-control/README.md) | One repetition each of the TCP extensions off, before and after the day's mitigations; it showed the control regression later traced to the agreement guard. |
-| [`2026-10-05-ack-accounting`](2026-10-05-ack-accounting/README.md) | The filter's outgoing and pure-ACK byte counters now use the upload CAKE's packet charge, matching the kernel's adjusted sizes for raw, Ethernet, signed overhead, MPU, ATM and PTM. |
-| [`2026-10-05-tcp-confidence`](2026-10-05-tcp-confidence/README.md) | The estimator holds its floor while fping sees congestion, so a standing queue cannot become the baseline (kept). The directional agreement rule described here was reverted in `d6564a6`. |
-| [`2026-10-05-tcp-lifetime-stream`](2026-10-05-tcp-lifetime-stream/README.md) | **Reverted.** The ordered lifetime stream for reused TCP tuples: its preflight passed on the i386 JIT, but it cost 49–64% more filter time per packet for a rare case. Design, tools and unfinished work are archived here. |
-| [`2026-10-05-tcp-lifetime-resume`](2026-10-05-tcp-lifetime-resume/README.md) | Why a helper-based lock could not replace the BPF atomics the i386 JIT rejects: it can discard the handshake that invalidates an old lifetime. |
-| [`2026-10-05-tcp-lifetime-deferred`](2026-10-05-tcp-lifetime-deferred/README.md) | The first lifetime design was rolled back: its compare-and-swap atomics are unsupported by the 6.12 i386 BPF JIT, so the filter fell back to the interpreter. |
-| [`2026-10-05-tcp-lifetime-cost`](2026-10-05-tcp-lifetime-cost/README.md) | Filter cost of that first design: 11.7–15.3× more time per run, confounded by running interpreted, and double the BPF map memory. |
-| [`2026-10-05-tcp-lifetime-capacity`](2026-10-05-tcp-lifetime-capacity/README.md) | Map-capacity, eviction and one cross-CPU race checks of the first lifetime design: 149 assertions passed; not an exhaustive ordering proof. |
-| [`2026-10-05-tcp-lifetime-core`](2026-10-05-tcp-lifetime-core/README.md) | Core kernel test of the first lifetime design in a private namespace: 62 assertions passed for handshakes, retransmissions, tuple reuse and wrap. |
-| [`2026-10-04-review-map`](2026-10-04-review-map/README.md) | One-page visual map of the TCP-delay review's findings against the code of 2026-10-04, with a probe showing a wrong split raising the congested direction's shaper. [Visual map](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-10-04-review-map/index.html). |
-| [`2026-10-04-ebpf-vm`](2026-10-04-ebpf-vm/README.md) | **Withdrawn.** A VM run that produced no `TCP_QUEUE` records and validates nothing about the estimator; kept as an audit of the earlier mislabeled report. |
-| [`2026-10-04-flow-pair`](2026-10-04-flow-pair/README.md) | First TCP-delay review fix: one flow supplies a coherent directional pair. Deterministic before/after evidence shows a newly calibrated flow no longer erases an established 80/20-ms estimate. |
-| [`2026-10-03-arm64-vm`](2026-10-03-arm64-vm/README.md) | The Filogic build on an emulated arm64 VM: the arm64 verifier accepts the TCP filter and the CLI, attribution, fping-ts and lifecycle runs all pass. Functional only; the emulated CPU makes timings and sample counts unrepresentative. |
-| [`2026-10-03-sample-thinning`](2026-10-03-sample-thinning/README.md) | Sampling TCP timestamps at most every 4 ms per flow makes the filter 10–34% cheaper with the queue estimate as accurate as before (correlation 0.87–0.95); over five rounds it costs about +10 ms at the bidirectional p99 and 1–3 ms in download phases. Shipped at 4 ms. |
-| [`2026-10-03-fping-ts-testbed`](2026-10-03-fping-ts-testbed/README.md) | fping-ts on the testbed, where ICMP timestamps pass: its one-way delays track the real queues (upload correlation 0.94–0.97, false alarms ≤ 0.6% against 27–40% for RTT/2), and controlling with it cuts upload p95 from 102–104 to 60–65 ms and lifts bidirectional download from 38–41% to 69–72%. A sudden capacity drop peaked higher than with fping; internet reflectors remain unverified. |
-| [`2026-10-03-ebpf-filter-cost`](2026-10-03-ebpf-filter-cost/README.md) | The TCP filter costs 1.5–1.9 µs per packet on the x86 VM (130 ns of it the kernel's): about 45% flow state, 45% the departures map, 10% the ring buffer. Counter changes and per-CPU LRU lists gain at most a few percent (LRU lists are 6% slower); only thinning the samples could cut it substantially. The kept filter still tracks the real queue (correlation 0.89–0.92). |
-| [`2026-10-03-ebpf-design-history`](2026-10-03-ebpf-design-history/README.md) | Design record: why fping alone is insufficient, the feasibility spike and CPU cost that justified the eBPF socket filter, the fixed-cap attempt that preceded the dynamic ACK share, and the net before/after numbers. No raw data; links to the two entries below for evidence. |
-| [`2026-10-03-ack-share-dynamic`](2026-10-03-ack-share-dynamic/README.md) | Download ACKs on a 900 kbit/s upload, off vs. `upload_ack_share_min 0.45`: ACKs took 46–74% and a 200 kbit/s UDP stream lost up to 48%; with the option, ACKs use what other upload traffic leaves, down to 45%, the stream loses 0–5.5%, and download gives up 4–12 Mbit/s while held. |
-| [`2026-10-02-tcp-queue-split`](2026-10-02-tcp-queue-split/README.md) | fping alone vs. `tcp_delay_attribution`: the TCP-timestamp queue estimate follows the emulated ISP's real queue under control (correlation 0.85–0.95, against RTT/2's half-size, two-sided reading); splitting fping's delay by it took median added RTT under bidirectional load from 50 to 28 ms and download from 41% to 67% of capacity. |
-| [`2026-09-30`](2026-09-30/README.md) | End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-09-30/index.html). |
-| [`cake-autorate-resources`](cake-autorate-resources/README.md) | CPU, memory, process and reaction-time comparison with cake-autorate `ac75f49` under the same workload: about 5× less CPU (7.6× with all records enabled), a tenth of the memory, and a 7× faster median reply-to-decision time. |
-| [`controller-comparison`](controller-comparison/README.md) | Side-by-side runs with cake-autorate `ac75f49` and the two traces the controller replays with no mismatching decisions. |
-| [`2026-09-26`](2026-09-26/README.md) | Superseded first flame graphs, from before the optimization pass and the source restructure. [Dashboard](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/2026-09-26/index.html). |
+1.0.0 on the OpenWrt snapshot (x86_64), the test platform since 2026-10-27, against 0.3.30: lifecycle 27 of 30 (the known failure after the ubusd restart, and two because the snapshot's procd does not start `ubusd` again); under load the builds overlap in every phase once enough rounds are run; CPU (0.47-0.68% of one core), memory (about 2,690 kB) and system calls (7,008, 77 `futex`) are the same within the spread.
 
-Historical reports use `upload_ack_share_min`, now named
-`ul_congest_ack_share`. Their raw configurations and records retain the
-name used when the measurements were collected.
+## 2026-10-27-restructure-1.0
 
-Open `index.html` locally, or use the
-[hosted index](https://raw.githack.com/huydoan94/cake-adapt/win-dashboard/profiling/index.html).
-The hosted links read the branch named in their URL, which a workflow
-rewrites to each pushed branch. They use raw.githack because GitHub's
-raw-file host disables the JavaScript inside FlameGraph SVGs that drives hover,
-search, and click-to-zoom.
+The restructure toward 1.0 against 0.3.30: every host suite and both replay traces pass, with sanitizers, and the simulator's output is byte-identical in all modes; lifecycle 29 of 30 as before; under load the builds overlap round for round in three phases and the restructured build's median added delay was lower in the fourth (upload step); the same memory, CPU within a few ticks, 7,416 system calls with 79 `futex`.
+
+## 2026-10-22-restructure
+
+The restructure (0.3.27 code) against 0.3.26: lifecycle 29 of 30 as before (the same init-script restart while ubusd was down), the same ubus status fields, control rounds overlapping in every phase, the same CPU within the spread, 7,355 system calls with 79 `futex`. A first run on VM .2 was discarded after 34 host stalls.
+
+## 2026-10-22-profile-0.3.26
+
+The 0.3.26 refactor against 0.3.25 with flame graphs over seven workloads: the same CPU (21-32 against 22-34 ticks per 40 s, native pinger) and 10 kB less memory; system calls match the log writer fix (7,351, 79 `futex`).
+
+## 2026-10-22-e2e-0.3.26
+
+0.3.26 on VM .2: 28 of 29 lifecycle checks pass (the daemon was restarted when ubusd died seconds after a reload; by hand it survived); three rounds each against 0.3.25 under load match in three phases; bidirectional's median delay was higher in all three rounds with no decision-making code changed, not separable from the testbed's spread.
+
+## 2026-10-22-log-writer-wake
+
+Waking the log writer only for syslog entries, requests, unbuffered lines or a half-full queue: daemon CPU down a fifth to a third (20 against 31 ticks per 40 s quiet, 22-34 against 35-48 under load), below 0.3.15 with fping under every load; `futex` calls 79 against 4,874 per 40 s.
+
+## 2026-10-21-profile
+
+0.3.21 (native and fping) against 0.3.15 with flame graphs over seven workloads: native's total CPU is close to 0.3.15 with fping (0.8% against 0.6% idle, 1.4-1.7% of a core under load) in 0.5 MB less memory, but the daemon alone doubled, mostly from waking the log writer thread on every record (~5,000 `futex` calls per 40 s).
+
+## 2026-10-21-log-writer
+
+Logging on its own thread (0.3.21): with logd paused 20 s and syslog forced past its 10-message queue, the previous build's main loop froze after 4 s, the new one kept working; the overwrite-oldest queue then reported 88 lines and 1 syslog message overwritten; a stop with logd stuck ended in 3 s.
+
+## 2026-10-21-phase4-lifecycle
+
+Native default and the root-only options on VM .2: upgrading from 0.3.17 switches an instance to native; start, reload, exec-file changes, refused options, the fping fallback, an ubusd restart, stop and start behave as before; `/etc/cake-adapt/exec` read by real uci, `ping_extra_args` and `log_file_path_override` from it take effect and are refused in `/etc/config/cake-adapt`.
+
+## 2026-10-21-native-icmp-jitter
+
+With capacity drops at random points of the controller's sawtooth, native-ts wins upload-step p95 (131 vs 153 ms) and fails three other metrics narrowly: native matches fping within the testbed's noise across both batches. The user accepted native as the default (2026-10-21).
+
+## 2026-10-20-native-icmp-gate
+
+Revised gate, 3 alternating rounds per pair: both native methods fail on few metrics, native-ts only upload-step p95; `drop-analysis.md` traces that to the single fixed capacity drop meeting each sawtooth at a different point.
+
+## 2026-10-13-native-icmp
+
+Four-case comparison exposed a native timestamp epoch bug, now fixed and target-tested. Corrected timestamp pair uses 37.56% less combined daemon/pinger CPU, with matched health; some latency/throughput metrics failed the single-pair gate, later replaced (see the 2026-10-20 and 2026-10-21 rows).
+
+## 2026-10-13-native-icmp-spike
+
+Native IPv4/IPv6 echo and ICMP timestamps work on i386. Revised timing gates pass; the serialized network batch gives a 65-µs median gap within a 150-µs baseline spread.
+
+## 2026-10-12-mqtt-ssl-build
+
+Optional `ssl=yes` packages, verified TLS broker settings, inactive LuCI setting retention, dependency staging and bounded TLS connection/shutdown checks. Default remains no-SSL.
+
+## 2026-10-12-mqtt-variants
+
+Three daemon packages (`cake-adapt` without MQTT, `cake-adapt-mqtt`, `cake-adapt-mqtt-ssl`): x86 package metadata and linkage, the features file LuCI reads, and an x86 VM switch from the base to the MQTT variant.
+
+## 2026-10-11-mqtt-logging
+
+Optional MQTT forwarding: silent offline/overflow drops, exact QoS 0 payloads, retries every 10 s, recovery, authentication and bounded shutdown. Current non-SSL validation is separated from superseded TLS-prototype evidence. No router deployment or CAKE performance claim.
+
+## 2026-10-11-restart-respawn
+
+`restart` checks the new configuration first (`513eea7`): unchanged restarts with a new pid, a refused one keeps the pid and previous file with the reason in syslog, and without a previous file does not start; respawn registered as `3600 5 0` (never gives up); `connected to ubus` reaches `logread` at info and the log file. A named restart of a deleted or disabled section stops it and removes its file (`6a79733`). `disconnecting from ubus` host-tested only.
+
+## 2026-10-11-luci-checks
+
+LuCI app 0.3.16-r1 on the x86 VM: `service list` is granted and shows procd's running state and pid (stopped: no object), writes and `network` stay denied; the Configuration checks and the Status state text are covered by host tests. Not a browser.
+
+## 2026-10-11-dnsmasq-lifecycle
+
+Service reload and ubus states copied from dnsmasq (`4fbaa0c`, `dabe4d0`): reload restarts only a changed instance, a refused configuration keeps the instance running with its previous file and pid, a removed or disabled section stops, per-instance start/stop/restart work; a killed `ubusd` gave dnsmasq's reconnect, no-connection and connected messages and republishing in 2 s, and control kept ticking through a stopped `ubusd`.
+
+## 2026-10-11-ubus-thread
+
+The ubus status thread (`96bbd7b`): control went on through 60 s of a stopped `ubusd` under load, a daemon started without `ubusd` controlled and warned once, SIGTERM with its thread stuck in libubus ended it in 2.1 s, and a `ubusd` restart was followed by republishing. The instance lock (`33646d1`): a second daemon for `main` exited 1 in 10 ms naming the running pid.
+
+## 2026-10-10-luci-app
+
+`luci-app-cake-adapt` 0.3.16-r1 on the x86 VM: ACL grants status, uci and rc list and refuses `network.interface`; views and menu are served; Save & Apply restarts the daemon, and a minimum above the base is refused with the reason in syslog. The visual check is still a person's.
+
+## 2026-10-10-cake-mq
+
+cake-adapt controls a root `cake_mq` like a single CAKE (901 changes, every per-queue child followed the root); control matched plain CAKE except under bidirectional load, where `cake_mq` passed 3.3 of 6 Mbit/s upload because it splits the rate equally among busy queues.
+
+## 2026-10-09-follower
+
+Cost of `capture-log.sh`'s follower on the router: about 0.33% of a core plus 0.1% for its SSH session on the x86 VM, twice the daemon's own 0.16%, almost all from starting `ls`, `cat` and `sleep` every second; the POSIX rewrite of its watchdog costs the same, and the one-`cat` follower 68% less.
+
+## 2026-10-09-profile
+
+0.3.15 against 0.3.12 with flame graphs over seven workloads, two of them IPv6: same CPU (0.15–0.42% of a core) and memory (2.1 MB), injector half the cost per packet on IPv4 traffic and unchanged on IPv6.
+
+## 2026-10-09-tcp-inject-ipv6
+
+`tcp_ts_request` on IPv6 only, keyed by client (0.3.15, `0dc6e37`): server behaviours end as designed, IPv4 is untouched, a client with a 34.7-day clock loses only its first burst, 43 of 43 lifecycle checks pass including the injector's tcx link; filter and injector cost unchanged on IPv6, injector 21–35% cheaper on IPv4 traffic.
+
+## 2026-10-08-ebpf-ab-146a751
+
+A/B check of the injection fix (`146a751`) against the routers' previous build: verifier on 32- and 64-bit kernels, filter and injector cost (no regression), control, TCP queue accuracy, ACK accounting, injection scenarios over IPv4 and IPv6 (correct checksums with offload off) and client clocks all match, except the intended stall detection and pause.
+
+## 2026-10-08-tcp-inject-clock
+
+Timestamp injection against a Windows-like client whose clock looks older than the injected TSval: the old marker hung about half the connections silently with success counters; the fix (`146a751`, inject 1, count stalls, pause) cut failures to the first minute and then paused injection. Windows' timestamp clock is its uptime in ms.
+
+## 2026-10-08-remote-congestion
+
+A queue beyond the ISP that only some flows cross does not mislead the daemon; with a local queue too, `tcp_delay_attribution` blamed the right direction, while without it download was cut for an upload queue.
+
+## 2026-10-08-tcp-echo-delay
+
+Servers that idle or think before answering did not inflate the TCP upload estimate (p99 under 12 ms, false alarms at most 0.3%); no echo-wait cap was built.
+
+## 2026-10-08-tcp-filter-fastpath
+
+A TCP filter fast path (per-CPU timestamp cache, 12-byte option read, no buffer zeroing) was not faster anywhere: 3–7% slower on the 32-bit VM, 5% on the x86_64 VM, and on the Filogic router it moved with the unchanged injector (2% slower relative to it). Dropped. First router cost of 0.3.9: about 2.0 µs per packet for the filter and 0.37 µs for the injector, about 1.1% of a Cortex-A53 core.
+
+## 2026-10-07-tcp-timestamp-inject-testbed
+
+`tcp_timestamp_inject` (`3e23b04`) on the 25.12 testbed: four server behaviors end as designed with exact counters, nothing is rewritten after stop or SIGKILL, lifecycle 33 of 33; merging the injector into the filter's object removed the ingress program (injector egress 466 ns per packet on the 32-bit VM, against a 234 ns empty-program floor).
+
+## 2026-10-07-tcp-timestamp-injection
+
+Experiment, not in the product: a `tc` BPF program adds the timestamp option to Windows SYNs. On the user's real traffic, 775 of 775 SYNs rewritten and 715 servers enabled timestamps, with no failed connection or bad checksum. Windows then adopts timestamps itself (98.7% of its packets), so both directions gain estimates and the strip program is unnecessary. Not an accuracy or cost result.
+
+## 2026-10-07-openwrt-snapshot
+
+The current code on an OpenWrt snapshot (r36953, x86/64, kernel 6.18, LLVM 22): builds without warnings, the verifier accepts the TCP filter, 33 of 33 lifecycle checks pass, and a controlled run with TCP attribution matches 25.12 (queue correlation 0.77–0.92, false alarms ≤ 0.2%). One run; filter cost not measured.
+
+## 2026-10-06-tcp-bound-check
+
+The fping queue bound (`cb348e4`) controls like the build before it over three alternating repetitions, with equal or lower added-delay p95, and cuts the largest download estimates under load from 45–90 ms to 33–46 ms.
+
+## 2026-10-06-bound-median
+
+The TCP queue bound becomes the lower median of each pinger's largest added delay, so one slow reflector no longer opens it; on the user's routers, false 20–72 ms upload estimates had each matched the single slowest fping reply.
+
+## 2026-10-06-router-libreqos
+
+0.3.4 on the user's Filogic router during a LibreQoS test: held 145/73 Mbit/s with an fping delta p95 of at most 2.4 ms per direction and 9.4 ms bidirectional, grade A. LibreQoS's 54 Mbit/s upload figure is its own averaging; the wire carried 61 Mbit/s and cake-adapt never cut upload.
+
+## 2026-10-06-storage-defaults
+
+With the shipped defaults the daemon writes nothing to persistent storage: zero block reads and writes over two 10.5-minute runs covering load, export, reset, CAKE re-creation, sleep and rotation. Every written file is in RAM.
+
+## 2026-10-06-storage-reads
+
+A bounded audit of block-device reads while monitoring: zero reads and writes on every device in the running and stopped windows; the only opens were of `/etc/TZ`, which resolves to tmpfs.
+
+## 2026-10-05-context-refactor
+
+Keeping settings in their objects (`74d9697`) measures the same as `d6564a6` over four alternating repetitions, and CAKE removal and re-creation still suspends and resumes measurement.
+
+## 2026-10-05-e2e
+
+End-to-end run after the refactors: 21 automated checks pass for the new build and `d6564a6`; one bug found and fixed (`05eb6b3`, a SIGKILLed daemon left fping running). About 0.25–0.4% of a core and 2.1 MB under load; a 30-minute soak shows no growth.
+
+## 2026-10-05-gpt-work-check
+
+Traces the regression in `2026-10-05-ack-control` to the directional agreement guard of `0321661`; reverting only the guard restores the earlier results (reverted in `d6564a6`). ACK accounting, the floor hold and the lifetime stream measured neutral apart from filter cost.
+
+## 2026-10-05-ack-control
+
+One repetition each of the TCP extensions off, before and after the day's mitigations; it showed the control regression later traced to the agreement guard.
+
+## 2026-10-05-ack-accounting
+
+The filter's outgoing and pure-ACK byte counters now use the upload CAKE's packet charge, matching the kernel's adjusted sizes for raw, Ethernet, signed overhead, MPU, ATM and PTM.
+
+## 2026-10-05-tcp-confidence
+
+The estimator holds its floor while fping sees congestion, so a standing queue cannot become the baseline (kept). The directional agreement rule described here was reverted in `d6564a6`.
+
+## 2026-10-05-tcp-lifetime-stream
+
+**Reverted.** The ordered lifetime stream for reused TCP tuples: its preflight passed on the i386 JIT, but it cost 49–64% more filter time per packet for a rare case. Design, tools and unfinished work are archived here.
+
+## 2026-10-05-tcp-lifetime-resume
+
+Why a helper-based lock could not replace the BPF atomics the i386 JIT rejects: it can discard the handshake that invalidates an old lifetime.
+
+## 2026-10-05-tcp-lifetime-deferred
+
+The first lifetime design was rolled back: its compare-and-swap atomics are unsupported by the 6.12 i386 BPF JIT, so the filter fell back to the interpreter.
+
+## 2026-10-05-tcp-lifetime-cost
+
+Filter cost of that first design: 11.7–15.3× more time per run, confounded by running interpreted, and double the BPF map memory.
+
+## 2026-10-05-tcp-lifetime-capacity
+
+Map-capacity, eviction and one cross-CPU race checks of the first lifetime design: 149 assertions passed; not an exhaustive ordering proof.
+
+## 2026-10-05-tcp-lifetime-core
+
+Core kernel test of the first lifetime design in a private namespace: 62 assertions passed for handshakes, retransmissions, tuple reuse and wrap.
+
+## 2026-10-04-review-map
+
+One-page visual map of the TCP-delay review's findings against the code of 2026-10-04, with a probe showing a wrong split raising the congested direction's shaper.
+
+## 2026-10-04-ebpf-vm
+
+**Withdrawn.** A VM run that produced no `TCP_QUEUE` records and validates nothing about the estimator; kept as an audit of the earlier mislabeled report.
+
+## 2026-10-04-flow-pair
+
+First TCP-delay review fix: one flow supplies a coherent directional pair. Deterministic before/after evidence shows a newly calibrated flow no longer erases an established 80/20-ms estimate.
+
+## 2026-10-03-arm64-vm
+
+The Filogic build on an emulated arm64 VM: the arm64 verifier accepts the TCP filter and the CLI, attribution, fping-ts and lifecycle runs all pass. Functional only; the emulated CPU makes timings and sample counts unrepresentative.
+
+## 2026-10-03-sample-thinning
+
+Sampling TCP timestamps at most every 4 ms per flow makes the filter 10–34% cheaper with the queue estimate as accurate as before (correlation 0.87–0.95); over five rounds it costs about +10 ms at the bidirectional p99 and 1–3 ms in download phases. Shipped at 4 ms.
+
+## 2026-10-03-fping-ts-testbed
+
+fping-ts on the testbed, where ICMP timestamps pass: its one-way delays track the real queues (upload correlation 0.94–0.97, false alarms ≤ 0.6% against 27–40% for RTT/2), and controlling with it cuts upload p95 from 102–104 to 60–65 ms and lifts bidirectional download from 38–41% to 69–72%. A sudden capacity drop peaked higher than with fping; internet reflectors remain unverified.
+
+## 2026-10-03-ebpf-filter-cost
+
+The TCP filter costs 1.5–1.9 µs per packet on the x86 VM (130 ns of it the kernel's): about 45% flow state, 45% the departures map, 10% the ring buffer. Counter changes and per-CPU LRU lists gain at most a few percent (LRU lists are 6% slower); only thinning the samples could cut it substantially. The kept filter still tracks the real queue (correlation 0.89–0.92).
+
+## 2026-10-03-ebpf-design-history
+
+Design record: why fping alone is insufficient, the feasibility spike and CPU cost that justified the eBPF socket filter, the fixed-cap attempt that preceded the dynamic ACK share, and the net before/after numbers. No raw data; links to the two entries below for evidence.
+
+## 2026-10-03-ack-share-dynamic
+
+Download ACKs on a 900 kbit/s upload, off vs. `upload_ack_share_min 0.45`: ACKs took 46–74% and a 200 kbit/s UDP stream lost up to 48%; with the option, ACKs use what other upload traffic leaves, down to 45%, the stream loses 0–5.5%, and download gives up 4–12 Mbit/s while held.
+
+## 2026-10-02-tcp-queue-split
+
+fping alone vs. `tcp_delay_attribution`: the TCP-timestamp queue estimate follows the emulated ISP's real queue under control (correlation 0.85–0.95, against RTT/2's half-size, two-sided reading); splitting fping's delay by it took median added RTT under bidirectional load from 50 to 28 ms and download from 41% to 67% of capacity.
+
+## 2026-09-30
+
+End-to-end run and CPU profile after the optimization pass: flame graphs for five workloads, CPU before and after, syscall counts, and the qdisc lifecycle, idle, signal and shutdown checks.
+
+## cake-autorate-resources
+
+CPU, memory, process and reaction-time comparison with cake-autorate `ac75f49` under the same workload: about 5× less CPU (7.6× with all records enabled), a tenth of the memory, and a 7× faster median reply-to-decision time.
+
+## controller-comparison
+
+Side-by-side runs with cake-autorate `ac75f49` and the two traces the controller replays with no mismatching decisions.
+
+## 2026-09-26
+
+Superseded first flame graphs, from before the optimization pass and the source restructure.
