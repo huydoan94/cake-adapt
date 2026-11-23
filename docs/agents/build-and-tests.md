@@ -24,8 +24,9 @@ average delays may differ by 1 µs, rates by 0.5% and compensated thresholds by
 3 µs. Keep it passing; a controller change that alters a replayed decision
 beyond these tolerances is a divergence from upstream and needs an explicit
 decision and documentation.
-`extract-trace.py` and `scripted-fping.sh` reproduce the fixtures; the raw
-source logs are in `profiling/controller-comparison/`.
+`extract-trace.py` and `scripted-fping.sh` reproduce the fixtures; the runs
+they came from are summarized in
+[`profiling/README.md`](../../profiling/README.md#controller-comparison).
 
 Prefer the narrowest useful command. Do not trigger broad OpenWrt toolchain
 builds for host-only work. Development, SDK validation, host-test headers,

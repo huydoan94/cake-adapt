@@ -69,7 +69,7 @@ observe -> verify -> control existing CAKE -> replace cake-autorate behavior
 The current daemon observes and controls CAKE instances created by the existing
 SQM setup. A root `cake_mq` (multi-queue CAKE) is controlled like a single
 CAKE through its shared settings; the kernel splits its rate equally among
-busy queues (`profiling/2026-10-10-cake-mq`). It does not yet own CAKE or IFB
+busy queues ([history](profiling/README.md#2026-10-10-cake-mq)). It does not yet own CAKE or IFB
 creation, ingress redirection, `ctinfo`, `mirred`, or cleanup. Do not advance that boundary without an explicit
 user decision and verified behavior at the current stage.
 
@@ -82,8 +82,8 @@ ownership is added later, implement only the deployment's required behavior.
 [cake-autorate](https://github.com/lynxthecat/cake-autorate) is the origin of
 the controller design and the baseline to beat: since 2026-10-01 the goal is to
 minimize bufferbloat, not to port faithfully. Departures are opt-in (or a
-documented deliberate default), measured on the testbed with raw evidence under
-`profiling/`, and documented; with every departure off, the replay test keeps
+documented deliberate default), measured on the testbed with raw evidence kept and
+summarized in `profiling/README.md`, and documented; with every departure off, the replay test keeps
 matching within its tolerances. The daemon's own ICMP probes are the default
 pinger, with `fping`, `fping-ts` and `irtt` as fallbacks; rate adjustment
 stays opt-in. The full rules are in
@@ -244,8 +244,10 @@ Permissions the user has granted:
   lists alone).
 
 Keep program changes and measurement material (tools, evidence) in separate
-commits, and keep evidence to before/after comparisons. Branch, remote, push,
-and version management stay with the user.
+commits, and keep evidence to before/after comparisons. Commit only a run's
+entry in `profiling/README.md` (date and topic, what it tested, the result);
+its data, scripts and report stay out of the repository (user decision
+2026-11-23). Branch, remote, push, and version management stay with the user.
 
 ## Change discipline
 

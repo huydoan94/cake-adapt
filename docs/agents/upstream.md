@@ -22,8 +22,8 @@ Treat upstream cake-autorate as the reference for:
 Since 2026-10-01 the goal is to minimize bufferbloat, not to port faithfully:
 cake-autorate is the origin of the design and the baseline to beat. Departures
 are allowed when they are opt-in (or a documented deliberate default), measured
-on the testbed against the upstream-identical behavior with raw evidence under
-`profiling/`, and documented in code and user-facing docs. With every departure
+on the testbed against the upstream-identical behavior with raw evidence kept
+and summarized in `profiling/README.md`, and documented in code and user-facing docs. With every departure
 switched off, the replay test must keep matching within its tolerances. Judge a change by latency
 first (added delay percentiles, time bufferbloated) with bounded throughput
 loss (keep at least about 85% of capacity unless the user agrees otherwise).
