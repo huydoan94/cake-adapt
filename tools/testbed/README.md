@@ -48,4 +48,5 @@ Copy the scripts to `/tmp/cake-adapt-test/` on the VM.
 Run background processes with `ip netns exec` directly rather than through a
 shell function, so `$!` is the real process and stopping it works.
 
-Results made with these scripts are under [`profiling/`](../../profiling/README.md).
+Results made with these scripts are summarized in the [test history](../../profiling/README.md); each run's
+raw data stays with whoever ran it.
