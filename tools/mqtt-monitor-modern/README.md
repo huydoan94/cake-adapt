@@ -94,10 +94,10 @@ pages redraw once per UI cycle.
   shape stays readable, and the line does not change while the chart scrolls.
   When a second is narrower than a pixel (wide windows), the window grows to the
   next of 2, 5, 10, 15, 30 or 60 seconds. Sparse traces keep exact lines.
-- Latency: when the highest reading is more than three times the 99th
+- Latency and TCP queues: when the highest reading is more than three times the 99th
   percentile, the scale tops out at 1.25 x the 99th percentile; clipped spikes
   get a marker at the top edge with their highest value written under it
-  (nearby spikes share one label), the unit label says so, and hover shows
+  (labels that would come closer than 5 px merge, keeping the highest), the unit label says so, and hover shows
   each trace's value.
 - Latency also shows bufferbloat: samples whose load condition ends in `_bb`
   (the router measured delay above its threshold) are counted per source and

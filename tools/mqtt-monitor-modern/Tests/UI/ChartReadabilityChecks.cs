@@ -29,15 +29,18 @@ static partial class Tests
             "charts average over one second unless a second is narrower than a pixel");
 
         var now = Telemetry.Now;
-        TrendChart Latency(double spike)
+        TrendChart Clip(string report, double spike)
         {
             var store = new MetricStore();
             for (var i = 0; i < 200; i++)
             {
                 var value = i == 150 ? spike : 2000 + i % 7 * 100;
-                store.Accept("clip", $"R_HEADER; LOG_TIMESTAMP; REFLECTOR; DL_AVG_OWD_DELTA_US\nR; {now - 200 + i:R}; 1.1.1.1; {value:R}", now - 200 + i);
+                var at = now - 200 + i;
+                store.Accept("clip", report == ReportNames.TcpQueues
+                    ? $"TCP_QUEUE; date; {at:R}; {at:R}; 1; {value:R}; 1; 2000"
+                    : $"R_HEADER; LOG_TIMESTAMP; REFLECTOR; DL_AVG_OWD_DELTA_US\nR; {at:R}; 1.1.1.1; {value:R}", at);
             }
-            var panel = new ChartPanel("Latency");
+            var panel = new ChartPanel(report);
             var owner = new Window { Width = 900, Height = 500, Content = panel };
             owner.Show();
             panel.Update(store.Snapshot(300, now), null, 300, "clip");
@@ -46,23 +49,29 @@ static partial class Tests
             owner.Close();
             return chart;
         }
+        TrendChart Latency(double spike) => Clip(ReportNames.Latency, spike);
         var spiky = Latency(260000);
         Check(spiky.Ceiling is > 2 and < 4, "a lone latency spike tops the scale just above the 99th percentile (ms)");
         Check(Latency(2700).Ceiling == null, "latency without outlying spikes keeps its full range");
+        Check(Clip(ReportNames.TcpQueues, 377000).Ceiling is > 2 and < 4 && Clip(ReportNames.TcpQueues, 2700).Ceiling == null,
+            "TCP queues clip a lone spike like latency, and keep the full range without one");
         var red = Avalonia.Media.Colors.Red;
         var blue = Avalonia.Media.Colors.Blue;
-        var labels = ClipLabels.Merge([new(130, 51, red), new(100, 260, blue), new(110, 90, red), new(160, 75, blue)], 40);
-        Check(labels.Length == 2 && labels[0] == new ClipLabel(100, 260, blue) && labels[1] == new ClipLabel(160, 75, blue),
-            "nearby clipped spikes share one label with their highest value");
-        var chained = ClipLabels.Merge([new(0, 10, red), new(30, 20, red), new(60, 30, red), new(75, 5, red)], 40);
-        Check(chained.Length == 1 && chained[0].Value == 30,
-            "a peak label follows the highest spike, so labels stay a gap apart");
-        Check(ClipLabels.Merge([new(0, 10, red), new(40, 20, red)], 40).Length == 2 && ClipLabels.Merge([], 40).Length == 0,
-            "spikes a full gap apart keep their own labels");
+        // Labels 30 px wide at left edges 0/20/30/100 with 5 px spacing: the first three crowd.
+        var labels = ClipLabels.Merge([new(30, 30, 51, red), new(0, 30, 260, blue), new(20, 30, 90, red), new(100, 30, 75, blue)], 5);
+        Check(labels.Length == 2 && labels[0] == new ClipLabel(0, 30, 260, blue) && labels[1] == new ClipLabel(100, 30, 75, blue),
+            "crowding peak labels merge into the highest value");
+        var spaced = ClipLabels.Merge([new(0, 30, 10, red), new(35, 30, 20, red), new(64, 30, 30, red)], 5);
+        Check(spaced.Length == 2 && spaced[0].Value == 10 && spaced[1].Value == 30,
+            "labels 5 px apart edge to edge both stay; a closer one merges into the higher");
+        var later = ClipLabels.Merge([new(0, 30, 10, red), new(36, 30, 99, red), new(70, 30, 20, red)], 5);
+        Check(later.Length == 2 && later[0].Value == 10 && later[1] == new ClipLabel(36, 30, 99, red),
+            "a higher label merged from the right keeps its own place and spacing");
+        Check(ClipLabels.Merge([], 5).Length == 0, "no clipped spikes, no labels");
         var throughput = new ChartPanel("Throughput");
         throughput.Update([], null, 300, "clip");
         Check(throughput.GetVisualDescendants().OfType<TrendChart>().All(c => c.Ceiling == null) &&
-            new TrendChart().Ceiling == null, "only latency charts clip their scale");
+            new TrendChart().Ceiling == null, "only latency and TCP queue charts clip their scale");
 
         // Bufferbloat: one tick row and one count per source on the Latency chart only.
         var bloat = new[]

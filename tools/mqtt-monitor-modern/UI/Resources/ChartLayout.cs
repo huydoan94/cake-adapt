@@ -17,8 +17,9 @@ public static class ChartLayout
     public const byte EnvelopeAlpha = 70;
     // Latency: clip the scale when the peak exceeds ClipRatio x p99; the top is p99 x ClipHeadroom.
     public const double ClipPercentile = .99, ClipRatio = 3, ClipHeadroom = 1.25, ClipMarkerSize = 4;
-    // Peak labels under the clip markers: padding, minimum space between labels, offset below the markers.
-    public const double ClipLabelPadding = 3, ClipLabelSpacing = 4, ClipLabelTop = 1, ClipLabelRadius = 3;
+    // Peak labels under the clip markers: padding, offset below the markers, corner radius, and
+    // the smallest edge-to-edge space between labels (closer labels merge, keeping the highest).
+    public const double ClipLabelPadding = 3, ClipLabelTop = 1, ClipLabelRadius = 3, ClipLabelSpacing = 5;
     public const double CrosshairStroke = 1, TooltipBorderStroke = 1;
     // Bufferbloat ticks: one row per source, stacked upward from the plot bottom.
     public const double MarkHeight = 6, MarkRowSpacing = 8, MarkStroke = 1.5;

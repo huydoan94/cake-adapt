@@ -58,7 +58,7 @@ Manual refreshes do not publish a new batch.
   Its containing window is used only to display dialogs/snapshots; there is no
   dependency on `MainWindow`. **PlotSeries** prepares labels and display units.
   **PlotScale** converts measurements to coordinates. **ClipLabels** merges
-  nearby clipped spikes into peak labels. **TrendChart** only draws axes,
+  crowding peak labels, keeping the highest. **TrendChart** only draws axes,
   continuous traces, clip markers with their peak labels, and hover text. Expanded charts are frozen snapshots.
 - **MetricsPage** owns search and the table. **MetricRows** reconciles changes
   without replacing retained row objects or the collection; this preserves

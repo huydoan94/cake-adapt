@@ -163,10 +163,11 @@ public sealed class TrendChart : Control
     }
 
     // A small marker at the top edge for each clock window holding a reading above a clipped
-    // scale, and below the markers the highest value of each group of nearby spikes.
+    // scale, and below the markers peak labels; labels that would crowd keep the highest value.
     private void DrawClipped(DrawingContext context, PlotScale scale, double step)
     {
-        var top = scale.Bounds.Top;
+        var plot = scale.Bounds;
+        var top = plot.Top;
         var peaks = new List<ClipLabel>();
         foreach (var line in Lines)
         {
@@ -175,9 +176,8 @@ public sealed class TrendChart : Control
                 .Select(sample => (Window: Math.Floor(sample.SourceTime / step), Value: sample.Value!.Value, Point: scale.Project(sample)))
                 .Where(spike => spike.Point.HasValue)
                 .GroupBy(spike => spike.Window).Select(window => window.MaxBy(spike => spike.Value))
-                .Select(spike => new ClipLabel(spike.Point!.Value.X, spike.Value, line.Color)).ToArray();
-            peaks.AddRange(spikes);
-            foreach (var x in spikes.Select(spike => spike.X))
+                .Select(spike => (X: spike.Point!.Value.X, spike.Value)).ToArray();
+            foreach (var (x, value) in spikes)
             {
                 var marker = new StreamGeometry();
                 using (var path = marker.Open())
@@ -188,24 +188,21 @@ public sealed class TrendChart : Control
                     path.EndFigure(true);
                 }
                 context.DrawGeometry(brush, null, marker);
+                var width = PeakText(value, line.Color).Width + 2 * ChartLayout.ClipLabelPadding;
+                peaks.Add(new ClipLabel(Math.Clamp(x - width / 2, plot.Left, Math.Max(plot.Left, plot.Right - width)), width, value, line.Color));
             }
         }
-        if (peaks.Count == 0)
-            return;
-        static TextLayout Label(ClipLabel peak) =>
-            new(Telemetry.Format(peak.Value), new Typeface(UiTheme.Font), UiTypography.Small, new SolidColorBrush(peak.Color));
-        var gap = peaks.Max(peak => Label(peak).Width) + 2 * ChartLayout.ClipLabelPadding + ChartLayout.ClipLabelSpacing;
-        var plot = scale.Bounds;
-        foreach (var peak in ClipLabels.Merge(peaks, gap))
+        foreach (var peak in ClipLabels.Merge(peaks, ChartLayout.ClipLabelSpacing))
         {
-            var layout = Label(peak);
-            var width = layout.Width + 2 * ChartLayout.ClipLabelPadding;
-            var box = new Rect(Math.Clamp(peak.X - width / 2, plot.Left, Math.Max(plot.Left, plot.Right - width)),
-                top + ChartLayout.ClipMarkerSize + ChartLayout.ClipLabelTop, width, layout.Height);
+            var layout = PeakText(peak.Value, peak.Color);
+            var box = new Rect(peak.Left, top + ChartLayout.ClipMarkerSize + ChartLayout.ClipLabelTop, peak.Width, layout.Height);
             context.DrawRectangle(UiTheme.TooltipBackground, null, box, ChartLayout.ClipLabelRadius, ChartLayout.ClipLabelRadius);
             layout.Draw(context, new Point(box.X + ChartLayout.ClipLabelPadding, box.Y));
         }
     }
+
+    private static TextLayout PeakText(double value, Color color) =>
+        new(Telemetry.Format(value), new Typeface(UiTheme.Font), UiTypography.Small, new SolidColorBrush(color));
 
     private void DrawHover(DrawingContext context, PlotScale scale, Point mouse)
     {

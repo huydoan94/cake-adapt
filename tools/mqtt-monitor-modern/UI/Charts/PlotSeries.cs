@@ -20,11 +20,11 @@ internal static class PlotSeries
 
     // showSource: name the router in every label whenever more than one is publishing
     // to this chart, even if the drawn traces happen to come from one of them.
-    // Latency only: when a few spikes are far above the rest, top the scale just above
-    // the 99th percentile so normal delay stays readable. Null keeps the full range.
+    // Latency and TCP queues only: when a few spikes are far above the rest, top the scale
+    // just above the 99th percentile so normal delay stays readable. Null keeps the full range.
     public static double? Ceiling(string report, PlotLine[] lines)
     {
-        if (report != ReportNames.Latency)
+        if (report is not (ReportNames.Latency or ReportNames.TcpQueues))
             return null;
         var values = lines.SelectMany(line => line.Points).Where(point => point.Value.HasValue)
             .Select(point => point.Value!.Value).Order().ToArray();
