@@ -16,9 +16,9 @@
 		"write": {
 			"uci": [ "cake-adapt" ],
 			"file": {
-				"/etc/init.d/cake-adapt start *": [ "exec" ],
-				"/etc/init.d/cake-adapt stop *": [ "exec" ],
-				"/etc/init.d/cake-adapt restart *": [ "exec" ]
+				"/etc/init.d/cake-adapt start ?*": [ "exec" ],
+				"/etc/init.d/cake-adapt stop ?*": [ "exec" ],
+				"/etc/init.d/cake-adapt restart ?*": [ "exec" ]
 			},
 			"ubus": {
 				"file": [ "exec" ]
