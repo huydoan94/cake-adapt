@@ -8,6 +8,10 @@ product.
 
 Older entries use `upload_ack_share_min`, now named `ul_congest_ack_share`.
 
+## 2026-11-26-native-loss
+
+The routers' MQTT captures suggested native probes lose 1-3% of replies against fping's 0.1%. A capture on a router's WAN showed the replies arriving and being used: the daemon's `mqtt_submit()` dropped the DATA line when its `trylock` met the sender thread, just woken by the TCP_QUEUE line written before it (292 of 311 missing DATA records had their TCP_QUEUE record). Cadence, packet bytes, sends, socket drops and receive stamps all matched fping or the wire. Fix: wait for the lock; the unit test fails on the old code. Separately, many reflectors never answer ICMP timestamp queries, which matters only for `native-ts`.
+
 ## 2026-11-25-native-icmp
 
 Kernel send stamps for the native pinger (planned for 1.0.4) against 1.0.2's native probes and fping, on VM .2 with tcpdump on the testbed's WAN side as the reference for every probe. `sendto()` can first run the kernel's pending network work, so the clock read before it (as native and fping did) was up to 0.9 ms early under load; the qdisc-entry stamp (`SOF_TIMESTAMPING_TX_SCHED`) was within a few µs of the wire. Median RTT error over three rounds fell from 58 to 34 µs idle, 254 to 220 µs under upload (p95 1,475 to 948) and 480 to 410 µs under download (p95 2,029 to 1,536), with bidirectional within the spread; fping read 50, 317 and 546 µs. IPv6 works the same way. Replies reach the controller in about half fping's time (median 123 against 227 µs idle). CPU is within the spread of 1.0.2 and below fping under load, memory 2,750 against 3,510 kB, and system calls 7,259 against 7,185 (fping 11,197). The remaining error is on the receive side, where the kernel stamps a reply only after the IFB redirect, for fping as for native.
