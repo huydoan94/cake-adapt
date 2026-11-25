@@ -261,9 +261,21 @@ static void wait_atomic(atomic_uint *counter, unsigned int expected, uint64_t bo
 	}
 }
 
+/* Holds the lock it is given for 20 ms, then releases it (the caller locked it). */
+static void *release_after_pause(void *argument)
+{
+	pthread_mutex_t *lock = argument;
+	struct timespec pause = { .tv_nsec = 20000000L };
+
+	(void)nanosleep(&pause, NULL);
+	(void)pthread_mutex_unlock(lock);
+	return NULL;
+}
+
 static void test_queue(void)
 {
 	struct mqtt_sender state = { 0 };
+	pthread_t holder;
 	struct mqtt_connection connection = { .state = &state };
 	char boundary[MQTT_LINE_SIZE + 1U];
 	unsigned int index;
@@ -282,12 +294,15 @@ static void test_queue(void)
 	assert(state.count == 1U);
 	assert(strcmp(state.lines[0], "DATA; exact payload") == 0);
 
-	/* Neither a held mutex nor a full queue may block the caller. */
+	/* A briefly held lock delays the caller; the line is kept, as the sender only copies. */
 	assert(pthread_mutex_lock(&state.lock) == 0);
+	assert(pthread_create(&holder, NULL, release_after_pause, &state.lock) == 0);
 	mqtt_submit("contended");
-	assert(state.count == 1U);
-	assert(pthread_mutex_unlock(&state.lock) == 0);
-	for (index = 1U; index < 32U; index++)
+	assert(pthread_join(holder, NULL) == 0);
+	assert(state.count == 2U);
+	assert(strcmp(state.lines[1], "contended") == 0);
+	/* A full queue still drops without blocking the caller. */
+	for (index = 2U; index < 32U; index++)
 		mqtt_submit("queued");
 	assert(state.count == 32U);
 	mqtt_submit("full");

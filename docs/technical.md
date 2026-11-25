@@ -396,8 +396,10 @@ of them. Each writes `/usr/share/cake-adapt/features` (no words, `mqtt`, or
 daemon supports. Username/password authentication works with either transport.
 
 MQTT is off by default. It publishes with QoS 0 and no retention. Disconnected,
-contended, full and oversized submissions are silently dropped; offline records
-are not replayed. Failed connections retry every 10 seconds indefinitely, with
+full and oversized submissions are silently dropped; offline records are not
+replayed. A submission waits for the queue lock, which the sender holds only to
+copy a line out (until 1.0.4 a contended one was dropped, which lost about 2% of
+DATA records: the line written right after TCP_QUEUE found the sender just woken). Failed connections retry every 10 seconds indefinitely, with
 bounded waits and bounded main-thread shutdown. Existing output flags and record
 schemas remain in effect. Broker, topic and authentication settings are
 available in LuCI and the [configuration reference](configuration.md#output-and-logging).

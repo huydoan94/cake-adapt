@@ -380,8 +380,14 @@ void mqtt_submit(const char *line)
 	if (state == NULL || !atomic_load(&state->online))
 		return;
 	length = strnlen(line, MQTT_LINE_SIZE);
-	if (length == MQTT_LINE_SIZE || pthread_mutex_trylock(&state->lock) != 0)
+	if (length == MQTT_LINE_SIZE)
 		return;
+	/*
+	 * Wait for the lock: every holder only copies a line or moves counters, never does I/O.
+	 * Dropping on contention lost the second of two records written back to back (DATA
+	 * after TCP_QUEUE) whenever the first had just woken the sender.
+	 */
+	(void)pthread_mutex_lock(&state->lock);
 	if (atomic_load(&state->online) && state->count < MQTT_QUEUE_RECORDS) {
 		slot = (state->first + state->count) % MQTT_QUEUE_RECORDS;
 		memcpy(state->lines[slot], line, length + 1U);
