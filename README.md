@@ -35,7 +35,7 @@ Download the package for your router from the
 it:
 
 ```sh
-scp x86_64_cake-adapt-1.0.4-r1.apk root@router:/tmp/cake-adapt.apk
+scp x86_64_cake-adapt-1.0.5-r1.apk root@router:/tmp/cake-adapt.apk
 ssh root@router
 apk add --allow-untrusted /tmp/cake-adapt.apk
 ```
