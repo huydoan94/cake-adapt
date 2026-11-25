@@ -79,6 +79,15 @@ static void handle_native_reply(struct uloop_fd *descriptor, unsigned int events
 	char error[ERROR_SIZE] = { 0 };
 
 	(void)events;
+	/*
+	 * A send stamp left on the error queue (a send whose stamp came after sendto()
+	 * returned) keeps the socket in error; reading it clears that. A socket error
+	 * itself is reported by the receive below.
+	 */
+	if (descriptor->error) {
+		descriptor->error = false;
+		icmp_discard_errors(&session->channels[watch->channel]);
+	}
 	for (size_t count = 0U; count < NATIVE_RECEIVE_BATCH; count++) {
 		struct icmp_reply reply;
 		struct latency_sample sample;
@@ -144,7 +153,8 @@ bool native_pinger_watch(struct daemon *daemon)
 		if (descriptor < 0 || reader->registered)
 			continue;
 		reader->fd = descriptor;
-		if (uloop_fd_add(reader, ULOOP_READ) != 0) {
+		/* Without ULOOP_ERROR_CB, uloop drops a socket at its first error event. */
+		if (uloop_fd_add(reader, ULOOP_READ | ULOOP_ERROR_CB) != 0) {
 			pingers_report_failure(
 				daemon,
 				"could not watch native ICMP socket: %s",

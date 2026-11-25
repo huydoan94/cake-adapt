@@ -31,7 +31,24 @@ Receive timestamps use `SO_TIMESTAMPNS_NEW` with Linux's two signed 64-bit
 fields, including on i386 with 64-bit libc `time_t`. Linux recommends the new
 timestamp ABI for 32-bit time safety ([kernel documentation](https://docs.kernel.org/networking/timestamping.html)).
 When timestamps are unavailable, samples use the read-time clock and log one
-warning per session. The existing sample contract keeps realtime
+warning per session.
+
+Send times come from the kernel too (2026-11-25): `SO_TIMESTAMPING_NEW` with
+`SOF_TIMESTAMPING_TX_SCHED` stamps each request as it enters the qdisc, and
+`icmp_send()` reads that stamp from the socket's error queue straight after
+`sendto()`, where the kernel queued it during the call. `sendto()` can first
+run pending softirq work, such as receiving a download through the IFB, and
+on the testbed that put the clock read before it up to 0.9 ms ahead of the
+request leaving. The qdisc stamp was within a few microseconds of the wire,
+and it keeps the time a request then queues in our own CAKE, as fping's clock
+does. The realtime stamp moves onto the monotonic clock only when it falls
+within the call; otherwise, or without kernel support, the clock read before
+`sendto()` stays. The sockets are watched with `ULOOP_ERROR_CB`, and an error
+event empties the error queue, so a late stamp can never make uloop drop a
+socket. Against the wire on the testbed the median RTT error fell from 58 to
+34 µs idle and from 480 to 410 µs under download; what remains is on the
+receive side, where the kernel stamps a reply after the IFB redirect, for
+fping as for native ([history](../../profiling/README.md#2026-11-25-native-icmp)). The existing sample contract keeps realtime
 `timestamp_us`/`[seconds.fraction]` for records; response age and RTT use the
 converted monotonic receive time. Timestamp probes keep fping-ts's signed raw
 clock offsets, zero fields and midnight discontinuities; the existing tracker

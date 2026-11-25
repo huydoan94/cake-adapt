@@ -18,6 +18,7 @@
 static int timer_delay;
 static int add_result;
 static enum icmp_receive_result receive_result;
+static unsigned int discards;
 static unsigned int receives;
 static unsigned int records;
 static unsigned int updates;
@@ -62,7 +63,7 @@ bool __wrap_read_clock_us(clockid_t identifier, uint64_t *timestamp_us)
 
 int uloop_fd_add(struct uloop_fd *descriptor, unsigned int flags)
 {
-	assert(flags == ULOOP_READ);
+	assert(flags == (ULOOP_READ | ULOOP_ERROR_CB));
 	if (add_result != 0)
 		return add_result;
 	descriptor->registered = true;
@@ -151,6 +152,7 @@ enum icmp_receive_result __wrap_icmp_receive(
 	size_t error_size
 );
 void __wrap_icmp_close(struct icmp_socket *channel);
+void __wrap_icmp_discard_errors(const struct icmp_socket *channel);
 bool __wrap_native_accept(
 	struct native_session *session,
 	const struct icmp_reply *reply,
@@ -175,6 +177,12 @@ enum icmp_receive_result __wrap_icmp_receive(
 	if (receive_result == ICMP_RECEIVE_ERROR)
 		(void)snprintf(error, error_size, "injected receive failure");
 	return receive_result;
+}
+
+void __wrap_icmp_discard_errors(const struct icmp_socket *channel)
+{
+	assert(channel->fd == 91);
+	discards++;
 }
 
 void __wrap_icmp_close(struct icmp_socket *channel)
@@ -269,6 +277,13 @@ int main(void)
 	handle_native_reply(&daemon.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket, ULOOP_READ);
 	assert(records == 320U && updates == 256U);
 	assert(last_recorded_us == fake_monotonic_us - accepted_age_us);
+	/* An error event empties the error queue once, then reads replies as usual. */
+	daemon.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket.error = true;
+	handle_native_reply(&daemon.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket, ULOOP_READ);
+	assert(discards == 1U && records == 384U);
+	assert(!daemon.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket.error);
+	handle_native_reply(&daemon.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket, ULOOP_READ);
+	assert(discards == 1U && records == 448U);
 	receive_result = ICMP_RECEIVE_ERROR;
 	handle_native_reply(&daemon.pingers.native_watches[NATIVE_CHANNEL_IPV4].socket, ULOOP_READ);
 	assert(!daemon.pingers.latency.active && daemon.pingers.next_attempt_us > 0U);

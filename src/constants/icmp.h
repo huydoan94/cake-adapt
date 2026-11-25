@@ -5,10 +5,30 @@
 
 #include "constants/units.h"
 
+#include <linux/net_tstamp.h>
+
 /* Linux's fixed time64 socket option; older musl headers expose only SO_TIMESTAMPNS. */
 #ifndef SO_TIMESTAMPNS_NEW
 #define SO_TIMESTAMPNS_NEW 64
 #endif
+/* The time64 SO_TIMESTAMPING, whose stamps are fixed 64-bit timespecs; same fallback. */
+#ifndef SO_TIMESTAMPING_NEW
+#define SO_TIMESTAMPING_NEW 65
+#endif
+/*
+ * Kernel send stamps: software stamps taken as a request enters the qdisc, reported without
+ * the packet. The kernel queues each on the socket's error queue during sendto().
+ */
+#define ICMP_SEND_TIMESTAMP_FLAGS \
+	(SOF_TIMESTAMPING_TX_SCHED | SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_OPT_TSONLY)
+/* struct __kernel_timespec: seconds and nanoseconds, two 64-bit fields. */
+#define ICMP_KERNEL_TIMESPEC_BYTES 16U
+/* SO_TIMESTAMPING carries three: software, deprecated, hardware. */
+#define ICMP_TIMESTAMPING_BYTES (3U * ICMP_KERNEL_TIMESPEC_BYTES)
+/* An error-queue entry's control data: the stamps and the extended error with its address. */
+#define ICMP_ERROR_CONTROL_BYTES 256U
+/* Error-queue entries read per send, until its own stamp, or per error event. */
+#define ICMP_ERROR_QUEUE_BATCH 8U
 /* linux/icmp.h's raw-socket type filter, at SOL_RAW; that header conflicts with netinet's. */
 #define LINUX_ICMP_FILTER 1
 

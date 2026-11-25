@@ -102,7 +102,7 @@ check-tcpdelay: $(BINARY_DIR)/test_daemon_tcp $(BINARY_DIR)/test_daemon_reflecto
 
 $(BINARY_DIR)/test_daemon_pingers: daemon/test_pingers.c $(SOURCE_DIR)/daemon/pingers.c $(SOURCE_DIR)/daemon/native_pinger.c $(SOURCE_DIR)/daemon/child_pingers.c $(wildcard $(SOURCE_DIR)/daemon/*.h) $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(addprefix $(OBJECT_DIR)/,$(COMMON_OBJECTS))
 	@mkdir -p $(@D)
-	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(addprefix $(OBJECT_DIR)/,$(COMMON_OBJECTS)) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(UCI_CFLAGS) $(CFLAGS) $(WARNINGS) -ffunction-sections -fdata-sections -std=c11 $(LDFLAGS) -Wl,--gc-sections,--wrap=icmp_receive,--wrap=icmp_close,--wrap=icmp_discard_errors,--wrap=native_accept,--wrap=read_clock_us,--wrap=native_tick -o $@ $< $(addprefix $(OBJECT_DIR)/,$(LATENCY_OBJECTS)) $(OBJECT_DIR)/src/common/error.o $(addprefix $(OBJECT_DIR)/,$(COMMON_OBJECTS)) $(LDLIBS)
 
 # libbpf map-definition macros require GNU typeof, as in the BPF build.
 $(BINARY_DIR)/test_filter_accounting: tcpdelay/test_filter_accounting.c $(SOURCE_DIR)/tcpdelay/tcpdelay.bpf.c $(SOURCE_DIR)/tcpdelay/record.h $(SOURCE_DIR)/cake/accounting.h
@@ -193,6 +193,7 @@ $(BINARIES): $(BINARY_DIR)/%: $$(addprefix $(OBJECT_DIR)/,$$($$*_OBJECTS))
 # Kept apart from LDFLAGS so command-line overrides cannot drop the wrappers.
 $(BINARY_DIR)/test_controller: TEST_LDFLAGS := -Wl,--wrap=calloc
 $(BINARY_DIR)/test_latency: TEST_LDFLAGS := -Wl,--wrap=access
+$(BINARY_DIR)/test_icmp: TEST_LDFLAGS := -Wl,--wrap=sendto,--wrap=recvmsg,--wrap=read_clock_us
 $(BINARY_DIR)/test_native: TEST_LDFLAGS := -Wl,--wrap=icmp_open,--wrap=icmp_close,--wrap=icmp_send
 
 $(BINARY_DIR)/icmp_driver: latency/icmp_driver.c $(SOURCE_DIR)/latency/icmp.c $(SOURCE_DIR)/latency/native.c $(COMMON_SOURCES) $(SOURCE_DIR)/common/error.c

@@ -32,6 +32,7 @@ struct icmp_socket {
 	int family;
 	uint16_t identifier;
 	bool timestamp_enabled;
+	bool send_timestamp_enabled;
 };
 
 struct icmp_reply {
@@ -69,6 +70,19 @@ bool icmp_parse(
 	struct icmp_reply *reply
 );
 bool icmp_timestamp(const struct msghdr *message, uint64_t *realtime_us);
+/* The software send stamp of an error-queue entry, CLOCK_REALTIME. */
+bool icmp_send_timestamp(const struct msghdr *message, uint64_t *realtime_us);
+/*
+ * Moves a realtime send stamp onto the monotonic clock, read before (before_us) and after
+ * (after_us, with after_realtime_us) the send. Only a stamp within the send call is taken.
+ */
+bool icmp_sent_monotonic(
+	uint64_t before_us,
+	uint64_t after_us,
+	uint64_t after_realtime_us,
+	uint64_t stamp_realtime_us,
+	uint64_t *sent_us
+);
 int icmp_open(
 	struct icmp_socket *channel,
 	int family,
@@ -91,6 +105,8 @@ int icmp_send(
 	char *error,
 	size_t error_size
 );
+/* Empties the error queue, where send stamps a send did not collect would stay. */
+void icmp_discard_errors(const struct icmp_socket *channel);
 /* Reads one datagram; an error is a socket or clock failure. */
 enum icmp_receive_result icmp_receive(
 	const struct icmp_socket *channel,

@@ -191,7 +191,9 @@ static struct cmsghdr *next_control(struct msghdr *message, struct cmsghdr *cont
 }
 #pragma GCC diagnostic pop
 
-bool icmp_timestamp(const struct msghdr *message, uint64_t *realtime_us)
+/* The first timespec of a SOL_SOCKET control message of this type and data length. */
+static bool
+control_timestamp(const struct msghdr *message, int type, size_t data_bytes, uint64_t *realtime_us)
 {
 	struct msghdr copy = *message;
 	struct cmsghdr *control;
@@ -208,8 +210,8 @@ bool icmp_timestamp(const struct msghdr *message, uint64_t *realtime_us)
 			    copy.msg_controllen - (size_t)((unsigned char *)control -
 							   (unsigned char *)copy.msg_control))
 			return false;
-		if (control->cmsg_level != SOL_SOCKET || control->cmsg_type != SO_TIMESTAMPNS_NEW ||
-		    control->cmsg_len != CMSG_LEN(sizeof(timestamp)))
+		if (control->cmsg_level != SOL_SOCKET || control->cmsg_type != type ||
+		    control->cmsg_len != CMSG_LEN(data_bytes))
 			continue;
 		memcpy(timestamp, CMSG_DATA(control), sizeof(timestamp));
 		if (timestamp[0] < 0 || timestamp[1] < 0 ||
@@ -221,6 +223,105 @@ bool icmp_timestamp(const struct msghdr *message, uint64_t *realtime_us)
 		return true;
 	}
 	return false;
+}
+
+bool icmp_timestamp(const struct msghdr *message, uint64_t *realtime_us)
+{
+	return control_timestamp(
+		message,
+		SO_TIMESTAMPNS_NEW,
+		ICMP_KERNEL_TIMESPEC_BYTES,
+		realtime_us
+	);
+}
+
+bool icmp_send_timestamp(const struct msghdr *message, uint64_t *realtime_us)
+{
+	return control_timestamp(message, SO_TIMESTAMPING_NEW, ICMP_TIMESTAMPING_BYTES, realtime_us);
+}
+
+bool icmp_sent_monotonic(
+	uint64_t before_us,
+	uint64_t after_us,
+	uint64_t after_realtime_us,
+	uint64_t stamp_realtime_us,
+	uint64_t *sent_us
+)
+{
+	uint64_t age_us;
+
+	/* A stamp from another send, or a clock step, falls outside the call. */
+	if (after_us < before_us || stamp_realtime_us > after_realtime_us)
+		return false;
+	age_us = after_realtime_us - stamp_realtime_us;
+	if (age_us > after_us - before_us)
+		return false;
+	*sent_us = after_us - age_us;
+	return true;
+}
+
+/* Reads one error-queue entry: -1 when the queue is empty, else 1 for a send stamp, or 0. */
+static int read_error_entry(const struct icmp_socket *channel, uint64_t *stamp_realtime_us)
+{
+	unsigned char data[1];
+	union {
+		struct cmsghdr alignment;
+		unsigned char bytes[ICMP_ERROR_CONTROL_BYTES];
+	} ancillary;
+	struct iovec vector = { .iov_base = data, .iov_len = sizeof(data) };
+	struct msghdr message = { .msg_iov = &vector,
+				  .msg_iovlen = 1U,
+				  .msg_control = ancillary.bytes,
+				  .msg_controllen = sizeof(ancillary.bytes) };
+
+	if (recvmsg(channel->fd, &message, MSG_ERRQUEUE | MSG_DONTWAIT) < 0)
+		return -1;
+	return icmp_send_timestamp(&message, stamp_realtime_us) ? 1 : 0;
+}
+
+void icmp_discard_errors(const struct icmp_socket *channel)
+{
+	uint64_t stamp_realtime_us;
+
+	for (size_t count = 0U; count < ICMP_ERROR_QUEUE_BATCH; count++)
+		if (read_error_entry(channel, &stamp_realtime_us) < 0)
+			break;
+}
+
+/*
+ * Replaces the clock read before sendto() with the kernel's stamp of the request entering
+ * the qdisc. sendto() can first run softirq work, such as receiving a download, for up to
+ * a millisecond before the request leaves; the stamp excludes that and keeps the time the
+ * request then queues in the shaper, as a pinger's own clock does.
+ */
+static void read_kernel_sent(const struct icmp_socket *channel, uint64_t *sent_us)
+{
+	uint64_t stamp_realtime_us;
+	uint64_t after_us;
+	uint64_t after_realtime_us;
+	int entry;
+
+	if (!read_clock_us(CLOCK_MONOTONIC, &after_us) ||
+	    !read_clock_us(CLOCK_REALTIME, &after_realtime_us))
+		return;
+	/*
+	 * The kernel queued this send's stamp during the call, so the first read normally
+	 * finds it. An earlier send's late stamp (a request held for neighbour resolution)
+	 * fails the bound and the next entry is tried.
+	 */
+	for (size_t count = 0U; count < ICMP_ERROR_QUEUE_BATCH; count++) {
+		entry = read_error_entry(channel, &stamp_realtime_us);
+		if (entry < 0)
+			return;
+		if (entry > 0 && icmp_sent_monotonic(
+					 *sent_us,
+					 after_us,
+					 after_realtime_us,
+					 stamp_realtime_us,
+					 sent_us
+				 ))
+			return;
+	}
 }
 
 static int socket_filter(int descriptor, int family, uint16_t identifier)
@@ -258,6 +359,7 @@ int icmp_open(
 )
 {
 	int enabled = 1;
+	unsigned int send_flags = ICMP_SEND_TIMESTAMP_FLAGS;
 	int fd;
 
 	*channel = (struct icmp_socket){ .fd = -1, .family = family, .identifier = identifier };
@@ -302,6 +404,9 @@ int icmp_open(
 	}
 	channel->timestamp_enabled =
 		setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW, &enabled, sizeof(enabled)) == 0;
+	channel->send_timestamp_enabled =
+		setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING_NEW, &send_flags, sizeof(send_flags)) ==
+		0;
 	return 0;
 failed:
 	(void)error_set(error, error_size, "could not configure ICMP socket: %s", strerror(errno));
@@ -360,6 +465,8 @@ int icmp_send(
 			"ICMP send failed: %s",
 			sent < 0 ? strerror(errno) : "short datagram"
 		);
+	if (channel->send_timestamp_enabled)
+		read_kernel_sent(channel, sent_us);
 	return 0;
 }
 
@@ -374,7 +481,10 @@ enum icmp_receive_result icmp_receive(
 	unsigned char packet[ICMP_RECEIVE_BYTES];
 	union {
 		struct cmsghdr alignment;
-		unsigned char bytes[CMSG_SPACE(sizeof(int64_t) * 2U)];
+		/* The receive stamp, and SO_TIMESTAMPING's copy once send stamps are on. */
+		unsigned char
+			bytes[CMSG_SPACE(ICMP_KERNEL_TIMESPEC_BYTES) +
+			      CMSG_SPACE(ICMP_TIMESTAMPING_BYTES)];
 	} ancillary;
 	struct iovec vector = { .iov_base = packet, .iov_len = sizeof(packet) };
 	struct icmp_address *source = &reply->source;

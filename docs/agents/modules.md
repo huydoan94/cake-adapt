@@ -100,7 +100,8 @@ Read before adding or moving code, or touching interfaces, ingress or kernel int
     rotation policy over latency trackers.
 - `latency/`
   - `icmp.c`: the native probes' IPv4/IPv6 raw sockets, wire packets,
-    identifier filters and fixed-width kernel receive timestamps.
+    identifier filters and fixed-width kernel send (qdisc entry) and receive
+    timestamps.
   - `native.c`: native probe scheduling (the default pinger), outstanding
     requests, expiry and reply matching; its samples use the same
     logging/tracker contract as the fping and irtt fallbacks.
