@@ -66,6 +66,7 @@ static int mock_lib_cleanup(void);
 #endif
 
 #include <assert.h>
+#include <sched.h>
 
 #define MOCK_RECORDS 16U
 #define MOCK_STEP_US MILLISECOND
@@ -261,12 +262,17 @@ static void wait_atomic(atomic_uint *counter, unsigned int expected, uint64_t bo
 	}
 }
 
-/* Holds the lock it is given for 20 ms, then releases it (the caller locked it). */
-static void *release_after_pause(void *argument)
+/* Set by the holder once it owns the lock, so the caller submits while it is held. */
+static atomic_bool lock_held;
+
+/* Takes the lock it is given, holds it for 20 ms and releases it. */
+static void *hold_lock_briefly(void *argument)
 {
 	pthread_mutex_t *lock = argument;
 	struct timespec pause = { .tv_nsec = 20000000L };
 
+	(void)pthread_mutex_lock(lock);
+	atomic_store(&lock_held, true);
 	(void)nanosleep(&pause, NULL);
 	(void)pthread_mutex_unlock(lock);
 	return NULL;
@@ -295,8 +301,10 @@ static void test_queue(void)
 	assert(strcmp(state.lines[0], "DATA; exact payload") == 0);
 
 	/* A briefly held lock delays the caller; the line is kept, as the sender only copies. */
-	assert(pthread_mutex_lock(&state.lock) == 0);
-	assert(pthread_create(&holder, NULL, release_after_pause, &state.lock) == 0);
+	atomic_init(&lock_held, false);
+	assert(pthread_create(&holder, NULL, hold_lock_briefly, &state.lock) == 0);
+	while (!atomic_load(&lock_held))
+		sched_yield();
 	mqtt_submit("contended");
 	assert(pthread_join(holder, NULL) == 0);
 	assert(state.count == 2U);
