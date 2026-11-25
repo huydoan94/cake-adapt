@@ -8,6 +8,10 @@ product.
 
 Older entries use `upload_ack_share_min`, now named `ul_congest_ack_share`.
 
+## 2026-11-25-native-icmp
+
+Kernel send stamps for the native pinger (planned for 1.0.4) against 1.0.2's native probes and fping, on VM .2 with tcpdump on the testbed's WAN side as the reference for every probe. `sendto()` can first run the kernel's pending network work, so the clock read before it (as native and fping did) was up to 0.9 ms early under load; the qdisc-entry stamp (`SOF_TIMESTAMPING_TX_SCHED`) was within a few µs of the wire. Median RTT error over three rounds fell from 58 to 34 µs idle, 254 to 220 µs under upload (p95 1,475 to 948) and 480 to 410 µs under download (p95 2,029 to 1,536), with bidirectional within the spread; fping read 50, 317 and 546 µs. IPv6 works the same way. Replies reach the controller in about half fping's time (median 123 against 227 µs idle). CPU is within the spread of 1.0.2 and below fping under load, memory 2,750 against 3,510 kB, and system calls 7,259 against 7,185 (fping 11,197). The remaining error is on the receive side, where the kernel stamps a reply only after the IFB redirect, for fping as for native.
+
 ## 2026-10-28-snapshot-1.0
 
 1.0.0 on the OpenWrt snapshot (x86_64), the test platform since 2026-10-27, against 0.3.30: lifecycle 27 of 30 (the known failure after the ubusd restart, and two because the snapshot's procd does not start `ubusd` again); under load the builds overlap in every phase once enough rounds are run; CPU (0.47-0.68% of one core), memory (about 2,690 kB) and system calls (7,008, 77 `futex`) are the same within the spread.
