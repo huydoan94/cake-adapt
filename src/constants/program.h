@@ -5,7 +5,7 @@
 
 #include "constants/units.h"
 
-#define CLI_OPTIONS "C:DLfS:Vh"
+#define CLI_OPTIONS "C:DLfS:Vhv"
 #define PROGRAM_NAME "cake-adapt"
 /* Set by the build from the package version; other builds report "unknown". */
 #ifndef PROGRAM_VERSION

@@ -444,7 +444,7 @@ function rootOnlyLeftovers(sections) {
 }
 
 return view.extend({
-	/* Exposed for tests/luci_config.js. */
+	/* Exposed for the unit tests in the cake-adapt repository (tests/luci_config.js). */
 	instanceErrors, reflectorError, reflectorTooLong, latencyChecked, defaults, scales, parseFeatures,
 	parseDefaults, rootOnlyLeftovers,
 

@@ -33,6 +33,9 @@ MQTT_SOURCE := logging/mqtt_none.c
 MQTT_LIBS :=
 endif
 
+# Warnings fail the build here and in CI; a distribution build may set WERROR empty, so a
+# new compiler's new warning does not break a package nobody has rebuilt yet.
+WERROR ?= -Werror
 WARNINGS := \
 	-Wall \
 	-Wextra \
@@ -40,7 +43,7 @@ WARNINGS := \
 	-Wformat=2 \
 	-Wshadow \
 	-Wconversion \
-	-Werror
+	$(WERROR)
 
 TARGET := cake-adapt
 SOURCES := \
@@ -132,7 +135,7 @@ $(OBJECT_DIR)/tcpdelay/capture.o $(OBJECT_DIR)/tcpdelay/injector.o: OBJECT_CFLAG
 # Kernel BPF objects carry BTF for libbpf, but not the DWARF debug sections.
 $(BPF_OBJECT): tcpdelay/tcpdelay.bpf.c
 	@mkdir -p $(@D)
-	$(BPF_CLANG) -O2 -g -target $(BPF_TARGET) -I$(CURDIR) -I$(CURDIR)/tcpdelay/include $(BPF_INCLUDES) -Wall -Wextra -Werror -MMD -MP -c -o $@ $<
+	$(BPF_CLANG) -O2 -g -target $(BPF_TARGET) -I$(CURDIR) -I$(CURDIR)/tcpdelay/include $(BPF_INCLUDES) -Wall -Wextra $(WERROR) -MMD -MP -c -o $@ $<
 	$(if $(BPF_STRIP),$(BPF_STRIP) --strip-debug $@)
 	@# LLVM 20+ compiles code it proves unreachable to a call of the __bpf_trap
 	@# kfunc; loading it needs kernel BTF, which OpenWrt kernels do not ship.

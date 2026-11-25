@@ -101,6 +101,7 @@ tail -f /var/log/cake-adapt.log   # what it measures and decides
 After a configuration change, run `/etc/init.d/cake-adapt reload`. If the new
 configuration is refused, cake-adapt keeps the old one and logs why. With
 several instances, add the section name: `/etc/init.d/cake-adapt restart main`.
+`cake-adapt -v` prints the installed version.
 
 Logs stay in RAM (`/var/log`), so nothing is written to flash.
 

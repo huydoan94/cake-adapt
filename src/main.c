@@ -28,8 +28,11 @@ static void print_usage(const char *program_name)
 {
 	(void)fprintf(
 		stderr,
+		"%s %s\n"
 		"Usage: %s [-f] [-V] [-C UCI_CONFIG_FILE] [-S UCI_SECTION]\n"
-		"       %s -L | -D\n",
+		"       %s -v | -L | -D\n",
+		PROGRAM_NAME,
+		PROGRAM_VERSION,
 		program_name,
 		program_name
 	);
@@ -39,7 +42,8 @@ struct options {
 	const char *config_path;
 	const char *section_name;
 	bool foreground;
-	/* -L lists the options, -D their built-in defaults. */
+	/* -v prints the version, -L lists the options, -D their built-in defaults. */
+	bool version;
 	bool list;
 	bool defaults;
 	bool section_selected;
@@ -49,10 +53,14 @@ struct options {
 /* Returns -1 to continue, or the exit code. */
 static int parse_options(int argc, char **argv, struct options *options)
 {
+	unsigned int alone;
 	int option;
 
 	while ((option = getopt(argc, argv, CLI_OPTIONS)) != -1) {
 		switch (option) {
+		case 'v':
+			options->version = true;
+			break;
 		case 'C':
 			options->config_path = optarg;
 			break;
@@ -80,11 +88,12 @@ static int parse_options(int argc, char **argv, struct options *options)
 			return 2;
 		}
 	}
-	/* -L and -D each stand alone. */
+	/* -v, -L and -D each stand alone. */
+	alone = (unsigned int)options->version + (unsigned int)options->list +
+		(unsigned int)options->defaults;
 	if (optind != argc ||
-	    ((options->list || options->defaults) &&
-	     (options->list == options->defaults || options->config_path != NULL ||
-	      options->foreground || options->section_selected || options->validate_only))) {
+	    (alone > 0U && (alone > 1U || options->config_path != NULL || options->foreground ||
+			    options->section_selected || options->validate_only))) {
 		print_usage(argv[0]);
 		return 2;
 	}
@@ -174,6 +183,8 @@ int main(int argc, char **argv)
 	ret = parse_options(argc, argv, &options);
 	if (ret >= 0)
 		return ret;
+	if (options.version)
+		return printf("%s %s\n", PROGRAM_NAME, PROGRAM_VERSION) < 0 ? 1 : 0;
 	if (options.list)
 		return config_print_options();
 	if (options.defaults)

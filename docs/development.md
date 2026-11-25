@@ -287,7 +287,9 @@ make -C tests check check-netlink OBJECT_DIR=../build/sanitize \
 
 The production daemon itself is built with strict warnings, including
 `-Wall`, `-Wextra`, `-Wpedantic`, `-Wformat=2`, `-Wshadow`, `-Wconversion`, and
-`-Werror`.
+`-Werror`. `-Werror` comes from `WERROR`, which this repository's package and CI
+keep; the OpenWrt packages feed builds with `WERROR=` (empty), so a newer
+compiler's new warning there does not break the package.
 
 The ordinary logging tests use an MQTT stub, and `test_mqtt_none` checks the
 `cake-adapt` package's no-op sender. `check-config` builds the configuration
