@@ -1,7 +1,7 @@
 {
   "title": "cake-adapt: current code flowcharts",
-  "sourceCommit": "9840dce",
-  "packageVersion": "1.0.3-r1",
+  "sourceCommit": "71b2ded",
+  "packageVersion": "1.0.4-r1",
   "graphviz": "16.1.0 (@hpcc-js/wasm-graphviz)",
   "chartCount": 16,
   "sourceSha256": {
@@ -20,7 +20,7 @@
     "src/daemon/child_pingers.c": "235003e5b16f307329ee25811cc323acb809d758f638e69c8b9cc6ab37d89dda",
     "src/daemon/daemon.c": "b995a705cf29c5f5b17b04c75b963653b8f147a52a3176ac2a011a12f4d6fbac",
     "src/daemon/links.c": "feaf8f33ff14db9ca4b5d5f06ebcf2cea76f562336d480f3cce501c88a58fe1e",
-    "src/daemon/native_pinger.c": "ea727c2388e65b4e6644fa4852801e78beee5e1551aee05e1db11aaf863f4a90",
+    "src/daemon/native_pinger.c": "cbde89c1c4467bc27d341de2205de0f76a20eab6dcb3cb8e9a80f5736029d21a",
     "src/daemon/pingers.c": "0a87185e59694e8658296766f35a39b1cd8e1d21e8359efe5e1d2e93bba58a96",
     "src/daemon/publish.c": "daac2cf2b319c15243cc4961bad6f991efe0bf477942d8a60033cca36ce60e71",
     "src/daemon/reflectors.c": "86ffb6dec916ade183098d562e7646fa6bdc2277dfa7bf095fc2bcabb14b0a7c",
@@ -29,7 +29,7 @@
     "src/daemon/upkeep.c": "c311216f0250ef5b724c58676bda8342e80c0a3790a09e2b4a9a0a4e6562f719",
     "src/latency/children.c": "3d439e236260b60ebea26b5d837a5728e176969e39d4fa356d0228fc54ffd405",
     "src/latency/fping.c": "4bdf69e369b668152c58a4119295b369cf50f4207ca37d51aee7348137fae381",
-    "src/latency/icmp.c": "3d6e31bae0b93c83a6a04628aae4c85d65235ef1d9084dea9fa412cfe027d857",
+    "src/latency/icmp.c": "6d7abc6df769b1ea4b52b3538a8ca1e307d3c5fa597c89c32f273b29e8d4a5b7",
     "src/latency/latency.c": "011ea66fcd0249fde44913873618c1330dfebe5ba65ed4e1e9fc394534cd13e2",
     "src/latency/native.c": "274e1afc668de1b86c9621991bdfa27f1ef27e630fd75cc897a293719f69e231",
     "src/latency/parser.c": "ff77a54de9a3377fe0366a81833f0d0a7c09c340676e98360e934ceb7f6d7739",

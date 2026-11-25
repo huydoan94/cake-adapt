@@ -1162,7 +1162,7 @@
         },
         {
           "id": "native",
-          "label": "native_open + icmp_open\nbind interface; filter ID/type;\ntime64 kernel receive timestamps",
+          "label": "native_open + icmp_open\nbind interface; filter ID/type;\ntime64 kernel send and receive timestamps",
           "kind": "process"
         },
         {
@@ -1172,12 +1172,12 @@
         },
         {
           "id": "nativewatch",
-          "label": "uloop_fd + probe timer\nno child or output pipe",
+          "label": "uloop_fd (with error events) + probe timer\nno child or output pipe",
           "kind": "process"
         },
         {
           "id": "nativetick",
-          "label": "expire requests; send at most one\nadvance evenly-spaced target",
+          "label": "expire requests; send at most one,\nsend time = kernel qdisc-entry stamp\nadvance evenly-spaced target",
           "kind": "process"
         },
         {

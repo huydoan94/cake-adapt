@@ -6,10 +6,10 @@ digraph G {
   ready [label="CAKE ready, no old children\nstopping, retry time reached?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   wait [label="return; retried on the\nnext tick or child exit",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   method [label="pinger_method",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  native [label="native_open + icmp_open\nbind interface; filter ID/type;\ntime64 kernel receive timestamps",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  native [label="native_open + icmp_open\nbind interface; filter ID/type;\ntime64 kernel send and receive timestamps",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   nativeok [label="sockets and watches ready?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
-  nativewatch [label="uloop_fd + probe timer\nno child or output pipe",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  nativetick [label="expire requests; send at most one\nadvance evenly-spaced target",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  nativewatch [label="uloop_fd (with error events) + probe timer\nno child or output pipe",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  nativetick [label="expire requests; send at most one,\nsend time = kernel qdisc-entry stamp\nadvance evenly-spaced target",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   nativereply [label="recvmsg: parse wire + timestamp\nmatch address/ID/sequence,\ntoken/serial or originate",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   nativeignore [label="ignore foreign, duplicate\nor expired datagram",shape=box,style="rounded,filled,bold",fillcolor="#dcfce7",color="#15803d"];
   fping [label="fping_open\none fping for all active targets",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
