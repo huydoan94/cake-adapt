@@ -16,7 +16,7 @@ digraph G {
   keep [label="syslog error: refused;\nkeep previous file,\nregister unchanged",shape=note,style="filled",fillcolor="#f4f4f5",color="#71717a"];
   reject [label="syslog error;\ninstance not started",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];
   procd [label="register with procd: respawn 3600 5 0\n(never gives up), term_timeout 5,\nwatch <section>.uci; restarted only\nif changed (always on restart)",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
-  cli [label="main(): getopt -C -S -f -V -L",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
+  cli [label="main(): getopt -C -S -f -V -L -D -v",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   config [label="defaults_apply → uci_load → section\n→ typed options → resolve_interfaces\n→ config_validate",shape=box,style="rounded,filled",fillcolor="#e9f2ff",color="#3676b9"];
   configok [label="configuration valid?",shape=diamond,style="filled",fillcolor="#fff0cc",color="#b7791f"];
   fail [label="log error; exit 1",shape=box,style="rounded,filled",fillcolor="#ffe3e0",color="#c2413b"];

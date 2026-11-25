@@ -188,7 +188,7 @@
         "config_file names a cake-autorate-format Bash file. It, ping_prefix_string, ping_extra_args and log_file_path_override make root run something, choose its arguments or choose where it writes, so the importer reads them only from the root-only /etc/cake-adapt/exec, which LuCI cannot write; any of them set in /etc/config/cake-adapt refuses the import. The importer is plain sh; a separate Bash reader sources the file in a child process, and the importer writes the recognized options the UCI section leaves unset into the staged UCI copy: UCI wins.",
         "config_load applies built-in defaults first, then reads the typed UCI options, resolves the interface pair, and runs config_validate.",
         "A disabled configuration is reported to syslog and exits successfully. An invalid configuration is reported and exits with status 1.",
-        "Before the log file, main takes an exclusive non-blocking lock on /var/run/cake-adapt/<section>.lock and writes its pid there. A second daemon with a running instance's name logs \"instance '<section>' is already running (pid N); exiting\" and exits with status 1; the first keeps running. The kernel releases the lock when the process exits, so procd respawn and restart work. -V and -L take no lock.",
+        "Before the log file, main takes an exclusive non-blocking lock on /var/run/cake-adapt/<section>.lock and writes its pid there. A second daemon with a running instance's name logs \"instance '<section>' is already running (pid N); exiting\" and exits with status 1; the first keeps running. The kernel releases the lock when the process exits, so procd respawn and restart work. -V, -L, -D and -v take no lock.",
         "Rate control stays opt-in. With both adjust flags off, the daemon runs in observation-only mode.",
         "After opening the instance log file, main starts the optional MQTT sender before startup records. MQTT defaults off and its configuration is validated with the other UCI settings. Network failures do not stop the daemon. In the cake-adapt package (no MQTT) a start with mqtt_enabled on fails and main logs \"MQTT logging degraded: ...\" as a warning; the instance runs and controls as usual."
       ],
@@ -265,7 +265,7 @@
         },
         {
           "id": "cli",
-          "label": "main(): getopt -C -S -f -V -L",
+          "label": "main(): getopt -C -S -f -V -L -D -v",
           "kind": "process"
         },
         {

@@ -237,7 +237,7 @@ signal, such as `kill -TERM <pid>` with the pid from
 
 ```json
 {
-	"version": "1.0.2-r1",
+	"version": "1.0.3-r1",
 	"pid": 4767,
 	"started": 1791666047,
 	"state": "running",
